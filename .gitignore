@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude / tooling
+.claude/
+.playwright-mcp/
+
+# Verification screenshots
+verify-*.png
+
+# Environment
+.env
+.env.*
