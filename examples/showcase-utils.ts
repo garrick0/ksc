@@ -18,7 +18,7 @@ const TEMP_PROJECT = path.join(TEMP_DIR, 'project');
 const DASHBOARD_HTML = path.join(PROJECT_ROOT, 'docs', 'compiler-dashboard.html');
 
 const REMOTE_URL = 'git@github.com:garrick0/ksc.git';
-const FIXED_COMMIT = 'afa024b74c303f4febec6d144c5d851b8a110037';
+const FIXED_COMMIT = 'a58632bcb41f12d6c737c0f27742f329f0d1204f';
 
 // ── User prompt ─────────────────────────────────────────────────────────
 
