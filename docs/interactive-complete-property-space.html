@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Complete Space of Program Properties</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* Hero */
+.hero {
+  text-align: center; padding: 64px 24px 48px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 2.2rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 12px;
+}
+.hero .subtitle { font-size: 1.05rem; color: var(--text-dim); max-width: 680px; margin: 0 auto 18px; }
+.badge-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.73rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.b { border-color: var(--accent); color: var(--accent); }
+.badge.p { border-color: var(--accent2); color: var(--accent2); }
+.badge.g { border-color: var(--green); color: var(--green); }
+.badge.c { border-color: var(--cyan); color: var(--cyan); }
+.badge.o { border-color: var(--orange); color: var(--orange); }
+
+/* Nav */
+nav.toc {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+nav.toc .container { display: flex; gap: 4px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+nav.toc .container::-webkit-scrollbar { display: none; }
+.tl {
+  padding: 6px 12px; border-radius: 6px; font-size: 0.73rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.tl:hover { color: var(--text); background: var(--surface); }
+
+/* Sections */
+section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+h2 .n {
+  display: inline-block; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.78rem;
+  text-align: center; line-height: 32px; margin-right: 10px; font-weight: 800;
+}
+.ss { color: var(--text-dim); margin-bottom: 22px; font-size: 0.9rem; }
+h3 { font-size: 1.05rem; font-weight: 700; color: var(--accent2); margin: 22px 0 10px; }
+p { margin-bottom: 14px; }
+code { font-family: var(--mono); font-size: 0.84em; background: var(--surface2); padding: 2px 7px; border-radius: 4px; }
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; overflow-x: auto; font-family: var(--mono); font-size: 0.8em;
+  line-height: 1.6; margin: 12px 0 16px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+.kw { color: #c792ea; } .fn { color: #82aaff; } .cmt { color: #546e7a; font-style: italic; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin: 14px 0; }
+.ca { border-left: 3px solid var(--accent); }
+.cw { border-left: 3px solid var(--orange); }
+.cg { border-left: 3px solid var(--green); }
+.cr { border-left: 3px solid var(--red); }
+.cc { border-left: 3px solid var(--cyan); }
+.cp { border-left: 3px solid var(--accent2); }
+
+/* Table */
+table.t { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.83rem; }
+table.t th, table.t td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+table.t th { color: var(--accent); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Expandable */
+.exp { cursor: pointer; }
+.exp-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+.exp.open .exp-body { max-height: 600px; }
+.exp-head { display: flex; align-items: center; gap: 10px; }
+.exp-arrow { transition: transform 0.25s; font-size: 0.8rem; color: var(--text-dim); }
+.exp.open .exp-arrow { transform: rotate(90deg); }
+
+/* Axis cards */
+.axis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+@media (max-width: 640px) { .axis-grid { grid-template-columns: 1fr; } }
+.axis-card {
+  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  padding: 16px; cursor: pointer; transition: all 0.25s; position: relative;
+}
+.axis-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.axis-card.active { border-color: var(--accent2); background: var(--surface2); }
+.axis-label { font-weight: 700; font-size: 0.88rem; margin-bottom: 4px; }
+.axis-desc { font-size: 0.78rem; color: var(--text-dim); }
+.axis-tag {
+  position: absolute; top: 8px; right: 8px; font-size: 0.62rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px; text-transform: uppercase;
+  background: rgba(167,139,250,0.15); color: var(--accent2);
+}
+
+/* Detail panel */
+.axis-detail { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 14px 0; }
+.axis-detail.visible { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; } }
+
+/* Onion rings SVG */
+.onion-wrap { display: flex; justify-content: center; margin: 20px 0; overflow-x: auto; }
+.onion-wrap svg { min-width: 600px; }
+.onion-ring { cursor: pointer; transition: opacity 0.25s; }
+.onion-ring:hover { opacity: 0.85; }
+
+/* Flashcard */
+.fc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin: 10px 0; cursor: pointer; transition: all 0.2s; }
+.fc:hover { border-color: var(--accent); }
+.fc-q { font-weight: 600; margin-bottom: 4px; }
+.fc-a { color: var(--text-dim); max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.fc.open .fc-a { max-height: 400px; }
+.fc-h { font-size: 0.73rem; color: var(--text-dim); font-style: italic; }
+
+/* Compare grid */
+.cg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+@media (max-width: 640px) { .cg2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>The Complete Space of Program Properties</h1>
+  <p class="subtitle">Is there a finite set of orthogonal axes that classifies <em>all possible</em> properties of code? Mathematics says no &mdash; but it gives us something better: a handful of decomposition theorems, each provably complete for its scope.</p>
+  <div class="badge-row">
+    <span class="badge b">5 Fundamental Axes</span>
+    <span class="badge p">6 Completeness Theorems</span>
+    <span class="badge o">Provably Infinite</span>
+    <span class="badge g">Stone Duality</span>
+    <span class="badge c">Coalgebra</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="toc"><div class="container">
+  <a class="tl" href="#s1">The Answer</a>
+  <a class="tl" href="#s2">5 Axes</a>
+  <a class="tl" href="#s3">Completeness Onion</a>
+  <a class="tl" href="#s4">Decompositions</a>
+  <a class="tl" href="#s5">Why Infinite</a>
+  <a class="tl" href="#s6">Mapping the 7</a>
+  <a class="tl" href="#s7">Deepest Answer</a>
+  <a class="tl" href="#s8">References</a>
+  <a class="tl" href="#s9">Quiz</a>
+</div></nav>
+
+<!-- §1 THE ANSWER -->
+<section id="s1"><div class="container">
+  <h2><span class="n">1</span> The Answer</h2>
+  <p class="ss">Can we partition all possible properties into non-overlapping categories?</p>
+
+  <div class="cg2">
+    <div class="card cr">
+      <h3 style="color:var(--red)">No finite taxonomy is complete</h3>
+      <p style="font-size:0.86rem;margin:0">The space of all program properties is <strong>provably infinite-dimensional</strong>. The arithmetic hierarchy has infinitely many strict levels. The Wadge hierarchy (the finest topological classification) is transfinite. No finite set of axes spans the space.</p>
+    </div>
+    <div class="card cg">
+      <h3 style="color:var(--green)">But mathematics gives us structure</h3>
+      <p style="font-size:0.86rem;margin:0">Several powerful <strong>decomposition theorems</strong> each provide completeness along a specific axis. Together they tile the landscape remarkably well. The space is infinite but richly structured.</p>
+    </div>
+  </div>
+
+  <div class="card ca">
+    <p style="margin:0"><strong>The deepest answer (Abramsky 1991):</strong> The space of all observable properties of a program is the <strong>Scott topology</strong> on the denotational domain. Semantics and logic are <strong>Stone duals</strong> &mdash; each determines the other up to isomorphism. The lattice of open sets IS the complete logic of all finitely observable properties. This is as complete as mathematics can make it &mdash; but it's an infinite topological space, not a finite list.</p>
+  </div>
+</div></section>
+
+<!-- §2 FIVE AXES -->
+<section id="s2"><div class="container">
+  <h2><span class="n">2</span> Five Principal Axes</h2>
+  <p class="ss">While the full space is infinite, five axes capture the major qualitative distinctions. Each is backed by a mathematical decomposition theorem. Click to explore.</p>
+
+  <div class="axis-grid" id="axisGrid">
+    <div class="axis-card" data-ax="sl" onclick="showAxis('sl')">
+      <span class="axis-tag">Alpern-Schneider 1985</span>
+      <div class="axis-label">Axis 1: Safety vs Liveness</div>
+      <div class="axis-desc">Is the property violated by a finite prefix, or only by infinite behavior?</div>
+    </div>
+    <div class="axis-card" data-ax="th" onclick="showAxis('th')">
+      <span class="axis-tag">Clarkson-Schneider 2010</span>
+      <div class="axis-label">Axis 2: Trace vs Hyper</div>
+      <div class="axis-desc">Property of one execution, or a relationship between multiple executions?</div>
+    </div>
+    <div class="axis-card" data-ax="ei" onclick="showAxis('ei')">
+      <span class="axis-tag">Rice 1953 / Baldan 2021</span>
+      <div class="axis-label">Axis 3: Extensional vs Intensional</div>
+      <div class="axis-desc">About what the program computes, or how it computes it?</div>
+    </div>
+    <div class="axis-card" data-ax="qq" onclick="showAxis('qq')">
+      <span class="axis-tag">Quantitative Verification</span>
+      <div class="axis-label">Axis 4: Qualitative vs Quantitative</div>
+      <div class="axis-desc">Boolean (yes/no) or measured (how much)?</div>
+    </div>
+    <div class="axis-card" data-ax="lb" onclick="showAxis('lb')">
+      <span class="axis-tag">Van Glabbeek 1990</span>
+      <div class="axis-label">Axis 5: Linear-time vs Branching-time</div>
+      <div class="axis-desc">Only execution traces matter, or the full tree of possible futures?</div>
+    </div>
+  </div>
+
+  <!-- Detail panels -->
+  <div class="axis-detail" id="det-sl">
+    <h3>Safety vs Liveness</h3>
+    <p><strong>Theorem (Alpern &amp; Schneider 1985):</strong> Every trace property P uniquely decomposes as P = S &cap; L, where S is a safety property and L is a liveness property.</p>
+    <table class="t">
+      <tr><th>Safety (closed sets)</th><th>Liveness (dense sets)</th></tr>
+      <tr><td>"Nothing bad ever happens"</td><td>"Something good eventually happens"</td></tr>
+      <tr><td>Violated by a <em>finite</em> prefix</td><td>Can <em>never</em> be violated by a finite prefix</td></tr>
+      <tr><td>Type safety, memory safety, <code>noIO</code></td><td>Termination, eventual response, fairness</td></tr>
+      <tr><td>Topologically <strong>closed</strong></td><td>Topologically <strong>dense</strong></td></tr>
+    </table>
+    <p style="font-size:0.86rem">This is the most fundamental binary decomposition. It refines into the <strong>Manna-Pnueli hierarchy</strong> (1990): Safety, Guarantee, Obligation, Recurrence, Persistence, Reactivity &mdash; six classes that are <em>complete</em> for all omega-regular properties, corresponding exactly to the first two levels of the Borel hierarchy.</p>
+  </div>
+
+  <div class="axis-detail" id="det-th">
+    <h3>Trace vs Hyper</h3>
+    <p><strong>Theorem (Clarkson &amp; Schneider 2010):</strong> Every hyperproperty decomposes as HP = HS &cap; HL, where HS is hypersafety and HL is hyperliveness.</p>
+    <table class="t">
+      <tr><th>Level</th><th>What it is</th><th>Example</th></tr>
+      <tr><td><strong>Trace property</strong></td><td>Set of individual traces</td><td>"The program never writes to disk"</td></tr>
+      <tr><td><strong>k-Safety</strong></td><td>Relates k traces</td><td>Noninterference (2-safety): varying secret input doesn't change public output</td></tr>
+      <tr><td><strong>Hypersafety</strong></td><td>All finite subsets of traces must satisfy</td><td>Observational determinism</td></tr>
+      <tr><td><strong>Hyperliveness</strong></td><td>Every finite set of traces can be extended</td><td>Generalized noninterference (GNI)</td></tr>
+    </table>
+    <p style="font-size:0.86rem">Effects and capabilities are <strong>trace properties</strong> &mdash; they describe individual executions. Noninterference, differential privacy, and other security properties are <strong>hyperproperties</strong> &mdash; they inherently require comparing multiple executions. The quantifier alternation hierarchy of HyperLTL is <em>strict</em>: more alternations give strictly more expressiveness.</p>
+  </div>
+
+  <div class="axis-detail" id="det-ei">
+    <h3>Extensional vs Intensional</h3>
+    <p><strong>Theorem (Rice 1953):</strong> Every non-trivial extensional property of programs is undecidable.</p>
+    <p><strong>Theorem (Baldan, Ranzato, Zhang 2021):</strong> Even for abstract (intensional) semantics like complexity classes or loop invariants, every non-trivial property is undecidable.</p>
+    <table class="t">
+      <tr><th>Extensional (what)</th><th>Intensional (how)</th></tr>
+      <tr><td>Depends only on input-output function</td><td>Depends on implementation/structure</td></tr>
+      <tr><td>Always undecidable if non-trivial (Rice)</td><td>CAN be decidable (syntactic checks)</td></tr>
+      <tr><td>"Is this function total?"</td><td>"Does this code use a loop?"</td></tr>
+      <tr><td>"Do these programs compute the same function?"</td><td>"Does this program have &lt;100 lines?"</td></tr>
+    </table>
+    <p style="font-size:0.86rem">This is not a clean binary but a <strong>spectrum</strong> parameterized by abstraction level. Baldan et al. showed that between "full extensional" and "pure syntax" lies a lattice of abstract semantics, each with its own Rice-like impossibility result. KindScript lives on the intensional side (AST pattern matching), which is why its properties are decidable.</p>
+  </div>
+
+  <div class="axis-detail" id="det-qq">
+    <h3>Qualitative vs Quantitative</h3>
+    <p>Properties can have different <strong>value domains</strong>:</p>
+    <table class="t">
+      <tr><th>Qualitative (boolean)</th><th>Quantitative (measured)</th></tr>
+      <tr><td>"Is this function pure?" &rarr; yes/no</td><td>"What is the time complexity?" &rarr; O(n log n)</td></tr>
+      <tr><td>"Does this terminate?" &rarr; yes/no</td><td>"What is the probability of termination?" &rarr; 0.97</td></tr>
+      <tr><td>Lives in {true, false}</td><td>Lives in N, R, polynomials, distributions</td></tr>
+    </table>
+    <p style="font-size:0.86rem"><strong>RAML</strong> (Hoffmann et al.) automatically infers polynomial resource bounds via type-level potentials. <strong>Quantitative information flow</strong> measures leakage in bits. <strong>Probabilistic model checking</strong> (PRISM) computes reachability probabilities. These are fundamentally different from boolean checks &mdash; the "lattice" for quantitative properties is ordered numeric domains, not {true, false}.</p>
+    <p style="font-size:0.86rem">KindScript already has one quantitative property: <code>maxFanOut</code>.</p>
+  </div>
+
+  <div class="axis-detail" id="det-lb">
+    <h3>Linear-time vs Branching-time</h3>
+    <p><strong>Van Glabbeek (1990)</strong> catalogued a complete lattice of behavioral equivalences for concurrent processes:</p>
+    <pre><code>  bisimulation      <span class="cmt">(finest: sees full branching structure)</span>
+      |
+  ready simulation
+      |
+  simulation
+      |
+  possible futures
+      |
+  failure traces
+      |
+  failures / readiness
+      |
+  completed traces
+      |
+  trace equivalence  <span class="cmt">(coarsest: only sees execution paths)</span></code></pre>
+    <p style="font-size:0.86rem">This is not just a theoretical curiosity. The <strong>spectroscopy game</strong> (Bisping et al. 2021) showed that for labeled transition systems, the entire spectrum can be parameterized by <strong>8 energy dimensions</strong> measuring distinguishing formula complexity. For any pair of systems, the game determines exactly which equivalences from the spectrum distinguish them.</p>
+    <p style="font-size:0.86rem">The <strong>Janin-Walukiewicz theorem (1996)</strong> provides a completeness result: the modal mu-calculus is exactly the bisimulation-invariant fragment of monadic second-order logic (MSO). This is the "universal logic" for branching-time properties preserved by bisimulation.</p>
+  </div>
+</div></section>
+
+<!-- §3 COMPLETENESS ONION -->
+<section id="s3"><div class="container">
+  <h2><span class="n">3</span> The Completeness Onion</h2>
+  <p class="ss">Six frameworks, each provably complete for its scope. Click a ring to see what it covers.</p>
+
+  <div class="onion-wrap">
+    <svg viewBox="0 0 640 440" width="640" height="440" id="onionSvg">
+      <!-- Rings (outermost to innermost) -->
+      <ellipse class="onion-ring" data-ring="cousot" cx="320" cy="220" rx="300" ry="200" fill="none" stroke="rgba(248,113,113,0.3)" stroke-width="2" onclick="showRing('cousot')"/>
+      <text x="320" y="32" text-anchor="middle" fill="#f87171" font-size="11" font-weight="600" opacity="0.8">All Abstractions (Cousot)</text>
+
+      <ellipse class="onion-ring" data-ring="abramsky" cx="320" cy="225" rx="250" ry="165" fill="none" stroke="rgba(167,139,250,0.3)" stroke-width="2" onclick="showRing('abramsky')"/>
+      <text x="578" y="135" text-anchor="end" fill="#a78bfa" font-size="10" font-weight="600" opacity="0.8">Observable (Abramsky)</text>
+
+      <ellipse class="onion-ring" data-ring="clarkson" cx="320" cy="228" rx="200" ry="132" fill="none" stroke="rgba(34,211,238,0.3)" stroke-width="2" onclick="showRing('clarkson')"/>
+      <text x="528" y="175" text-anchor="end" fill="#22d3ee" font-size="10" font-weight="600" opacity="0.8">Hyperproperties (Clarkson)</text>
+
+      <ellipse class="onion-ring" data-ring="alpern" cx="320" cy="230" rx="155" ry="102" fill="none" stroke="rgba(74,222,128,0.3)" stroke-width="2" onclick="showRing('alpern')"/>
+      <text x="484" y="200" text-anchor="end" fill="#4ade80" font-size="10" font-weight="600" opacity="0.8">Trace props (Alpern)</text>
+
+      <ellipse class="onion-ring" data-ring="manna" cx="320" cy="232" rx="110" ry="74" fill="none" stroke="rgba(251,191,36,0.3)" stroke-width="2" onclick="showRing('manna')"/>
+      <text x="438" y="228" text-anchor="end" fill="#fbbf24" font-size="10" font-weight="600" opacity="0.8">Omega-regular (Manna)</text>
+
+      <ellipse class="onion-ring" data-ring="mucalc" cx="320" cy="234" rx="68" ry="46" fill="none" stroke="rgba(108,140,255,0.4)" stroke-width="2" onclick="showRing('mucalc')"/>
+      <text x="320" y="238" text-anchor="middle" fill="#6c8cff" font-size="10" font-weight="600">Mu-calculus</text>
+
+      <!-- KindScript marker -->
+      <rect x="285" y="254" width="70" height="14" rx="3" fill="rgba(74,222,128,0.25)" stroke="#4ade80" stroke-width="1"/>
+      <text x="320" y="264" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="700">KindScript</text>
+    </svg>
+  </div>
+
+  <div class="axis-detail" id="ring-detail" style="display:none">
+    <!-- Filled by JS -->
+  </div>
+
+  <div class="card">
+    <p style="margin:0;font-size:0.86rem"><strong>Reading the onion:</strong> Each ring is a framework that is provably <em>complete</em> for its scope. Inner rings are narrower but more precise. The outermost ring (Cousot's abstract interpretation lattice) captures every possible sound approximation but is an infinite, non-computable object. KindScript lives near the center &mdash; checking decidable, syntactic, omega-regular safety properties of individual traces.</p>
+  </div>
+</div></section>
+
+<!-- §4 DECOMPOSITION THEOREMS -->
+<section id="s4"><div class="container">
+  <h2><span class="n">4</span> The Decomposition Theorems</h2>
+  <p class="ss">Each theorem carves the infinite space along one axis. Click to expand.</p>
+
+  <div class="card exp" onclick="this.classList.toggle('open')">
+    <div class="exp-head">
+      <span class="exp-arrow">&#9654;</span>
+      <strong>Alpern-Schneider (1985): P = Safety &cap; Liveness</strong>
+    </div>
+    <div class="exp-body">
+      <p style="margin-top:12px">Every trace property uniquely decomposes. Safety = closed in Cantor topology (bad prefix is irrecoverable). Liveness = dense (every finite prefix can be extended to satisfy). The safety component S = topological closure of P. This was inspired by Gordon Plotkin's observation connecting topology to verification.</p>
+      <p style="font-size:0.85rem;color:var(--text-dim)"><strong>Scope:</strong> All trace properties of reactive systems. <strong>Does NOT cover:</strong> Hyperproperties, quantitative properties.</p>
+    </div>
+  </div>
+
+  <div class="card exp" onclick="this.classList.toggle('open')">
+    <div class="exp-head">
+      <span class="exp-arrow">&#9654;</span>
+      <strong>Clarkson-Schneider (2010): HP = Hypersafety &cap; Hyperliveness</strong>
+    </div>
+    <div class="exp-body">
+      <p style="margin-top:12px">The same decomposition lifts to hyperproperties (sets of sets of traces). Hypersafety = violated by a finite set of finite-length traces. Hyperliveness = every finite set of finite traces can be extended. The quantifier alternation hierarchy of HyperLTL is <em>strict</em> &mdash; each level is properly more expressive.</p>
+      <p style="font-size:0.85rem;color:var(--text-dim)"><strong>Scope:</strong> All hyperproperties. <strong>Does NOT cover:</strong> Second-order hyperproperties (quantifying over sets of traces), probabilistic properties.</p>
+    </div>
+  </div>
+
+  <div class="card exp" onclick="this.classList.toggle('open')">
+    <div class="exp-head">
+      <span class="exp-arrow">&#9654;</span>
+      <strong>Manna-Pnueli (1990): Six-class hierarchy for omega-regular properties</strong>
+    </div>
+    <div class="exp-body">
+      <p style="margin-top:12px">Refines safety/liveness into six classes: Safety, Guarantee, Obligation, Recurrence, Persistence, Reactivity. These correspond exactly to the first two levels of the Borel hierarchy on Cantor space. The Reactivity class = ALL omega-regular properties.</p>
+      <table class="t">
+        <tr><th>Class</th><th>Borel level</th><th>Intuition</th></tr>
+        <tr><td>Safety</td><td>&Pi;<sup>0</sup><sub>1</sub> (closed)</td><td>Nothing bad ever happens</td></tr>
+        <tr><td>Guarantee</td><td>&Sigma;<sup>0</sup><sub>1</sub> (open)</td><td>Something good eventually happens</td></tr>
+        <tr><td>Obligation</td><td>Boolean of open/closed</td><td>Boolean combo of safety &amp; guarantee</td></tr>
+        <tr><td>Recurrence</td><td>&Pi;<sup>0</sup><sub>2</sub> (G&delta;)</td><td>Good things happen infinitely often</td></tr>
+        <tr><td>Persistence</td><td>&Sigma;<sup>0</sup><sub>2</sub> (F&sigma;)</td><td>Eventually only good things happen</td></tr>
+        <tr><td>Reactivity</td><td>Boolean of G&delta;/F&sigma;</td><td>All omega-regular properties</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card exp" onclick="this.classList.toggle('open')">
+    <div class="exp-head">
+      <span class="exp-arrow">&#9654;</span>
+      <strong>Janin-Walukiewicz (1996): &mu;-calculus = bisimulation-invariant MSO</strong>
+    </div>
+    <div class="exp-body">
+      <p style="margin-top:12px">The modal mu-calculus is <em>exactly</em> the fragment of monadic second-order logic that cannot distinguish bisimilar systems. It subsumes LTL, CTL, CTL*, and PDL. This is the "universal temporal logic" for branching-time properties.</p>
+      <p style="font-size:0.85rem;color:var(--text-dim)"><strong>What's outside:</strong> Properties that distinguish bisimilar systems (e.g., "uses exactly 3 memory cells"), hyperproperties, quantitative properties, properties beyond MSO.</p>
+    </div>
+  </div>
+
+  <div class="card exp" onclick="this.classList.toggle('open')">
+    <div class="exp-head">
+      <span class="exp-arrow">&#9654;</span>
+      <strong>Rutten (2000): Final coalgebra = the space of all behaviors</strong>
+    </div>
+    <div class="exp-body">
+      <p style="margin-top:12px">For any system type (endofunctor F), the final F-coalgebra Z contains <em>all possible behaviors</em>. Every system has a unique map into Z; two states are behaviorally equivalent iff they map to the same point. Bisimulation = equality in Z. Rutten's <strong>covariety theorem</strong> (dual of Birkhoff's HSP theorem): a class of coalgebras is definable by coequations iff it is closed under sub-coalgebras, coproducts, and quotients.</p>
+      <p style="font-size:0.85rem;color:var(--text-dim)"><strong>Scope:</strong> All behaviors up to bisimulation for functor F. <strong>Does NOT cover:</strong> Coarser equivalences (traces, failures), hyperproperties, intensional properties.</p>
+    </div>
+  </div>
+
+  <div class="card exp" onclick="this.classList.toggle('open')">
+    <div class="exp-head">
+      <span class="exp-arrow">&#9654;</span>
+      <strong>Cousot &amp; Cousot (1977/1979): uco(C) = complete lattice of all abstractions</strong>
+    </div>
+    <div class="exp-body">
+      <p style="margin-top:12px">Every sound static analysis is a Galois connection from concrete to abstract semantics. The set of ALL such abstractions forms a complete lattice uco(C), isomorphic to the lattice of closure operators on the concrete domain. This lattice IS the space of all possible ways to approximate program behavior &mdash; from seeing everything (concrete semantics, undecidable) to seeing nothing (trivial abstraction).</p>
+      <p style="font-size:0.85rem;color:var(--text-dim)"><strong>Scope:</strong> All sound approximations. <strong>Limitation:</strong> The lattice is infinite (proper class for infinite domains), non-computable to navigate, and classifies <em>abstractions</em> rather than the properties themselves.</p>
+    </div>
+  </div>
+
+  <div class="card exp" onclick="this.classList.toggle('open')">
+    <div class="exp-head">
+      <span class="exp-arrow">&#9654;</span>
+      <strong>Abramsky (1991): Stone duality &mdash; Domains &harr; Logics</strong>
+    </div>
+    <div class="exp-body">
+      <p style="margin-top:12px">Via Stone duality, semantic domains (spaces of denotations) and logics of observable properties <strong>determine each other up to isomorphism</strong>. Observable properties = Scott-open sets. The logic is geometric (finite &and;, arbitrary &or;, no &not;). You can observe "program outputs 42" (finite verification) but not "program does NOT output 42" (requires infinite observation).</p>
+      <p style="font-size:0.85rem;color:var(--text-dim)">This is arguably the <strong>deepest</strong> answer: the complete lattice of Scott-open sets IS the logic of all finitely observable properties, and it is determined entirely by the choice of semantic domain. Different domains (traces, trees, games, probabilistic) give different topologies, hence different property spaces.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- §5 WHY INFINITE -->
+<section id="s5"><div class="container">
+  <h2><span class="n">5</span> Why the Space is Provably Infinite</h2>
+  <p class="ss">Four impossibility results that rule out any finite taxonomy.</p>
+
+  <div class="card cr">
+    <h3 style="color:var(--red)">1. The Arithmetic Hierarchy Doesn't Collapse</h3>
+    <p style="font-size:0.86rem;margin:0"><strong>Post's theorem (1944):</strong> The levels &Sigma;<sup>0</sup><sub>n</sub> and &Pi;<sup>0</sup><sub>n</sub> are <em>strictly</em> separated for every n. Natural program properties live at every level:</p>
+    <table class="t">
+      <tr><th>Level</th><th>Property</th><th>Informal</th></tr>
+      <tr><td>&Sigma;<sup>0</sup><sub>1</sub></td><td>"Program halts on input x"</td><td>Verifiable, not refutable</td></tr>
+      <tr><td>&Pi;<sup>0</sup><sub>1</sub></td><td>"Program never outputs 0"</td><td>Refutable, not verifiable</td></tr>
+      <tr><td>&Sigma;<sup>0</sup><sub>2</sub></td><td>"Program's domain is finite"</td><td>FIN is &Sigma;<sup>0</sup><sub>2</sub>-complete</td></tr>
+      <tr><td>&Pi;<sup>0</sup><sub>2</sub></td><td>"Program halts on ALL inputs"</td><td>TOT is &Pi;<sup>0</sup><sub>2</sub>-complete</td></tr>
+      <tr><td>&Sigma;<sup>0</sup><sub>3</sub></td><td>"Program's domain is decidable"</td><td>REC is &Sigma;<sup>0</sup><sub>3</sub>-complete</td></tr>
+    </table>
+  </div>
+
+  <div class="card cr">
+    <h3 style="color:var(--red)">2. The HyperLTL Alternation Hierarchy is Strict</h3>
+    <p style="font-size:0.86rem;margin:0">Each additional alternation between &forall; and &exist; trace quantifiers gives <em>strictly</em> more expressiveness. HyperLTL satisfiability is &Sigma;<sup>1</sup><sub>1</sub>-complete (reaching into the analytical hierarchy). Second-order hyperproperties (Hyper2LTL) go further, with undecidable model checking.</p>
+  </div>
+
+  <div class="card cr">
+    <h3 style="color:var(--red)">3. The Wadge Hierarchy is Transfinite</h3>
+    <p style="font-size:0.86rem;margin:0">The Wadge hierarchy &mdash; the finest classification of sets by continuous reducibility &mdash; is <strong>well-ordered of transfinite length</strong>. For Borel sets alone it has length &phi;<sub>&omega;<sub>1</sub></sub>(1). Under the Axiom of Determinacy, the full hierarchy extends to &Theta;. No finite decomposition can enumerate it.</p>
+  </div>
+
+  <div class="card cr">
+    <h3 style="color:var(--red)">4. The Space of Abstractions is a Proper Class</h3>
+    <p style="font-size:0.86rem;margin:0">Cousot's lattice uco(C) for an infinite concrete domain has cardinality at least 2<sup>|C|</sup>. It is a complete lattice but not finitely generated. The abstract interpretation framework is technically "complete" (every analysis is a point in the lattice), but navigating it requires a complete lattice of infinite dimension.</p>
+  </div>
+
+  <div class="card cg">
+    <p style="margin:0"><strong>The saving grace:</strong> For any fixed, finite system type, the number of meaningful distinctions IS finite. Van Glabbeek's spectrum has 11 equivalences for concrete sequential processes. The spectroscopy game uses 8 dimensions for LTS. KindScript's property vocabulary is finite and decidable. The infinity lives in the <em>full generality</em> of programs &mdash; practical systems work with finite slices of the infinite space.</p>
+  </div>
+</div></section>
+
+<!-- §6 MAPPING THE 7 -->
+<section id="s6"><div class="container">
+  <h2><span class="n">6</span> Mapping the 7 Practical Dimensions</h2>
+  <p class="ss">How the seven dimensions from the previous document map onto the five formal axes.</p>
+
+  <table class="t">
+    <tr>
+      <th>Practical Dimension</th>
+      <th>Axis 1<br>(Safety/Live)</th>
+      <th>Axis 2<br>(Trace/Hyper)</th>
+      <th>Axis 3<br>(Ext/Int)</th>
+      <th>Axis 4<br>(Qual/Quant)</th>
+      <th>Axis 5<br>(Lin/Branch)</th>
+    </tr>
+    <tr>
+      <td><strong>Effects</strong></td>
+      <td style="color:var(--green)">Safety</td>
+      <td style="color:var(--green)">Trace</td>
+      <td style="color:var(--cyan)">Intensional</td>
+      <td style="color:var(--green)">Qualitative</td>
+      <td style="color:var(--green)">Linear</td>
+    </tr>
+    <tr>
+      <td><strong>Algebraic</strong></td>
+      <td style="color:var(--text-dim)">&mdash;</td>
+      <td style="color:var(--orange)">Hyper (multi-call)</td>
+      <td style="color:var(--accent2)">Extensional</td>
+      <td style="color:var(--green)">Qualitative</td>
+      <td style="color:var(--text-dim)">&mdash;</td>
+    </tr>
+    <tr>
+      <td><strong>Information Flow</strong></td>
+      <td style="color:var(--green)">Safety</td>
+      <td style="color:var(--orange)">Hyper (2-safety)</td>
+      <td style="color:var(--accent2)">Extensional</td>
+      <td style="color:var(--green)">Qualitative</td>
+      <td style="color:var(--green)">Linear</td>
+    </tr>
+    <tr>
+      <td><strong>Temporal</strong></td>
+      <td style="color:var(--yellow)">Both!</td>
+      <td style="color:var(--green)">Trace</td>
+      <td style="color:var(--yellow)">Both</td>
+      <td style="color:var(--green)">Qualitative</td>
+      <td style="color:var(--yellow)">Both</td>
+    </tr>
+    <tr>
+      <td><strong>Resource</strong></td>
+      <td style="color:var(--green)">Safety</td>
+      <td style="color:var(--green)">Trace</td>
+      <td style="color:var(--cyan)">Intensional</td>
+      <td style="color:var(--orange)">Quantitative</td>
+      <td style="color:var(--green)">Linear</td>
+    </tr>
+    <tr>
+      <td><strong>Relational</strong></td>
+      <td style="color:var(--text-dim)">&mdash;</td>
+      <td style="color:var(--orange)">Hyper</td>
+      <td style="color:var(--accent2)">Extensional</td>
+      <td style="color:var(--green)">Qualitative</td>
+      <td style="color:var(--yellow)">Both</td>
+    </tr>
+    <tr>
+      <td><strong>Correctness</strong></td>
+      <td style="color:var(--yellow)">Both</td>
+      <td style="color:var(--green)">Trace</td>
+      <td style="color:var(--accent2)">Extensional</td>
+      <td style="color:var(--green)">Qualitative</td>
+      <td style="color:var(--green)">Linear</td>
+    </tr>
+  </table>
+
+  <div class="card cw">
+    <h3 style="color:var(--orange)">What the mapping reveals</h3>
+    <p style="font-size:0.86rem"><strong>The 7 dimensions are not orthogonal.</strong> "Correctness" and "Temporal" both span safety AND liveness. "Relational" and "Information Flow" are both hyperproperties. "Effects" and "Resource" are both intensional trace-level safety properties &mdash; they differ only on the qualitative/quantitative axis.</p>
+    <p style="font-size:0.86rem;margin:0">The 5 formal axes are closer to truly orthogonal (each backed by a decomposition theorem), but even they interact: quantitative properties can be safety or liveness, extensional properties can be trace or hyper. <strong>True orthogonality doesn't exist in an infinite-dimensional space &mdash; but independent decomposition axes give you the next best thing.</strong></p>
+  </div>
+</div></section>
+
+<!-- §7 DEEPEST ANSWER -->
+<section id="s7"><div class="container">
+  <h2><span class="n">7</span> The Deepest Answer</h2>
+  <p class="ss">What the mathematics ultimately says about "all possible properties."</p>
+
+  <div class="card cp">
+    <h3 style="color:var(--accent2)">Abramsky's Stone Duality (1991)</h3>
+    <p>The space of all observable properties of a computation is the <strong>locale</strong> (complete Heyting algebra) of Scott-open sets on the denotational domain. This locale IS the logic of all finitely verifiable properties, and it is determined entirely by the choice of semantic domain.</p>
+    <p>Different choices of domain give different property spaces:</p>
+    <table class="t">
+      <tr><th>If your domain is...</th><th>Your properties are...</th></tr>
+      <tr><td>Flat domain (just values)</td><td>Properties of final values only</td></tr>
+      <tr><td>Traces (&Sigma;<sup>&omega;</sup>)</td><td>Trace properties with safety/liveness decomposition</td></tr>
+      <tr><td>Trees (branching behavior)</td><td>Branching-time properties, bisimulation-invariant</td></tr>
+      <tr><td>Powerdomains (sets of traces)</td><td>Hyperproperties</td></tr>
+      <tr><td>Probability distributions</td><td>Probabilistic/quantitative properties</td></tr>
+    </table>
+    <p style="margin:0;font-size:0.88rem"><strong>The punchline:</strong> There is no single "space of all properties" independent of your choice of what counts as an observation. The question "what are all possible properties?" is only answerable relative to a <strong>semantic domain</strong> &mdash; and choosing that domain IS choosing what you care about. The topology on the domain then gives you <em>all</em> the properties, completely and canonically.</p>
+  </div>
+
+  <div class="card ca">
+    <h3>The Coalgebraic View (Rutten 2000)</h3>
+    <p style="font-size:0.88rem">For any system type (functor F), the final F-coalgebra Z contains all possible behaviors. Two systems are equivalent iff they map to the same point in Z. Properties = subsets of Z. The covariety theorem gives equational characterization. The modal mu-calculus gives the matching logic (Janin-Walukiewicz).</p>
+    <p style="font-size:0.88rem;margin:0"><strong>All behaviors. All properties. All logics.</strong> But all relative to the choice of functor F &mdash; which encodes what kind of system you're studying.</p>
+  </div>
+
+  <div class="card cg">
+    <h3 style="color:var(--green)">What this means for KindScript</h3>
+    <p style="font-size:0.88rem">KindScript has implicitly chosen its semantic domain: <strong>TypeScript ASTs observed through syntactic pattern matching</strong>. Given this choice, the property space is finite and decidable &mdash; exactly the right place for a practical tool. The formal frameworks above tell you what you gain (and lose) by choosing different observation domains:</p>
+    <ul style="font-size:0.86rem;color:var(--text-dim);margin-left:20px">
+      <li>Current: syntactic patterns &rarr; decidable safety properties (effects, structure)</li>
+      <li>Add call graphs &rarr; transitive safety properties (full purity)</li>
+      <li>Add data flow &rarr; information flow approximations</li>
+      <li>Add quantitative AST metrics &rarr; resource/complexity bounds</li>
+      <li>Add trace semantics &rarr; temporal properties (would need runtime or model checking)</li>
+    </ul>
+    <p style="font-size:0.88rem;margin:0">Each extension <em>changes the domain</em>, which changes the topology, which changes what properties exist. The mathematics guarantees that whatever domain you pick, Stone duality gives you the complete logic of observable properties for that domain.</p>
+  </div>
+</div></section>
+
+<!-- §8 REFERENCES -->
+<section id="s8"><div class="container">
+  <h2><span class="n">8</span> Key References</h2>
+  <p class="ss">Organized by framework.</p>
+
+  <h3>Decomposition Theorems</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Alpern &amp; Schneider, "Defining Liveness" (IPL 1985) &bull; Alpern &amp; Schneider, "Recognizing Safety and Liveness" (Distributed Computing 1987) &bull; Clarkson &amp; Schneider, "Hyperproperties" (JCS 2010) &bull; Manna &amp; Pnueli, "A Hierarchy of Temporal Properties" (1990)</p>
+  </div>
+
+  <h3>Topology &amp; Domain Theory</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Abramsky, "Domain Theory in Logical Form" (Annals of Pure and Applied Logic 1991) &bull; Abramsky &amp; Jung, "Domain Theory" (Handbook of Logic in CS 1994) &bull; Smyth, "Power Domains and Predicate Transformers" (1983)</p>
+  </div>
+
+  <h3>Coalgebra &amp; Process Algebra</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Rutten, "Universal Coalgebra: A Theory of Systems" (TCS 2000) &bull; Jacobs, <em>Introduction to Coalgebra</em> (Cambridge 2016) &bull; Van Glabbeek, "The Linear Time &ndash; Branching Time Spectrum" (CONCUR 1990, 1993) &bull; Bisping et al., "A Game for Linear-Time&ndash;Branching-Time Spectroscopy" (2021) &bull; Dorsch, Milius &amp; Schr&ouml;der, "Graded Monads and Graded Logics" (CONCUR 2019)</p>
+  </div>
+
+  <h3>Logic &amp; Completeness</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Janin &amp; Walukiewicz, "Mu-calculus = Bisimulation-invariant MSO" (STACS 1996) &bull; Enqvist, Seifan &amp; Venema, "Expressive Completeness for Coalgebraic Mu-calculi" (LMCS 2017) &bull; Pnueli, "The Temporal Logic of Programs" (FOCS 1977)</p>
+  </div>
+
+  <h3>Computability &amp; Decidability</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Rice, "Classes of Recursively Enumerable Sets" (1953) &bull; Post, "Recursively Enumerable Sets" (1944) &bull; Baldan, Ranzato &amp; Zhang, "A Rice's Theorem for Abstract Semantics" (ICALP 2021) &bull; Asperti, "The Intensional Content of Rice's Theorem" (POPL 2008)</p>
+  </div>
+
+  <h3>Abstract Interpretation</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Cousot &amp; Cousot, "Abstract Interpretation: A Unified Lattice Model" (POPL 1977) &bull; Cousot &amp; Cousot, "Systematic Design of Program Analysis Frameworks" (POPL 1979) &bull; Cousot, "Types as Abstract Interpretations" (1997) &bull; Giacobazzi, Fil&eacute; &amp; Ranzato, "A Unifying View of Abstract Domain Design" (ACM Surveys 1996)</p>
+  </div>
+
+  <h3>Descriptive Set Theory &amp; Hierarchies</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Wadge, "Reducibility and Determinateness on the Baire Space" (PhD thesis 1983) &bull; Kechris, <em>Classical Descriptive Set Theory</em> (Springer 1995) &bull; Logics and Algorithms for Hyperproperties (survey, arXiv 2501.08063, 2025)</p>
+  </div>
+
+  <h3>Predicate Transformers &amp; UTP</h3>
+  <div class="card" style="font-size:0.83rem">
+    <p>Dijkstra, "Guarded Commands, Nondeterminacy and Formal Derivation of Programs" (CACM 1975) &bull; Hoare &amp; He, <em>Unifying Theories of Programming</em> (Prentice Hall 1998) &bull; Goguen &amp; Burstall, "Institutions: Abstract Model Theory" (JACM 1992)</p>
+  </div>
+</div></section>
+
+<!-- §9 QUIZ -->
+<section id="s9"><div class="container">
+  <h2><span class="n">9</span> Knowledge Check</h2>
+  <p class="ss">Click to reveal answers.</p>
+
+  <div class="fc" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q1: Is there a finite set of orthogonal axes that classifies all possible program properties?</div>
+    <div class="fc-a"><br><strong>No.</strong> The arithmetic hierarchy has infinitely many strict levels (Post's theorem). The Wadge hierarchy is transfinite. The lattice of abstractions uco(C) is infinite for any non-trivial domain. However, five principal axes (safety/liveness, trace/hyper, extensional/intensional, qualitative/quantitative, linear/branching) capture the major qualitative distinctions and are each backed by decomposition theorems.</div>
+    <div class="fc-h">Click to reveal</div>
+  </div>
+
+  <div class="fc" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q2: What does the Alpern-Schneider theorem say?</div>
+    <div class="fc-a"><br>Every trace property uniquely decomposes as the intersection of a <strong>safety property</strong> (topologically closed &mdash; violated by finite prefixes) and a <strong>liveness property</strong> (topologically dense &mdash; every finite prefix can be extended to satisfy it). This is the most fundamental binary decomposition of behavioral properties.</div>
+    <div class="fc-h">Click to reveal</div>
+  </div>
+
+  <div class="fc" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q3: What is Stone duality, and why does it matter for program properties?</div>
+    <div class="fc-a"><br>Stone duality (applied by Abramsky 1991) is the mathematical fact that semantic domains and logics of observable properties <strong>determine each other up to isomorphism</strong>. The Scott topology on a domain gives you ALL observable properties as its open sets. This means: choose your semantic domain, and mathematics gives you the complete property space for free. There is no "missing" property &mdash; the topology IS the complete logic.</div>
+    <div class="fc-h">Click to reveal</div>
+  </div>
+
+  <div class="fc" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q4: What is the final coalgebra, and why is it "the space of all behaviors"?</div>
+    <div class="fc-a"><br>For any system type (functor F), the <strong>final F-coalgebra</strong> Z is the terminal object in the category of F-coalgebras. Every system has a unique map into Z that sends each state to its <em>complete observable behavior</em>. Two states are behaviorally equivalent iff they map to the same point. Z literally <em>is</em> the universe of all possible behaviors &mdash; Rutten's covariety theorem gives equational characterization, and the Janin-Walukiewicz theorem gives the matching complete logic (the mu-calculus).</div>
+    <div class="fc-h">Click to reveal</div>
+  </div>
+
+  <div class="fc" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q5: Where in the arithmetic hierarchy does "this program halts on all inputs" (totality) live?</div>
+    <div class="fc-a"><br><strong>&Pi;<sup>0</sup><sub>2</sub>-complete.</strong> Formally: e &in; TOT iff (&forall;x)(&exist;s)[&phi;<sub>e</sub>(x) halts in s steps]. The outer &forall; makes it &Pi;<sup>0</sup><sub>2</sub>. It is strictly harder than the halting problem (which is &Sigma;<sup>0</sup><sub>1</sub>) &mdash; you can't even enumerate the total programs.</div>
+    <div class="fc-h">Click to reveal</div>
+  </div>
+
+  <div class="fc" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q6: Why is the answer to "what are all possible properties?" framework-dependent?</div>
+    <div class="fc-a"><br>Because "property" means different things depending on your choice of <strong>semantic domain</strong>. If your domain is traces, properties are sets of traces (Alpern-Schneider applies). If your domain is trees, properties include branching structure (van Glabbeek spectrum applies). If your domain is sets of traces, you get hyperproperties (Clarkson-Schneider applies). Each choice gives a different topology, hence a different complete property space. There is no domain-independent answer &mdash; and choosing the domain IS choosing what you care about observing.</div>
+    <div class="fc-h">Click to reveal</div>
+  </div>
+</div></section>
+
+<script>
+// Axis detail panels
+let activeAxis = null;
+function showAxis(name) {
+  if (activeAxis === name) {
+    document.getElementById('det-' + name).classList.remove('visible');
+    document.querySelector(`.axis-card[data-ax="${name}"]`).classList.remove('active');
+    activeAxis = null; return;
+  }
+  if (activeAxis) {
+    document.getElementById('det-' + activeAxis).classList.remove('visible');
+    document.querySelector(`.axis-card[data-ax="${activeAxis}"]`).classList.remove('active');
+  }
+  activeAxis = name;
+  document.getElementById('det-' + name).classList.add('visible');
+  document.querySelector(`.axis-card[data-ax="${name}"]`).classList.add('active');
+  setTimeout(() => document.getElementById('det-' + name).scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+
+// Onion ring details
+const ringData = {
+  cousot: {
+    title: 'Cousot & Cousot — The Complete Lattice of All Abstractions',
+    body: 'The set of all sound abstractions of a concrete semantics forms a complete lattice uco(C), isomorphic to the lattice of closure operators. This is technically <em>everything</em> — every possible way to approximate program behavior is a point in this lattice. But it is infinite, non-computable, and classifies abstractions rather than properties directly. <strong>Completeness:</strong> Every sound analysis is captured. <strong>Limitation:</strong> You can\'t enumerate it.'
+  },
+  abramsky: {
+    title: 'Abramsky — Stone Duality: Observable Properties = Scott Topology',
+    body: 'Observable properties are the open sets in the Scott topology on the denotational domain. The logic of observables is geometric (finite ∧, arbitrary ∨, no ¬). Stone duality guarantees this is <em>complete</em>: every finitely verifiable property is a Scott-open set, and vice versa. <strong>What\'s outside:</strong> Non-observable properties (requiring infinite observation), hyperproperties (relating multiple programs).'
+  },
+  clarkson: {
+    title: 'Clarkson & Schneider — Hyperproperties',
+    body: 'Properties of <em>sets</em> of traces, not individual traces. Captures noninterference, observational determinism, differential privacy. Decomposes into hypersafety ∩ hyperliveness. The quantifier alternation hierarchy of HyperLTL is strict. <strong>What\'s outside:</strong> Second-order hyperproperties (Hyper2LTL), probabilistic properties.'
+  },
+  alpern: {
+    title: 'Alpern & Schneider — Trace Properties = Safety ∩ Liveness',
+    body: 'Every trace property uniquely decomposes. Safety = topologically closed (violated by finite prefixes). Liveness = topologically dense (every prefix can be extended). This is the foundational partition for single-execution properties. <strong>What\'s outside:</strong> Hyperproperties, quantitative properties.'
+  },
+  manna: {
+    title: 'Manna & Pnueli — Six Classes for Omega-Regular Properties',
+    body: 'Refines safety/liveness into Safety, Guarantee, Obligation, Recurrence, Persistence, Reactivity. These correspond exactly to the low Borel hierarchy (Σ⁰₁, Π⁰₁, Boolean combinations, Σ⁰₂, Π⁰₂). Reactivity = ALL omega-regular properties. <strong>What\'s outside:</strong> Non-omega-regular properties (requiring counting, real-time, probability).'
+  },
+  mucalc: {
+    title: 'Janin-Walukiewicz — Modal μ-calculus = Bisimulation-invariant MSO',
+    body: 'The modal mu-calculus is <em>exactly</em> the bisimulation-invariant fragment of monadic second-order logic. It subsumes LTL, CTL, CTL*, PDL. This is the "universal" branching-time logic. <strong>What\'s outside:</strong> Properties distinguishing bisimilar systems, hyperproperties, quantitative properties, full MSO.'
+  }
+};
+
+function showRing(name) {
+  const det = document.getElementById('ring-detail');
+  const d = ringData[name];
+  det.innerHTML = `<h3>${d.title}</h3><p style="font-size:0.88rem">${d.body}</p>`;
+  det.style.display = 'block';
+  det.classList.add('visible');
+
+  // Highlight ring
+  document.querySelectorAll('.onion-ring').forEach(r => {
+    r.style.strokeWidth = r.dataset.ring === name ? '4' : '2';
+    r.style.strokeOpacity = r.dataset.ring === name ? '1' : '0.3';
+  });
+
+  setTimeout(() => det.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+</script>
+</body>
+</html>

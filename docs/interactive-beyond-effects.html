@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beyond Effects &amp; Capabilities — The Full Taxonomy of Code Behavior</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Hero ── */
+.hero {
+  text-align: center; padding: 64px 24px 48px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 12px;
+}
+.hero .subtitle { font-size: 1.05rem; color: var(--text-dim); max-width: 660px; margin: 0 auto 20px; }
+.badge-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.75rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.blue { border-color: var(--accent); color: var(--accent); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+
+/* ── Nav ── */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+/* ── Sections ── */
+section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 6px; }
+h2 .num {
+  display: inline-block; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.8rem;
+  text-align: center; line-height: 34px; margin-right: 10px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 24px; font-size: 0.92rem; }
+h3 { font-size: 1.1rem; font-weight: 700; color: var(--accent2); margin: 24px 0 10px; }
+p { margin-bottom: 14px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; overflow-x: auto; font-family: var(--mono); font-size: 0.82em;
+  line-height: 1.6; margin: 14px 0 18px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+.kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; }
+.cmt { color: #546e7a; font-style: italic; } .type { color: #ffcb6b; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin: 14px 0;
+}
+.card-accent { border-left: 3px solid var(--accent); }
+.card-warn { border-left: 3px solid var(--orange); }
+.card-green { border-left: 3px solid var(--green); }
+.card-red { border-left: 3px solid var(--red); }
+.card-cyan { border-left: 3px solid var(--cyan); }
+
+/* ── Dimension cards (interactive) ── */
+.dim-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px; margin: 16px 0;
+}
+.dim-card {
+  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  padding: 16px; cursor: pointer; transition: all 0.25s ease; position: relative;
+  min-height: 110px;
+}
+.dim-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.dim-card.active { border-color: var(--accent2); background: var(--surface2); }
+.dim-card .dim-icon { font-size: 1.4rem; margin-bottom: 6px; }
+.dim-card .dim-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+.dim-card .dim-q { font-size: 0.78rem; color: var(--text-dim); }
+.dim-card .dim-tag {
+  position: absolute; top: 8px; right: 8px; font-size: 0.65rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px; text-transform: uppercase;
+}
+.dim-tag.yes { background: rgba(74,222,128,0.15); color: var(--green); }
+.dim-tag.no { background: rgba(248,113,113,0.15); color: var(--red); }
+.dim-tag.partial { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+/* ── Detail panel ── */
+.dim-detail {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 16px 0; display: none;
+}
+.dim-detail.visible { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.dim-detail h3 { margin-top: 0; }
+.dim-detail .example-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 14px; margin: 10px 0; font-size: 0.88rem;
+}
+
+/* ── Tables ── */
+table.t { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.85rem; }
+table.t th, table.t td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+table.t th { color: var(--accent); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Radar chart ── */
+.radar-wrap { display: flex; justify-content: center; margin: 20px 0; }
+.radar-wrap svg text { font-family: var(--mono); }
+
+/* ── Hierarchy ── */
+.hierarchy { margin: 16px 0; }
+.h-level {
+  display: flex; align-items: stretch; margin: 4px 0; cursor: pointer;
+  transition: all 0.2s;
+}
+.h-level:hover { transform: translateX(4px); }
+.h-bar {
+  width: 8px; border-radius: 4px; margin-right: 12px; flex-shrink: 0;
+}
+.h-content { flex: 1; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+.h-content .h-name { font-weight: 700; font-size: 0.9rem; }
+.h-content .h-desc { font-size: 0.82rem; color: var(--text-dim); margin-top: 2px; }
+.h-content .h-extra {
+  font-size: 0.8rem; color: var(--text-dim); margin-top: 6px;
+  max-height: 0; overflow: hidden; transition: max-height 0.3s ease;
+}
+.h-level.open .h-extra { max-height: 200px; }
+
+/* ── Comparison ── */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+@media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
+
+/* ── Flashcard ── */
+.flashcard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin: 10px 0; cursor: pointer; transition: all 0.2s;
+}
+.flashcard:hover { border-color: var(--accent); }
+.fc-q { font-weight: 600; margin-bottom: 6px; }
+.fc-a { color: var(--text-dim); max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.flashcard.open .fc-a { max-height: 400px; }
+.fc-hint { font-size: 0.75rem; color: var(--text-dim); font-style: italic; }
+
+/* ── SVG interactive map ── */
+.map-wrap { display: flex; justify-content: center; overflow-x: auto; margin: 16px 0; }
+.map-wrap svg { min-width: 700px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════ HERO ═══════ -->
+<div class="hero">
+  <h1>Beyond Effects &amp; Capabilities</h1>
+  <p class="subtitle">Effects and capabilities describe <em>what operations</em> code performs. But code behavior has at least seven orthogonal dimensions they cannot capture.</p>
+  <div class="badge-row">
+    <span class="badge blue">7 Dimensions</span>
+    <span class="badge purple">~80 Papers</span>
+    <span class="badge green">Rice's Theorem</span>
+    <span class="badge cyan">KindScript Context</span>
+  </div>
+</div>
+
+<!-- ═══════ NAV ═══════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#s1">The Question</a>
+    <a class="toc-link" href="#s2">7 Dimensions</a>
+    <a class="toc-link" href="#s3">The Map</a>
+    <a class="toc-link" href="#s4">Decidability</a>
+    <a class="toc-link" href="#s5">Why Effects Aren't Enough</a>
+    <a class="toc-link" href="#s6">KindScript's Position</a>
+    <a class="toc-link" href="#s7">References</a>
+    <a class="toc-link" href="#s8">Quiz</a>
+  </div>
+</nav>
+
+<!-- ═══════ §1 THE QUESTION ═══════ -->
+<section id="s1">
+<div class="container">
+  <h2><span class="num">1</span> The Question</h2>
+  <p class="section-sub">Do effects + capabilities cover all possible ways of representing code behavior?</p>
+
+  <div class="card card-accent">
+    <p style="margin:0">The Effekt language showed effects and capabilities are two views of the same thing. wasmCloud states "capabilities are managed algebraic effects." A 2025 paper proves they are formally incomparable but synthesizable. <strong>But do they together constitute the complete picture?</strong></p>
+  </div>
+
+  <div class="compare-grid">
+    <div class="card card-green">
+      <h3 style="color:var(--green)">What effects capture</h3>
+      <p style="font-size:0.88rem;margin:0"><strong>What operations does code perform?</strong><br>IO, mutation, exceptions, nondeterminism, allocation, console access, network calls. This is about the <em>verbs</em> in your program &mdash; what actions it takes on the world.</p>
+    </div>
+    <div class="card card-red">
+      <h3 style="color:var(--red)">What effects miss</h3>
+      <p style="font-size:0.88rem;margin:0"><strong>Everything else.</strong><br>What values are computed? What mathematical laws are obeyed? Where does data flow? How much time/space is consumed? Does it terminate? Are two implementations equivalent? Effects are silent on all of these.</p>
+    </div>
+  </div>
+
+  <p>The answer is <strong>no</strong>. Effects and capabilities cover one important axis of a multi-dimensional space. The research literature identifies at least <strong>seven genuinely orthogonal dimensions</strong> of code behavior, each with its own formal frameworks, verification tools, and fundamental limitations.</p>
+</div>
+</section>
+
+<!-- ═══════ §2 SEVEN DIMENSIONS ═══════ -->
+<section id="s2">
+<div class="container">
+  <h2><span class="num">2</span> Seven Dimensions of Code Behavior</h2>
+  <p class="section-sub">Click any dimension to explore it. The tag shows whether effects can capture it.</p>
+
+  <div class="dim-grid" id="dimGrid">
+    <div class="dim-card" data-dim="effects" onclick="showDim('effects')">
+      <span class="dim-tag yes">Effects cover</span>
+      <div class="dim-icon">&#9889;</div>
+      <div class="dim-name">Computational Effects</div>
+      <div class="dim-q">What operations does code use?</div>
+    </div>
+    <div class="dim-card" data-dim="algebraic" onclick="showDim('algebraic')">
+      <span class="dim-tag no">Orthogonal</span>
+      <div class="dim-icon">&#8797;</div>
+      <div class="dim-name">Algebraic Properties</div>
+      <div class="dim-q">What math laws does code obey?</div>
+    </div>
+    <div class="dim-card" data-dim="infoflow" onclick="showDim('infoflow')">
+      <span class="dim-tag no">Orthogonal</span>
+      <div class="dim-icon">&#8644;</div>
+      <div class="dim-name">Information Flow</div>
+      <div class="dim-q">Where does data go?</div>
+    </div>
+    <div class="dim-card" data-dim="temporal" onclick="showDim('temporal')">
+      <span class="dim-tag partial">Partial</span>
+      <div class="dim-icon">&#9200;</div>
+      <div class="dim-name">Temporal Properties</div>
+      <div class="dim-q">In what order do events happen?</div>
+    </div>
+    <div class="dim-card" data-dim="quantitative" onclick="showDim('quantitative')">
+      <span class="dim-tag no">Orthogonal</span>
+      <div class="dim-icon">&#128200;</div>
+      <div class="dim-name">Resource &amp; Complexity</div>
+      <div class="dim-q">How much time/space is used?</div>
+    </div>
+    <div class="dim-card" data-dim="relational" onclick="showDim('relational')">
+      <span class="dim-tag no">Orthogonal</span>
+      <div class="dim-icon">&#8596;</div>
+      <div class="dim-name">Relational Properties</div>
+      <div class="dim-q">How does code relate to other code?</div>
+    </div>
+    <div class="dim-card" data-dim="correctness" onclick="showDim('correctness')">
+      <span class="dim-tag no">Orthogonal</span>
+      <div class="dim-icon">&#10004;</div>
+      <div class="dim-name">Functional Correctness</div>
+      <div class="dim-q">Does it compute the right thing?</div>
+    </div>
+  </div>
+
+  <!-- Detail panels -->
+  <div class="dim-detail" id="detail-effects">
+    <h3>Computational Effects &mdash; The Dimension KindScript Covers</h3>
+    <p>Effects answer: <strong>"What operations does this code perform?"</strong> &mdash; IO, mutation, exceptions, console, imports, network, filesystem.</p>
+    <div class="example-box">
+      <strong>Frameworks:</strong> Monadic effects (Moggi 1989), algebraic effects (Plotkin &amp; Pretnar 2009), row-polymorphic effects (Koka), capability-based effects (Effekt)<br>
+      <strong>Languages:</strong> Koka, Eff, Flix, F*, Effekt, Unison<br>
+      <strong>KindScript properties:</strong> <code>pure</code>, <code>noIO</code>, <code>noMutation</code>, <code>noConsole</code>, <code>noImports</code>, <code>noSideEffects</code>
+    </div>
+    <p>This is the <em>one</em> dimension effects are designed for. The other six dimensions answer fundamentally different questions.</p>
+  </div>
+
+  <div class="dim-detail" id="detail-algebraic">
+    <h3>Algebraic Properties &mdash; Laws Between Multiple Invocations</h3>
+    <p>Algebraic properties describe <strong>relationships between a function's behavior on different inputs</strong>, not what happens during a single call. You cannot detect these by walking one AST.</p>
+    <div class="example-box">
+      <code>commutativity: f(a, b) = f(b, a)</code><br>
+      <code>associativity: f(f(a, b), c) = f(a, f(b, c))</code><br>
+      <code>idempotency:&nbsp;&nbsp; f(f(a)) = f(a)</code><br>
+      <code>monotonicity:&nbsp; x &le; y &rArr; f(x) &le; f(y)</code>
+    </div>
+    <p><strong>Why it matters in practice:</strong></p>
+    <table class="t">
+      <tr><th>System</th><th>Required property</th><th>Why</th></tr>
+      <tr><td>CRDTs</td><td>Commutative + associative + idempotent merge</td><td>Eventual consistency without coordination</td></tr>
+      <tr><td>MapReduce</td><td>Associative combiner</td><td>Parallel reduction correctness</td></tr>
+      <tr><td>Distributed systems (CALM)</td><td>Monotonicity</td><td>Coordination-free execution</td></tr>
+      <tr><td>Database optimization</td><td>Join commutativity &amp; associativity</td><td>Query plan equivalence</td></tr>
+    </table>
+    <p><strong>Verification approaches:</strong> Haskell typeclasses (declared, not checked), QuickCheck (property-based testing), Liquid Haskell (SMT-backed proof), Propel (PLDI 2024 &mdash; automated type-system verification), Datafun &amp; Flix (monotonicity tracked in types).</p>
+    <p><strong>Key insight:</strong> A function can be <em>pure AND non-commutative</em> (string concatenation) or <em>impure AND commutative</em> (incrementing a shared counter). Effects and algebraic properties are completely orthogonal.</p>
+  </div>
+
+  <div class="dim-detail" id="detail-infoflow">
+    <h3>Information Flow &mdash; Where Data Propagates</h3>
+    <p>Information flow asks: <strong>"Can secret inputs influence public outputs?"</strong> This is fundamentally different from effects. Two programs can perform identical effects but differ in information flow.</p>
+    <div class="example-box">
+      <pre style="margin:0;background:none;border:none;padding:0"><code><span class="cmt">// Both are pure. Both return a string. Different information flow.</span>
+<span class="kw">function</span> <span class="fn">safe</span>(secret: <span class="type">string</span>, public: <span class="type">string</span>) { <span class="kw">return</span> public; }
+<span class="kw">function</span> <span class="fn">leak</span>(secret: <span class="type">string</span>, public: <span class="type">string</span>) { <span class="kw">return</span> secret; }</code></pre>
+    </div>
+    <p><strong>Foundational work:</strong> Denning's lattice model (1976), Goguen &amp; Meseguer's noninterference (1982), Myers' Jif/JFlow (1999), FlowCaml, LIO (Labeled IO in Haskell), FLAME.</p>
+    <p><strong>Critical distinction:</strong> Effects track <em>what operations occur</em>. IFC tracks <em>what data dependencies exist</em>. Noninterference is a <strong>hyperproperty</strong> (Clarkson &amp; Schneider 2010) &mdash; it requires comparing multiple executions, which no single-trace effect annotation can express.</p>
+    <p><strong>KindScript connection:</strong> <code>noDependency</code> + <code>noMutation</code> is a sound approximation of noninterference &mdash; if module A can't import B and there's no shared mutable state, A can't depend on B's data.</p>
+  </div>
+
+  <div class="dim-detail" id="detail-temporal">
+    <h3>Temporal Properties &mdash; Ordering, Liveness, Eventuality</h3>
+    <p>Temporal properties ask: <strong>"In what order do events occur?"</strong> and <strong>"Does something good eventually happen?"</strong></p>
+    <div class="example-box">
+      <strong>Safety</strong> (nothing bad ever happens): "The mutex is never held by two threads."<br>
+      <strong>Liveness</strong> (something good eventually happens): "Every request eventually gets a response."<br>
+      <strong>Fairness:</strong> "No thread is starved of the lock forever."
+    </div>
+    <p><strong>The Alpern-Schneider decomposition (1985):</strong> Every trace property is the unique intersection of a safety property and a liveness property. KindScript's current properties are <em>all</em> safety properties.</p>
+    <p><strong>Why effects fall short:</strong> Two programs can perform identical operations (both acquire lock A and lock B) but differ temporally (one acquires A-then-B, the other B-then-A &mdash; and one deadlocks). Effects say <em>what</em>; temporal logic says <em>when</em>.</p>
+    <p><strong>Termination</strong> is the canonical property effects miss: a pure, effect-free function can loop forever. <code>let rec f x = f x</code> has no effects but never halts. Agda and Idris enforce termination via structural recursion, making it a type-level property.</p>
+    <p><strong>Frameworks:</strong> LTL, CTL, model checking (SPIN, NuSMV, TLA+), session types (linear protocol compliance).</p>
+  </div>
+
+  <div class="dim-detail" id="detail-quantitative">
+    <h3>Resource &amp; Complexity &mdash; How Much, Not Just What</h3>
+    <p>Effects are <strong>boolean</strong> (IO: yes/no). Quantitative properties are <strong>measured</strong>: how much time, space, energy, bandwidth.</p>
+    <div class="example-box">
+      <strong>Effect:</strong> "This function allocates memory" <em>(boolean)</em><br>
+      <strong>Quantitative:</strong> "This function allocates at most 4n + 8 bytes" <em>(polynomial bound)</em><br><br>
+      <strong>Effect:</strong> "This function makes network requests" <em>(boolean)</em><br>
+      <strong>Quantitative:</strong> "This function makes at most 3 network requests" <em>(bounded count)</em>
+    </div>
+    <p><strong>Systems:</strong> RAML (Resource Aware ML &mdash; automatic polynomial bounds on heap/time), sized types (Hughes, Pareto, Sabry 1996), implicit computational complexity (ICC), WCET analysis for real-time systems.</p>
+    <p><strong>KindScript already has one:</strong> <code>maxFanOut</code> is a quantitative property! Natural extensions: <code>maxLineCount</code>, <code>maxCyclomaticComplexity</code>, <code>maxNestingDepth</code>, <code>maxImportChainLength</code> &mdash; all computable from AST walks.</p>
+  </div>
+
+  <div class="dim-detail" id="detail-relational">
+    <h3>Relational Properties &mdash; How Code Relates to Other Code</h3>
+    <p>Relational properties are about <strong>pairs (or families) of programs</strong>, not individual programs. No annotation on a single program can express them.</p>
+    <div class="example-box">
+      <strong>Refinement:</strong> "Implementation P correctly implements specification S"<br>
+      <strong>Bisimulation:</strong> "No observer can distinguish system A from system B"<br>
+      <strong>Parametricity:</strong> From <code>forall a. a -&gt; a</code>, we know the function must be the identity &mdash; derived purely from the type
+    </div>
+    <p><strong>Wadler's "Theorems for Free" (1989):</strong> Parametric polymorphism constrains behavior in ways that depend on relationships between <em>different type instantiations</em>. A function <code>forall a. [a] -&gt; [a]</code> must commute with <code>map</code>. No effect annotation tells you this.</p>
+    <p><strong>Frameworks:</strong> Logical relations (Reynolds 1983), simulation relations, refinement calculus, relational Hoare logic (Benton 2004), product programs (Barthe et al. 2011).</p>
+  </div>
+
+  <div class="dim-detail" id="detail-correctness">
+    <h3>Functional Correctness &mdash; Does It Compute the Right Thing?</h3>
+    <p>The ultimate behavioral property. A function can be <strong>pure, effect-free, fast, secure, and still wrong</strong>.</p>
+    <div class="example-box">
+      <pre style="margin:0;background:none;border:none;padding:0"><code><span class="cmt">// Pure. No IO. No mutation. Fast. Completely wrong.</span>
+<span class="kw">function</span> <span class="fn">sort</span>(xs: <span class="type">number[]</span>): <span class="type">number[]</span> {
+  <span class="kw">return</span> xs.reverse(); <span class="cmt">// not sorted!</span>
+}</code></pre>
+    </div>
+    <p><strong>What it covers:</strong> "Output is sorted," "Result is positive," "List length is preserved," "Binary search finds the target."</p>
+    <p><strong>Frameworks:</strong> Hoare logic (pre/post conditions), separation logic, Design by Contract (Eiffel/Racket), dependent types (Agda, Idris, Lean), refinement types (Liquid Types &mdash; automatic SMT-backed verification).</p>
+    <p><strong>Liquid Types</strong> (Rondon, Kawaguchi, Jhala 2008) are the practical sweet spot: types like <code>{v : Int | v &gt; 0}</code> or <code>{xs : List | sorted xs}</code> that an SMT solver can check automatically. They capture value-dependent properties that effects are completely blind to.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §3 THE MAP ═══════ -->
+<section id="s3">
+<div class="container">
+  <h2><span class="num">3</span> The Map</h2>
+  <p class="section-sub">Visualizing where each dimension sits and what it can express.</p>
+
+  <div class="map-wrap">
+    <svg viewBox="0 0 720 480" width="720" height="480">
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#546e7a"/>
+        </marker>
+      </defs>
+
+      <!-- Axes -->
+      <line x1="60" y1="420" x2="700" y2="420" stroke="#2a2e3d" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+      <line x1="60" y1="420" x2="60" y2="30" stroke="#2a2e3d" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+      <text x="380" y="460" text-anchor="middle" fill="#546e7a" font-size="11" font-weight="600">EXPRESSIVENESS (what can be stated)</text>
+      <text x="20" y="225" text-anchor="middle" fill="#546e7a" font-size="11" font-weight="600" transform="rotate(-90,20,225)">DECIDABILITY (can it be checked?)</text>
+
+      <!-- Regions -->
+      <rect x="70" y="320" width="210" height="90" rx="8" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.2)" stroke-width="1"/>
+      <text x="175" y="345" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600" opacity="0.7">DECIDABLE WITH ANNOTATIONS</text>
+
+      <rect x="70" y="180" width="400" height="130" rx="8" fill="rgba(251,191,36,0.06)" stroke="rgba(251,191,36,0.15)" stroke-width="1"/>
+      <text x="270" y="200" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600" opacity="0.7">DECIDABLE FOR RESTRICTED PROGRAMS</text>
+
+      <rect x="70" y="50" width="620" height="120" rx="8" fill="rgba(248,113,113,0.06)" stroke="rgba(248,113,113,0.15)" stroke-width="1"/>
+      <text x="380" y="70" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600" opacity="0.7">UNDECIDABLE IN GENERAL (Rice's Theorem)</text>
+
+      <!-- Dimension bubbles -->
+      <!-- Effects -->
+      <circle cx="150" cy="365" r="32" fill="rgba(108,140,255,0.15)" stroke="#6c8cff" stroke-width="2"/>
+      <text x="150" y="361" text-anchor="middle" fill="#6c8cff" font-size="10" font-weight="700">Effects</text>
+      <text x="150" y="375" text-anchor="middle" fill="#6c8cff" font-size="8">what ops?</text>
+
+      <!-- Info Flow -->
+      <circle cx="260" cy="348" r="28" fill="rgba(34,211,238,0.12)" stroke="#22d3ee" stroke-width="2"/>
+      <text x="260" y="344" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="700">Info Flow</text>
+      <text x="260" y="358" text-anchor="middle" fill="#22d3ee" font-size="8">where data?</text>
+
+      <!-- Quantitative -->
+      <circle cx="200" cy="245" r="30" fill="rgba(251,146,60,0.12)" stroke="#fb923c" stroke-width="2"/>
+      <text x="200" y="241" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="700">Resource</text>
+      <text x="200" y="255" text-anchor="middle" fill="#fb923c" font-size="8">how much?</text>
+
+      <!-- Algebraic -->
+      <circle cx="330" cy="230" r="32" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="2"/>
+      <text x="330" y="226" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">Algebraic</text>
+      <text x="330" y="240" text-anchor="middle" fill="#a78bfa" font-size="8">what laws?</text>
+
+      <!-- Temporal -->
+      <circle cx="120" cy="240" r="26" fill="rgba(244,114,182,0.12)" stroke="#f472b6" stroke-width="2"/>
+      <text x="120" y="236" text-anchor="middle" fill="#f472b6" font-size="10" font-weight="700">Temporal</text>
+      <text x="120" y="250" text-anchor="middle" fill="#f472b6" font-size="8">what order?</text>
+
+      <!-- Relational -->
+      <circle cx="490" cy="110" r="34" fill="rgba(248,113,113,0.12)" stroke="#f87171" stroke-width="2"/>
+      <text x="490" y="106" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Relational</text>
+      <text x="490" y="120" text-anchor="middle" fill="#f87171" font-size="8">how do codes relate?</text>
+
+      <!-- Correctness -->
+      <circle cx="600" cy="100" r="34" fill="rgba(248,113,113,0.12)" stroke="#f87171" stroke-width="2"/>
+      <text x="600" y="96" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Correctness</text>
+      <text x="600" y="110" text-anchor="middle" fill="#f87171" font-size="8">right answer?</text>
+
+      <!-- KindScript marker -->
+      <rect x="105" y="378" width="90" height="16" rx="4" fill="rgba(74,222,128,0.2)" stroke="var(--green)" stroke-width="1"/>
+      <text x="150" y="390" text-anchor="middle" fill="#4ade80" font-size="8" font-weight="700">KindScript</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <p style="margin:0;font-size:0.88rem"><strong>Reading the map:</strong> The x-axis shows how expressive each dimension is (what range of properties can be stated). The y-axis shows decidability (how feasible it is to check automatically). Effects sit in the lower-left: narrow expressiveness but highly decidable. Functional correctness sits in the upper-right: maximally expressive but undecidable in general. KindScript currently occupies the effects region.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §4 DECIDABILITY HIERARCHY ═══════ -->
+<section id="s4">
+<div class="container">
+  <h2><span class="num">4</span> The Decidability Hierarchy</h2>
+  <p class="section-sub">Rice's theorem sets the ceiling. Practical systems trade expressiveness for decidability. Click each level to expand.</p>
+
+  <div class="hierarchy">
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--green)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--green)">Level 0: Syntactic Properties</div>
+        <div class="h-desc">Depend on program text, not behavior. Always decidable.</div>
+        <div class="h-extra"><br>"Does the file have more than 100 lines?" "Does it contain a <code>goto</code>?" "Are there import statements?"<br><br>KindScript's <code>noImports</code> and <code>noConsole</code> are pure Level 0 &mdash; pattern matching on AST nodes.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--green)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--green)">Level 1: Type Properties</div>
+        <div class="h-desc">Shape of values. Decidable with inference (Hindley-Milner) or annotations (System F).</div>
+        <div class="h-extra"><br>"Does this expression have type <code>Int -&gt; Bool</code>?" TypeScript's structural type system lives here. Types characterize data shapes; effects characterize operations.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--accent)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--accent)">Level 2: Effect Properties &larr; KindScript lives here</div>
+        <div class="h-desc">What operations does code perform? Decidable via effect systems.</div>
+        <div class="h-extra"><br><code>pure</code>, <code>noIO</code>, <code>noMutation</code>, <code>noSideEffects</code>. Decidable with annotations or shallow syntactic analysis. Koka, Eff, and Flix infer effects automatically. KindScript checks them via AST walks.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--yellow)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--yellow)">Level 3: Resource Properties</div>
+        <div class="h-desc">Time/space complexity bounds. Decidable for restricted program classes.</div>
+        <div class="h-extra"><br>RAML automatically infers polynomial bounds on OCaml programs. Sized types track data structure sizes. ICC (implicit computational complexity) characterizes complexity classes via type systems. General complexity bounds are undecidable.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--yellow)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--yellow)">Level 4: Information Flow Properties</div>
+        <div class="h-desc">Where data flows. Decidable via security type systems with annotations.</div>
+        <div class="h-extra"><br>Jif/JFlow, FlowCaml, LIO. Requires data flow analysis, not just AST pattern matching. Taint tracking is the dynamic approximation. Noninterference (the full property) is a hyperproperty and undecidable in general, but sound approximations exist.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--orange)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--orange)">Level 5: Value-Dependent Properties</div>
+        <div class="h-desc">"Is the output sorted?" Decidable for restricted predicate languages.</div>
+        <div class="h-extra"><br>Liquid Types use SMT solvers with a finite set of qualifiers for automatic inference. Dependent types (Agda, Idris, Lean) are fully expressive but require manual proofs. Contracts (Eiffel, Racket) check at runtime.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--orange)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--orange)">Level 6: Algebraic Properties</div>
+        <div class="h-desc">Commutativity, monotonicity, idempotency. Undecidable in general.</div>
+        <div class="h-extra"><br>Require reasoning about <em>multiple applications</em> of the same function. QuickCheck tests them probabilistically. Liquid Haskell proves them via SMT. Propel (PLDI 2024) verifies them through a specialized type system. Bloom/CALM make monotonicity syntactically checkable by restricting the language.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--red)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--red)">Level 7: Relational &amp; Hyperproperties</div>
+        <div class="h-desc">Properties of pairs/sets of executions. Undecidable in general.</div>
+        <div class="h-extra"><br>Refinement, bisimulation, noninterference, parametricity. Require comparing multiple programs or executions. Self-composition (Barthe et al. 2004), relational Hoare logic, HyperLTL. Bisimulation of finite systems is decidable; contextual equivalence is not.</div>
+      </div>
+    </div>
+
+    <div class="h-level" onclick="this.classList.toggle('open')">
+      <div class="h-bar" style="background:var(--red)"></div>
+      <div class="h-content">
+        <div class="h-name" style="color:var(--red)">Level 8: Arbitrary Semantic Properties</div>
+        <div class="h-desc">Any non-trivial property of the computed function. Undecidable (Rice's theorem).</div>
+        <div class="h-extra"><br>Rice (1953): For any non-trivial semantic property, the set of programs having that property is undecidable. Baldan et al. (2021) extended this to abstract semantics. Every practical system is a <em>sound approximation</em> that sacrifices completeness. This is not a limitation of our tools &mdash; it's a mathematical law.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §5 WHY EFFECTS AREN'T ENOUGH ═══════ -->
+<section id="s5">
+<div class="container">
+  <h2><span class="num">5</span> Why Effects Aren't Enough</h2>
+  <p class="section-sub">Five proofs by counterexample.</p>
+
+  <div class="card card-accent">
+    <h3>1. Same effects, different values (Correctness)</h3>
+    <pre><code><span class="cmt">// Both pure. Both return number[]. Different correctness.</span>
+<span class="kw">const</span> <span class="fn">sort</span> = (xs: <span class="type">number[]</span>) => [...xs].sort((a,b) => a-b);  <span class="cmt">// correct</span>
+<span class="kw">const</span> <span class="fn">oops</span> = (xs: <span class="type">number[]</span>) => [...xs].reverse();            <span class="cmt">// wrong</span></code></pre>
+    <p style="margin:0;font-size:0.88rem">Effects say both are <code>{pure: true}</code>. Only functional correctness distinguishes them.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h3>2. Same effects, different data flow (Information Flow)</h3>
+    <pre><code><span class="cmt">// Both pure. One leaks, one doesn't.</span>
+<span class="kw">const</span> <span class="fn">safe</span> = (secret: <span class="type">string</span>, pub: <span class="type">string</span>) => pub;
+<span class="kw">const</span> <span class="fn">leak</span> = (secret: <span class="type">string</span>, pub: <span class="type">string</span>) => secret;</code></pre>
+    <p style="margin:0;font-size:0.88rem">Effects can't distinguish these. Information flow analysis can.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h3>3. Same effects, different algebraic laws (Algebraic)</h3>
+    <pre><code><span class="cmt">// Both pure. One is commutative, one isn't.</span>
+<span class="kw">const</span> <span class="fn">add</span> = (a: <span class="type">number</span>, b: <span class="type">number</span>) => a + b;   <span class="cmt">// add(1,2) === add(2,1) ✓</span>
+<span class="kw">const</span> <span class="fn">sub</span> = (a: <span class="type">number</span>, b: <span class="type">number</span>) => a - b;   <span class="cmt">// sub(1,2) !== sub(2,1) ✗</span></code></pre>
+    <p style="margin:0;font-size:0.88rem">Commutativity is a property about <em>pairs of calls</em>. Effects describe single calls.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h3>4. No effects, but doesn't terminate (Temporal)</h3>
+    <pre><code><span class="cmt">// Pure. No IO. No mutation. Never halts.</span>
+<span class="kw">const</span> <span class="fn">loop</span> = (): <span class="type">never</span> => <span class="fn">loop</span>();</code></pre>
+    <p style="margin:0;font-size:0.88rem">Effect annotation: <code>{pure: true}</code>. But it never produces a value. Termination is a liveness property invisible to effects.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h3>5. Same effects, different cost (Quantitative)</h3>
+    <pre><code><span class="cmt">// Both pure. Both sort. Vastly different performance.</span>
+<span class="kw">function</span> <span class="fn">mergeSort</span>(xs) { ... }   <span class="cmt">// O(n log n)</span>
+<span class="kw">function</span> <span class="fn">bogoSort</span>(xs)  { ... }   <span class="cmt">// O((n+1)!) expected</span></code></pre>
+    <p style="margin:0;font-size:0.88rem">Effects: identical. Complexity: astronomically different. You can't express O(n log n) as an effect.</p>
+  </div>
+
+  <div class="card card-warn">
+    <p style="margin:0"><strong>The fundamental limitation:</strong> Effects track <em>what operations occur</em> during a single execution. They cannot capture <em>what values are computed</em>, <em>how inputs relate to outputs across multiple calls</em>, <em>whether execution terminates</em>, <em>how much resource is consumed</em>, or <em>how multiple executions relate</em>. These are five genuinely distinct blind spots, each addressed by different formal frameworks.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §6 KINDSCRIPT'S POSITION ═══════ -->
+<section id="s6">
+<div class="container">
+  <h2><span class="num">6</span> KindScript's Position</h2>
+  <p class="section-sub">Where KindScript sits today, and the most feasible expansion paths.</p>
+
+  <table class="t">
+    <tr>
+      <th>Dimension</th>
+      <th>KindScript Today</th>
+      <th>Feasibility</th>
+      <th>What It Would Take</th>
+    </tr>
+    <tr>
+      <td style="color:var(--accent)"><strong>Effects</strong></td>
+      <td><code>pure</code>, <code>noIO</code>, <code>noMutation</code>, <code>noConsole</code>, <code>noImports</code></td>
+      <td><span style="color:var(--green)">Done</span></td>
+      <td>Phase 2 complete; Phase 3-4 adds transitive analysis</td>
+    </tr>
+    <tr>
+      <td style="color:var(--orange)"><strong>Quantitative</strong></td>
+      <td><code>maxFanOut</code></td>
+      <td><span style="color:var(--green)">Easy</span></td>
+      <td>AST counting: <code>maxLineCount</code>, <code>maxComplexity</code>, <code>maxNestingDepth</code></td>
+    </tr>
+    <tr>
+      <td style="color:var(--cyan)"><strong>Structural/Relational</strong></td>
+      <td><code>noDependency</code>, <code>noCycles</code></td>
+      <td><span style="color:var(--green)">Done</span></td>
+      <td>Import graph analysis; approximates information containment</td>
+    </tr>
+    <tr>
+      <td style="color:var(--pink)"><strong>Temporal</strong></td>
+      <td>&mdash;</td>
+      <td><span style="color:var(--yellow)">Medium</span></td>
+      <td>Intra-procedural CFG for ordering constraints, resource protocol compliance</td>
+    </tr>
+    <tr>
+      <td style="color:#22d3ee"><strong>Information Flow</strong></td>
+      <td>Approximated by <code>noDependency</code> + <code>noMutation</code></td>
+      <td><span style="color:var(--orange)">Hard</span></td>
+      <td>Data flow analysis; taint tracking on top of AST</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent2)"><strong>Algebraic</strong></td>
+      <td>&mdash;</td>
+      <td><span style="color:var(--orange)">Hard</span></td>
+      <td>Declaration-only (like Rust traits) or property-based testing integration</td>
+    </tr>
+    <tr>
+      <td style="color:var(--red)"><strong>Correctness</strong></td>
+      <td>&mdash;</td>
+      <td><span style="color:var(--red)">Very Hard</span></td>
+      <td>Would require refinement types or contract system; different kind of checker</td>
+    </tr>
+  </table>
+
+  <div class="card card-green">
+    <h3>The key insight</h3>
+    <p>KindScript's <code>noDependency</code> + <code>noMutation</code> combination is already a <strong>sound approximation of information flow containment</strong>: if module A can't import B and there's no shared mutable state, then A's behavior is provably independent of B's data. Understanding this connection &mdash; that you're approximating a hyperproperty with simpler structural checks &mdash; clarifies both the power and the limits of the current model.</p>
+    <p style="margin:0">The most natural next step is <strong>more quantitative properties</strong> (easy AST counting, huge practical value) and eventually <strong>temporal ordering constraints</strong> (medium effort, catches resource protocol violations).</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §7 REFERENCES ═══════ -->
+<section id="s7">
+<div class="container">
+  <h2><span class="num">7</span> Key References</h2>
+  <p class="section-sub">Organized by dimension.</p>
+
+  <h3>Effects &amp; Capabilities</h3>
+  <div class="card" style="font-size:0.85rem">
+    <p>Moggi, "Notions of Computation and Monads" (1991) &bull; Plotkin &amp; Pretnar, "Handlers of Algebraic Effects" (2009) &bull; Leijen, "Koka: Programming with Row-Polymorphic Effect Types" (2014) &bull; Brachth&auml;user et al., "Effects as Capabilities" (2020) &bull; arXiv:2510.07582, "Type, Ability, and Effect Systems" (2025)</p>
+  </div>
+
+  <h3>Algebraic Properties</h3>
+  <div class="card" style="font-size:0.85rem">
+    <p>Hellerstein &amp; Alvaro, "Keeping CALM: When Distributed Consistency is Easy" (CACM 2020) &bull; Arntzenius &amp; Krishnaswami, "Datafun: a Functional Datalog" (ICFP 2016) &bull; Clancy &amp; Miller, "Monotonicity Types" (2017) &bull; Madsen et al., "From Datalog to Flix" (PLDI 2016) &bull; "Automated Verification of Fundamental Algebraic Laws" [Propel] (PLDI 2024) &bull; "Type-Checking CRDT Convergence" (OOPSLA 2023) &bull; Vazou et al., "Refinement Reflection" (POPL 2018)</p>
+  </div>
+
+  <h3>Information Flow &amp; Hyperproperties</h3>
+  <div class="card" style="font-size:0.85rem">
+    <p>Denning, "A Lattice Model of Secure Information Flow" (CACM 1976) &bull; Goguen &amp; Meseguer, "Security Policies and Security Models" (S&amp;P 1982) &bull; Myers, "JFlow" (POPL 1999) &bull; Sabelfeld &amp; Myers, "Language-Based Information-Flow Security" (2003) &bull; Clarkson &amp; Schneider, "Hyperproperties" (JCS 2010) &bull; Barthe et al., "Secure Information Flow by Self-Composition" (CSFW 2004) &bull; Clarkson et al., "Temporal Logics for Hyperproperties" (POST 2014)</p>
+  </div>
+
+  <h3>Temporal Properties &amp; Termination</h3>
+  <div class="card" style="font-size:0.85rem">
+    <p>Alpern &amp; Schneider, "Defining Liveness" (IPL 1985) &bull; Pnueli, "The Temporal Logic of Programs" (FOCS 1977) &bull; Hughes, Pareto &amp; Sabry, "Sized Types" (POPL 1996) &bull; Turner, "Total Functional Programming" (2004) &bull; Brady, "Idris" (JFP 2013) &bull; Norell, "Dependently Typed Programming in Agda" (AFP 2008)</p>
+  </div>
+
+  <h3>Quantitative &amp; Resource Properties</h3>
+  <div class="card" style="font-size:0.85rem">
+    <p>Hoffmann, Aehlig &amp; Hofmann, "Multivariate Amortized Resource Analysis" [RAML] (TOPLAS 2012) &bull; Hofmann &amp; Jost, "Static Prediction of Heap Space Usage" (POPL 2003) &bull; Tarjan, "Amortized Computational Complexity" (1985) &bull; Wilhelm et al., "The Worst-Case Execution Time Problem" (TECS 2008) &bull; Blelloch &amp; Greiner, "Work/Span Cost Semantics" (ICFP 1996)</p>
+  </div>
+
+  <h3>Relational Properties &amp; Correctness</h3>
+  <div class="card" style="font-size:0.85rem">
+    <p>Wadler, "Theorems for Free!" (1989) &bull; Reynolds, "Types, Abstraction and Parametric Polymorphism" (1983) &bull; Benton, "Simple Relational Correctness Proofs" (POPL 2004) &bull; Rondon, Kawaguchi &amp; Jhala, "Liquid Types" (PLDI 2008) &bull; Findler &amp; Felleisen, "Contracts for Higher-Order Functions" (ICFP 2002) &bull; Meyer, "Design by Contract" (1997) &bull; Abramsky, "Domain Theory in Logical Form" (1991)</p>
+  </div>
+
+  <h3>Foundations</h3>
+  <div class="card" style="font-size:0.85rem">
+    <p>Rice, "Classes of Recursively Enumerable Sets and Their Decision Problems" (1953) &bull; Baldan et al., "A Rice's Theorem for Abstract Semantics" (ICALP 2021) &bull; Cousot &amp; Cousot, "Abstract Interpretation" (POPL 1977) &bull; Girard, "Linear Logic" (1987) &bull; Alpern &amp; Schneider, "Recognizing Safety and Liveness" (1987)</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §8 QUIZ ═══════ -->
+<section id="s8">
+<div class="container">
+  <h2><span class="num">8</span> Knowledge Check</h2>
+  <p class="section-sub">Click to reveal answers.</p>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q1: Name a property that two pure functions can differ on, which no effect system can detect.</div>
+    <div class="fc-a"><br>Many answers: <strong>commutativity</strong> (add vs subtract), <strong>functional correctness</strong> (correct sort vs reverse), <strong>termination</strong> (halting vs infinite loop), <strong>monotonicity</strong> (increasing vs decreasing), <strong>information flow</strong> (leaking vs not leaking a secret through the return value). All invisible to effects.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q2: What is a hyperproperty, and why can't effects capture it?</div>
+    <div class="fc-a"><br>A <strong>hyperproperty</strong> (Clarkson &amp; Schneider 2010) is a property of <em>sets of execution traces</em>, not individual traces. Noninterference is the canonical example: "varying secret inputs doesn't change public outputs" requires comparing two executions. Effects annotate individual programs with information about individual executions &mdash; they are inherently single-trace and cannot express multi-trace relationships.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q3: What does the CALM theorem say about monotonicity?</div>
+    <div class="fc-a"><br>The CALM theorem (Hellerstein &amp; Alvaro): a distributed program has a consistent, coordination-free implementation <strong>if and only if</strong> it is monotonic ("adding inputs can only add to outputs"). This makes monotonicity the deciding property for whether you need distributed coordination (locks, consensus, 2PC). The Bloom language exploits this &mdash; its compiler identifies non-monotonic components that require coordination.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q4: What does Rice's theorem mean for KindScript?</div>
+    <div class="fc-a"><br>Rice's theorem (1953): all non-trivial semantic properties of programs are undecidable. This means KindScript can <em>never</em> build a complete checker for properties like "is this function truly pure in all cases" or "does this terminate." Every practical system (including KindScript) is a <strong>sound approximation</strong> &mdash; it catches real violations but may reject valid programs. The art is choosing approximations that are tight enough to be useful.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q5: How does KindScript's <code>noDependency</code> + <code>noMutation</code> approximate information flow?</div>
+    <div class="fc-a"><br>If module A can't import module B (<code>noDependency</code>) and there's no shared mutable state (<code>noMutation</code>), then A's outputs provably cannot depend on B's data. This is a <strong>sound but incomplete approximation of noninterference</strong>: it guarantees information containment through structural constraints rather than data flow analysis. It's incomplete because shared globals or indirect communication channels could still exist, but it catches the common architectural violations.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q6: Why are algebraic properties (commutativity, associativity) orthogonal to effects?</div>
+    <div class="fc-a"><br>Because a function can be <strong>pure AND non-commutative</strong> (string concatenation), or <strong>impure AND commutative</strong> (incrementing a shared counter by different amounts, where the final total is order-independent). Effects describe what a function <em>does</em> (IO, mutation); algebraic properties describe the <em>relationship between outputs given different input orderings</em>. These are independent axes &mdash; knowing all effects tells you nothing about algebraic laws, and vice versa.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+</div>
+</section>
+
+<script>
+// ── Dimension detail panels ──
+let activeDim = null;
+
+function showDim(name) {
+  // Toggle off if clicking same
+  if (activeDim === name) {
+    document.getElementById('detail-' + name).classList.remove('visible');
+    document.querySelector(`.dim-card[data-dim="${name}"]`).classList.remove('active');
+    activeDim = null;
+    return;
+  }
+
+  // Hide previous
+  if (activeDim) {
+    document.getElementById('detail-' + activeDim).classList.remove('visible');
+    document.querySelector(`.dim-card[data-dim="${activeDim}"]`).classList.remove('active');
+  }
+
+  // Show new
+  activeDim = name;
+  const detail = document.getElementById('detail-' + name);
+  const card = document.querySelector(`.dim-card[data-dim="${name}"]`);
+  card.classList.add('active');
+  detail.classList.add('visible');
+
+  // Scroll detail into view
+  setTimeout(() => detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+</script>
+</body>
+</html>

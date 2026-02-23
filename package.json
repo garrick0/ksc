@@ -10,10 +10,14 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "showcase": "tsx examples/showcase.ts",
+    "showcase:fixed": "tsx examples/showcase.ts --mode=fixed",
+    "showcase:live": "tsx examples/showcase.ts --mode=live"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },

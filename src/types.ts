@@ -1,7 +1,7 @@
 /**
  * Internal compiler type definitions for KindScript.
  *
- * These types are used by the binder, checker, and program — not by end users.
+ * These types are used by the binder, checker, and program.
  */
 
 import type ts from 'typescript';
@@ -9,8 +9,7 @@ import type ts from 'typescript';
 // ── PropertySpec (runtime representation) ──
 
 /**
- * Runtime representation of a Kind's declared properties, extracted from
- * the type arguments of Kind<Base, Properties> during binding.
+ * Runtime representation of declared rules, extracted from the config.
  */
 export interface PropertySpec {
   // Intrinsic
@@ -41,45 +40,27 @@ export interface PropertySpec {
 // ── KindSymbol ──
 
 /**
- * Each Kind-related symbol gets a KindSymbol entry in the KindSymbolTable.
- * Mirrors TypeScript's symbolLinks[] side-table pattern.
+ * Each config entry becomes a KindSymbol for the checker.
  */
 export interface KindSymbol {
-  /** Back-reference to the TypeScript symbol. */
-  tsSymbol: ts.Symbol;
+  /** Unique identifier (e.g., "sym-0"). */
+  id: string;
 
-  /** The type alias or variable name. */
+  /** The config entry name. */
   name: string;
 
-  /** Is this a Kind type definition or a kind-annotated value? */
-  role: 'definition' | 'value';
-
-  /** The properties this Kind declares. */
+  /** The rules this entry declares. */
   declaredProperties: PropertySpec;
 
-  /** The Base in Kind<Base, Props>. */
-  baseType: ts.Type;
-
-  /** Child members (if base type is an object with Kind-typed properties). */
+  /** Child members (composite entries only). */
   members?: Map<string, KindSymbol>;
 
-  /** Link to the Kind definition this value is annotated with (values only). */
-  kindDefinition?: KindSymbol;
-
-  /** Filesystem path from ks.file() or ks.dir() (values only). */
+  /** Filesystem path for file/directory targets. */
   path?: string;
 
-  /** What kind of value this is. */
-  valueKind: 'function' | 'file' | 'directory' | 'composite';
+  /** What kind of target this is. */
+  valueKind: 'file' | 'directory' | 'composite';
 }
-
-// ── KindSymbolTable ──
-
-/**
- * A WeakMap keyed on ts.Symbol objects. Extends symbols with KindScript
- * metadata without mutating TypeScript's own data structures.
- */
-export type KindSymbolTable = WeakMap<ts.Symbol, KindSymbol>;
 
 // ── Computed properties (checker output) ──
 
@@ -111,6 +92,8 @@ export interface KSDiagnostic {
   messageText: string;
   category: ts.DiagnosticCategory;
   code: number;
+  /** The property that was violated (e.g., "noConsole", "immutable"). */
+  property?: string;
 }
 
 /** KindScript error codes start at 70001. */
@@ -149,7 +132,7 @@ export interface KSProgram {
   getTSTypeChecker(): ts.TypeChecker;
 
   // KindScript-specific
-  getKindSymbolTable(): KindSymbolTable;
+  getAllKindSymbols(): KindSymbol[];
   getKindChecker(): KSChecker;
   getKindDiagnostics(sourceFile?: ts.SourceFile): KSDiagnostic[];
 }

@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESLint Internals — Architecture, Data Structures &amp; Analysis</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+.hero {
+  text-align: center; padding: 64px 24px 48px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 2.6rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 12px;
+}
+.hero .subtitle { font-size: 1.05rem; color: var(--text-dim); max-width: 700px; margin: 0 auto 20px; }
+.badge-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.75rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.blue { border-color: var(--accent); color: var(--accent); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+.badge.pink { border-color: var(--pink); color: var(--pink); }
+
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.7rem; font-weight: 700; margin-bottom: 6px; }
+h2 .num {
+  display: inline-block; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.8rem;
+  text-align: center; line-height: 34px; margin-right: 10px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 24px; font-size: 0.92rem; }
+h3 { font-size: 1.1rem; font-weight: 700; color: var(--accent2); margin: 24px 0 10px; }
+h4 { font-size: 0.95rem; font-weight: 700; color: var(--cyan); margin: 16px 0 8px; }
+p { margin-bottom: 14px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; overflow-x: auto; font-family: var(--mono); font-size: 0.82em;
+  line-height: 1.6; margin: 14px 0 18px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+.kw { color: #c792ea; }
+.fn { color: #82aaff; }
+.str { color: #c3e88d; }
+.cmt { color: #546e7a; font-style: italic; }
+.type { color: #ffcb6b; }
+.num-lit { color: var(--orange); }
+.prop { color: var(--cyan); }
+
+.insight {
+  background: rgba(108,140,255,0.06); border-left: 3px solid var(--accent);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { background: rgba(251,146,60,0.06); border-left-color: var(--orange); }
+.insight.green { background: rgba(74,222,128,0.06); border-left-color: var(--green); }
+.insight.pink { background: rgba(244,114,182,0.06); border-left-color: var(--pink); }
+.insight.red { background: rgba(248,113,113,0.06); border-left-color: var(--red); }
+.insight strong { color: var(--text); }
+
+table {
+  width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 0.85rem;
+}
+th {
+  text-align: left; padding: 10px 14px; background: var(--surface);
+  border-bottom: 2px solid var(--border); font-weight: 700; color: var(--accent);
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px;
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim);
+}
+td:first-child { color: var(--text); font-weight: 600; }
+tr:hover td { background: var(--surface); }
+
+ul, ol { margin: 8px 0 16px 24px; }
+li { margin-bottom: 6px; color: var(--text-dim); font-size: 0.92rem; }
+
+.tabs { display: flex; gap: 2px; margin-bottom: 0; flex-wrap: wrap; }
+.tab {
+  padding: 10px 20px; background: var(--surface); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim); font-weight: 600; font-size: 0.82rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { box-shadow: inset 0 2px 0 var(--accent); color: var(--text); background: var(--surface2); }
+.tab-content { display: none; padding: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); }
+.tab-content.active { display: block; }
+
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 4px; overflow: hidden;
+  cursor: pointer; transition: all 0.2s;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+}
+.df-stage-title { font-weight: 700; font-size: 0.95rem; }
+.df-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
+  color: var(--bg); font-size: 0.75rem; font-weight: 800; margin-right: 10px;
+}
+.df-expand { color: var(--text-dim); transition: transform 0.3s; font-size: 0.8rem; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+  padding: 0 20px; font-size: 0.9rem; color: var(--text-dim); line-height: 1.7;
+}
+.df-stage.active .df-detail { max-height: 1200px; padding: 0 20px 16px; }
+.df-connector { width: 2px; height: 12px; background: var(--border); margin: 0 auto; }
+
+.pipeline-stepper {
+  display: flex; gap: 2px; margin-bottom: 4px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.step-btn {
+  flex: 1; padding: 12px 8px; border: none; background: var(--surface);
+  color: var(--text-dim); font-weight: 700; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  letter-spacing: 0.5px; font-family: var(--mono);
+}
+.step-btn:hover { background: var(--surface2); color: var(--text); }
+.step-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+}
+.step-content { display: none; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+.step-content.active { display: block; }
+
+/* Flashcard quiz system */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* AST tree visualization */
+.ast-tree { font-family: var(--mono); font-size: 0.82rem; margin: 16px 0; }
+.ast-node {
+  padding: 4px 0 4px 20px; border-left: 2px solid var(--border);
+  margin-left: 12px; position: relative; cursor: pointer; transition: all 0.15s;
+}
+.ast-node:hover { border-left-color: var(--accent); }
+.ast-node::before {
+  content: ''; position: absolute; left: -2px; top: 14px;
+  width: 14px; height: 2px; background: var(--border);
+}
+.ast-node:hover::before { background: var(--accent); }
+.ast-type { color: var(--cyan); font-weight: 700; }
+.ast-prop { color: var(--text-dim); margin-left: 8px; }
+.ast-val { color: var(--green); }
+.ast-root { border-left: none; margin-left: 0; padding-left: 0; }
+.ast-root::before { display: none; }
+
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .pipeline-stepper { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ HERO ═══════ -->
+<div class="hero">
+  <h1>ESLint Internals</h1>
+  <p class="subtitle">How ESLint works from source file to diagnostic &mdash; the parser, AST, scope analysis, code path analysis, visitor pattern, and the boundary between syntactic and semantic checking.</p>
+  <div class="badge-row">
+    <span class="badge blue">ESTree AST</span>
+    <span class="badge purple">Visitor Pattern</span>
+    <span class="badge green">eslint-scope</span>
+    <span class="badge cyan">Code Paths</span>
+    <span class="badge orange">Syntactic Analysis</span>
+    <span class="badge pink">Rule System</span>
+  </div>
+</div>
+
+<!-- ═══════ NAV ═══════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#pipeline">Pipeline</a>
+    <a class="toc-link" href="#ast">AST &amp; Parsing</a>
+    <a class="toc-link" href="#data-structures">Data Structures</a>
+    <a class="toc-link" href="#rules">Rule System</a>
+    <a class="toc-link" href="#scope">Scope Analysis</a>
+    <a class="toc-link" href="#codepath">Code Paths</a>
+    <a class="toc-link" href="#base-properties">Base Properties</a>
+    <a class="toc-link" href="#composition">Inference &amp; Composition</a>
+    <a class="toc-link" href="#boundaries">Syntactic vs Semantic</a>
+    <a class="toc-link" href="#quiz">Quiz</a>
+  </div>
+</nav>
+
+<!-- ═══════ §1 THE PIPELINE ═══════ -->
+<section id="pipeline">
+<div class="container">
+  <h2><span class="num">01</span>The Pipeline: Source to Diagnostics</h2>
+  <p class="section-sub">ESLint processes each file independently through a linear pipeline. No cross-file state. No inter-procedural analysis. One file in, diagnostics out.</p>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Configuration Resolution</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The <code>ESLint</code> class (formerly <code>CLIEngine</code>) resolves configuration for each file. In the flat config system (<code>eslint.config.js</code>), configs are an array of objects with <code>files</code>/<code>ignores</code> glob patterns. For each file, ESLint finds all matching config objects and merges them in order &mdash; later entries override earlier ones.</p>
+        <pre><code><span class="cmt">// eslint.config.js — flat config</span>
+<span class="kw">export default</span> [
+  { <span class="prop">rules</span>: { <span class="str">"no-unused-vars"</span>: <span class="str">"error"</span> } },
+  { <span class="prop">files</span>: [<span class="str">"**/*.ts"</span>],
+    <span class="prop">languageOptions</span>: { <span class="prop">parser</span>: tsParser } }
+];</code></pre>
+        <p>The result is a <strong>fully-resolved config object</strong> for each file, containing: <code>rules</code> (with severity + options), <code>languageOptions</code> (parser, ecmaVersion, sourceType, globals), <code>plugins</code>, and <code>processor</code>.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Parsing (Source &rarr; AST)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The configured parser transforms source text into an <strong>ESTree-compliant AST</strong>. The default parser is <strong>Espree</strong> (ESLint's fork of Acorn). Custom parsers must export a <code>parse()</code> or <code>parseForESLint()</code> method returning an AST + optional services.</p>
+        <p><code>parseForESLint()</code> returns:</p>
+        <pre><code>{
+  <span class="prop">ast</span>: ESTree.Program,      <span class="cmt">// the AST</span>
+  <span class="prop">scopeManager</span>?: ScopeManager, <span class="cmt">// custom scope analysis</span>
+  <span class="prop">visitorKeys</span>?: object,     <span class="cmt">// which properties to traverse</span>
+  <span class="prop">services</span>?: object          <span class="cmt">// parser-provided services (e.g. TypeScript type checker)</span>
+}</code></pre>
+        <p>This is how <code>@typescript-eslint/parser</code> injects TypeScript's <code>TypeChecker</code> into ESLint &mdash; it returns it as part of <code>services</code>, making type-aware rules possible.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Pre-Processing</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The <code>SourceCode</code> object is constructed from the AST. It adds <strong>parent pointers</strong> to every node (the AST from the parser lacks these). It also indexes <strong>tokens</strong> and <strong>comments</strong> for efficient positional lookup. This is the central data object that rules interact with.</p>
+        <p>If no custom <code>scopeManager</code> was returned by the parser, ESLint runs <strong>eslint-scope</strong> to build scope analysis. It also initializes <strong>code path analysis</strong> structures.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> AST Traversal + Rule Execution</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The <code>Linter</code> performs a <strong>single depth-first traversal</strong> of the AST. At each node, it emits events to all registered rule visitors. This is the key efficiency insight: ESLint does NOT run each rule separately &mdash; it <strong>multiplexes all rules onto one traversal</strong>.</p>
+        <pre><code><span class="cmt">// Conceptual traversal (simplified)</span>
+<span class="kw">function</span> <span class="fn">traverse</span>(node) {
+  <span class="fn">emit</span>(node.type);           <span class="cmt">// "FunctionDeclaration" — enter events</span>
+  <span class="fn">emit</span>(matchingSelectors);    <span class="cmt">// CSS-like AST selectors</span>
+  <span class="kw">for</span> (<span class="kw">const</span> child <span class="kw">of</span> <span class="fn">getChildren</span>(node))
+    <span class="fn">traverse</span>(child);
+  <span class="fn">emit</span>(node.type + <span class="str">":exit"</span>); <span class="cmt">// "FunctionDeclaration:exit" — exit events</span>
+}</code></pre>
+        <p>Each rule's <code>create()</code> function returns a visitor object mapping event names to handler functions. Rules call <code>context.report()</code> to produce diagnostics.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">5</span> Fix Application &amp; Output</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Diagnostics are collected, sorted by position, and returned. If <code>--fix</code> is enabled, ESLint enters a <strong>fix loop</strong>: it applies all non-overlapping fixes (text range replacements), then <strong>re-parses and re-lints</strong> the modified source, repeating up to <strong>10 times</strong> until no more fixes remain or the limit is hit.</p>
+        <p>Fixes are <strong>text-based</strong>, not AST-based: each fix is a <code>{ range: [start, end], text: replacement }</code> tuple. This avoids the complexity of AST-to-source serialization but means fixes can conflict.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Key architectural constraint:</strong> ESLint is strictly <strong>per-file</strong>. The Linter has no knowledge of other files, no project-level state, and no import graph. This is by design &mdash; it enables parallel linting and simple caching. Cross-file analysis requires external tools (like <code>@typescript-eslint</code>'s project services or <code>eslint-plugin-import</code>'s resolver).
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §2 AST & PARSING ═══════ -->
+<section id="ast">
+<div class="container">
+  <h2><span class="num">02</span>AST &amp; Parsing</h2>
+  <p class="section-sub">The ESTree specification, the parser lineage from SpiderMonkey to Esprima to Acorn to Espree, and the node structure that everything else builds on.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('ast-tabs','ast-estree')">ESTree Spec</button>
+    <button class="tab" onclick="switchTab('ast-tabs','ast-compliance')">ESTree Compliance</button>
+    <button class="tab" onclick="switchTab('ast-tabs','ast-acorn')">Acorn</button>
+    <button class="tab" onclick="switchTab('ast-tabs','ast-espree')">Espree</button>
+    <button class="tab" onclick="switchTab('ast-tabs','ast-example')">Concrete AST</button>
+    <button class="tab" onclick="switchTab('ast-tabs','ast-custom')">Custom Parsers</button>
+  </div>
+  <div id="ast-tabs">
+
+    <!-- ESTREE TAB -->
+    <div class="tab-content active" id="ast-estree">
+      <h3>The ESTree Specification</h3>
+      <p>ESTree is a <strong>community standard specification</strong> for representing JavaScript Abstract Syntax Trees. It lives at <code>github.com/estree/estree</code> and is the lingua franca of the JavaScript tooling ecosystem &mdash; parsers, linters, bundlers, formatters, and code transforms all speak ESTree.</p>
+
+      <h4>Origin: The SpiderMonkey Parser API</h4>
+      <p>In 2010, <strong>Dave Herman</strong> (Mozilla) created and documented a public API in SpiderMonkey that exposed the engine's JavaScript parser as a JavaScript-accessible API. The AST format he documented became the de facto standard. When <strong>Ariya Hidayat</strong> built Esprima (2011) and <strong>Marijn Haverbeke</strong> built Acorn (2012), both adopted this same SpiderMonkey format. By 2014&ndash;2015, as ES6 introduced massive new syntax, the parser communities needed to coordinate AST representations for the new constructs. The ESTree spec was formalized as an explicit, versioned standard &mdash; not just a convention inherited from SpiderMonkey.</p>
+
+      <h4>Governance</h4>
+      <p>The ESTree Steering Committee has three members representing the three major parser ecosystems:</p>
+      <table>
+        <tr><th>Member</th><th>Represents</th></tr>
+        <tr><td>Nicholas C. Zakas</td><td>ESLint / Espree</td></tr>
+        <tr><td>Ingvar Stepanyan</td><td>Acorn</td></tr>
+        <tr><td>Junliang Huang</td><td>Babel</td></tr>
+      </table>
+      <p>New node types track TC39's proposal process. The repo is organized into versioned spec files (<code>es5.md</code>, <code>es2015.md</code> through <code>es2026.md</code>), a <code>stage3/</code> folder for likely-but-not-yet-final proposals, and an <code>experimental/</code> folder for earlier-stage proposals. Contributions must follow four core principles: <strong>backwards compatible</strong>, <strong>contextless</strong> (nodes don't retain parent info), <strong>unique</strong> (no duplicated information), and <strong>extensible</strong> (e.g., <code>MetaProperty</code> over <code>NewTarget</code> to cover future meta properties).</p>
+
+      <h4>The Base Node Interface</h4>
+      <pre><code><span class="kw">interface</span> <span class="type">Node</span> {
+  <span class="prop">type</span>: <span class="type">string</span>;             <span class="cmt">// discriminant: "Identifier", "BinaryExpression", etc.</span>
+  <span class="prop">loc</span>: <span class="type">SourceLocation</span> | <span class="kw">null</span>; <span class="cmt">// {start: {line, column}, end: {line, column}}</span>
+}
+
+<span class="kw">interface</span> <span class="type">SourceLocation</span> {
+  <span class="prop">start</span>: <span class="type">Position</span>;  <span class="cmt">// line is 1-indexed, column is 0-indexed</span>
+  <span class="prop">end</span>: <span class="type">Position</span>;
+}
+
+<span class="cmt">// Most parsers also add (not in the core spec):</span>
+<span class="prop">range</span>: [<span class="type">number</span>, <span class="type">number</span>]; <span class="cmt">// [startCharOffset, endCharOffset]</span></code></pre>
+      <p>The use of <strong>string discriminants</strong> (rather than numeric enums as TypeScript's AST uses with <code>SyntaxKind</code>) makes the AST self-describing and JSON-serializable without requiring a schema to interpret. You can <code>JSON.stringify</code> any ESTree AST and read it without documentation.</p>
+
+      <p>The major ESTree node categories:</p>
+      <table>
+        <tr><th>Category</th><th>Node Types</th></tr>
+        <tr><td>Declarations</td><td><code>VariableDeclaration</code>, <code>FunctionDeclaration</code>, <code>ClassDeclaration</code>, <code>ImportDeclaration</code>, <code>ExportNamedDeclaration</code></td></tr>
+        <tr><td>Statements</td><td><code>ExpressionStatement</code>, <code>IfStatement</code>, <code>ForStatement</code>, <code>WhileStatement</code>, <code>ReturnStatement</code>, <code>ThrowStatement</code>, <code>TryStatement</code>, <code>SwitchStatement</code></td></tr>
+        <tr><td>Expressions</td><td><code>CallExpression</code>, <code>MemberExpression</code>, <code>BinaryExpression</code>, <code>AssignmentExpression</code>, <code>ArrowFunctionExpression</code>, <code>ConditionalExpression</code>, <code>TemplateLiteral</code></td></tr>
+        <tr><td>Literals</td><td><code>Literal</code> (string, number, boolean, null, regex, bigint)</td></tr>
+        <tr><td>Patterns</td><td><code>Identifier</code>, <code>ObjectPattern</code>, <code>ArrayPattern</code>, <code>RestElement</code>, <code>AssignmentPattern</code></td></tr>
+        <tr><td>Root</td><td><code>Program</code> (body: Statement[], sourceType: "module" | "script")</td></tr>
+      </table>
+
+      <h4>How ESTree Handles Newer Syntax</h4>
+      <p>ESTree evolves incrementally by extending existing node types with boolean flags where possible, and introducing new node types only when necessary:</p>
+      <table>
+        <tr><th>Syntax</th><th>ESTree Approach</th></tr>
+        <tr><td>Optional chaining (<code>?.</code>)</td><td><code>ChainExpression</code> wrapper node + <code>optional: boolean</code> flag on <code>MemberExpression</code> and <code>CallExpression</code></td></tr>
+        <tr><td>Nullish coalescing (<code>??</code>)</td><td><code>LogicalExpression</code> with <code>operator: "??"</code> (extends the existing operator set)</td></tr>
+        <tr><td>BigInt</td><td><code>Literal</code> with added <code>bigint: string</code> property</td></tr>
+        <tr><td>Dynamic import</td><td>New <code>ImportExpression</code> node type (can't reuse <code>CallExpression</code> because <code>import</code> is not an expression)</td></tr>
+        <tr><td>Generators / Async</td><td><code>generator: boolean</code> and <code>async: boolean</code> flags on <code>FunctionDeclaration</code> etc.</td></tr>
+      </table>
+      <p>This design philosophy &mdash; <strong>extend existing nodes with flags, avoid splitting into new node types</strong> &mdash; keeps the total number of node types manageable and minimizes churn for downstream tools.</p>
+    </div>
+
+    <!-- ESTREE COMPLIANCE TAB -->
+    <div class="tab-content" id="ast-compliance">
+      <h3>What "ESTree-Compliant" Means</h3>
+      <p>"ESTree-compliant" means a parser produces an AST where:</p>
+      <ul>
+        <li>Every node has a <code>type: string</code> property matching an ESTree-defined node type name</li>
+        <li>Node shapes (properties, their types, their semantics) match the spec</li>
+        <li>Position information follows the <code>loc</code>/<code>range</code> conventions</li>
+        <li>The overall tree structure follows the spec for each syntactic form</li>
+      </ul>
+      <p>ESTree is <strong>not</strong> a standard issued by a standards body (like ECMA or W3C). It's a community specification documented in Markdown with pseudo-interface syntax, maintained by consensus. But it is the closest thing to a universal AST standard in the JavaScript ecosystem.</p>
+
+      <h4>ESTree vs Other AST Formats</h4>
+      <table>
+        <tr><th>Format</th><th>Key Differences from ESTree</th></tr>
+        <tr><td><strong>Babel AST</strong></td><td>Splits <code>Literal</code> into <code>StringLiteral</code>/<code>NumericLiteral</code>/<code>BooleanLiteral</code>/etc. Splits <code>Property</code> into <code>ObjectProperty</code>/<code>ObjectMethod</code>. Uses separate <code>OptionalMemberExpression</code> and <code>OptionalCallExpression</code> instead of <code>ChainExpression</code>. Has an <code>estree</code> plugin to emit ESTree-compatible output, but Babel's core AST remains its own format.</td></tr>
+        <tr><td><strong>TypeScript AST</strong></td><td>Uses numeric <code>SyntaxKind</code> enums (<code>243 === SyntaxKind.FunctionDeclaration</code>) instead of string <code>type</code> fields. Includes trivia (whitespace, comments) attached to nodes differently. No separate <code>ExpressionStatement</code> wrapper. Optimized for incomplete-code parsing and type-checking, not general-purpose tooling.</td></tr>
+        <tr><td><strong>Shift AST</strong></td><td>Uses context-specific identifier types (<code>BindingIdentifier</code>, <code>IdentifierReference</code>, <code>IdentifierExpression</code>) instead of ESTree's generic <code>Identifier</code>. Separates <code>Block</code> from <code>BlockStatement</code>. Designed so invalid AST transformations are unrepresentable.</td></tr>
+      </table>
+
+      <h4>ESTree Extensions</h4>
+      <p><strong>JSX:</strong> Facebook maintains a separate JSX AST spec that extends ESTree with <code>JSXElement</code>, <code>JSXFragment</code>, <code>JSXAttribute</code>, <code>JSXExpressionContainer</code>, etc. Universally treated as the standard JSX extension.</p>
+      <p><strong>TypeScript (TSESTree):</strong> <code>@typescript-eslint/typescript-estree</code> defines the "TSESTree" format &mdash; ESTree extended with TypeScript-specific nodes (<code>TSTypeAnnotation</code>, <code>TSInterfaceDeclaration</code>, <code>TSTypeParameterDeclaration</code>, etc.). Not part of core ESTree but is the de facto standard for TypeScript ASTs in ESLint.</p>
+
+      <div class="insight">
+        <strong>The practical consequence of ESTree compliance:</strong> Any tool that produces ESTree can plug into ESLint as a parser. Any tool that consumes ESTree can operate on ESLint's AST. This interoperability is why ESTree is the most important specification in the JavaScript tooling ecosystem &mdash; it's the shared protocol that lets parsers, linters, formatters, bundlers, and codemods all work together.
+      </div>
+    </div>
+
+    <!-- ACORN TAB -->
+    <div class="tab-content" id="ast-acorn">
+      <h3>Acorn: The Parser Engine</h3>
+      <p><strong>Acorn</strong> was created by <strong>Marijn Haverbeke</strong> (also the author of CodeMirror, ProseMirror, and <em>Eloquent JavaScript</em>) in September 2012. As he candidly admitted: "There's no good reason for Acorn to exist." His motivation was competitive &mdash; Esprima had claimed performance superiority over UglifyJS's parser, which itself derived from Haverbeke's own <code>parse-js</code> library. He had to see if he could do better.</p>
+      <p>He could. Acorn became the dominant JavaScript parser.</p>
+
+      <h4>How Acorn Works</h4>
+      <p>Acorn is a <strong>recursive-descent parser</strong> with a unified tokenizer/parser in a single <code>Parser</code> class. The parser maintains state (<code>curLine</code>, <code>lineStart</code>, <code>type</code> for current token, <code>value</code> for current token value) and navigates via <code>next()</code> which stores the last token and calls <code>nextToken()</code>.</p>
+      <p>For binary expressions, Acorn uses an <strong>operator precedence parser</strong> (Pratt parsing) &mdash; a single function parameterized by precedence level. This contrasts sharply with Esprima, which had separate functions for each of the ten precedence levels (<code>parseMultiplicativeExpression</code>, <code>parseAdditiveExpression</code>, <code>parseShiftExpression</code>, etc.).</p>
+      <pre><code><span class="cmt">// Acorn: one function handles all binary precedence levels</span>
+<span class="fn">parseMaybeAssign</span>()          <span class="cmt">// entry point</span>
+  &rarr; <span class="fn">parseExprOps</span>()          <span class="cmt">// calls parseMaybeUnary, then:</span>
+    &rarr; <span class="fn">parseExprOp</span>(left, prec) <span class="cmt">// the Pratt loop:</span>
+       <span class="cmt">// while (current operator precedence > prec)</span>
+       <span class="cmt">//   consume operator, recurse with new precedence</span>
+       <span class="cmt">//   build BinaryExpression node</span>
+
+<span class="cmt">// vs Esprima: 10+ separate functions</span>
+<span class="fn">parseMultiplicativeExpression</span>() &rarr;
+  <span class="fn">parseAdditiveExpression</span>() &rarr;
+    <span class="fn">parseShiftExpression</span>() &rarr; ...</code></pre>
+
+      <h4>What Makes Acorn Fast</h4>
+      <table>
+        <tr><th>Technique</th><th>Impact</th></tr>
+        <tr><td>Pratt parsing for operators</td><td>1 function instead of 10+ &mdash; smaller code, better cache behavior</td></tr>
+        <tr><td>Hand-rolled keyword detection</td><td>Nested <code>switch</code> by string length, then by value &mdash; faster than regex or hash lookup</td></tr>
+        <tr><td>Smaller codebase</td><td>~half the LOC of Esprima &mdash; less code to execute</td></tr>
+        <tr><td>Efficient location tracking</td><td>~5x faster than Esprima when storing source locations (Esprima's data flow for locations was inefficient)</td></tr>
+        <tr><td>Plain object nodes</td><td>Nodes are simple <code>{}</code> objects &mdash; no class instantiation overhead</td></tr>
+      </table>
+      <p>Overall: Acorn is <strong>5&ndash;20% faster</strong> than Esprima without location data, and up to <strong>5x faster</strong> with location data enabled.</p>
+
+      <h4>Acorn's Plugin System</h4>
+      <p>Acorn's extensibility is based on <strong>class inheritance</strong>:</p>
+      <pre><code><span class="cmt">// A plugin is a function: Parser class → extended Parser class</span>
+<span class="kw">function</span> <span class="fn">jsxPlugin</span>(Parser) {
+  <span class="kw">return class extends</span> Parser {
+    <span class="fn">readToken</span>(code) {
+      <span class="kw">if</span> (code === <span class="num-lit">60</span>) <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">readJSXToken</span>(); <span class="cmt">// < char</span>
+      <span class="kw">return</span> <span class="kw">super</span>.<span class="fn">readToken</span>(code);
+    }
+    <span class="fn">readJSXToken</span>() { <span class="cmt">/* parse JSX */</span> }
+  };
+}
+
+<span class="cmt">// Compose multiple plugins</span>
+<span class="kw">const</span> ExtendedParser = Parser.<span class="fn">extend</span>(jsxPlugin, otherPlugin);</code></pre>
+      <p>Haverbeke admits this is "not a clean, elegant API" &mdash; it requires understanding Acorn's internals, and plugins break when internals change. But it enables powerful extensions: JSX, TypeScript tokenization, experimental syntax.</p>
+
+      <h4>What Acorn Does NOT Do (That ESLint Needs)</h4>
+      <ul>
+        <li><strong>Token format:</strong> Acorn's token representation differs from Esprima's format that ESLint grew to depend on</li>
+        <li><strong>Comment attachment:</strong> Acorn provides only an <code>onComment</code> callback &mdash; it does not attach comments to AST nodes as leading/trailing. ESLint needs Esprima-style comment attachment</li>
+        <li><strong>The <code>range</code> property:</strong> Acorn natively produces <code>start</code>/<code>end</code> offsets but not the <code>range: [start, end]</code> array that ESLint expects</li>
+        <li><strong><code>sourceType: "commonjs"</code>:</strong> Acorn supports <code>"module"</code> and <code>"script"</code>. ESLint also needs <code>"commonjs"</code> for Node.js-style modules with <code>globalReturn</code></li>
+      </ul>
+      <p>This gap is exactly what Espree fills.</p>
+    </div>
+
+    <!-- ESPREE TAB -->
+    <div class="tab-content" id="ast-espree">
+      <h3>Espree: The Adapter Layer</h3>
+      <p>Espree is ESLint's default parser. <strong>It is not a fork of Acorn</strong> &mdash; it is a wrapper/adapter that imports Acorn as a dependency, extends its <code>Parser</code> class via the plugin system, and normalizes the output. There is no copied Acorn source code in Espree. But the history is more nuanced than it appears.</p>
+
+      <h4>The Three-Phase History</h4>
+      <div class="data-flow">
+        <div class="df-stage" onclick="toggleStage(this)">
+          <div class="df-stage-header">
+            <span class="df-stage-title"><span class="df-num">1</span> Phase 1: Esprima Fork (Dec 2014, v1.x)</span>
+            <span class="df-expand">&#9660;</span>
+          </div>
+          <div class="df-detail">
+            <p>ESLint originally used <strong>Esprima</strong> directly. By late 2014, ESLint needed ES6 and JSX support urgently, but Esprima's ES6 support "hadn't been published and there hadn't been a new release in several months." Facebook's Esprima fork (with ES6 and JSX) had "several key disparities" that would have required "massive changes not only to our own code base, but also to third-party plugins."</p>
+            <p>Nicholas C. Zakas <strong>forked Esprima</strong> starting from version 1.2.2, creating Espree. The strategy was to add ES6 features "one at a time" behind feature flags, each "verified against a new suite of tests." The original intent was to "track Esprima and eventually merge the two back together."</p>
+            <p><strong>Key point:</strong> Espree was originally a fork of <em>Esprima</em>, not Acorn. This is a common misconception.</p>
+          </div>
+        </div>
+        <div class="df-connector"></div>
+
+        <div class="df-stage" onclick="toggleStage(this)">
+          <div class="df-stage-header">
+            <span class="df-stage-title"><span class="df-num">2</span> Phase 2: Acorn Wrapper (2015, v2.0)</span>
+            <span class="df-expand">&#9660;</span>
+          </div>
+          <div class="df-detail">
+            <p>Maintaining a full parser fork was expensive. The team decided that building on top of Acorn was a better strategy, primarily because of Acorn's plugin system. Espree v2.0 became "no longer a fork of Esprima but rather a <strong>translation layer between Acorn and Esprima syntax</strong>."</p>
+            <p>This allowed the team to "put work back into a community-supported parser (Acorn) that is continuing to grow and evolve while maintaining an Esprima-compatible parser." Acorn does the heavy lifting of parsing; Espree normalizes the output.</p>
+          </div>
+        </div>
+        <div class="df-connector"></div>
+
+        <div class="df-stage" onclick="toggleStage(this)">
+          <div class="df-stage-header">
+            <span class="df-stage-title"><span class="df-num">3</span> Phase 3: Refined Wrapper (Dec 2015+, v3.0+)</span>
+            <span class="df-expand">&#9660;</span>
+          </div>
+          <div class="df-detail">
+            <p>Espree v3.0 refined the Acorn wrapper further, with significant contributions from Ingvar Stepanyan (Acorn's maintainer). Breaking changes included new <code>start</code> and <code>end</code> properties on nodes/tokens, different range calculations, and different error messages.</p>
+            <p>Espree now lives in the ESLint monorepo at <code>github.com/eslint/js/tree/main/packages/espree</code>. It imports Acorn as a dependency, extends its <code>Parser</code> class, and uses the <code>acorn-jsx</code> plugin for JSX support.</p>
+          </div>
+        </div>
+      </div>
+
+      <h4>What Espree Adds on Top of Acorn</h4>
+      <table>
+        <tr><th>Feature</th><th>What Espree Does</th><th>Why</th></tr>
+        <tr><td>Token format</td><td>Normalizes Acorn tokens into Esprima-compatible format (<code>type</code>, <code>value</code>, <code>range</code>, <code>loc</code>)</td><td>ESLint's rules and the <code>SourceCode</code> API depend on Esprima-style tokens</td></tr>
+        <tr><td>Comment handling</td><td>Hooks Acorn's <code>onComment</code> callback, collects comments, and attaches them in Esprima-compatible fashion</td><td>Rules need <code>getCommentsBefore()</code>, <code>getCommentsAfter()</code>, etc.</td></tr>
+        <tr><td><code>range</code> property</td><td>Adds <code>range: [start, end]</code> to every node (Acorn natively provides only <code>start</code>/<code>end</code> as separate properties)</td><td>ESLint APIs use the array form</td></tr>
+        <tr><td>Program range</td><td>Adjusts program range (Acorn starts at 0 and counts trailing whitespace; Espree matches Esprima's behavior)</td><td>Compatibility with existing rules and fixers</td></tr>
+        <tr><td><code>ecmaVersion</code></td><td>Supports numeric (3, 5, 6&ndash;17), year-based (2015&ndash;2026), and <code>"latest"</code></td><td>User-friendly configuration</td></tr>
+        <tr><td><code>sourceType</code></td><td>Supports <code>"script"</code>, <code>"module"</code>, and <code>"commonjs"</code> (ESLint extension for Node.js with <code>globalReturn</code>)</td><td>CommonJS semantics needed for Node.js code</td></tr>
+        <tr><td>JSX</td><td>Uses <code>acorn-jsx</code> plugin via <code>Parser.extend()</code></td><td>React ecosystem requires JSX support in the default parser</td></tr>
+      </table>
+
+      <div class="insight green">
+        <strong>The relationship today:</strong> Espree is a <strong>thin adapter</strong>. Acorn is the parser engine that does the actual work of tokenizing and building the AST. Espree configures Acorn, extends it via its plugin system, and post-processes the output into the exact format ESLint expects. There is no copied/forked Acorn source code in Espree. When Acorn adds support for new ECMAScript features, Espree gets them essentially for free.
+      </div>
+
+      <h4>The Parser Ecosystem Lineage</h4>
+      <pre><code><span class="cmt">SpiderMonkey Parser API (2010, Dave Herman / Mozilla)</span>
+    &darr;
+<span class="type">Esprima</span> (2011, Ariya Hidayat) <span class="cmt">&mdash; adopted SpiderMonkey format</span>
+    &darr;                    &darr;
+    &darr;               ESLint uses Esprima (2013)
+    &darr;                    &darr;
+<span class="type">Acorn</span> (2012, Haverbeke)   <span class="type">Espree v1</span> = Esprima fork (Dec 2014)
+    &darr;                    &darr;
+    &darr;   ESTree spec     <span class="type">Espree v2</span> = Acorn wrapper (2015)
+    &darr;   formalized      &darr;
+    &darr;   (2014&ndash;2015)    <span class="type">Espree v3+</span> = refined Acorn wrapper
+    &darr;
+<span class="type">Babylon/@babel/parser</span> (2014, McKenzie)
+    <span class="cmt">(Acorn fork, diverged to Babel AST, has estree plugin)</span>
+
+<span class="cmt">Modern (Rust-based):</span>
+  <span class="type">OXC</span>: ESTree-conformant JS output (3x faster than SWC)
+  <span class="type">SWC</span>: Own AST, optional ESTree serialization</code></pre>
+    </div>
+
+    <!-- CONCRETE AST TAB -->
+    <div class="tab-content" id="ast-example">
+      <h3>Concrete AST: <code>const x = a + 1;</code></h3>
+      <div class="ast-tree">
+        <div class="ast-node ast-root">
+          <span class="ast-type">Program</span> <span class="ast-prop">sourceType=<span class="ast-val">"module"</span></span>
+          <div class="ast-node">
+            <span class="ast-type">VariableDeclaration</span> <span class="ast-prop">kind=<span class="ast-val">"const"</span></span>
+            <div class="ast-node">
+              <span class="ast-type">VariableDeclarator</span>
+              <div class="ast-node">
+                <span class="ast-type">Identifier</span> <span class="ast-prop">name=<span class="ast-val">"x"</span></span>
+              </div>
+              <div class="ast-node">
+                <span class="ast-type">BinaryExpression</span> <span class="ast-prop">operator=<span class="ast-val">"+"</span></span>
+                <div class="ast-node">
+                  <span class="ast-type">Identifier</span> <span class="ast-prop">name=<span class="ast-val">"a"</span></span>
+                </div>
+                <div class="ast-node">
+                  <span class="ast-type">Literal</span> <span class="ast-prop">value=<span class="ast-val">1</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p>Every node carries: <code>type</code> (the ESTree discriminant string), <code>range: [start, end]</code> (character offsets), <code>loc: {start: {line, column}, end: {line, column}}</code> (human-readable position), and after <code>SourceCode</code> initialization, a <code>parent</code> pointer back up the tree. The tree is the sole representation rules operate on &mdash; there is no separate IR.</p>
+      <p>Note the <strong>generic <code>Identifier</code></strong> node: ESTree uses the same <code>Identifier</code> type for variable declarations (<code>x</code>), variable references (<code>a</code>), function names, property keys, etc. The role of the identifier is determined by its position in the tree (child of <code>VariableDeclarator.id</code> vs <code>BinaryExpression.left</code>), not by its node type. This is a deliberate ESTree design choice that the Shift AST spec explicitly criticizes &mdash; Shift uses separate <code>BindingIdentifier</code>, <code>IdentifierReference</code>, and <code>IdentifierExpression</code> types instead.</p>
+    </div>
+
+    <!-- CUSTOM PARSERS TAB -->
+    <div class="tab-content" id="ast-custom">
+      <h3>Custom Parsers</h3>
+      <p>Any parser that returns an ESTree-compatible AST (plus optional services) can replace Espree. This is how ESLint handles TypeScript, Flow, and other language extensions. The parser interface is:</p>
+      <pre><code><span class="cmt">// A parser must export one of:</span>
+<span class="fn">parse</span>(code, options): ESTree.Program
+<span class="fn">parseForESLint</span>(code, options): {
+  <span class="prop">ast</span>: ESTree.Program,
+  <span class="prop">scopeManager</span>?: ScopeManager,   <span class="cmt">// override eslint-scope</span>
+  <span class="prop">visitorKeys</span>?: <span class="type">object</span>,         <span class="cmt">// which properties to traverse</span>
+  <span class="prop">services</span>?: <span class="type">object</span>              <span class="cmt">// extra data for rules</span>
+}</code></pre>
+      <table>
+        <tr><th>Parser</th><th>Language</th><th>Extra Services</th></tr>
+        <tr><td><code>@typescript-eslint/parser</code></td><td>TypeScript</td><td><code>program</code> (ts.Program), <code>esTreeNodeToTSNodeMap</code> for mapping ESTree &harr; TS AST, gives rules access to the TypeScript type checker</td></tr>
+        <tr><td><code>@babel/eslint-parser</code></td><td>JS + proposals</td><td>Parses with Babel (supports experimental syntax), converts Babel AST to ESTree using Babel's <code>estree</code> plugin</td></tr>
+        <tr><td><code>vue-eslint-parser</code></td><td>Vue SFCs</td><td>Parses <code>&lt;template&gt;</code> blocks into a virtual AST; delegates <code>&lt;script&gt;</code> to Espree or another parser</td></tr>
+        <tr><td><code>@graphql-eslint/parser</code></td><td>GraphQL</td><td>Maps GraphQL AST to ESTree-shaped nodes</td></tr>
+      </table>
+      <p>The critical extension point is <code>services</code>: this is how <code>@typescript-eslint</code> injects the TypeScript type checker. Rules access it via <code>context.sourceCode.parserServices</code>, enabling type-aware analysis <em>within</em> ESLint's per-file visitor framework.</p>
+
+      <div class="insight warn">
+        <strong>Why ESTree compliance matters for custom parsers:</strong> ESLint's traversal, AST selectors (<code>esquery</code>), scope analysis, and code path analysis all assume ESTree node shapes. A parser that produces non-ESTree nodes will silently break rules &mdash; visitors won't fire because the <code>type</code> strings don't match, selectors won't match, and scope analysis will miss bindings. The <code>@typescript-eslint/parser</code> solves this by converting TypeScript's AST into TSESTree (ESTree + TS-specific extensions), maintaining the ESTree contract for standard JS constructs while adding TS nodes that only TS-specific rules look for.
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §3 DATA STRUCTURES ═══════ -->
+<section id="data-structures">
+<div class="container">
+  <h2><span class="num">03</span>Core Data Structures</h2>
+  <p class="section-sub">The three pillars: SourceCode, ScopeManager, and CodePathAnalyzer. Everything a rule touches flows through these.</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('ds-sourcecode')">SourceCode</button>
+    <button class="step-btn" onclick="showStep('ds-scope')">ScopeManager</button>
+    <button class="step-btn" onclick="showStep('ds-codepath')">CodePath</button>
+    <button class="step-btn" onclick="showStep('ds-token')">Tokens</button>
+  </div>
+
+  <div class="step-content active" id="ds-sourcecode">
+    <h4>SourceCode &mdash; The Central Data Object</h4>
+    <p><code>SourceCode</code> wraps the parsed AST and provides the API that rules use for everything beyond node visitation. It is constructed once per file and shared across all rules.</p>
+    <pre><code><span class="kw">class</span> <span class="type">SourceCode</span> {
+  <span class="prop">ast</span>: Program;             <span class="cmt">// root AST node</span>
+  <span class="prop">text</span>: <span class="type">string</span>;              <span class="cmt">// original source text</span>
+  <span class="prop">lines</span>: <span class="type">string</span>[];           <span class="cmt">// source split by line</span>
+  <span class="prop">scopeManager</span>: ScopeManager; <span class="cmt">// from eslint-scope or parser</span>
+
+  <span class="cmt">// Node navigation</span>
+  <span class="fn">getNodeByRangeIndex</span>(index): Node;
+  <span class="fn">getAncestors</span>(node): Node[];     <span class="cmt">// walk up parent chain</span>
+
+  <span class="cmt">// Token access</span>
+  <span class="fn">getTokenBefore</span>(node, options?): Token;
+  <span class="fn">getTokenAfter</span>(node, options?): Token;
+  <span class="fn">getTokensBetween</span>(left, right): Token[];
+  <span class="fn">getFirstToken</span>(node): Token;
+  <span class="fn">getLastToken</span>(node): Token;
+
+  <span class="cmt">// Comments</span>
+  <span class="fn">getCommentsBefore</span>(node): Comment[];
+  <span class="fn">getCommentsAfter</span>(node): Comment[];
+  <span class="fn">getCommentsInside</span>(node): Comment[];
+
+  <span class="cmt">// Scope shortcuts</span>
+  <span class="fn">getScope</span>(node): Scope;
+  <span class="fn">getDeclaredVariables</span>(node): Variable[];
+}</code></pre>
+    <p><strong>Parent pointers</strong> are the most important addition. The raw parser AST has only child pointers (downward). SourceCode walks the tree once to set <code>node.parent</code> on every node, enabling rules to navigate upward &mdash; crucial for context-dependent checks like "is this assignment inside a loop?"</p>
+  </div>
+
+  <div class="step-content" id="ds-scope">
+    <h4>ScopeManager &mdash; Variable Resolution</h4>
+    <p>Built by <strong>eslint-scope</strong> (or provided by a custom parser), the ScopeManager is a tree of <code>Scope</code> objects mirroring JavaScript's lexical scoping rules.</p>
+    <pre><code><span class="kw">class</span> <span class="type">Scope</span> {
+  <span class="prop">type</span>: <span class="str">"global"</span>|<span class="str">"module"</span>|<span class="str">"function"</span>|<span class="str">"block"</span>|<span class="str">"class"</span>|...;
+  <span class="prop">variables</span>: Variable[];   <span class="cmt">// variables declared in this scope</span>
+  <span class="prop">references</span>: Reference[]; <span class="cmt">// all identifier references in this scope</span>
+  <span class="prop">through</span>: Reference[];    <span class="cmt">// UNRESOLVED references (pass through to parent)</span>
+  <span class="prop">upper</span>: Scope | <span class="kw">null</span>;     <span class="cmt">// parent scope</span>
+  <span class="prop">childScopes</span>: Scope[];   <span class="cmt">// nested scopes</span>
+  <span class="prop">block</span>: Node;             <span class="cmt">// AST node that created this scope</span>
+  <span class="prop">isStrict</span>: <span class="type">boolean</span>;
+}
+
+<span class="kw">class</span> <span class="type">Variable</span> {
+  <span class="prop">name</span>: <span class="type">string</span>;
+  <span class="prop">defs</span>: Definition[];      <span class="cmt">// where it was defined (kind, node, parent)</span>
+  <span class="prop">references</span>: Reference[]; <span class="cmt">// every place this variable is used</span>
+  <span class="prop">scope</span>: Scope;            <span class="cmt">// scope it belongs to</span>
+}
+
+<span class="kw">class</span> <span class="type">Reference</span> {
+  <span class="prop">identifier</span>: Identifier;  <span class="cmt">// the AST Identifier node</span>
+  <span class="prop">resolved</span>: Variable | <span class="kw">null</span>; <span class="cmt">// null = unresolved ("through" reference)</span>
+  <span class="prop">isRead</span>(): <span class="type">boolean</span>;
+  <span class="prop">isWrite</span>(): <span class="type">boolean</span>;
+  <span class="prop">isReadWrite</span>(): <span class="type">boolean</span>;
+}</code></pre>
+    <p>The <code>through</code> array is the key to rules like <code>no-undef</code>: any reference that survives to the global scope's <code>through</code> list without resolving is an <strong>undefined variable</strong>.</p>
+  </div>
+
+  <div class="step-content" id="ds-codepath">
+    <h4>CodePath &mdash; Control Flow Modeling</h4>
+    <p>ESLint builds a lightweight <strong>control flow graph</strong> (CFG) for each function/program during traversal. Rules subscribe to code path events to reason about reachability, branching, and unreachable code.</p>
+    <pre><code><span class="kw">class</span> <span class="type">CodePath</span> {
+  <span class="prop">id</span>: <span class="type">string</span>;              <span class="cmt">// unique identifier</span>
+  <span class="prop">initialSegment</span>: CodePathSegment; <span class="cmt">// entry point</span>
+  <span class="prop">finalSegments</span>: CodePathSegment[]; <span class="cmt">// exit points</span>
+  <span class="prop">upper</span>: CodePath | <span class="kw">null</span>;  <span class="cmt">// enclosing function's code path</span>
+}
+
+<span class="kw">class</span> <span class="type">CodePathSegment</span> {
+  <span class="prop">id</span>: <span class="type">string</span>;
+  <span class="prop">prevSegments</span>: CodePathSegment[];  <span class="cmt">// predecessors in CFG</span>
+  <span class="prop">nextSegments</span>: CodePathSegment[];  <span class="cmt">// successors in CFG</span>
+  <span class="prop">reachable</span>: <span class="type">boolean</span>;               <span class="cmt">// is this segment reachable?</span>
+}</code></pre>
+    <p>The CFG is built <em>during</em> AST traversal, not as a separate pass. Branching constructs (<code>if</code>, <code>switch</code>, <code>try/catch</code>, loops) create new segments and fork/join edges. Rules like <code>no-unreachable</code> and <code>consistent-return</code> use this graph.</p>
+  </div>
+
+  <div class="step-content" id="ds-token">
+    <h4>Tokens &mdash; The Sub-AST Layer</h4>
+    <p>Tokens are the raw lexical units below the AST level. ESLint gives rules access to the token stream for whitespace-sensitive and formatting-related checks.</p>
+    <pre><code><span class="kw">interface</span> <span class="type">Token</span> {
+  <span class="prop">type</span>: <span class="str">"Punctuator"</span>|<span class="str">"Keyword"</span>|<span class="str">"Identifier"</span>|<span class="str">"Numeric"</span>|<span class="str">"String"</span>|...;
+  <span class="prop">value</span>: <span class="type">string</span>;       <span class="cmt">// the actual text: "{", "const", "foo", "42"</span>
+  <span class="prop">range</span>: [<span class="type">number</span>, <span class="type">number</span>];
+  <span class="prop">loc</span>: SourceLocation;
+}</code></pre>
+    <p>Token-level APIs enable rules about formatting: spacing around operators, semicolons, brace style, indentation. The <code>getTokenBefore()</code>/<code>getTokenAfter()</code> methods skip comments by default but can be configured to include them.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §4 RULE SYSTEM ═══════ -->
+<section id="rules">
+<div class="container">
+  <h2><span class="num">04</span>The Rule System</h2>
+  <p class="section-sub">The visitor pattern, AST selectors, RuleContext, and how rules produce diagnostics and fixes.</p>
+
+  <h3>Anatomy of a Rule</h3>
+  <pre><code><span class="kw">export default</span> {
+  <span class="prop">meta</span>: {
+    <span class="prop">type</span>: <span class="str">"problem"</span>,        <span class="cmt">// "problem" | "suggestion" | "layout"</span>
+    <span class="prop">docs</span>: { <span class="prop">description</span>: <span class="str">"disallow unused variables"</span> },
+    <span class="prop">fixable</span>: <span class="str">"code"</span>,       <span class="cmt">// "code" | "whitespace" | null</span>
+    <span class="prop">schema</span>: [{ ... }],     <span class="cmt">// JSON Schema for rule options</span>
+    <span class="prop">messages</span>: {
+      <span class="prop">unused</span>: <span class="str">"'{{name}}' is defined but never used."</span>
+    }
+  },
+  <span class="fn">create</span>(context) {
+    <span class="kw">return</span> {
+      <span class="cmt">// visitor methods — keyed by node type or AST selector</span>
+      <span class="fn">Identifier</span>(node) { ... },
+      <span class="str">"VariableDeclaration[kind='const']"</span>(node) { ... },
+      <span class="str">"CallExpression:exit"</span>(node) { ... },
+      <span class="str">"FunctionDeclaration > BlockStatement"</span>(node) { ... }
+    };
+  }
+};</code></pre>
+
+  <h3>The Visitor Pattern: Events</h3>
+  <p>During the single AST traversal, ESLint emits two events per node:</p>
+  <table>
+    <tr><th>Event</th><th>When</th><th>Use Case</th></tr>
+    <tr><td><code>"FunctionDeclaration"</code></td><td>Enter (pre-order)</td><td>Set up tracking state before visiting children</td></tr>
+    <tr><td><code>"FunctionDeclaration:exit"</code></td><td>Exit (post-order)</td><td>Analyze after all children have been visited</td></tr>
+  </table>
+
+  <h3>AST Selectors</h3>
+  <p>ESLint supports <strong>CSS-like selectors</strong> for AST nodes, powered by the <code>esquery</code> library. This is one of ESLint's most powerful features &mdash; it lets rules target highly specific node patterns without manual tree walking.</p>
+  <table>
+    <tr><th>Selector</th><th>Matches</th></tr>
+    <tr><td><code>CallExpression[callee.name='eval']</code></td><td>Direct calls to <code>eval()</code></td></tr>
+    <tr><td><code>IfStatement > .consequent</code></td><td>The consequent branch of any if</td></tr>
+    <tr><td><code>:not(ExportNamedDeclaration) > FunctionDeclaration</code></td><td>Non-exported function declarations</td></tr>
+    <tr><td><code>AssignmentExpression[left.type='MemberExpression']</code></td><td>Assignments to object properties</td></tr>
+    <tr><td><code>ForStatement ForStatement</code></td><td>Nested for loops (descendant combinator)</td></tr>
+    <tr><td><code>ReturnStatement > CallExpression</code></td><td>Direct return of a function call</td></tr>
+  </table>
+  <p>Selectors are compiled once into an <code>esquery</code> matcher, then tested against each node during traversal. This avoids the need for rules to manually walk the AST to find target patterns.</p>
+
+  <h3>RuleContext: The Rule's Window Into the World</h3>
+  <pre><code><span class="kw">interface</span> <span class="type">RuleContext</span> {
+  <span class="cmt">// Reporting</span>
+  <span class="fn">report</span>({
+    <span class="prop">node</span>?: Node,          <span class="cmt">// the offending node</span>
+    <span class="prop">loc</span>?: SourceLocation,  <span class="cmt">// or explicit location</span>
+    <span class="prop">messageId</span>: <span class="type">string</span>,    <span class="cmt">// key into meta.messages</span>
+    <span class="prop">data</span>?: <span class="type">object</span>,        <span class="cmt">// template interpolation data</span>
+    <span class="prop">fix</span>?: (fixer) => Fix,  <span class="cmt">// autofix function</span>
+    <span class="prop">suggest</span>?: Suggestion[] <span class="cmt">// manual-apply suggestions</span>
+  });
+
+  <span class="cmt">// Data access</span>
+  <span class="prop">sourceCode</span>: SourceCode;  <span class="cmt">// the SourceCode object</span>
+  <span class="prop">options</span>: <span class="type">any</span>[];          <span class="cmt">// rule-specific options from config</span>
+  <span class="prop">settings</span>: <span class="type">object</span>;       <span class="cmt">// shared settings across rules</span>
+  <span class="prop">filename</span>: <span class="type">string</span>;       <span class="cmt">// current file path</span>
+
+  <span class="cmt">// Scope access (convenience)</span>
+  <span class="fn">getScope</span>(): Scope;
+  <span class="fn">getDeclaredVariables</span>(node): Variable[];
+}</code></pre>
+
+  <h3>Fixes vs Suggestions</h3>
+  <div class="insight green">
+    <strong>Fixes</strong> (<code>fix</code>) are applied automatically with <code>--fix</code>. They must be safe &mdash; they cannot change program semantics. They operate on the source text via <code>fixer.replaceTextRange(range, text)</code>, <code>fixer.insertTextBefore(node, text)</code>, and similar methods. Only non-overlapping fixes are applied per pass.
+  </div>
+  <div class="insight warn">
+    <strong>Suggestions</strong> (<code>suggest</code>) are <em>not</em> applied automatically. They appear in editor UIs as "Quick Fix" actions. They may change program semantics, so they require human approval. Example: <code>no-unused-vars</code> might suggest removing a variable and its initializer, but this could have side effects.
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §5 SCOPE ANALYSIS ═══════ -->
+<section id="scope">
+<div class="container">
+  <h2><span class="num">05</span>Scope Analysis (eslint-scope)</h2>
+  <p class="section-sub">How ESLint resolves variables, handles closures, and detects undefined references &mdash; the most important computed property in ESLint.</p>
+
+  <h3>How eslint-scope Works</h3>
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Scope Creation Pass</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>eslint-scope traverses the AST and creates <code>Scope</code> objects at scope-creating nodes:</p>
+        <ul>
+          <li><strong>Global scope</strong> &mdash; the implicit outermost scope</li>
+          <li><strong>Module scope</strong> &mdash; created by <code>sourceType: "module"</code></li>
+          <li><strong>Function scope</strong> &mdash; at each <code>FunctionDeclaration</code>, <code>FunctionExpression</code>, <code>ArrowFunctionExpression</code></li>
+          <li><strong>Block scope</strong> &mdash; at each <code>BlockStatement</code>, <code>ForStatement</code>, <code>SwitchStatement</code> (for <code>let</code>/<code>const</code>)</li>
+          <li><strong>Class scope</strong>, <strong>catch scope</strong>, <strong>with scope</strong>, <strong>switch scope</strong></li>
+        </ul>
+        <p>Scopes form a <strong>tree</strong> mirroring JavaScript's lexical nesting. Each scope has an <code>upper</code> (parent) pointer and a <code>childScopes</code> array.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Variable Collection</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>For each declaration, a <code>Variable</code> is created in the appropriate scope:</p>
+        <ul>
+          <li><code>var</code> &rarr; nearest <strong>function</strong> scope (hoisted)</li>
+          <li><code>let</code>/<code>const</code> &rarr; nearest <strong>block</strong> scope</li>
+          <li><code>function</code> declarations &rarr; nearest function scope (hoisted)</li>
+          <li><code>class</code> name &rarr; enclosing block scope</li>
+          <li>Function parameters &rarr; function scope</li>
+          <li><code>import</code> bindings &rarr; module scope</li>
+        </ul>
+        <p>Each Variable has a <code>defs</code> array of <code>Definition</code> objects, recording where and how it was defined (Variable, FunctionName, Parameter, ImportBinding, CatchClause, ClassName, etc.).</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Reference Resolution</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Every <code>Identifier</code> node that is used (not declared) becomes a <code>Reference</code>. eslint-scope walks up the scope chain to find the matching <code>Variable</code>:</p>
+        <pre><code><span class="cmt">// For reference "x" in scope S:</span>
+<span class="kw">let</span> scope = S;
+<span class="kw">while</span> (scope) {
+  <span class="kw">const</span> variable = scope.variables.<span class="fn">find</span>(v => v.name === <span class="str">"x"</span>);
+  <span class="kw">if</span> (variable) {
+    reference.resolved = variable;   <span class="cmt">// found!</span>
+    variable.references.<span class="fn">push</span>(reference);
+    <span class="kw">break</span>;
+  }
+  scope = scope.upper;               <span class="cmt">// walk up scope chain</span>
+}
+<span class="kw">if</span> (!reference.resolved)
+  scope.through.<span class="fn">push</span>(reference);     <span class="cmt">// unresolved — passes through</span></code></pre>
+        <p>References also track whether they are <strong>reads</strong>, <strong>writes</strong>, or <strong>read-writes</strong> (e.g., <code>x += 1</code> is a read-write).</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Through References Bubble Up</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Unresolved references are placed in the scope's <code>through</code> array and propagated upward. At the global scope, any remaining <code>through</code> references are <strong>truly undefined variables</strong> (unless they match configured <code>globals</code>).</p>
+        <p>This is how <code>no-undef</code> works: it checks <code>globalScope.through</code> for references that don't match known globals (<code>window</code>, <code>console</code>, <code>process</code>, etc. &mdash; configured via <code>languageOptions.globals</code>).</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>What Scope Analysis Enables</h3>
+  <table>
+    <tr><th>Rule</th><th>Scope Feature Used</th><th>How</th></tr>
+    <tr><td><code>no-undef</code></td><td><code>scope.through</code></td><td>Unresolved references at global scope = undefined variables</td></tr>
+    <tr><td><code>no-unused-vars</code></td><td><code>variable.references</code></td><td>Variables with zero read references are unused</td></tr>
+    <tr><td><code>no-use-before-define</code></td><td>Reference + Definition positions</td><td>Compare reference location vs definition location</td></tr>
+    <tr><td><code>no-shadow</code></td><td>Scope chain</td><td>Check if a variable name exists in any upper scope</td></tr>
+    <tr><td><code>no-redeclare</code></td><td><code>variable.defs.length</code></td><td>Variable with multiple definitions in same scope</td></tr>
+    <tr><td><code>prefer-const</code></td><td><code>reference.isWrite()</code></td><td><code>let</code> variable with only one write (the init) can be <code>const</code></td></tr>
+    <tr><td><code>no-global-assign</code></td><td>Write references to global variables</td><td>Detects <code>undefined = 5</code></td></tr>
+  </table>
+
+  <div class="insight">
+    <strong>Closures emerge naturally.</strong> When a reference in an inner function scope resolves to a Variable in an outer function scope, you have a closure. eslint-scope doesn't have a special "closure" concept &mdash; closures are just the consequence of scope-chain-based resolution. Rules like <code>no-loop-func</code> exploit this: they check if a function inside a loop captures a variable that changes each iteration.
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §6 CODE PATH ANALYSIS ═══════ -->
+<section id="codepath">
+<div class="container">
+  <h2><span class="num">06</span>Code Path Analysis</h2>
+  <p class="section-sub">ESLint's lightweight control flow graph &mdash; how it models branches, loops, and reachability without full abstract interpretation.</p>
+
+  <h3>How the CFG is Built</h3>
+  <p>ESLint constructs a CFG <strong>during the AST traversal</strong>, not as a separate pass. The <code>CodePathAnalyzer</code> intercepts relevant AST nodes and emits code path events that rules can subscribe to.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('cp-tabs','cp-events')">Events</button>
+    <button class="tab" onclick="switchTab('cp-tabs','cp-branching')">Branching</button>
+    <button class="tab" onclick="switchTab('cp-tabs','cp-rules')">Rules Using CFG</button>
+  </div>
+  <div id="cp-tabs">
+
+    <div class="tab-content active" id="cp-events">
+      <h4>Code Path Events</h4>
+      <p>Rules subscribe to these events alongside normal AST events:</p>
+      <table>
+        <tr><th>Event</th><th>When Fired</th><th>Arguments</th></tr>
+        <tr><td><code>onCodePathStart</code></td><td>Entering a function/program</td><td><code>(codePath, node)</code></td></tr>
+        <tr><td><code>onCodePathEnd</code></td><td>Leaving a function/program</td><td><code>(codePath, node)</code></td></tr>
+        <tr><td><code>onCodePathSegmentStart</code></td><td>Entering a new CFG segment</td><td><code>(segment, node)</code></td></tr>
+        <tr><td><code>onCodePathSegmentEnd</code></td><td>Leaving a CFG segment</td><td><code>(segment, node)</code></td></tr>
+        <tr><td><code>onCodePathSegmentLoop</code></td><td>A loop back-edge is created</td><td><code>(fromSegment, toSegment, node)</code></td></tr>
+      </table>
+      <p>These events let rules build per-segment state maps. A typical pattern: maintain a <code>Map&lt;segmentId, state&gt;</code>, update state on each segment event, and check properties on <code>onCodePathEnd</code>.</p>
+    </div>
+
+    <div class="tab-content" id="cp-branching">
+      <h4>How Branching Works</h4>
+      <p>When an <code>IfStatement</code> is entered, the current segment is <strong>forked</strong> into two new segments (consequent and alternate). When the if-statement ends, the two branches are <strong>joined</strong> into a single successor segment.</p>
+      <pre><code><span class="cmt">// Source:</span>
+<span class="kw">if</span> (condition) {
+  a();         <span class="cmt">// segment S2 (consequent)</span>
+} <span class="kw">else</span> {
+  b();         <span class="cmt">// segment S3 (alternate)</span>
+}
+c();           <span class="cmt">// segment S4 (join)</span>
+
+<span class="cmt">// CFG:  S1 → [fork] → S2 → S4</span>
+<span class="cmt">//                   → S3 → S4</span></code></pre>
+      <p>Similar fork/join patterns apply to: <code>switch/case</code> (multiple branches), <code>try/catch/finally</code> (exceptional + normal flow), <code>&&</code>/<code>||</code>/<code>??</code> (short-circuit evaluation), <code>for</code>/<code>while</code> (loop back-edges via <code>onCodePathSegmentLoop</code>).</p>
+      <p><strong>Unreachable segments:</strong> After a <code>return</code>, <code>throw</code>, <code>break</code>, or <code>continue</code>, the current segment is terminated and the next segment has <code>reachable: false</code>. This is how <code>no-unreachable</code> works.</p>
+    </div>
+
+    <div class="tab-content" id="cp-rules">
+      <h4>Rules That Use Code Path Analysis</h4>
+      <table>
+        <tr><th>Rule</th><th>What It Checks</th><th>CFG Feature Used</th></tr>
+        <tr><td><code>no-unreachable</code></td><td>Code after return/throw/break</td><td><code>segment.reachable === false</code></td></tr>
+        <tr><td><code>consistent-return</code></td><td>All paths return or none do</td><td>Track return presence per segment through joins</td></tr>
+        <tr><td><code>no-fallthrough</code></td><td>Switch cases without break</td><td>Segment flows from one case into the next</td></tr>
+        <tr><td><code>array-callback-return</code></td><td>Array methods' callbacks always return</td><td>Check all final segments have a return</td></tr>
+        <tr><td><code>no-unreachable-loop</code></td><td>Loops that only run once</td><td>Loop body always exits on first iteration</td></tr>
+        <tr><td><code>no-useless-catch</code></td><td>Catch that just rethrows</td><td>Catch block's only statement is throw</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="insight warn">
+    <strong>Not a full CFG.</strong> ESLint's code path analysis is <em>intra-procedural</em> and does not track data flow. It knows "is this code reachable?" and "what segments precede this one?" &mdash; but not "what is the value of <code>x</code> at this point?" or "does this function call throw?". For those, you need abstract interpretation or type-system integration.
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §7 BASE-LEVEL PROPERTIES ═══════ -->
+<section id="base-properties">
+<div class="container">
+  <h2><span class="num">07</span>Base-Level Properties ESLint Computes</h2>
+  <p class="section-sub">The atomic facts ESLint can determine from its three analysis layers: AST structure, scope resolution, and code paths.</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('bp-syntactic')">AST-Level</button>
+    <button class="step-btn" onclick="showStep('bp-scope')">Scope-Level</button>
+    <button class="step-btn" onclick="showStep('bp-flow')">Code Path Level</button>
+    <button class="step-btn" onclick="showStep('bp-combined')">Combined</button>
+  </div>
+
+  <div class="step-content active" id="bp-syntactic">
+    <h4>AST-Level Properties (Single-Node Pattern Matching)</h4>
+    <p>These are detectable from a single AST node visit &mdash; no scope chain, no control flow. Pure structural pattern matching.</p>
+    <table>
+      <tr><th>Property</th><th>AST Pattern</th><th>Example Rules</th></tr>
+      <tr><td>Uses <code>eval</code></td><td><code>CallExpression[callee.name='eval']</code></td><td><code>no-eval</code></td></tr>
+      <tr><td>Uses <code>arguments</code></td><td><code>Identifier[name='arguments']</code></td><td><code>prefer-rest-params</code></td></tr>
+      <tr><td>Uses <code>debugger</code></td><td><code>DebuggerStatement</code></td><td><code>no-debugger</code></td></tr>
+      <tr><td>Uses <code>with</code></td><td><code>WithStatement</code></td><td><code>no-with</code></td></tr>
+      <tr><td>Has <code>var</code> declaration</td><td><code>VariableDeclaration[kind='var']</code></td><td><code>no-var</code></td></tr>
+      <tr><td>Uses <code>console</code></td><td><code>MemberExpression[object.name='console']</code></td><td><code>no-console</code></td></tr>
+      <tr><td>Uses <code>alert</code></td><td><code>CallExpression[callee.name='alert']</code></td><td><code>no-alert</code></td></tr>
+      <tr><td>Empty block</td><td><code>BlockStatement[body.length=0]</code></td><td><code>no-empty</code></td></tr>
+      <tr><td>Constant condition</td><td><code>IfStatement[test.type='Literal']</code></td><td><code>no-constant-condition</code></td></tr>
+      <tr><td>Async function</td><td><code>FunctionDeclaration[async=true]</code></td><td><code>require-await</code></td></tr>
+      <tr><td>Duplicate keys</td><td><code>ObjectExpression</code> with repeated property names</td><td><code>no-dupe-keys</code></td></tr>
+    </table>
+    <p>This is the simplest analysis layer &mdash; it's equivalent to a <code>grep</code> on the AST. Most of ESLint's ~300 built-in rules operate primarily at this level.</p>
+  </div>
+
+  <div class="step-content" id="bp-scope">
+    <h4>Scope-Level Properties (Variable Resolution)</h4>
+    <p>These require eslint-scope's variable resolution to determine. They answer questions about <em>bindings</em> and <em>references</em>.</p>
+    <table>
+      <tr><th>Property</th><th>How Computed</th><th>Example Rules</th></tr>
+      <tr><td>Variable is unused</td><td><code>variable.references.filter(r => r.isRead()).length === 0</code></td><td><code>no-unused-vars</code></td></tr>
+      <tr><td>Variable is undefined</td><td><code>globalScope.through</code> contains unresolved reference</td><td><code>no-undef</code></td></tr>
+      <tr><td>Variable shadows outer</td><td>Same name exists in <code>scope.upper</code> chain</td><td><code>no-shadow</code></td></tr>
+      <tr><td>Used before defined</td><td>Reference offset &lt; definition offset (considering hoisting)</td><td><code>no-use-before-define</code></td></tr>
+      <tr><td>Can be <code>const</code></td><td><code>let</code> variable with only one write reference (its initializer)</td><td><code>prefer-const</code></td></tr>
+      <tr><td>Closure captures loop var</td><td>Function in loop scope references <code>var</code> in loop scope</td><td><code>no-loop-func</code></td></tr>
+      <tr><td>Modifies global</td><td>Write reference resolved to global-scope variable</td><td><code>no-global-assign</code></td></tr>
+    </table>
+    <p>Scope analysis is the <strong>most powerful non-type-system analysis</strong> ESLint performs. It elevates ESLint from pattern matching to genuine semantic reasoning about variable bindings.</p>
+  </div>
+
+  <div class="step-content" id="bp-flow">
+    <h4>Code Path Level Properties (Control Flow)</h4>
+    <table>
+      <tr><th>Property</th><th>How Computed</th><th>Example Rules</th></tr>
+      <tr><td>Code is unreachable</td><td>Segment has <code>reachable: false</code></td><td><code>no-unreachable</code></td></tr>
+      <tr><td>Inconsistent return</td><td>Some final segments have return, others don't</td><td><code>consistent-return</code></td></tr>
+      <tr><td>Fall-through in switch</td><td>Case segment flows into next case's segment</td><td><code>no-fallthrough</code></td></tr>
+      <tr><td>Getter has no return</td><td>Getter's code path has final segments without return</td><td><code>getter-return</code></td></tr>
+      <tr><td>Constructor returns value</td><td>Constructor's code path has return with argument</td><td><code>no-constructor-return</code></td></tr>
+      <tr><td>Async function has no await</td><td>Async function's code path never encounters await</td><td><code>require-await</code></td></tr>
+    </table>
+  </div>
+
+  <div class="step-content" id="bp-combined">
+    <h4>Combined Properties (Multiple Layers)</h4>
+    <p>Some rules require information from multiple analysis layers simultaneously:</p>
+    <table>
+      <tr><th>Rule</th><th>Layers Combined</th><th>Logic</th></tr>
+      <tr><td><code>no-unused-vars</code></td><td>Scope + AST</td><td>Scope finds unreferenced variables; AST checks for special patterns (destructuring, exports, <code>_</code> prefixes)</td></tr>
+      <tr><td><code>no-loop-func</code></td><td>Scope + AST</td><td>AST identifies functions in loops; scope checks if they capture loop-modified variables</td></tr>
+      <tr><td><code>prefer-const</code></td><td>Scope + Code Path</td><td>Scope identifies single-write <code>let</code>; code path ensures the write is always reached</td></tr>
+      <tr><td><code>no-constant-condition</code></td><td>AST + Code Path</td><td>AST identifies literal conditions; code path determines if the branch is meaningful</td></tr>
+    </table>
+    <div class="insight pink">
+      <strong>Key observation:</strong> Even the most sophisticated built-in ESLint rules combine at most AST + scope + code path. They never perform value tracking, abstract interpretation, type inference, or inter-procedural analysis. Each rule is a <strong>shallow composition of these three layers</strong>.
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §8 INFERENCE & COMPOSITION ═══════ -->
+<section id="composition">
+<div class="container">
+  <h2><span class="num">08</span>Inference &amp; Composition</h2>
+  <p class="section-sub">ESLint does no type inference. Rules are independent. But there are subtle forms of information sharing and derived properties.</p>
+
+  <h3>No Type Inference &mdash; Why?</h3>
+  <p>ESLint deliberately avoids type inference. It does not track what <em>value</em> a variable holds, what <em>type</em> an expression evaluates to, or what <em>properties</em> an object has at a given point. This is a principled decision:</p>
+  <ul>
+    <li><strong>Complexity:</strong> Type inference for JavaScript is undecidable in general (dynamic types, prototype mutation, eval, Proxy)</li>
+    <li><strong>Speed:</strong> ESLint targets sub-second feedback. Type checking is orders of magnitude slower (TypeScript can take 30+ seconds)</li>
+    <li><strong>Scope:</strong> ESLint is per-file. Type inference often requires cross-file information (import types, declaration files)</li>
+  </ul>
+  <p>Instead, ESLint relies on <strong>syntactic heuristics</strong>. For example, <code>no-constant-condition</code> checks if the condition is a <code>Literal</code> node &mdash; it doesn't evaluate <code>1 + 1</code> to determine it's constant.</p>
+
+  <h3>Rule Independence</h3>
+  <p>Rules are <strong>completely independent</strong>. Rule A cannot see Rule B's diagnostics, state, or conclusions. This is enforced architecturally:</p>
+  <ul>
+    <li>Each rule gets its own <code>RuleContext</code></li>
+    <li>No shared mutable state between rules</li>
+    <li>No rule execution ordering guarantees (beyond AST traversal order)</li>
+    <li>No rule composition primitives (no "if rule A fires, suppress rule B")</li>
+  </ul>
+
+  <div class="insight warn">
+    <strong>The consequence of independence:</strong> Rules can contradict each other. <code>no-unused-vars</code> might flag a variable that <code>no-undef</code> in another file depends on. <code>prefer-const</code> might suggest a change that breaks <code>no-const-assign</code>. ESLint has no mechanism to detect or resolve such conflicts &mdash; configuration discipline is the only guard.
+  </div>
+
+  <h3>Shared Information Channels</h3>
+  <p>Despite rule independence, there are ways information is shared:</p>
+  <table>
+    <tr><th>Channel</th><th>Mechanism</th><th>Example</th></tr>
+    <tr><td>Scope Manager</td><td>All rules share the same <code>ScopeManager</code> (read-only)</td><td>Multiple rules query variable bindings</td></tr>
+    <tr><td>Source Code</td><td>All rules share the same <code>SourceCode</code> object</td><td>Token access, comment queries, ancestor walks</td></tr>
+    <tr><td>Shared Settings</td><td><code>settings</code> in config, accessible via <code>context.settings</code></td><td><code>eslint-plugin-import</code> uses <code>settings["import/resolver"]</code></td></tr>
+    <tr><td>Parser Services</td><td>Custom parser provides extra data via <code>services</code></td><td><code>@typescript-eslint</code> rules access the TypeScript type checker</td></tr>
+    <tr><td><code>eslint-disable</code></td><td>Comments suppress specific rules</td><td>Indirect: humans compose rules by selectively disabling</td></tr>
+  </table>
+
+  <h3>How @typescript-eslint Adds Type-Aware Analysis</h3>
+  <p><code>@typescript-eslint/parser</code> returns TypeScript's <code>Program</code> and <code>TypeChecker</code> as parser services. Rules then query the TypeChecker for type information:</p>
+  <pre><code><span class="cmt">// Inside a @typescript-eslint rule</span>
+<span class="fn">create</span>(context) {
+  <span class="kw">const</span> services = context.sourceCode.parserServices;
+  <span class="kw">const</span> checker = services.program.<span class="fn">getTypeChecker</span>();
+
+  <span class="kw">return</span> {
+    <span class="fn">CallExpression</span>(node) {
+      <span class="cmt">// Map ESTree node → TypeScript node → get type</span>
+      <span class="kw">const</span> tsNode = services.<span class="fn">esTreeNodeToTSNodeMap</span>.<span class="fn">get</span>(node);
+      <span class="kw">const</span> type = checker.<span class="fn">getTypeAtLocation</span>(tsNode);
+
+      <span class="cmt">// Now we have FULL TypeScript type information!</span>
+      <span class="kw">if</span> (checker.<span class="fn">isPromiseLikeType</span>(type)) { ... }
+    }
+  };
+}</code></pre>
+  <p>This transforms ESLint from a syntactic tool into one that can reason about types &mdash; but at the cost of requiring TypeScript project setup and significantly increased runtime.</p>
+
+  <div class="insight green">
+    <strong>Key insight:</strong> ESLint's architecture is a <strong>thin analysis framework</strong> with a <strong>plugin-based extension model</strong>. Its core computes AST + scope + code paths. Everything beyond that &mdash; type awareness, cross-file analysis, framework-specific knowledge &mdash; comes through the parser services and plugin extension points. The core never grows more complex; the extensions bring their own intelligence.
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §9 SYNTACTIC VS SEMANTIC ═══════ -->
+<section id="boundaries">
+<div class="container">
+  <h2><span class="num">09</span>Syntactic vs Semantic Boundaries</h2>
+  <p class="section-sub">What ESLint can and cannot reason about &mdash; the fundamental ceiling of AST-based analysis without types.</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('b-can')">What It Can Do</button>
+    <button class="step-btn" onclick="showStep('b-heuristic')">Heuristic Zone</button>
+    <button class="step-btn" onclick="showStep('b-cannot')">What It Cannot</button>
+    <button class="step-btn" onclick="showStep('b-ts')">With TypeScript</button>
+  </div>
+
+  <div class="step-content active" id="b-can">
+    <h4>Fully Within ESLint's Reach (Decidable from AST + Scope + CodePath)</h4>
+    <ul>
+      <li><strong>Syntactic structure:</strong> "Is there a <code>debugger</code> statement?" "Is this an arrow function?" "Does this <code>if</code> have an <code>else</code>?" &mdash; direct AST node matching</li>
+      <li><strong>Variable binding:</strong> "Is <code>x</code> defined?" "Is it used?" "Is it shadowed?" "Is it <code>const</code>?" &mdash; eslint-scope</li>
+      <li><strong>Reachability:</strong> "Is there code after this <code>return</code>?" "Does every <code>switch</code> case have a <code>break</code>?" &mdash; code path analysis</li>
+      <li><strong>Lexical conventions:</strong> Naming patterns, spacing, semicolons, brace style &mdash; token analysis</li>
+      <li><strong>Import structure:</strong> What modules are imported, what names are used &mdash; ImportDeclaration nodes</li>
+      <li><strong>Hoisting:</strong> <code>var</code> and function declarations hoist to function scope &mdash; scope analysis models this correctly</li>
+    </ul>
+  </div>
+
+  <div class="step-content" id="b-heuristic">
+    <h4>The Heuristic Zone (Pattern-Matching Approximations)</h4>
+    <p>ESLint uses syntactic heuristics to approximate semantic properties. These are <strong>unsound</strong> &mdash; they have both false positives and false negatives:</p>
+    <table>
+      <tr><th>Property</th><th>Heuristic</th><th>Failure Mode</th></tr>
+      <tr><td>Constant condition</td><td>Check if condition node is <code>Literal</code></td><td>Misses <code>1 + 1</code>, <code>true &amp;&amp; true</code>, const-folded expressions</td></tr>
+      <tr><td>No side effects</td><td>Check for known pure AST patterns</td><td>Can't tell if a function call has side effects without analyzing the callee</td></tr>
+      <tr><td>Array method callback</td><td>Check <code>.map()</code>, <code>.filter()</code> etc. by method name</td><td>Breaks if <code>map</code> is a custom method, not <code>Array.prototype.map</code></td></tr>
+      <tr><td>Promise handling</td><td>Check <code>.then()</code>, <code>.catch()</code> chains</td><td>Can't know if the object is actually a Promise</td></tr>
+      <tr><td>Type coercion</td><td>Check <code>==</code> vs <code>===</code> usage patterns</td><td>Can't know if operands are the same type (making <code>==</code> safe)</td></tr>
+    </table>
+    <div class="insight">
+      <strong>The method-name problem:</strong> ESLint's <code>array-callback-return</code> rule checks that <code>.map()</code> callbacks return a value. But it identifies <code>.map()</code> by the <em>name</em> of the method, not the <em>type</em> of the receiver. So <code>myCustomObject.map(x => { doStuff(x) })</code> triggers the rule even though it's not <code>Array.prototype.map</code>. This is the fundamental limit of syntactic analysis: names are not types.
+    </div>
+  </div>
+
+  <div class="step-content" id="b-cannot">
+    <h4>Beyond ESLint's Reach (Requires Type System or Cross-File Analysis)</h4>
+    <ul>
+      <li><strong>Type of an expression:</strong> "Is <code>x</code> a string?" "Is this a Promise?" "Does this object have property <code>foo</code>?" &mdash; requires type inference</li>
+      <li><strong>Value tracking:</strong> "What is the value of <code>x</code> at this point?" "Is <code>x &gt; 0</code> always true here?" &mdash; requires abstract interpretation</li>
+      <li><strong>Cross-file effects:</strong> "Does the imported function <code>fetchData</code> throw?" "Is module X pure?" &mdash; requires inter-file analysis</li>
+      <li><strong>Call graph:</strong> "What functions can <code>callback()</code> resolve to?" "Does function A transitively call function B?" &mdash; requires points-to analysis</li>
+      <li><strong>Aliasing:</strong> "Do <code>a</code> and <code>b</code> refer to the same object?" "Does mutating <code>a.x</code> affect <code>b.x</code>?" &mdash; requires alias analysis</li>
+      <li><strong>Termination:</strong> "Does this function always return?" &mdash; undecidable in general</li>
+      <li><strong>Correctness:</strong> "Does this sort function actually sort?" &mdash; requires specification and verification</li>
+    </ul>
+  </div>
+
+  <div class="step-content" id="b-ts">
+    <h4>What TypeScript Integration Unlocks</h4>
+    <p>When <code>@typescript-eslint</code> provides the TypeScript type checker as a parser service, rules gain access to the <strong>full type system</strong>. This enables a qualitatively different class of checks:</p>
+    <table>
+      <tr><th>Rule</th><th>Requires Types Because</th></tr>
+      <tr><td><code>@typescript-eslint/no-floating-promises</code></td><td>Must know if an expression's type is <code>Promise</code></td></tr>
+      <tr><td><code>@typescript-eslint/no-unnecessary-condition</code></td><td>Must know if a condition is always truthy/falsy by type</td></tr>
+      <tr><td><code>@typescript-eslint/no-unsafe-argument</code></td><td>Must know if an argument is typed as <code>any</code></td></tr>
+      <tr><td><code>@typescript-eslint/prefer-nullish-coalescing</code></td><td>Must know if <code>||</code> can be replaced with <code>??</code> (depends on whether LHS can be <code>""</code> or <code>0</code>)</td></tr>
+      <tr><td><code>@typescript-eslint/await-thenable</code></td><td>Must know if the <code>await</code>'d expression is thenable</td></tr>
+      <tr><td><code>@typescript-eslint/no-misused-promises</code></td><td>Must know if a Promise is used in a boolean context</td></tr>
+    </table>
+    <p>This is the <strong>syntactic &rarr; semantic bridge</strong>: ESLint's architecture stays the same (single traversal, visitor pattern), but rules can now query a full type oracle. The cost is significant: type-aware linting requires TypeScript to parse and type-check the entire project, increasing lint time from seconds to tens of seconds.</p>
+    <div class="insight red">
+      <strong>Still per-file.</strong> Even with TypeScript integration, each ESLint rule processes one file at a time. TypeScript provides type information <em>for</em> that file (including types flowing in from imports), but the rule itself doesn't iterate over other files. Cross-file <em>rules</em> (like detecting circular dependencies) still require specialized plugins that build their own import graph.
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §10 QUIZ ═══════ -->
+<section id="quiz">
+<div class="container">
+  <h2><span class="num">10</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">10</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does ESLint achieve efficiency when running hundreds of rules? Does it traverse the AST once per rule?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>No. ESLint performs a <strong>single depth-first traversal</strong> and <strong>multiplexes all rules</strong> onto that one traversal. Each rule registers visitor functions keyed by node type (e.g., <code>"CallExpression"</code>). At each node, ESLint emits the node's type as an event and calls all registered handlers. This means 300 rules = 1 traversal, not 300 traversals.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is a "through reference" in eslint-scope, and which rule depends on it most directly?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A <strong>through reference</strong> is a variable reference that could not be resolved to any Variable in the scope chain. It "passes through" all scopes without binding. At the global scope, <code>scope.through</code> contains all truly unresolved references. <code>no-undef</code> works by checking this array &mdash; any through reference at the global scope that doesn't match a configured global is reported as undefined.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does ESLint's autofix system handle the case where two rules try to fix overlapping text ranges?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Fixes are <strong>text-based range replacements</strong>: <code>{ range: [start, end], text }</code>. When multiple fixes overlap, ESLint applies only the <strong>non-overlapping</strong> ones in a single pass, discarding conflicting fixes. It then <strong>re-parses and re-lints</strong> the modified source, repeating up to <strong>10 iterations</strong> until no fixes remain or the limit is hit. This iterative approach ensures conflicting fixes eventually get their turn.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the fundamental difference between an ESLint "fix" and a "suggestion"?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>Fixes</strong> are applied automatically with <code>--fix</code> and must be <strong>semantics-preserving</strong> (they cannot change what the program does). <strong>Suggestions</strong> require human approval (they appear as "Quick Fix" options in editors) and <em>may</em> change program semantics. For example, <code>no-unused-vars</code> can't auto-remove a variable because its initializer might have side effects &mdash; that would be a suggestion, not a fix.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why can't ESLint's <code>array-callback-return</code> rule reliably distinguish <code>Array.prototype.map</code> from a custom <code>.map()</code> method?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>ESLint identifies method calls by the <strong>name of the property</strong> (<code>MemberExpression</code> with <code>property.name === "map"</code>), not by the <strong>type of the receiver object</strong>. Without type information, ESLint cannot know whether <code>obj.map()</code> is called on an Array, a Map, or a custom class. It's matching <em>syntax</em> (the text "map"), not <em>semantics</em> (the method identity). This is the core limitation of purely syntactic analysis.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does <code>@typescript-eslint</code> bridge the gap between ESLint's syntactic analysis and TypeScript's semantic analysis?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The <code>@typescript-eslint/parser</code> returns TypeScript's <code>Program</code> and a mapping (<code>esTreeNodeToTSNodeMap</code>) as <strong>parser services</strong>. Rules access these via <code>context.sourceCode.parserServices</code>. A rule can map any ESTree AST node to its corresponding TypeScript AST node, then call <code>typeChecker.getTypeAtLocation(tsNode)</code> to get full type information. This gives ESLint rules access to TypeScript's entire type system while staying within ESLint's single-traversal visitor architecture.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What three analysis layers does ESLint provide, and what does each one compute?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>1. AST structure</strong> &mdash; node types, properties, parent/child relationships. Enables pattern matching on program structure. <strong>2. Scope analysis</strong> (eslint-scope) &mdash; variable declarations, references, resolution through the scope chain, read/write tracking. Enables binding-aware checks. <strong>3. Code path analysis</strong> &mdash; a lightweight CFG with segments, fork/join at branches, reachability tracking. Enables control-flow-aware checks. The most sophisticated built-in rules combine all three.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What are AST selectors in ESLint? How do they relate to CSS selectors?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>AST selectors (powered by <code>esquery</code>) use <strong>CSS-like syntax to match AST node patterns</strong>. Just as CSS selectors match DOM elements, AST selectors match ESTree nodes. They support: type matching (<code>CallExpression</code>), attribute filters (<code>[callee.name='eval']</code>), descendant combinators (<code>ForStatement ForStatement</code>), child combinators (<code>IfStatement > .consequent</code>), and <code>:not()</code> pseudo-selectors. Rules use them as visitor keys instead of plain node types, eliminating boilerplate tree-walking code.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Can ESLint rules share information with each other? What are the consequences of rule independence?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Rules are <strong>completely independent</strong> &mdash; no rule can see another rule's state, diagnostics, or conclusions. They share <em>read-only</em> infrastructure (SourceCode, ScopeManager, parser services), but cannot communicate. The consequence: rules can <strong>contradict each other</strong>, and there's no way to express "if rule A fires, suppress rule B" programmatically. This simplifies the architecture (no ordering dependencies, easy parallelization) but means coherence across rules depends entirely on configuration discipline.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does ESLint model closures? Is there a special "closure" data structure?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>There is <strong>no special closure data structure</strong>. Closures emerge naturally from eslint-scope's reference resolution: when an <code>Identifier</code> reference in an inner function scope resolves to a <code>Variable</code> declared in an outer function scope, you have a closure. The scope chain's upward resolution (<code>scope.upper</code>) automatically captures this. Rules like <code>no-loop-func</code> detect closures by checking if a function inside a loop captures variables from the loop scope that are modified on each iteration.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 10</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<script>
+/* ── Tab switching ── */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  container.previousElementSibling.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* ── Pipeline stepper ── */
+function showStep(id) {
+  const btn = event.target;
+  const stepper = btn.parentElement;
+  stepper.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let el = stepper.nextElementSibling;
+  while (el && el.classList.contains('step-content')) {
+    el.classList.remove('active');
+    el = el.nextElementSibling;
+  }
+  document.getElementById(id).classList.add('active');
+}
+
+/* ── Collapsible stages ── */
+function toggleStage(el) { el.classList.toggle('active'); }
+
+/* ── Flashcard system ── */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+</body>
+</html>

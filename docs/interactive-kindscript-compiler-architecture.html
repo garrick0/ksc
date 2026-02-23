@@ -387,13 +387,13 @@ tr:hover td { background: var(--surface); }
   <h2><span class="num">01</span>The Vision</h2>
   <p class="section-sub">What KindScript is and why it exists.</p>
 
-  <p>TypeScript validates that values match their <strong>types</strong> — their data shape. KindScript extends this by validating that code matches its <strong>kinds</strong> — its architectural properties. A kind is a type with additional phantom properties: purity, dependency rules, import restrictions, mutation constraints.</p>
+  <p>TypeScript validates that values match their <strong>types</strong> — their data shape. KindScript extends this by validating that code matches its <strong>kinds</strong> — its architectural properties. A kind is a named target (file or directory) with declared rules: purity, dependency rules, import restrictions, mutation constraints.</p>
 
   <p>The core equation:</p>
-  <pre><code><span class="type-name">Kind</span>  = <span class="type-name">Base Type</span>  + <span class="type-name">Properties</span> <span class="comment">(phantom)</span>
-<span class="type-name">Value</span> = <span class="type-name">Expression</span> : <span class="type-name">Kind</span></code></pre>
+  <pre><code><span class="type-name">Target</span> = <span class="type-name">Path</span> + <span class="type-name">Rules</span>
+<span class="type-name">Check</span>  = <span class="type-name">Walk AST of Target</span>, <span class="type-name">Verify Rules</span></code></pre>
 
-  <p>TypeScript sees <code>Kind&lt;Base, Properties&gt;</code> as structurally identical to <code>Base</code>. The properties exist only as type arguments — KindScript reads them, TypeScript ignores them. This means <strong>zero runtime cost</strong>, full IDE support, and no new syntax.</p>
+  <p>Configuration is plain data defined via <code>defineConfig()</code>. Rules are checked against standard TypeScript source files. This means <strong>zero runtime cost</strong>, full IDE support, and no new syntax.</p>
 
   <h3>Everything is a Value</h3>
   <p>Functions, classes, files, and directories are all values. Types are assigned to values. Kinds are types with additional properties. The checker evaluates values against their kinds — uniformly, at every level. A directory is just a value whose "body" is the set of files it contains, exactly as a function is a value whose body is its block statement.</p>
@@ -418,43 +418,31 @@ tr:hover td { background: var(--surface); }
 <!-- ════════════════════ 02 USER API ════════════════════ -->
 <section id="user-api">
 <div class="container">
-  <h2><span class="num">02</span>The User API</h2>
-  <p class="section-sub">What developers write. Four types, one builder, one config file.</p>
+  <h2><span class="num">02</span>The Configuration API</h2>
+  <p class="section-sub">What developers write. A config file with <code>defineConfig()</code>.</p>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('api-tabs','api-types')">Core Types</button>
-    <button class="tab" onclick="switchTab('api-tabs','api-properties')">PropertySpec</button>
-    <button class="tab" onclick="switchTab('api-tabs','api-builder')">ks Builder</button>
+    <button class="tab active" onclick="switchTab('api-tabs','api-types')">defineConfig</button>
+    <button class="tab" onclick="switchTab('api-tabs','api-properties')">RuleSet</button>
+    <button class="tab" onclick="switchTab('api-tabs','api-builder')">Entry Types</button>
     <button class="tab" onclick="switchTab('api-tabs','api-usage')">Usage Examples</button>
   </div>
   <div id="api-tabs">
     <div class="tab-content active" id="api-types">
-      <h3>Provided Types</h3>
-      <pre><code><span class="comment">// A file value — path, filename, extension extracted by template literals</span>
-<span class="keyword">type</span> <span class="type-name">KSFile</span>&lt;<span class="param">Path</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt; = {
-  <span class="keyword">readonly</span> path: <span class="param">Path</span>;
-  <span class="keyword">readonly</span> filename: <span class="type-name">ExtractFilename</span>&lt;<span class="param">Path</span>&gt;;
-  <span class="keyword">readonly</span> extension: <span class="type-name">ExtractExtension</span>&lt;<span class="param">Path</span>&gt;;
-  <span class="keyword">readonly</span> __ks?: <span class="keyword">true</span>;
-};
+      <h3>defineConfig — the entry point</h3>
+      <pre><code><span class="comment">// kindscript.config.ts — the architectural contract</span>
+<span class="keyword">import</span> { <span class="fn-name">defineConfig</span> } <span class="keyword">from</span> <span class="string-lit">'kindscript'</span>;
 
-<span class="comment">// A directory value — path and name</span>
-<span class="keyword">type</span> <span class="type-name">KSDir</span>&lt;<span class="param">Path</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt; = {
-  <span class="keyword">readonly</span> path: <span class="param">Path</span>;
-  <span class="keyword">readonly</span> name: <span class="type-name">ExtractDirname</span>&lt;<span class="param">Path</span>&gt;;
-  <span class="keyword">readonly</span> __ks?: <span class="keyword">true</span>;
-};
-
-<span class="comment">// The Kind wrapper — resolves structurally to Base</span>
-<span class="keyword">type</span> <span class="type-name">Kind</span>&lt;<span class="param">Base</span>, <span class="param">_Properties</span> <span class="keyword">extends</span> <span class="type-name">PropertySpec</span>&gt; = <span class="param">Base</span> & {
-  <span class="keyword">readonly</span> __ks?: <span class="keyword">true</span>;
-};</code></pre>
-      <p>No name parameter — the type alias <em>is</em> the name. No members parameter — the base type's members are the members. <code>Kind&lt;Base, Properties&gt;</code> resolves to <code>Base</code> — transparent to TypeScript.</p>
+<span class="keyword">export default</span> <span class="fn-name">defineConfig</span>({
+  domain: { path: <span class="string-lit">'./src/domain'</span>, rules: { pure: <span class="keyword">true</span>, noIO: <span class="keyword">true</span> } },
+  infra:  { path: <span class="string-lit">'./src/infrastructure'</span> },
+});</code></pre>
+      <p>Configuration is plain data. Each entry maps a name to a path and an optional set of rules. The <code>defineConfig()</code> identity function provides type-safe autocompletion.</p>
     </div>
     <div class="tab-content" id="api-properties">
-      <h3>PropertySpec — the property vocabulary</h3>
-      <pre><code><span class="keyword">type</span> <span class="type-name">PropertySpec</span>&lt;<span class="param">Members</span>&gt; = {
-  <span class="comment">// Intrinsic — per-value AST walk</span>
+      <h3>RuleSet — the rule vocabulary</h3>
+      <pre><code><span class="keyword">interface</span> <span class="type-name">RuleSet</span> {
+  <span class="comment">// Intrinsic — per-file AST walk</span>
   <span class="keyword">readonly</span> pure?: <span class="keyword">true</span>;
   <span class="keyword">readonly</span> noIO?: <span class="keyword">true</span>;
   <span class="keyword">readonly</span> noImports?: <span class="keyword">true</span>;
@@ -466,55 +454,54 @@ tr:hover td { background: var(--surface); }
   <span class="keyword">readonly</span> maxFanOut?: <span class="type-name">number</span>;
 
   <span class="comment">// Relational — import graph edges</span>
-  <span class="keyword">readonly</span> noDependency?: <span class="type-name">ReadonlyArray</span>&lt;
-    <span class="keyword">readonly</span> [<span class="keyword">keyof</span> <span class="param">Members</span>, <span class="keyword">keyof</span> <span class="param">Members</span>]
-  &gt;;
-  <span class="keyword">readonly</span> noCycles?: <span class="type-name">ReadonlyArray</span>&lt;<span class="keyword">keyof</span> <span class="param">Members</span>&gt;;
+  <span class="keyword">readonly</span> noDependency?: <span class="type-name">Array</span>&lt;[<span class="type-name">string</span>, <span class="type-name">string</span>]&gt;;
+  <span class="keyword">readonly</span> noCycles?: <span class="type-name">string</span>[];
   <span class="keyword">readonly</span> noSiblingDependency?: <span class="keyword">true</span>;
 
   <span class="comment">// Structural — shape constraints</span>
   <span class="keyword">readonly</span> exhaustive?: <span class="keyword">true</span>;
   <span class="keyword">readonly</span> scope?: <span class="string-lit">'folder'</span> | <span class="string-lit">'file'</span>;
 };</code></pre>
-      <p>Three categories: <strong>intrinsic</strong> (properties of the value), <strong>relational</strong> (edges between members), and <strong>structural</strong> (shape of the scope). The <code>Members</code> parameter gives relational properties <code>keyof</code> checking for free.</p>
+      <p>Three categories: <strong>intrinsic</strong> (rules checked per-file by walking the AST), <strong>relational</strong> (rules about import edges between members), and <strong>structural</strong> (shape constraints on the target's scope).</p>
     </div>
     <div class="tab-content" id="api-builder">
-      <h3>ks — the fluent builder</h3>
-      <pre><code><span class="comment">// Runtime builder for file and directory values</span>
-<span class="keyword">declare const</span> <span class="fn-name">ks</span>: {
-  <span class="fn-name">file</span>&lt;<span class="param">P</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt;(path: <span class="param">P</span>): <span class="type-name">KSFile</span>&lt;<span class="param">P</span>&gt;;
-  <span class="fn-name">dir</span>&lt;<span class="param">P</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt;(path: <span class="param">P</span>): <span class="type-name">KSDir</span>&lt;<span class="param">P</span>&gt;;
-};</code></pre>
-      <p>Used in <code>context.ts</code> — the architectural contract file. These are real runtime functions used by the KindScript CLI and excluded from production builds. The builder returns typed values that carry path information in their types via string literal type parameters.</p>
+      <h3>Entry Types</h3>
+      <pre><code><span class="comment">// A single file or directory target</span>
+<span class="keyword">interface</span> <span class="type-name">TargetEntry</span> {
+  <span class="keyword">readonly</span> path: <span class="type-name">string</span>;
+  <span class="keyword">readonly</span> rules?: <span class="type-name">RuleSet</span>;
+}
+
+<span class="comment">// A composite target grouping members with relational rules</span>
+<span class="keyword">interface</span> <span class="type-name">CompositeEntry</span> {
+  <span class="keyword">readonly</span> members: <span class="type-name">Record</span>&lt;<span class="type-name">string</span>, <span class="type-name">TargetEntry</span>&gt;;
+  <span class="keyword">readonly</span> rules?: <span class="type-name">RuleSet</span>;
+}</code></pre>
+      <p>Path detection: if the path has a file extension (e.g., <code>./src/utils.ts</code>), it's a file target. Otherwise, it's a directory target. Directory targets check all <code>.ts</code> files under that path. Composite entries group targets and add relational constraints.</p>
     </div>
     <div class="tab-content" id="api-usage">
       <h3>Complete Clean Architecture Example</h3>
-      <pre><code><span class="comment">// context.ts — the architectural contract</span>
-<span class="keyword">import</span> { ks, Kind, KSDir } <span class="keyword">from</span> <span class="string-lit">'kindscript'</span>;
+      <pre><code><span class="comment">// kindscript.config.ts — the architectural contract</span>
+<span class="keyword">import</span> { <span class="fn-name">defineConfig</span> } <span class="keyword">from</span> <span class="string-lit">'kindscript'</span>;
 
-<span class="keyword">type</span> <span class="type-name">DomainLayer</span>  = <span class="type-name">Kind</span>&lt;<span class="type-name">KSDir</span>, { pure: <span class="keyword">true</span>, noIO: <span class="keyword">true</span> }&gt;;
-<span class="keyword">type</span> <span class="type-name">InfraLayer</span>   = <span class="type-name">Kind</span>&lt;<span class="type-name">KSDir</span>&gt;;
-<span class="keyword">type</span> <span class="type-name">AppLayer</span>     = <span class="type-name">Kind</span>&lt;<span class="type-name">KSDir</span>, { noConsole: <span class="keyword">true</span> }&gt;;
-
-<span class="keyword">type</span> <span class="type-name">CleanArch</span> = <span class="type-name">Kind</span>&lt;{
-  domain: <span class="type-name">DomainLayer</span>;
-  infrastructure: <span class="type-name">InfraLayer</span>;
-  application: <span class="type-name">AppLayer</span>;
-}, {
-  noDependency: [[<span class="string-lit">"domain"</span>, <span class="string-lit">"infrastructure"</span>], [<span class="string-lit">"domain"</span>, <span class="string-lit">"application"</span>]],
+<span class="keyword">export default</span> <span class="fn-name">defineConfig</span>({
+  app: {
+    members: {
+      domain:         { path: <span class="string-lit">'./src/domain'</span>,         rules: { pure: <span class="keyword">true</span>, noIO: <span class="keyword">true</span> } },
+      infrastructure: { path: <span class="string-lit">'./src/infrastructure'</span> },
+      application:    { path: <span class="string-lit">'./src/application'</span>,    rules: { noConsole: <span class="keyword">true</span> } },
+    },
+    rules: {
+      noDependency: [[<span class="string-lit">"domain"</span>, <span class="string-lit">"infrastructure"</span>], [<span class="string-lit">"domain"</span>, <span class="string-lit">"application"</span>]],
   noCycles: [<span class="string-lit">"domain"</span>, <span class="string-lit">"infrastructure"</span>, <span class="string-lit">"application"</span>],
-}&gt;;
-
-<span class="keyword">const</span> app: <span class="type-name">CleanArch</span> = {
-  domain:         ks.<span class="fn-name">dir</span>(<span class="string-lit">'./src/domain'</span>),
-  infrastructure: ks.<span class="fn-name">dir</span>(<span class="string-lit">'./src/infrastructure'</span>),
-  application:    ks.<span class="fn-name">dir</span>(<span class="string-lit">'./src/application'</span>),
-};</code></pre>
+    },
+  },
+});</code></pre>
       <div class="cli-sim">
         <div class="cli-sim-bar"><span class="cli-sim-dot" style="background:#ff5f57"></span><span class="cli-sim-dot" style="background:#ffbd2e"></span><span class="cli-sim-dot" style="background:#28c840"></span></div>
         <div class="cli-sim-body">
           <span class="cli-prompt">$ </span>ksc check<br>
-          <span class="cli-output">Checking context.ts...</span><br>
+          <span class="cli-output">Checking targets...</span><br>
           <span class="cli-highlight">✓ domain — pure, noIO</span><br>
           <span class="cli-highlight">✓ application — noConsole</span><br>
           <span class="cli-highlight">✓ noDependency — domain ↛ infrastructure</span><br>
@@ -551,17 +538,16 @@ Emitter  → .js / .d.ts</code></pre>
     </div>
     <div class="compare-col ks">
       <h4>KindScript Compiler (ksc)</h4>
-      <pre><code>Source Text
+      <pre><code>Source Text + Config
   │
 Scanner  → <span class="comment">delegates to tsc</span>
   │
 Parser   → <span class="comment">delegates to tsc</span>
   │
-Binder   → ks.KindSymbol + KindSymbolTable
-  │         <span class="comment">(built ON TOP of ts.Symbol)</span>
+Binder   → KindSymbol[] <span class="comment">(from config)</span>
   │
-Checker  → ks.PropertySpec + ks.Diagnostic
-  │         <span class="comment">(getKindOfExpr, checkKindAssignedTo)</span>
+Checker  → KSDiagnostic[]
+  │         <span class="comment">(walk AST, check rules)</span>
   │
 <span class="comment">No emitter — diagnostics only</span></code></pre>
     </div>
@@ -569,21 +555,19 @@ Checker  → ks.PropertySpec + ks.Diagnostic
 
   <table>
     <tr><th>TypeScript Concept</th><th>KindScript Equivalent</th><th>Notes</th></tr>
-    <tr><td><code>ts.Program</code></td><td><code>ks.Program</code></td><td>Holds source files, compiler options, creates checker</td></tr>
-    <tr><td><code>ts.createProgram()</code></td><td><code>ks.createProgram()</code></td><td>Entry point — wraps ts.createProgram internally</td></tr>
+    <tr><td><code>ts.Program</code></td><td><code>KSProgram</code></td><td>Holds source files, config, creates checker</td></tr>
+    <tr><td><code>ts.createProgram()</code></td><td><code>createProgram()</code></td><td>Entry point — wraps ts.createProgram, takes config</td></tr>
     <tr><td><code>ts.SourceFile</code></td><td>Reuse directly</td><td>No new AST nodes needed for scan/parse</td></tr>
-    <tr><td><code>ts.Symbol</code></td><td><code>ks.KindSymbol</code></td><td>Maps a ts.Symbol to its PropertySpec</td></tr>
-    <tr><td><code>ts.SymbolTable</code></td><td><code>ks.KindSymbolTable</code></td><td>WeakMap&lt;ts.Symbol, KindSymbol&gt;</td></tr>
-    <tr><td><code>ts.Type</code></td><td><code>ks.PropertySpec</code></td><td>The "type" in KindScript is the computed properties</td></tr>
-    <tr><td><code>getTypeOfExpression</code></td><td><code>getKindOfExpression</code></td><td>Computes properties by walking the AST</td></tr>
-    <tr><td><code>getTypeFromTypeNode</code></td><td><code>getKindFromKindNode</code></td><td>Extracts declared PropertySpec from type node</td></tr>
-    <tr><td><code>checkTypeAssignableTo</code></td><td><code>checkKindAssignedTo</code></td><td>Checks computed ⊇ declared</td></tr>
-    <tr><td><code>ts.Diagnostic</code></td><td>Reuse format</td><td>Same error shape, KS error codes</td></tr>
+    <tr><td><code>ts.Symbol</code></td><td><code>KindSymbol</code></td><td>Config entry with id, name, rules, path</td></tr>
+    <tr><td><code>ts.SymbolTable</code></td><td><code>KindSymbol[]</code></td><td>Flat array of symbols from binder</td></tr>
+    <tr><td><code>ts.Type</code></td><td><code>PropertySpec</code></td><td>The "type" in KindScript is the rule set</td></tr>
+    <tr><td><code>checkTypeAssignableTo</code></td><td>Per-rule check functions</td><td>checkNoConsole, checkNoIO, etc.</td></tr>
+    <tr><td><code>ts.Diagnostic</code></td><td><code>KSDiagnostic</code></td><td>Same shape, KS error codes (70001-70015)</td></tr>
     <tr><td><code>tsc</code> CLI</td><td><code>ksc</code> CLI</td><td>Same naming convention</td></tr>
   </table>
 
   <div class="insight">
-    <strong>Key insight:</strong> TypeScript uses a side-table array pattern (<code>nodeLinks[]</code>, <code>symbolLinks[]</code>) for caching — arrays indexed by node ID, not WeakMaps. This is faster because the compiler controls ID assignment. KindScript can use the same pattern <em>or</em> use WeakMaps keyed on <code>ts.Symbol</code> objects — the choice depends on whether we need the performance characteristics of array indexing.
+    <strong>Key insight:</strong> KindScript's binder is trivially simple (~89 lines) because configuration is plain data. All complexity lives in the checker, which walks TypeScript's AST to verify rules. The binder just maps config entries to KindSymbol objects.
   </div>
 </div>
 </section>
@@ -645,7 +629,7 @@ TypeAliasDeclaration
   </div>
   <div class="step-content" id="ps-ksbind">
     <h3>Stage 3: KindScript Bind</h3>
-    <p><strong>What happens:</strong> This is our first custom phase. We walk TypeScript's symbol tables, find all symbols whose resolved type contains <code>__ks</code>, and build our own <strong>KindSymbolTable</strong>.</p>
+    <p><strong>What happens:</strong> This is our first custom phase. We walk TypeScript's symbol tables, find all symbols whose resolved type contains <code>__ks</code>, and build our own <strong>KindSymbol[]</strong>.</p>
     <p><strong>Details in <a href="#binder" style="color:var(--accent)">Section 07</a>.</strong></p>
   </div>
   <div class="step-content" id="ps-kscheck">
@@ -673,7 +657,7 @@ TypeAliasDeclaration
 
   <span class="comment">// KindScript-specific</span>
   <span class="fn-name">getKindChecker</span>(): <span class="type-name">KSChecker</span>;              <span class="comment">// lazy, memoized</span>
-  <span class="fn-name">getKindSymbolTable</span>(): <span class="type-name">KindSymbolTable</span>;   <span class="comment">// built during bind</span>
+  <span class="fn-name">getKindSymbol[]</span>(): <span class="type-name">KindSymbol[]</span>;   <span class="comment">// built during bind</span>
   <span class="fn-name">getKindDiagnostics</span>(sourceFile?: ts.SourceFile): <span class="type-name">KSDiagnostic</span>[];
 }</code></pre>
 
@@ -690,7 +674,7 @@ TypeAliasDeclaration
     <div class="flow-box"><code>KSProgram</code></div>
   </div>
 
-  <p><code>ks.createProgram()</code> is the single entry point. It calls TypeScript to do all the heavy lifting (scanning, parsing, binding), then runs the KindScript binder to produce the <code>KindSymbolTable</code>. The checker is created lazily when diagnostics are first requested — matching TypeScript's pattern of deferred computation.</p>
+  <p><code>ks.createProgram()</code> is the single entry point. It calls TypeScript to do all the heavy lifting (scanning, parsing, binding), then runs the KindScript binder to produce the <code>KindSymbol[]</code>. The checker is created lazily when diagnostics are first requested — matching TypeScript's pattern of deferred computation.</p>
 
   <div class="insight">
     <strong>Key insight:</strong> Like TypeScript's Program, <code>KSProgram</code> is <strong>immutable after creation</strong>. In a language service (IDE plugin), a new <code>KSProgram</code> is created on each file edit. But it can reuse TypeScript's structural sharing — unchanged <code>SourceFile</code> nodes carry over from the previous program.
@@ -708,7 +692,7 @@ TypeAliasDeclaration
 
   <pre><code><span class="comment">// All we do at scan/parse time:</span>
 <span class="keyword">const</span> tsProgram = ts.<span class="fn-name">createProgram</span>({
-  rootNames: [<span class="string-lit">'./context.ts'</span>],
+  rootNames: [<span class="string-lit">'./kindscript.config.ts'</span>],
   options: compilerOptions,
 });
 
@@ -741,7 +725,7 @@ TypeAliasDeclaration
 <section id="binder">
 <div class="container">
   <h2><span class="num">07</span>The KindScript Binder</h2>
-  <p class="section-sub">The first KindScript-specific phase. Walk TypeScript's symbols, find Kinds, build the KindSymbolTable.</p>
+  <p class="section-sub">The first KindScript-specific phase. Walk TypeScript's symbols, find Kinds, build the KindSymbol[].</p>
 
   <p>After TypeScript has parsed and bound everything, we enter the KindScript binder. Its job: identify which TypeScript symbols represent Kind types or values annotated with Kind types, extract their PropertySpec, and build a side-channel symbol table.</p>
 
@@ -808,11 +792,11 @@ TypeAliasDeclaration
 
     <div class="df-stage" onclick="toggleStage(this)">
       <div class="df-stage-header">
-        <span class="df-stage-title"><span class="df-num">4</span> Build the KindSymbolTable</span>
+        <span class="df-stage-title"><span class="df-num">4</span> Build the KindSymbol[]</span>
         <span class="df-expand">▼</span>
       </div>
       <div class="df-detail">
-        <p>Finally, we assemble the <code>KindSymbolTable</code> — a side-channel mapping from <code>ts.Symbol</code> to <code>KindSymbol</code>:</p>
+        <p>Finally, we assemble the <code>KindSymbol[]</code> — a side-channel mapping from <code>ts.Symbol</code> to <code>KindSymbol</code>:</p>
         <pre><code><span class="keyword">interface</span> <span class="type-name">KindSymbol</span> {
   tsSymbol: ts.Symbol;                <span class="comment">// Back-reference to TS</span>
   name: <span class="type-name">string</span>;                       <span class="comment">// Type alias name</span>
@@ -823,13 +807,13 @@ TypeAliasDeclaration
   valueKind: <span class="string-lit">'function'</span> | <span class="string-lit">'file'</span> | <span class="string-lit">'directory'</span> | <span class="string-lit">'composite'</span>;
 }
 
-<span class="keyword">type</span> <span class="type-name">KindSymbolTable</span> = WeakMap&lt;ts.Symbol, <span class="type-name">KindSymbol</span>&gt;;</code></pre>
+<span class="keyword">type</span> <span class="type-name">KindSymbol[]</span> = WeakMap&lt;ts.Symbol, <span class="type-name">KindSymbol</span>&gt;;</code></pre>
         <p>This is analogous to TypeScript's own <code>symbolLinks[]</code> side table — it extends the symbol with additional metadata without mutating TypeScript's data structures.</p>
       </div>
     </div>
   </div>
 
-  <h3>What Goes Into the KindSymbolTable</h3>
+  <h3>What Goes Into the KindSymbol[]</h3>
 
   <div class="tabs">
     <button class="tab active" onclick="switchTab('bind-tabs','bind-kinds')">Kind Definitions</button>
@@ -863,7 +847,7 @@ TypeAliasDeclaration
       <div class="decision-matrix">
         <div class="dm-option recommended">
           <div class="dm-option-header">
-            <span class="dm-option-title">Option A: <code>WeakMap&lt;ts.Symbol, KindSymbol&gt;</code></span>
+            <span class="dm-option-title">Option A: <code>KindSymbol[] from binder</code></span>
             <span class="dm-option-badge rec">Recommended</span>
           </div>
           <div class="dm-option-body">
@@ -885,7 +869,7 @@ TypeAliasDeclaration
             <span class="dm-option-badge alt">Alternative</span>
           </div>
           <div class="dm-option-body">
-            Key by the fully-qualified name of the symbol (e.g., <code>"context.ts::PureDomain"</code>). Easier to debug and serialize. But risky if two different scopes have the same name. Only viable if all Kind types are at module scope.
+            Key by the fully-qualified name of the symbol (e.g., <code>"kindscript.config.ts::PureDomain"</code>). Easier to debug and serialize. But risky if two different scopes have the same name. Only viable if all Kind types are at module scope.
           </div>
         </div>
       </div>
@@ -893,7 +877,7 @@ TypeAliasDeclaration
   </div>
 
   <div class="insight warn">
-    <strong>Open question — do we need the values in the KindSymbolTable, or just the Kind definitions?</strong> TypeScript's binder creates symbols for <em>both</em> type declarations and value declarations. For KindScript, we need both: Kind definitions tell us <em>what properties to check</em>, and kind-annotated values tell us <em>what code to check them against</em>. The value entries are what drive the checker — without them, we wouldn't know which function bodies or directory trees to walk.
+    <strong>Open question — do we need the values in the KindSymbol[], or just the Kind definitions?</strong> TypeScript's binder creates symbols for <em>both</em> type declarations and value declarations. For KindScript, we need both: Kind definitions tell us <em>what properties to check</em>, and kind-annotated values tell us <em>what code to check them against</em>. The value entries are what drive the checker — without them, we wouldn't know which function bodies or directory trees to walk.
   </div>
 </div>
 </section>
@@ -932,11 +916,11 @@ TypeAliasDeclaration
     <pre><code><span class="comment">// TypeScript's flow:</span>
 <span class="comment">//   TypeReferenceNode("Foo") → resolveEntityName("Foo") → Symbol → getDeclaredTypeOfAlias</span>
 <span class="comment">// Our flow:</span>
-<span class="comment">//   TypeReferenceNode("PureDomain") → lookup in KindSymbolTable → KindSymbol.declaredProperties</span>
+<span class="comment">//   TypeReferenceNode("PureDomain") → lookup in KindSymbol[] → KindSymbol.declaredProperties</span>
 
 <span class="keyword">function</span> <span class="fn-name">getKindFromKindNode</span>(
   node: ts.TypeNode,
-  kindTable: <span class="type-name">KindSymbolTable</span>
+  kindTable: <span class="type-name">KindSymbol[]</span>
 ): <span class="type-name">PropertySpec</span> | <span class="keyword">undefined</span> {
   <span class="keyword">const</span> symbol = checker.<span class="fn-name">getSymbolAtLocation</span>(node);
   <span class="keyword">if</span> (!symbol) <span class="keyword">return undefined</span>;
@@ -1112,7 +1096,7 @@ DirNode(<span class="string-lit">'./src/domain'</span>)
   <div id="ast-tabs">
     <div class="tab-content active" id="ast-no">
       <h3>Side-channel approach (like TS's nodeLinks[])</h3>
-      <p>Don't touch the AST at all. Kind information lives entirely in the <code>KindSymbolTable</code> — a WeakMap/side-table that maps ts.Symbols to KindSymbols. The AST is read-only.</p>
+      <p>Don't touch the AST at all. Kind information lives entirely in the <code>KindSymbol[]</code> — a WeakMap/side-table that maps ts.Symbols to KindSymbols. The AST is read-only.</p>
       <p><strong>Pros:</strong></p>
       <ul style="margin: 8px 0 8px 24px; color: var(--text-dim);">
         <li>No risk of breaking TypeScript's invariants</li>
@@ -1144,7 +1128,7 @@ DirNode(<span class="string-lit">'./src/domain'</span>)
     <div class="tab-content" id="ast-rec">
       <h3>Recommendation: Side-Channel (No AST Modification)</h3>
       <div class="insight green">
-        <strong>Use the side-channel approach.</strong> TypeScript's own checker never mutates AST nodes. It stores all type information in <code>nodeLinks[]</code> and <code>symbolLinks[]</code> side tables. We should follow the same pattern with our <code>KindSymbolTable</code>. This is simpler, safer, and compatible with TypeScript's language service architecture.
+        <strong>Use the side-channel approach.</strong> TypeScript's own checker never mutates AST nodes. It stores all type information in <code>nodeLinks[]</code> and <code>symbolLinks[]</code> side tables. We should follow the same pattern with our <code>KindSymbol[]</code>. This is simpler, safer, and compatible with TypeScript's language service architecture.
       </div>
       <p>The two-step lookup (<code>node → symbol → KindSymbol</code>) is not a performance concern — the binder runs once and the checker accesses the table via <code>ts.Symbol</code> which TypeScript already provides at every relevant location.</p>
     </div>
@@ -1160,7 +1144,7 @@ DirNode(<span class="string-lit">'./src/domain'</span>)
         <span class="dm-option-badge rec">Recommended</span>
       </div>
       <div class="dm-option-body">
-        The TypeScript AST already contains everything we need. The <code>VariableDeclaration</code> node has a <code>.type</code> property (the type annotation) and an <code>.initializer</code> property (the expression). The type annotation can be resolved to a Kind via the TypeChecker and our KindSymbolTable. No intermediate representation needed.
+        The TypeScript AST already contains everything we need. The <code>VariableDeclaration</code> node has a <code>.type</code> property (the type annotation) and an <code>.initializer</code> property (the expression). The type annotation can be resolved to a Kind via the TypeChecker and our KindSymbol[]. No intermediate representation needed.
       </div>
     </div>
     <div class="dm-option">
@@ -1202,13 +1186,13 @@ DirNode(<span class="string-lit">'./src/domain'</span>)
   <div class="cli-sim">
     <div class="cli-sim-bar"><span class="cli-sim-dot" style="background:#ff5f57"></span><span class="cli-sim-dot" style="background:#ffbd2e"></span><span class="cli-sim-dot" style="background:#28c840"></span></div>
     <div class="cli-sim-body">
-      <span class="cli-output">Source: context.ts + src/**/*.ts</span><br>
+      <span class="cli-output">Source: kindscript.config.ts + src/**/*.ts</span><br>
       <span class="cli-output">  │</span><br>
       <span class="cli-output">  ├─ </span><span class="cli-highlight">ts.createProgram()</span><span class="cli-output"> → scan, parse, bind</span><br>
       <span class="cli-output">  │   └─ ts.SourceFile[] + ts.Symbol tables + ts.TypeChecker</span><br>
       <span class="cli-output">  │</span><br>
       <span class="cli-output">  ├─ </span><span class="cli-warn">ksBind()</span><span class="cli-output"> → walk symbols, find __ks marker</span><br>
-      <span class="cli-output">  │   └─ KindSymbolTable: WeakMap&lt;ts.Symbol, KindSymbol&gt;</span><br>
+      <span class="cli-output">  │   └─ KindSymbol[]: KindSymbol[] from binder</span><br>
       <span class="cli-output">  │</span><br>
       <span class="cli-output">  ├─ </span><span class="cli-warn">ksCheck()</span><span class="cli-output"> → for each kind-annotated value:</span><br>
       <span class="cli-output">  │   ├─ getKindFromKindNode()  → declared PropertySpec</span><br>
@@ -1290,11 +1274,11 @@ DirNode(<span class="string-lit">'./src/domain'</span>)
       <div class="flashcard-inner">
         <div class="flashcard-front">
           <div class="flashcard-q">Q</div>
-          <p>What is the <code>KindSymbolTable</code> and what TypeScript pattern does it mirror?</p>
+          <p>What is the <code>KindSymbol[]</code> and what TypeScript pattern does it mirror?</p>
         </div>
         <div class="flashcard-back">
           <div class="flashcard-a">A</div>
-          <p>The <code>KindSymbolTable</code> is a <code>WeakMap&lt;ts.Symbol, KindSymbol&gt;</code> that maps TypeScript symbols to their Kind metadata (declared properties, base type, members, filesystem path). It mirrors TypeScript's <code>symbolLinks[]</code> side-table pattern — extending symbols with additional computed data without mutating TypeScript's own data structures.</p>
+          <p>The <code>KindSymbol[]</code> is a <code>KindSymbol[] from binder</code> that maps TypeScript symbols to their Kind metadata (declared properties, base type, members, filesystem path). It mirrors TypeScript's <code>symbolLinks[]</code> side-table pattern — extending symbols with additional computed data without mutating TypeScript's own data structures.</p>
           <div class="flashcard-actions">
             <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
             <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>

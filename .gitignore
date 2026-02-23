@@ -22,6 +22,9 @@ Thumbs.db
 # Verification screenshots
 verify-*.png
 
+# Showcase temp folder
+.showcase-tmp/
+
 # Environment
 .env
 .env.*

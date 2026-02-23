@@ -8,7 +8,7 @@
 
 The checker is the core of KindScript's verification. It mirrors TypeScript's checker in structure: a set of functions that walk AST nodes, compute properties, and check assignability. The key difference: instead of computing *types*, we compute *property specs*.
 
-For each kind-annotated value in the KindSymbolTable, the checker:
+For each target in the KindSymbol array, the checker:
 
 1. **Resolves the value** — determines what AST to walk (function body, source file, directory tree)
 2. **Computes properties** — walks the AST to infer which properties the value actually satisfies
@@ -38,19 +38,9 @@ value : Kind = expression
 Extracts the declared `PropertySpec` from a type annotation that references a Kind. Analogous to TypeScript's `getTypeFromTypeNode`.
 
 ```ts
-function getKindFromKindNode(
-  node: ts.TypeNode,
-  kindTable: KindSymbolTable,
-  checker: ts.TypeChecker,
-): PropertySpec | undefined {
-  // Resolve the type annotation to a symbol
-  const type = checker.getTypeAtLocation(node);
-  const symbol = type.getSymbol() ?? type.aliasSymbol;
-  if (!symbol) return undefined;
-
-  // Look up in the KindSymbolTable
-  const kindSym = kindTable.get(symbol);
-  return kindSym?.declaredProperties;
+function getDeclaredProperties(sym: KindSymbol): PropertySpec {
+  // Each KindSymbol carries its declared properties directly from the config
+  return sym.declaredProperties;
 }
 ```
 
@@ -168,8 +158,8 @@ function checkKindAssignedTo(
 |---|---|---|
 | Function | Function body (`Block`) | From the declaration's initializer node |
 | Class | All method bodies | From the class declaration node |
-| File (`KSFile`) | Full `ts.SourceFile` | `program.getSourceFile(path)` using the path from `ks.file()` |
-| Directory (`KSDir`) | All files in the directory tree | Enumerate filesystem, `program.getSourceFile()` for each |
+| File target | Full `ts.SourceFile` | Matched by suffix against `program.getSourceFiles()` |
+| Directory target | All files in the directory tree | Matched by path prefix against `program.getSourceFiles()` |
 | Composite | Each member recursively + import graph | Resolve members from the object literal, then recurse |
 
 ### The Directory AST
@@ -575,51 +565,43 @@ interface KSChecker {
 
 function createKSChecker(
   tsProgram: ts.Program,
-  kindTable: KindSymbolTable,
+  targets: KindSymbol[],
 ): KSChecker {
-  const tsChecker = tsProgram.getTypeChecker();
+  let memoizedDiags: KSDiagnostic[] | undefined;
 
-  function checkSourceFile(sourceFile: ts.SourceFile): KSDiagnostic[] {
+  function checkProgram(): KSDiagnostic[] {
+    if (memoizedDiags) return memoizedDiags;
     const diagnostics: KSDiagnostic[] = [];
 
-    // Walk all declarations in this file
-    for (const stmt of sourceFile.statements) {
-      if (!ts.isVariableStatement(stmt)) continue;
+    // For each target, resolve matching source files and check rules
+    for (const target of targets) {
+      const matchedFiles = resolveTargetFiles(target, tsProgram);
 
-      for (const decl of stmt.declarationList.declarations) {
-        const symbol = tsChecker.getSymbolAtLocation(decl.name);
-        if (!symbol) continue;
-
-        const kindSym = kindTable.get(symbol);
-        if (!kindSym || kindSym.role !== 'value') continue;
-
-        // This is a kind-annotated value — check it
-        const declared = kindSym.declaredProperties;
-        const computed = getKindOfExpression(kindSym, tsProgram, tsChecker);
-        const violations = checkKindAssignedTo(computed, declared, decl, sourceFile);
-
-        // For composite kinds, also check relational properties
-        if (kindSym.valueKind === 'composite' && kindSym.members) {
-          const graph = buildMemberDependencyGraph(kindSym, tsProgram, tsChecker);
-          violations.push(...checkRelationalProperties(declared, graph));
+      for (const sf of matchedFiles) {
+        // Run each declared rule's check function against the source file
+        for (const [prop, value] of Object.entries(target.declaredProperties)) {
+          if (!value) continue;
+          const checkFn = propertyCheckRegistry.get(prop);
+          if (checkFn) {
+            diagnostics.push(...checkFn(sf, prop, value));
+          }
         }
+      }
 
-        diagnostics.push(...violations);
+      // For composites, also check relational properties
+      if (target.valueKind === 'composite' && target.members) {
+        const graph = buildMemberDependencyGraph(target, tsProgram);
+        diagnostics.push(...checkRelationalProperties(target.declaredProperties, graph));
       }
     }
 
+    memoizedDiags = diagnostics;
     return diagnostics;
   }
 
   return {
-    checkSourceFile,
-    checkProgram: () => {
-      const all: KSDiagnostic[] = [];
-      for (const sf of tsProgram.getSourceFiles()) {
-        all.push(...checkSourceFile(sf));
-      }
-      return all;
-    },
+    checkSourceFile: (sf) => checkProgram().filter(d => d.file.fileName === sf.fileName),
+    checkProgram,
   };
 }
 ```

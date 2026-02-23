@@ -1,25 +1,18 @@
 /**
  * The KindScript Checker.
  *
- * Infers properties from ASTs, compares against declarations, emits
- * diagnostics. Mirrors TypeScript's checker in structure.
+ * Resolves config targets to source files, walks ASTs to infer
+ * properties, compares against declared rules, and emits diagnostics.
  *
  * Architecture: Property Check Registry pattern.
  * Each intrinsic property check is an independent function registered
  * in a Map<string, IntrinsicCheckFn>. The checker iterates declared
- * properties, looks up the check by name, and calls it.
- *
- * Implements Phase 1 + 2 from the checker implementation plan:
- *   - Phase 1: noImports (end-to-end validation)
- *   - Phase 2: noConsole, immutable, static, noSideEffects, noMutation,
- *              noIO, maxFanOut, pure (shallow/syntactic checks)
+ * rules, looks up the check by name, and calls it.
  */
 
 import ts from 'typescript';
 import type {
-  KindSymbolTable,
   KindSymbol,
-  PropertySpec,
   KSChecker,
   KSDiagnostic,
   PropertyViolation,
@@ -27,11 +20,6 @@ import type {
 
 // ── Intrinsic check function type ───────────────────────────────────────
 
-/**
- * An intrinsic property check function. Receives a node to walk and
- * the TS type checker. Returns whether the property holds and any
- * violation details.
- */
 type IntrinsicCheckFn = (
   node: ts.Node,
   checker: ts.TypeChecker,
@@ -78,13 +66,9 @@ const IO_MODULES = new Set([
 
 // ── Property check implementations ─────────────────────────────────────
 
-/**
- * noImports: No import declarations (static or dynamic) in the AST.
- */
 function checkNoImports(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const violations: PropertyViolation[] = [];
 
-  // For source files, check top-level imports
   if (ts.isSourceFile(node)) {
     for (const stmt of node.statements) {
       if (ts.isImportDeclaration(stmt)) {
@@ -104,7 +88,6 @@ function checkNoImports(node: ts.Node): { ok: boolean; violations: PropertyViola
     }
   }
 
-  // Check for dynamic import() expressions (recursive)
   function visitDynamicImports(n: ts.Node) {
     if (
       ts.isCallExpression(n) &&
@@ -123,9 +106,6 @@ function checkNoImports(node: ts.Node): { ok: boolean; violations: PropertyViola
   return { ok: violations.length === 0, violations };
 }
 
-/**
- * noConsole: No console.* property access anywhere in the AST.
- */
 function checkNoConsole(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const violations: PropertyViolation[] = [];
 
@@ -137,7 +117,7 @@ function checkNoConsole(node: ts.Node): { ok: boolean; violations: PropertyViola
           node: n,
           message: `console.${n.name.text}`,
         });
-        return; // Don't recurse into children of this expression
+        return;
       }
     }
     if (ts.isElementAccessExpression(n)) {
@@ -157,10 +137,6 @@ function checkNoConsole(node: ts.Node): { ok: boolean; violations: PropertyViola
   return { ok: violations.length === 0, violations };
 }
 
-/**
- * immutable: No let or var declarations at module scope.
- * Only checks top-level variable statements in source files.
- */
 function checkImmutable(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const violations: PropertyViolation[] = [];
 
@@ -182,14 +158,10 @@ function checkImmutable(node: ts.Node): { ok: boolean; violations: PropertyViola
   return { ok: violations.length === 0, violations };
 }
 
-/**
- * static: No dynamic import() expressions or import.meta references.
- */
 function checkStatic(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const violations: PropertyViolation[] = [];
 
   function visit(n: ts.Node) {
-    // Dynamic import()
     if (
       ts.isCallExpression(n) &&
       n.expression.kind === ts.SyntaxKind.ImportKeyword
@@ -200,7 +172,6 @@ function checkStatic(node: ts.Node): { ok: boolean; violations: PropertyViolatio
         message: 'Dynamic import() expression',
       });
     }
-    // import.meta
     if (
       ts.isMetaProperty(n) &&
       n.keywordToken === ts.SyntaxKind.ImportKeyword
@@ -218,10 +189,6 @@ function checkStatic(node: ts.Node): { ok: boolean; violations: PropertyViolatio
   return { ok: violations.length === 0, violations };
 }
 
-/**
- * noSideEffects: Only declarations and imports at module top-level.
- * Expression statements, for loops, etc. at the top level are side effects.
- */
 function checkNoSideEffects(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const violations: PropertyViolation[] = [];
 
@@ -238,7 +205,6 @@ function checkNoSideEffects(node: ts.Node): { ok: boolean; violations: PropertyV
       if (ts.isEnumDeclaration(stmt)) continue;
       if (ts.isModuleDeclaration(stmt)) continue;
 
-      // Anything else is a side effect
       violations.push({
         property: 'noSideEffects',
         node: stmt,
@@ -250,15 +216,10 @@ function checkNoSideEffects(node: ts.Node): { ok: boolean; violations: PropertyV
   return { ok: violations.length === 0, violations };
 }
 
-/**
- * noMutation: No assignment expressions (excluding declarations),
- * no ++/-- operators, no delete expressions.
- */
 function checkNoMutation(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const violations: PropertyViolation[] = [];
 
   function visit(n: ts.Node) {
-    // Assignment expressions (but NOT variable declaration initializers)
     if (ts.isBinaryExpression(n) && isAssignmentOperator(n.operatorToken.kind)) {
       violations.push({
         property: 'noMutation',
@@ -266,7 +227,6 @@ function checkNoMutation(node: ts.Node): { ok: boolean; violations: PropertyViol
         message: `Assignment: ${n.operatorToken.getText()}`,
       });
     }
-    // Prefix/postfix increment/decrement
     if (ts.isPrefixUnaryExpression(n)) {
       if (
         n.operator === ts.SyntaxKind.PlusPlusToken ||
@@ -291,7 +251,6 @@ function checkNoMutation(node: ts.Node): { ok: boolean; violations: PropertyViol
         });
       }
     }
-    // delete expressions
     if (ts.isDeleteExpression(n)) {
       violations.push({
         property: 'noMutation',
@@ -306,14 +265,9 @@ function checkNoMutation(node: ts.Node): { ok: boolean; violations: PropertyViol
   return { ok: violations.length === 0, violations };
 }
 
-/**
- * noIO: No imports of known IO modules (shallow/syntactic check).
- * Checks both static import declarations and dynamic import() expressions.
- */
 function checkNoIO(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const violations: PropertyViolation[] = [];
 
-  // Check static imports in source files
   if (ts.isSourceFile(node)) {
     for (const stmt of node.statements) {
       if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier)) {
@@ -329,7 +283,6 @@ function checkNoIO(node: ts.Node): { ok: boolean; violations: PropertyViolation[
     }
   }
 
-  // Check dynamic imports
   function visit(n: ts.Node) {
     if (
       ts.isCallExpression(n) &&
@@ -353,10 +306,6 @@ function checkNoIO(node: ts.Node): { ok: boolean; violations: PropertyViolation[
   return { ok: violations.length === 0, violations };
 }
 
-/**
- * pure: Combination of noIO + noMutation + noSideEffects (shallow).
- * A value is pure only if it satisfies all three.
- */
 function checkPure(node: ts.Node): { ok: boolean; violations: PropertyViolation[] } {
   const ioResult = checkNoIO(node);
   const mutResult = checkNoMutation(node);
@@ -373,10 +322,6 @@ function checkPure(node: ts.Node): { ok: boolean; violations: PropertyViolation[
 
 // ── Property check registry ─────────────────────────────────────────────
 
-/**
- * Registry mapping property names to their check functions.
- * New properties = new entries, zero core changes.
- */
 const intrinsicChecks = new Map<string, IntrinsicCheckFn>([
   ['noImports', checkNoImports],
   ['noConsole', checkNoConsole],
@@ -417,53 +362,34 @@ const messageMap: Record<string, string> = {
 // ── Value resolution ────────────────────────────────────────────────────
 
 /**
- * Resolve a kind-annotated value to the AST node(s) the checker should walk.
- * Uses "Program Source Files Only" strategy: only files already in the
- * ts.Program are considered.
+ * Resolve a KindSymbol to the AST node(s) the checker should walk.
+ * Only files already in the ts.Program are considered.
  */
 function resolveValueNodes(
-  value: KindSymbol,
+  sym: KindSymbol,
   tsProgram: ts.Program,
 ): ts.Node[] {
-  switch (value.valueKind) {
-    case 'function': {
-      // The function body is in the declaration's initializer
-      const decl = value.tsSymbol.valueDeclaration;
-      if (decl && ts.isVariableDeclaration(decl) && decl.initializer) {
-        return [decl.initializer];
-      }
-      return [];
-    }
-
+  switch (sym.valueKind) {
     case 'file': {
-      if (!value.path) return [];
-      // Normalize: strip leading ./ and use forward slashes for matching
-      const fileSuffix = value.path.replace(/^\.\//, '').replace(/\\/g, '/');
-      const sourceFiles = tsProgram.getSourceFiles();
-      const resolved = sourceFiles.filter(
+      if (!sym.path) return [];
+      const fileSuffix = sym.path.replace(/^\.\//, '').replace(/\\/g, '/');
+      return tsProgram.getSourceFiles().filter(
         sf => !sf.isDeclarationFile &&
               sf.fileName.replace(/\\/g, '/').includes(fileSuffix),
       );
-      return resolved;
     }
 
     case 'directory': {
-      if (!value.path) return [];
-      // Normalize: strip leading ./ and use forward slashes for matching
-      const dirSuffix = value.path.replace(/^\.\//, '').replace(/\\/g, '/');
-      const sourceFiles = tsProgram.getSourceFiles();
-      const resolved = sourceFiles.filter(sf => {
+      if (!sym.path) return [];
+      const dirSuffix = sym.path.replace(/^\.\//, '').replace(/\\/g, '/');
+      return tsProgram.getSourceFiles().filter(sf => {
         if (sf.isDeclarationFile) return false;
         const normalized = sf.fileName.replace(/\\/g, '/');
-        // File must be UNDER this directory (path component boundary)
         return normalized.includes('/' + dirSuffix + '/');
       });
-      return resolved;
     }
 
     case 'composite': {
-      // For composite values, check each member individually
-      // (handled separately in the main check loop)
       return [];
     }
   }
@@ -473,17 +399,18 @@ function resolveValueNodes(
 
 function createDiagnostic(
   property: string,
-  errorNode: ts.Node,
   sourceFile: ts.SourceFile,
-  firstViolation?: PropertyViolation,
+  violation?: PropertyViolation,
 ): KSDiagnostic {
   const code = errorCodeMap[property] ?? 70000;
   let message = messageMap[property] ?? `Property '${property}' violated`;
 
-  // Include first violation detail if available
-  if (firstViolation) {
-    message += `: ${firstViolation.message}`;
+  if (violation) {
+    message += `: ${violation.message}`;
   }
+
+  // Point at the violation node if available, otherwise the source file
+  const errorNode = violation?.node ?? sourceFile;
 
   return {
     file: sourceFile,
@@ -492,6 +419,7 @@ function createDiagnostic(
     messageText: message,
     category: ts.DiagnosticCategory.Error,
     code,
+    property,
   };
 }
 
@@ -511,7 +439,6 @@ function checkMaxFanOut(
     }
   }
 
-  // Also count dynamic imports
   function visit(n: ts.Node) {
     if (
       ts.isCallExpression(n) &&
@@ -541,86 +468,40 @@ function checkMaxFanOut(
 // ── Main checker ────────────────────────────────────────────────────────
 
 /**
- * Create a KindScript checker for the given program and symbol table.
+ * Create a KindScript checker for the given program and config targets.
  *
  * Uses the Property Check Registry pattern: each intrinsic property
- * is an independent function. The checker iterates declared properties,
+ * is an independent function. The checker iterates declared rules,
  * looks up the check by name, and calls it.
  */
 export function createKSChecker(
   tsProgram: ts.Program,
-  kindTable: KindSymbolTable,
+  targets: KindSymbol[],
 ): KSChecker {
   const tsChecker = tsProgram.getTypeChecker();
 
   /**
-   * Check a single kind-annotated value against its declared properties.
+   * Check a single symbol against its declared rules.
    */
-  function checkValue(
-    kindSym: KindSymbol,
-    sourceFile: ts.SourceFile,
-  ): KSDiagnostic[] {
+  function checkSymbol(sym: KindSymbol): KSDiagnostic[] {
     const diagnostics: KSDiagnostic[] = [];
-    const declared = kindSym.declaredProperties;
 
-    // Find the declaration node for error reporting
-    const errorNode = kindSym.tsSymbol.valueDeclaration ?? sourceFile;
-
-    // Resolve AST node(s) to walk
-    const nodes = resolveValueNodes(kindSym, tsProgram);
-
-    // For composite values, check each member recursively
-    if (kindSym.valueKind === 'composite' && kindSym.members) {
-      for (const [, member] of kindSym.members) {
-        const memberNodes = resolveValueNodes(member, tsProgram);
-        const memberDeclared = member.declaredProperties;
-        const memberErrorNode = member.tsSymbol.valueDeclaration ?? errorNode;
-
-        // Find the source file for the member error node
-        const memberSourceFile = memberErrorNode.getSourceFile?.() ?? sourceFile;
-
-        for (const node of memberNodes) {
-          // Run intrinsic checks for each member
-          for (const [prop, value] of Object.entries(memberDeclared)) {
-            if (value !== true) continue;
-
-            const check = intrinsicChecks.get(prop);
-            if (!check) continue;
-
-            const result = check(node, tsChecker);
-            if (!result.ok) {
-              diagnostics.push(
-                createDiagnostic(prop, memberErrorNode, memberSourceFile, result.violations[0]),
-              );
-            }
-          }
-
-          // maxFanOut for members
-          if (memberDeclared.maxFanOut !== undefined) {
-            const result = checkMaxFanOut(node, memberDeclared.maxFanOut);
-            if (!result.ok) {
-              diagnostics.push(
-                createDiagnostic('maxFanOut', memberErrorNode, memberSourceFile, result.violations[0]),
-              );
-            }
-          }
-        }
+    // Composite: check each member recursively
+    if (sym.valueKind === 'composite' && sym.members) {
+      for (const member of sym.members.values()) {
+        diagnostics.push(...checkSymbol(member));
       }
-
-      // Also check composite-level declared properties (relational checks
-      // would go here in Phase 3 — for now we check any intrinsic properties
-      // declared on the composite itself)
       return diagnostics;
     }
 
-    // Non-composite: check the resolved nodes against declared properties
-    if (nodes.length === 0 && kindSym.valueKind !== 'composite') {
-      // No nodes resolved — skip (the value might reference code not in the program)
-      return diagnostics;
-    }
+    // Non-composite: resolve to AST nodes and check
+    const nodes = resolveValueNodes(sym, tsProgram);
+    const declared = sym.declaredProperties;
 
     for (const node of nodes) {
-      // Run boolean intrinsic checks
+      const sourceFile = ts.isSourceFile(node) ? node : node.getSourceFile();
+
+      // Boolean intrinsic checks
       for (const [prop, value] of Object.entries(declared)) {
         if (value !== true) continue;
 
@@ -630,17 +511,17 @@ export function createKSChecker(
         const result = check(node, tsChecker);
         if (!result.ok) {
           diagnostics.push(
-            createDiagnostic(prop, errorNode, sourceFile, result.violations[0]),
+            createDiagnostic(prop, sourceFile, result.violations[0]),
           );
         }
       }
 
-      // maxFanOut (numeric check)
+      // Numeric: maxFanOut
       if (declared.maxFanOut !== undefined) {
         const result = checkMaxFanOut(node, declared.maxFanOut);
         if (!result.ok) {
           diagnostics.push(
-            createDiagnostic('maxFanOut', errorNode, sourceFile, result.violations[0]),
+            createDiagnostic('maxFanOut', sourceFile, result.violations[0]),
           );
         }
       }
@@ -649,39 +530,22 @@ export function createKSChecker(
     return diagnostics;
   }
 
-  /**
-   * Check all kind-annotated values declared in a source file.
-   */
-  function checkSourceFile(sourceFile: ts.SourceFile): KSDiagnostic[] {
-    if (sourceFile.isDeclarationFile) return [];
-
-    const diagnostics: KSDiagnostic[] = [];
-
-    for (const stmt of sourceFile.statements) {
-      if (!ts.isVariableStatement(stmt)) continue;
-
-      for (const decl of stmt.declarationList.declarations) {
-        const symbol = tsChecker.getSymbolAtLocation(decl.name);
-        if (!symbol) continue;
-
-        const kindSym = kindTable.get(symbol);
-        if (!kindSym || kindSym.role !== 'value') continue;
-
-        // This is a kind-annotated value — check it
-        diagnostics.push(...checkValue(kindSym, sourceFile));
-      }
-    }
-
-    return diagnostics;
-  }
+  // Memoize checkProgram results
+  let cached: KSDiagnostic[] | undefined;
 
   function checkProgram(): KSDiagnostic[] {
-    const all: KSDiagnostic[] = [];
-    for (const sf of tsProgram.getSourceFiles()) {
-      if (sf.isDeclarationFile) continue;
-      all.push(...checkSourceFile(sf));
+    if (!cached) {
+      cached = [];
+      for (const sym of targets) {
+        cached.push(...checkSymbol(sym));
+      }
     }
-    return all;
+    return cached;
+  }
+
+  function checkSourceFile(sf: ts.SourceFile): KSDiagnostic[] {
+    if (sf.isDeclarationFile) return [];
+    return checkProgram().filter(d => d.file.fileName === sf.fileName);
   }
 
   return {

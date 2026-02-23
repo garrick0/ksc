@@ -344,39 +344,40 @@ let treeNodeIdCounter = 0;
 
 // ============================================================
 // SAMPLE DATA — mirrors the checker-violations fixture
+// Replaced by showcase script with real compiler output.
 // ============================================================
+// __DASHBOARD_DATA_START__
 const SAMPLE_DATA = {
   version: 1,
   project: {
     root: '/kindscript-project',
     generatedAt: new Date().toISOString(),
-    rootFiles: ['context.ts']
+    rootFiles: ['src/funcs/no-console.ts', 'src/funcs/no-mutation.ts', 'src/domain/handler.ts', 'src/infra/db.ts', 'src/pure/math.ts']
   },
   parse: {
     sourceFiles: [
       {
-        fileName: 'context.ts',
-        lineCount: 63,
+        fileName: 'src/funcs/no-console.ts',
+        lineCount: 8,
         declarations: [
-          { id: 'p-1', name: 'KSDir', kind: 'TypeAliasDeclaration', pos: 0, end: 120, text: "type KSDir<Path extends string = string> = { readonly path: Path; ... }" },
-          { id: 'p-2', name: 'KSFile', kind: 'TypeAliasDeclaration', pos: 121, end: 240, text: "type KSFile<Path extends string = string> = { readonly path: Path; ... }" },
-          { id: 'p-3', name: 'PropertySpec', kind: 'TypeAliasDeclaration', pos: 241, end: 400, text: "type PropertySpec = { readonly pure?: true; readonly noIO?: true; ... }" },
-          { id: 'p-4', name: 'Kind', kind: 'TypeAliasDeclaration', pos: 401, end: 500, text: "type Kind<Base, _Properties extends PropertySpec = {}> = Base & { ... }" },
-          { id: 'p-5', name: 'NoImportsLayer', kind: 'TypeAliasDeclaration', pos: 501, end: 560, text: "type NoImportsLayer = Kind<KSDir, { noImports: true }>" },
-          { id: 'p-6', name: 'NoIOLayer', kind: 'TypeAliasDeclaration', pos: 561, end: 610, text: "type NoIOLayer = Kind<KSDir, { noIO: true }>" },
-          { id: 'p-7', name: 'ks', kind: 'VariableStatement', pos: 611, end: 700, text: "declare const ks: { file<P>(path: P): KSFile<P>; dir<P>(path: P): KSDir<P> }" },
-          { id: 'p-8', name: 'noConsoleFunc', kind: 'VariableStatement', pos: 701, end: 770, text: "const noConsoleFunc: Kind<() => void, { noConsole: true }> = () => { console.log('hello') }" },
-          { id: 'p-9', name: 'noMutationFunc', kind: 'VariableStatement', pos: 771, end: 850, text: "const noMutationFunc: Kind<(arr: number[]) => void, { noMutation: true }> = (arr) => { ... }" },
-          { id: 'p-10', name: 'domainDir', kind: 'VariableStatement', pos: 851, end: 910, text: "const domainDir: NoImportsLayer = ks.dir('./src/domain')" },
-          { id: 'p-11', name: 'infraDir', kind: 'VariableStatement', pos: 911, end: 970, text: "const infraDir: NoIOLayer = ks.dir('./src/infra')" }
+          { id: 'p-1', name: 'greet', kind: 'Function', pos: 0, end: 80, text: "export function greet(name: string) { console.log('Hello, ' + name); }" }
         ],
-        source: "// Test fixture: values that VIOLATE their declared properties.\n\ntype KSDir<Path extends string = string> = {\n  readonly path: Path;\n  readonly name: string;\n  readonly __ks?: true;\n};\n\ntype KSFile<Path extends string = string> = {\n  readonly path: Path;\n  readonly filename: string;\n  readonly extension: string;\n  readonly __ks?: true;\n};\n\ntype PropertySpec = {\n  readonly pure?: true;\n  readonly noIO?: true;\n  readonly noImports?: true;\n  readonly noConsole?: true;\n  readonly immutable?: true;\n  readonly static?: true;\n  readonly noSideEffects?: true;\n  readonly noMutation?: true;\n  readonly maxFanOut?: number;\n};\n\ntype Kind<\n  Base = unknown,\n  _Properties extends PropertySpec = {},\n> = Base & {\n  readonly __ks?: true;\n};\n\ndeclare const ks: {\n  file<P extends string>(path: P): KSFile<P>;\n  dir<P extends string>(path: P): KSDir<P>;\n};\n\n// noConsole violation\nconst noConsoleFunc: Kind<() => void, { noConsole: true }> =\n  () => {\n    console.log('hello');\n  };\n\n// noMutation violation\nconst noMutationFunc: Kind<(arr: number[]) => void, { noMutation: true }> =\n  (arr) => {\n    let x = 0;\n    x = 1;\n    x++;\n  };\n\ntype NoImportsLayer = Kind<KSDir, { noImports: true }>;\nconst domainDir: NoImportsLayer = ks.dir('./src/domain');\n\ntype NoIOLayer = Kind<KSDir, { noIO: true }>;\nconst infraDir: NoIOLayer = ks.dir('./src/infra');\n"
+        source: "// File with console usage — violates noConsole.\n\nexport function greet(name: string) {\n  console.log('Hello, ' + name);\n}\n"
+      },
+      {
+        fileName: 'src/funcs/no-mutation.ts',
+        lineCount: 10,
+        declarations: [
+          { id: 'p-2', name: 'mutate', kind: 'Function', pos: 0, end: 120, text: "export function mutate() { let x = 0; x = 1; x++; return x; }" }
+        ],
+        source: "// File with mutation — violates noMutation.\n\nexport function mutate() {\n  let x = 0;\n  x = 1;\n  x++;\n  return x;\n}\n"
       },
       {
         fileName: 'src/domain/handler.ts',
         lineCount: 9,
         declarations: [
-          { id: 'p-20', name: 'handle', kind: 'FunctionDeclaration', pos: 0, end: 120, text: "export function handle() { return something(); }" }
+          { id: 'p-20', name: 'something', kind: 'Import', pos: 0, end: 35, text: "import { something } from './other'" },
+          { id: 'p-21', name: 'handle', kind: 'Function', pos: 36, end: 120, text: "export function handle() { return something(); }" }
         ],
         source: "// This file is inside the domain directory.\n// It has an import — violating noImports.\n\nimport { something } from './other';\n\nexport function handle() {\n  return something();\n}\n"
       },
@@ -384,7 +385,7 @@ const SAMPLE_DATA = {
         fileName: 'src/domain/other.ts',
         lineCount: 5,
         declarations: [
-          { id: 'p-21', name: 'something', kind: 'FunctionDeclaration', pos: 0, end: 80, text: "export function something() { return 42; }" }
+          { id: 'p-22', name: 'something', kind: 'Function', pos: 0, end: 80, text: "export function something() { return 42; }" }
         ],
         source: "// Helper module in domain directory.\n\nexport function something() {\n  return 42;\n}\n"
       },
@@ -392,7 +393,8 @@ const SAMPLE_DATA = {
         fileName: 'src/infra/db.ts',
         lineCount: 9,
         declarations: [
-          { id: 'p-30', name: 'loadConfig', kind: 'FunctionDeclaration', pos: 0, end: 120, text: "export function loadConfig(path: string) { return readFileSync(path, 'utf-8'); }" }
+          { id: 'p-30', name: 'fs', kind: 'Import', pos: 0, end: 34, text: "import { readFileSync } from 'fs'" },
+          { id: 'p-31', name: 'loadConfig', kind: 'Function', pos: 35, end: 120, text: "export function loadConfig(path: string) { return readFileSync(path, 'utf-8'); }" }
         ],
         source: "// This file is inside the infra directory.\n// It imports an IO module — violating noIO.\n\nimport { readFileSync } from 'fs';\n\nexport function loadConfig(path: string) {\n  return readFileSync(path, 'utf-8');\n}\n"
       },
@@ -400,9 +402,9 @@ const SAMPLE_DATA = {
         fileName: 'src/pure/math.ts',
         lineCount: 12,
         declarations: [
-          { id: 'p-40', name: 'PI', kind: 'VariableStatement', pos: 0, end: 40, text: "export const PI = 3.14159" },
-          { id: 'p-41', name: 'add', kind: 'FunctionDeclaration', pos: 41, end: 100, text: "export function add(a: number, b: number): number { return a + b; }" },
-          { id: 'p-42', name: 'multiply', kind: 'FunctionDeclaration', pos: 101, end: 170, text: "export function multiply(a: number, b: number): number { return a * b; }" }
+          { id: 'p-40', name: 'PI', kind: 'Const', pos: 0, end: 40, text: "export const PI = 3.14159" },
+          { id: 'p-41', name: 'add', kind: 'Function', pos: 41, end: 100, text: "export function add(a: number, b: number): number { return a + b; }" },
+          { id: 'p-42', name: 'multiply', kind: 'Function', pos: 101, end: 170, text: "export function multiply(a: number, b: number): number { return a * b; }" }
         ],
         source: "// A clean file: only const declarations, pure functions, no console.\n\nexport const PI = 3.14159;\n\nexport function add(a: number, b: number): number {\n  return a + b;\n}\n\nexport function multiply(a: number, b: number): number {\n  return a * b;\n}\n"
       }
@@ -410,42 +412,37 @@ const SAMPLE_DATA = {
   },
   bind: {
     symbols: [
-      // Definitions
-      { id: 'b-1', name: 'NoImportsLayer', role: 'definition', valueKind: 'composite', declaredProperties: { noImports: true }, sourceFile: 'context.ts', sourcePos: 501, parseNodeId: 'p-5' },
-      { id: 'b-2', name: 'NoIOLayer', role: 'definition', valueKind: 'composite', declaredProperties: { noIO: true }, sourceFile: 'context.ts', sourcePos: 561, parseNodeId: 'p-6' },
-      // Values
-      { id: 'b-10', name: 'noConsoleFunc', role: 'value', valueKind: 'function', declaredProperties: { noConsole: true }, kindDefinitionId: null, sourceFile: 'context.ts', sourcePos: 701, parseNodeId: 'p-8' },
-      { id: 'b-11', name: 'noMutationFunc', role: 'value', valueKind: 'function', declaredProperties: { noMutation: true }, kindDefinitionId: null, sourceFile: 'context.ts', sourcePos: 771, parseNodeId: 'p-9' },
-      { id: 'b-12', name: 'domainDir', role: 'value', valueKind: 'directory', declaredProperties: { noImports: true }, path: './src/domain', resolvedFiles: ['src/domain/handler.ts', 'src/domain/other.ts'], kindDefinitionId: 'b-1', sourceFile: 'context.ts', sourcePos: 851, parseNodeId: 'p-10' },
-      { id: 'b-13', name: 'infraDir', role: 'value', valueKind: 'directory', declaredProperties: { noIO: true }, path: './src/infra', resolvedFiles: ['src/infra/db.ts'], kindDefinitionId: 'b-2', sourceFile: 'context.ts', sourcePos: 911, parseNodeId: 'p-11' },
-      { id: 'b-14', name: 'pureDir', role: 'value', valueKind: 'directory', declaredProperties: { pure: true, noIO: true, noImports: true }, path: './src/pure', resolvedFiles: ['src/pure/math.ts'], kindDefinitionId: null, sourceFile: 'context.ts', sourcePos: 0, parseNodeId: null }
+      { id: 'sym-0', name: 'noConsoleFile', valueKind: 'file', declaredProperties: { noConsole: true }, path: './src/funcs/no-console.ts', resolvedFiles: ['src/funcs/no-console.ts'] },
+      { id: 'sym-1', name: 'noMutationFile', valueKind: 'file', declaredProperties: { noMutation: true }, path: './src/funcs/no-mutation.ts', resolvedFiles: ['src/funcs/no-mutation.ts'] },
+      { id: 'sym-2', name: 'domain', valueKind: 'directory', declaredProperties: { noImports: true }, path: './src/domain', resolvedFiles: ['src/domain/handler.ts', 'src/domain/other.ts'] },
+      { id: 'sym-3', name: 'infra', valueKind: 'directory', declaredProperties: { noIO: true }, path: './src/infra', resolvedFiles: ['src/infra/db.ts'] },
+      { id: 'sym-4', name: 'pureDir', valueKind: 'directory', declaredProperties: { pure: true, noIO: true, noImports: true }, path: './src/pure', resolvedFiles: ['src/pure/math.ts'] }
     ]
   },
   check: {
     diagnostics: [
-      { id: 'c-1', file: 'context.ts', code: 70009, property: 'noConsole', message: "Kind property 'noConsole' violated: console usage is not allowed. First violation: console.log('hello')", start: 701, length: 50, line: 43, column: 6, symbolId: 'b-10' },
-      { id: 'c-2', file: 'context.ts', code: 70013, property: 'noMutation', message: "Kind property 'noMutation' violated: mutation is not allowed. First violation: assignment to 'x'", start: 771, length: 50, line: 50, column: 6, symbolId: 'b-11' },
-      { id: 'c-3', file: 'src/domain/handler.ts', code: 70008, property: 'noImports', message: "Kind property 'noImports' violated: import declarations are not allowed. Found: import { something } from './other'", start: 0, length: 35, line: 4, column: 0, symbolId: 'b-12' },
-      { id: 'c-4', file: 'src/infra/db.ts', code: 70007, property: 'noIO', message: "Kind property 'noIO' violated: IO module imports are not allowed. Found: import from 'fs'", start: 0, length: 34, line: 4, column: 0, symbolId: 'b-13' }
+      { id: 'c-1', file: 'src/funcs/no-console.ts', code: 70009, property: 'noConsole', message: "Kind property 'noConsole' violated: console usage is not allowed.", start: 90, length: 30, line: 4, column: 3 },
+      { id: 'c-2', file: 'src/funcs/no-mutation.ts', code: 70013, property: 'noMutation', message: "Kind property 'noMutation' violated: mutation is not allowed. Assignment to 'x'.", start: 80, length: 5, line: 5, column: 3 },
+      { id: 'c-3', file: 'src/domain/handler.ts', code: 70008, property: 'noImports', message: "Kind property 'noImports' violated: import declarations are not allowed. Found: import { something } from './other'", start: 0, length: 35, line: 4, column: 1 },
+      { id: 'c-4', file: 'src/infra/db.ts', code: 70007, property: 'noIO', message: "Kind property 'noIO' violated: IO module imports are not allowed. Found: import from 'fs'", start: 0, length: 34, line: 4, column: 1 }
     ],
     summary: {
-      totalFiles: 5,
-      totalSymbols: 7,
+      totalFiles: 6,
+      totalSymbols: 5,
       totalDiagnostics: 4,
-      cleanFiles: 3,
+      cleanFiles: 4,
       violatingFiles: 2,
       byProperty: {
         noConsole: { checked: 1, violations: 1 },
         noMutation: { checked: 1, violations: 1 },
-        noImports: { checked: 1, violations: 1 },
-        noIO: { checked: 1, violations: 1 },
-        pure: { checked: 1, violations: 0 },
-        noSideEffects: { checked: 0, violations: 0 },
-        immutable: { checked: 0, violations: 0 }
+        noImports: { checked: 2, violations: 1 },
+        noIO: { checked: 2, violations: 1 },
+        pure: { checked: 1, violations: 0 }
       }
     }
   }
 };
+// __DASHBOARD_DATA_END__
 
 // ============================================================
 // DATA LOADING
@@ -522,8 +519,8 @@ function updateLegend() {
     ].join('');
   } else if (activeStage === 'bind') {
     el.innerHTML = [
-      leg('D','var(--purple)','Definition'), leg('fn','var(--yellow)','Function'),
-      leg('dir','var(--blue)','Directory'), leg('file','var(--cyan)','File')
+      leg('dir','var(--blue)','Directory'), leg('file','var(--cyan)','File'),
+      leg('cmp','var(--orange)','Composite')
     ].join('');
   } else {
     el.innerHTML = [
@@ -580,11 +577,13 @@ function renderParseSidebar(el, query) {
 }
 
 function renderBindSidebar(el, query) {
-  const defs = data.bind.symbols.filter(s => s.role === 'definition');
-  const vals = data.bind.symbols.filter(s => s.role === 'value');
+  const dirs = data.bind.symbols.filter(s => s.valueKind === 'directory');
+  const files = data.bind.symbols.filter(s => s.valueKind === 'file');
+  const composites = data.bind.symbols.filter(s => s.valueKind === 'composite');
 
-  [{ label: 'Definitions', items: defs, color: 'var(--purple)' },
-   { label: 'Values', items: vals, color: 'var(--blue)' }].forEach(grp => {
+  [{ label: 'Directories', items: dirs, color: 'var(--blue)' },
+   { label: 'Files', items: files, color: 'var(--cyan)' },
+   { label: 'Composites', items: composites, color: 'var(--orange)' }].filter(g => g.items.length > 0).forEach(grp => {
     const filtered = grp.items.filter(s => !query || s.name.toLowerCase().includes(query));
     if (filtered.length === 0) return;
     const group = document.createElement('div');
@@ -716,12 +715,6 @@ function showParseDetail(sf, decl) {
   html += '<div class="dp-section"><div class="dp-label">Position</div><div class="dp-value" style="font-family:var(--mono);font-size:11px">pos: ' + decl.pos + ' — end: ' + decl.end + '</div></div>';
   html += '<div class="dp-section"><div class="dp-label">Source Preview</div><div class="dp-code-block">' + escHtml(decl.text) + '</div></div>';
 
-  // Cross-stage link to bind
-  const bindSym = data.bind.symbols.find(s => s.parseNodeId === decl.id);
-  if (bindSym) {
-    html += '<div class="dp-section"><button class="dp-nav-btn" onclick="navigateToSymbol(\'' + bindSym.id + '\')">Show in Bind &#8594;</button></div>';
-  }
-
   if (sf.source) {
     html += '<div class="dp-section"><div class="dp-label">Full Source</div><div class="dp-code-block">' + highlightSource(sf.source) + '</div></div>';
   }
@@ -729,11 +722,7 @@ function showParseDetail(sf, decl) {
 }
 
 function showBindDetail(sym) {
-  let html = '<div class="dp-section"><div class="dp-label">Role</div><div class="dp-badge" style="background:' + valueKindColor(sym) + '22;color:' + valueKindColor(sym) + '">' + sym.role + '</div></div>';
-  if (sym.valueKind) {
-    html += '<div class="dp-section"><div class="dp-label">Value Kind</div><div class="dp-value">' + sym.valueKind + '</div></div>';
-  }
-  html += '<div class="dp-section"><div class="dp-label">Source</div><div class="dp-value" style="font-family:var(--mono);font-size:11px">' + escHtml(sym.sourceFile) + '</div></div>';
+  let html = '<div class="dp-section"><div class="dp-label">Target Kind</div><div class="dp-badge" style="background:' + valueKindColor(sym) + '22;color:' + valueKindColor(sym) + '">' + sym.valueKind + '</div></div>';
 
   // Properties
   const props = sym.declaredProperties;
@@ -761,16 +750,9 @@ function showBindDetail(sym) {
     html += '</div></div>';
   }
 
-  // Kind definition link
-  if (sym.kindDefinitionId) {
-    const def = data.bind.symbols.find(s => s.id === sym.kindDefinitionId);
-    if (def) {
-      html += '<div class="dp-section"><div class="dp-label">Kind Definition</div><div class="dp-value">' + escHtml(def.name) + '</div></div>';
-    }
-  }
-
-  // Cross-stage: diagnostics for this symbol
-  const diags = data.check.diagnostics.filter(d => d.symbolId === sym.id);
+  // Cross-stage: diagnostics for files covered by this symbol
+  const symFiles = new Set(sym.resolvedFiles || []);
+  const diags = data.check.diagnostics.filter(d => symFiles.has(d.file));
   if (diags.length > 0) {
     html += '<div class="dp-section"><div class="dp-label">Diagnostics (' + diags.length + ')</div>';
     diags.forEach(d => {
@@ -805,10 +787,8 @@ function showCheckDetail(diag) {
     html += '<div class="dp-section"><div class="dp-label">Source</div><div class="dp-code-block">' + codeHtml + '</div></div>';
   }
 
-  // Cross-stage links
-  if (diag.symbolId) {
-    html += '<div class="dp-section"><button class="dp-nav-btn" onclick="navigateToSymbol(\'' + diag.symbolId + '\')">Show Symbol in Bind &#8594;</button></div>';
-  }
+  // Cross-stage link to parse view
+  html += '<div class="dp-section"><button class="dp-nav-btn" onclick="switchStage(\'parse\')">Show in Parse &#8594;</button></div>';
 
   openDetail('KS' + diag.code + ': ' + diag.property, 'CHECK', diag.code ? '#f87171' : '#4ade80', html);
 }
@@ -1032,44 +1012,41 @@ function buildParseTree() {
 }
 
 function buildBindTree() {
-  const defs = data.bind.symbols.filter(s => s.role === 'definition');
-  const vals = data.bind.symbols.filter(s => s.role === 'value');
+  const dirs = data.bind.symbols.filter(s => s.valueKind === 'directory');
+  const files = data.bind.symbols.filter(s => s.valueKind === 'file');
+  const composites = data.bind.symbols.filter(s => s.valueKind === 'composite');
+
+  const groups = [];
+  if (dirs.length > 0) groups.push({ name: 'Directories', items: dirs, color: 'var(--blue)' });
+  if (files.length > 0) groups.push({ name: 'Files', items: files, color: 'var(--cyan)' });
+  if (composites.length > 0) groups.push({ name: 'Composites', items: composites, color: 'var(--orange)' });
 
   return {
-    name: 'KindSymbolTable',
+    name: 'Targets',
     _isGroup: true,
     color: 'var(--bind-color)',
-    tooltip: { title: 'KindSymbolTable', rows: [['Symbols', data.bind.symbols.length + ''], ['Definitions', defs.length + ''], ['Values', vals.length + '']] },
-    children: [
-      {
-        name: 'Definitions',
-        _isGroup: true,
-        color: 'var(--purple)',
-        countText: '(' + defs.length + ')',
-        children: defs.map(s => buildBindNode(s))
-      },
-      {
-        name: 'Values',
-        _isGroup: true,
-        color: 'var(--blue)',
-        countText: '(' + vals.length + ')',
-        children: vals.map(s => buildBindNode(s))
-      }
-    ]
+    tooltip: { title: 'Targets', rows: [['Symbols', data.bind.symbols.length + ''], ['Directories', dirs.length + ''], ['Files', files.length + ''], ['Composites', composites.length + '']] },
+    children: groups.map(g => ({
+      name: g.name,
+      _isGroup: true,
+      color: g.color,
+      countText: '(' + g.items.length + ')',
+      children: g.items.map(s => buildBindNode(s))
+    }))
   };
 }
 
 function buildBindNode(sym) {
   const props = sym.declaredProperties;
   const propKeys = Object.keys(props).filter(k => props[k]);
-  const hasDiags = data.check.diagnostics.some(d => d.symbolId === sym.id);
+  const symFiles = new Set(sym.resolvedFiles || []);
+  const hasDiags = data.check.diagnostics.some(d => symFiles.has(d.file));
   const chips = propKeys.map(p => ({
     label: p, length: p.length,
     color: hasDiags ? '#f87171' : '#4ade80'
   }));
 
-  const rows = [['Role', sym.role]];
-  if (sym.valueKind) rows.push(['Value Kind', sym.valueKind]);
+  const rows = [['Kind', sym.valueKind]];
   if (sym.path) rows.push(['Path', sym.path]);
   if (sym.resolvedFiles) rows.push(['Resolved Files', sym.resolvedFiles.length + '']);
   rows.push(['Properties', propKeys.join(', ') || 'none']);
@@ -1079,7 +1056,7 @@ function buildBindNode(sym) {
     name: sym.name,
     color: valueKindColor(sym),
     strokeColor: hasDiags ? 'var(--red)' : undefined,
-    badge: sym.role === 'definition' ? 'DEF' : vkBadge(sym.valueKind),
+    badge: vkBadge(sym.valueKind),
     badgeColor: valueKindColor(sym),
     propChips: chips,
     tooltip: { title: sym.name, rows: rows, props: propKeys },
@@ -1182,7 +1159,7 @@ function buildCheckTreeByProperty() {
         countText: isClean ? '\u2713 clean' : '(' + diags.length + ' violations)',
         tooltip: { title: prop, rows: [['Violations', diags.length + '']] },
         children: diags.map(d => {
-          const sym = data.bind.symbols.find(s => s.id === d.symbolId);
+          const sym = data.bind.symbols.find(s => (s.resolvedFiles || []).includes(d.file));
           return {
             id: d.id,
             name: (sym ? sym.name : d.file) + ' — L' + d.line,
@@ -1288,9 +1265,7 @@ function kindBadge(kind) {
 }
 
 function valueKindColor(sym) {
-  if (sym.role === 'definition') return '#a78bfa';
   switch (sym.valueKind) {
-    case 'function': return '#fbbf24';
     case 'directory': return '#4f8ef7';
     case 'file': return '#22d3ee';
     case 'composite': return '#fb923c';

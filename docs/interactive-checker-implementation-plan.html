@@ -512,15 +512,16 @@ tr:hover td { background: var(--surface); }
         <span class="df-expand">&#9660;</span>
       </div>
       <div class="df-detail">
-        <p>The binder produces a <code>KindSymbolTable</code> &mdash; a <code>WeakMap&lt;ts.Symbol, KindSymbol&gt;</code>. Each entry has:</p>
+        <p>The binder produces a <code>BinderResult</code> &mdash; an object with <code>symbols: KindSymbol[]</code> (all symbols) and <code>targets: KindSymbol[]</code> (top-level entries). Each entry has:</p>
         <ul style="margin:8px 0 0 20px">
-          <li><code>role</code>: <code>'definition'</code> or <code>'value'</code></li>
+          <li><code>id</code>: unique identifier (e.g., <code>"sym-0"</code>)</li>
+          <li><code>name</code>: the config entry name</li>
           <li><code>declaredProperties</code>: the <code>PropertySpec</code> to check against</li>
-          <li><code>valueKind</code>: <code>'function'</code> | <code>'file'</code> | <code>'directory'</code> | <code>'composite'</code></li>
-          <li><code>path</code>: filesystem path from <code>ks.dir()</code> / <code>ks.file()</code></li>
-          <li><code>members</code>: child members for composite kinds</li>
+          <li><code>valueKind</code>: <code>'file'</code> | <code>'directory'</code> | <code>'composite'</code></li>
+          <li><code>path</code>: filesystem path from the config entry</li>
+          <li><code>members</code>: child members for composite entries</li>
         </ul>
-        <p style="margin-top:8px">The checker only processes entries where <code>role === 'value'</code>.</p>
+        <p style="margin-top:8px">The checker iterates over the <code>targets</code> array.</p>
       </div>
     </div>
     <div class="df-connector"></div>
@@ -571,7 +572,7 @@ tr:hover td { background: var(--surface); }
           <div class="cli-sim-bar"><span class="cli-sim-dot" style="background:#ff5f57"></span><span class="cli-sim-dot" style="background:#ffbd2e"></span><span class="cli-sim-dot" style="background:#28c840"></span></div>
           <div class="cli-sim-body">
             <span class="cli-prompt">$ </span>ksc check<br>
-            <span class="cli-error">context.ts:12:7 - error KS70007: Value performs IO</span><br>
+            <span class="cli-error">source file:12:7 - error KS70007: Value performs IO</span><br>
             <span class="cli-output">&nbsp;&nbsp;import { readFile } from 'fs';</span><br>
             <span class="cli-output">&nbsp;&nbsp;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span><br>
             <span class="cli-output">&nbsp;&nbsp;'domain' is declared as { noIO: true } but imports 'fs'</span><br>
@@ -688,7 +689,7 @@ tr:hover td { background: var(--surface); }
 <section id="d2-resolution">
 <div class="container">
   <h2><span class="num">04</span>Decision 2: Directory Value Resolution</h2>
-  <p class="section-sub">When the checker encounters a <code>ks.dir('./src/domain')</code> value, how should it resolve that path to actual source files?</p>
+  <p class="section-sub">When the checker encounters a <code>path: ''./src/domain')</code> value, how should it resolve that path to actual source files?</p>
 
   <div class="decision-grid" id="d2-grid">
     <div class="decision-card" onclick="selectDecision('d2', 'program-fs', this)">
@@ -855,7 +856,7 @@ tr:hover td { background: var(--surface); }
         <p style="margin-top:12px">In VS Code, this renders as: primary error underline at declaration, with clickable "related" links to each violation.</p>
       </div>
       <div class="decision-detail" id="d3a-detail-decl-site">
-        <p>Errors always point at the declaration: <code>const domain: DomainLayer = ks.dir('./src/domain')</code>. Violation details go in the message text, not in location spans.</p>
+        <p>Errors always point at the declaration: <code>const domain: DomainLayer = path: ''./src/domain')</code>. Violation details go in the message text, not in location spans.</p>
       </div>
       <div class="decision-detail" id="d3a-detail-violation-site">
         <p>Each violation becomes its own diagnostic. A directory with 3 console.log calls in different files produces 3 separate KS70009 diagnostics, each pointing at the offending line.</p>
@@ -1373,7 +1374,7 @@ tr:hover td { background: var(--surface); }
       <div class="flashcard-inner">
         <div class="flashcard-front">
           <div class="flashcard-q">Q</div>
-          <p>How does the checker know what AST to walk for a <code>ks.dir('./src/domain')</code> value?</p>
+          <p>How does the checker know what AST to walk for a <code>path: ''./src/domain')</code> value?</p>
         </div>
         <div class="flashcard-back">
           <div class="flashcard-a">A</div>

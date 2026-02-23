@@ -106,14 +106,13 @@ Slide-in panel on the right (same as universe-explorer's `#right-panel`). Shows 
 **Tree structure:**
 ```
 Program (root)
-├── context.ts (SourceFile)
-│   ├── type KSDir<...> (TypeAliasDeclaration)
-│   ├── type PropertySpec (TypeAliasDeclaration)
-│   ├── type Kind<...> (TypeAliasDeclaration)
-│   ├── type PureLayer (TypeAliasDeclaration)        <- Kind definition
-│   ├── declare const ks (VariableStatement)
-│   └── const pureDir: PureLayer (VariableStatement)  <- Kind value
+├── src/funcs/no-console.ts (SourceFile)
+│   └── export function greet(...) (FunctionDeclaration)
+├── src/domain/handler.ts (SourceFile)
+│   ├── import { something } from './other' (ImportDeclaration)
+│   └── export function handle(...) (FunctionDeclaration)
 ├── src/pure/math.ts (SourceFile)
+│   ├── export const PI (VariableStatement)
 │   ├── export function add(...) (FunctionDeclaration)
 │   └── export function multiply(...) (FunctionDeclaration)
 └── [other source files...]
@@ -156,42 +155,42 @@ Build by walking `ts.forEachChild(sourceFile, ...)` one level deep, extracting t
 
 ### 4b. Bind Stage Tree
 
-**Data source:** `program.getKindSymbolTable()` — the `KindSymbolTable` (WeakMap) resolved into a list.
+**Data source:** `program.getAllKindSymbols()` — the array of `KindSymbol` objects from the binder.
 
 **Tree structure:**
 ```
-KindSymbolTable (root)
-├── Definitions
-│   ├── PureLayer (Kind definition)
-│   │   properties: { noConsole: true, immutable: true, noSideEffects: true }
-│   │   base: KSDir
-│   └── StrictModule (Kind definition)
-│       properties: { pure: true, static: true }
-│       base: KSFile
-├── Values
-│   ├── pureDir: PureLayer (directory value)
-│   │   path: "./src/pure"
-│   │   resolves to: [src/pure/math.ts]
-│   ├── configModule: StrictModule (file value)
-│   │   path: "./config.ts"
-│   └── appKernel (composite value)
-│       ├── api: ApiLayer (member)
-│       └── core: CoreLayer (member)
-└── [Ungoverned files — files in program not covered by any value]
+Targets (root)
+├── Directories
+│   ├── domain (directory)
+│   │   path: "./src/domain"
+│   │   properties: { noImports: true }
+│   │   resolves to: [src/domain/handler.ts, src/domain/other.ts]
+│   ├── infra (directory)
+│   │   path: "./src/infra"
+│   │   properties: { noIO: true }
+│   └── pureDir (directory)
+│       path: "./src/pure"
+│       properties: { pure: true, noIO: true, noImports: true }
+├── Files
+│   ├── noConsoleFile (file)
+│   │   path: "./src/funcs/no-console.ts"
+│   │   properties: { noConsole: true }
+│   └── noMutationFile (file)
+│       path: "./src/funcs/no-mutation.ts"
+│       properties: { noMutation: true }
+└── [Ungoverned files — files in program not covered by any target]
 ```
 
-**Hierarchy:** Two top-level groups: **Definitions** and **Values**. Under Values, composite kinds expand into their members. This mirrors the universe-explorer's carrier hierarchy but with Kind semantics.
+**Hierarchy:** Top-level groups by value kind: **Directories**, **Files**, **Composites**. Under composites, member targets expand into their children.
 
 **Node rendering:**
 
-| Symbol role | Visual |
+| Target kind | Visual |
 |-------------|--------|
-| Kind definition | Purple circle, name, property chips |
-| Value (function) | Yellow `λ` badge |
-| Value (file) | Blue file icon, path shown |
-| Value (directory) | Blue folder icon, path + file count |
-| Value (composite) | Orange compound icon, member count |
-| Composite member | Indented under parent, own kind label |
+| Directory | Blue folder icon, path + file count |
+| File | Cyan file icon, path shown |
+| Composite | Orange compound icon, member count |
+| Composite member | Indented under parent, own properties |
 
 **Property chips** — small inline badges showing declared properties:
 ```
@@ -208,20 +207,17 @@ Colored by category: green for clean/declarative, orange for restriction.
 **Data extraction:**
 ```typescript
 interface BindStageNode {
+  id: string;
   name: string;
-  role: 'definition' | 'value';
-  valueKind?: 'function' | 'file' | 'directory' | 'composite';
-  declaredProperties: PropertySpec;
+  valueKind: 'file' | 'directory' | 'composite';
+  declaredProperties: Record<string, boolean | number>;
   path?: string;
-  resolvedFiles?: string[];      // for file/dir values
-  members?: BindStageNode[];     // for composites
-  kindDefinitionName?: string;   // what Kind this value is typed as
-  sourceFile: string;
-  sourcePos: number;
+  resolvedFiles?: string[];      // for file/dir targets
+  members?: string[];            // member symbol IDs (for composites)
 }
 ```
 
-Extracted by iterating the program's source files, looking up each file's TS symbols in the KindSymbolTable, and collecting the KindSymbol metadata.
+Extracted from `program.getAllKindSymbols()` which returns the array of `KindSymbol` objects created by the binder from the config.
 
 ---
 
@@ -350,21 +346,21 @@ Navigation buttons in the detail panel switch the active stage tab and highlight
 ### How data flows from the compiler to the dashboard
 
 ```
-User code (*.ts files)
+User code (*.ts files) + defineConfig({...})
     │
     ▼
-createProgram(rootFiles, options)
+createProgram(rootFiles, config, options)
     │
     ├──► program.getSourceFiles()          → Parse stage data
     │
-    ├──► program.getKindSymbolTable()      → Bind stage data
+    ├──► program.getAllKindSymbols()        → Bind stage data
     │
     └──► program.getKindDiagnostics()      → Check stage data
 ```
 
 ### Serialization format
 
-The dashboard needs a JSON snapshot to operate on (same pattern as universe-explorer's `CarrierExportData`). Define a `DashboardExportData` shape:
+The dashboard needs a JSON snapshot to operate on. The `DashboardExportData` shape:
 
 ```typescript
 interface DashboardExportData {
@@ -382,7 +378,7 @@ interface DashboardExportData {
       declarations: Array<{
         id: string;
         name: string;
-        kind: string;           // SyntaxKind name
+        kind: string;           // e.g., 'Function', 'Const', 'Import'
         pos: number;
         end: number;
         text: string;           // first 120 chars of source
@@ -395,15 +391,11 @@ interface DashboardExportData {
     symbols: Array<{
       id: string;
       name: string;
-      role: 'definition' | 'value';
-      valueKind?: 'function' | 'file' | 'directory' | 'composite';
+      valueKind: string;        // 'file' | 'directory' | 'composite'
       declaredProperties: Record<string, boolean | number>;
       path?: string;
       resolvedFiles?: string[];
-      members?: string[];       // IDs of member symbols
-      kindDefinitionId?: string;
-      sourceFile: string;
-      sourcePos: number;
+      members?: string[];       // IDs of member symbols (composites only)
     }>;
   };
 
@@ -418,7 +410,6 @@ interface DashboardExportData {
       length: number;
       line: number;
       column: number;
-      symbolId?: string;        // link back to bind symbol
     }>;
     summary: {
       totalFiles: number;
@@ -432,13 +423,16 @@ interface DashboardExportData {
 }
 ```
 
-### Export function (new addition to `src/index.ts`)
+### Export function
 
 ```typescript
-export function exportDashboardData(program: KSProgram): DashboardExportData
+export function exportDashboardData(
+  program: KSProgram,
+  options?: { includeSource?: boolean; root?: string }
+): DashboardExportData
 ```
 
-This function walks the program's source files, symbol table, and diagnostics to produce the serialized snapshot.
+This function walks the program's source files, symbols, and diagnostics to produce the serialized snapshot.
 
 ---
 

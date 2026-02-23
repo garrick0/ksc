@@ -2,21 +2,27 @@
  * KindScript public API.
  *
  * Compiler entry points:
- *   import { createProgram } from 'kindscript';
- *
- * User-facing types:
- *   import { Kind, KSFile, KSDir, PropertySpec, ks } from 'kindscript';
+ *   import { createProgram, defineConfig } from 'kindscript';
  */
 
 // Compiler
 export { createProgram, createProgramFromTSProgram } from './program.js';
 
+// Config
+export { defineConfig, isCompositeEntry } from './config.js';
+export type {
+  KindScriptConfig,
+  ConfigEntry,
+  TargetEntry,
+  CompositeEntry,
+  RuleSet,
+} from './config.js';
+
 // Types
 export type {
   KSProgram,
-  KindSymbolTable,
   KindSymbol,
-  PropertySpec as InternalPropertySpec,
+  PropertySpec,
   KSDiagnostic,
   KSChecker,
   ComputedPropertySpec,
@@ -24,6 +30,6 @@ export type {
 } from './types.js';
 export { KSErrorCode } from './types.js';
 
-// User-facing API
-export type { Kind, KSFile, KSDir, PropertySpec } from './api/index.js';
-export { ks } from './api/index.js';
+// Dashboard export
+export { exportDashboardData } from './export.js';
+export type { DashboardExportData, ExportOptions } from './export.js';

@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESTree vs TypeScript Compiler AST — Deep Dive Comparison</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+.hero {
+  text-align: center; padding: 64px 24px 48px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 12px;
+}
+.hero .subtitle { font-size: 1.05rem; color: var(--text-dim); max-width: 700px; margin: 0 auto 20px; }
+.badge-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.75rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.blue { border-color: var(--accent); color: var(--accent); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+.badge.pink { border-color: var(--pink); color: var(--pink); }
+
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.7rem; font-weight: 700; margin-bottom: 6px; }
+h2 .num {
+  display: inline-block; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.8rem;
+  text-align: center; line-height: 34px; margin-right: 10px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 28px; font-size: 0.92rem; }
+h3 { font-size: 1.15rem; font-weight: 700; margin: 24px 0 10px; color: var(--accent2); }
+
+p { margin-bottom: 14px; color: #c0c0d0; font-size: 0.93rem; }
+ul, ol { margin: 0 0 16px 20px; color: #c0c0d0; font-size: 0.93rem; }
+li { margin-bottom: 6px; }
+strong { color: var(--text); }
+code {
+  font-family: var(--mono); font-size: 0.82rem; background: var(--surface2);
+  padding: 2px 6px; border-radius: 4px; color: var(--cyan);
+}
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 16px;
+}
+.card-title {
+  font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Side-by-side */
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 700px) { .side-by-side { grid-template-columns: 1fr; } }
+
+/* Code blocks */
+pre {
+  background: #12141d; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; overflow-x: auto; margin-bottom: 16px; font-size: 0.8rem;
+  font-family: var(--mono); line-height: 1.6; color: #c0c8e0;
+}
+pre .kw { color: var(--accent2); } /* keywords */
+pre .tp { color: var(--cyan); }    /* types */
+pre .st { color: var(--green); }   /* strings */
+pre .cm { color: #555570; }        /* comments */
+pre .nu { color: var(--orange); }  /* numbers */
+pre .fn { color: var(--accent); }  /* function names */
+
+/* Tables */
+table {
+  width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 0.85rem;
+}
+th {
+  background: var(--surface2); text-align: left; padding: 10px 14px; font-weight: 700;
+  border-bottom: 2px solid var(--border); color: var(--text); font-size: 0.82rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border); color: #b0b0c4;
+}
+tr:hover td { background: rgba(108,140,255,0.04); }
+td code { font-size: 0.78rem; }
+
+/* Collapsible */
+.collapsible {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 12px; overflow: hidden;
+}
+.collapsible-header {
+  padding: 14px 18px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 0.92rem; user-select: none; transition: background 0.15s;
+}
+.collapsible-header:hover { background: var(--surface2); }
+.collapsible-header .arrow { transition: transform 0.2s; font-size: 0.7rem; color: var(--text-dim); }
+.collapsible-header.open .arrow { transform: rotate(90deg); }
+.collapsible-body { display: none; padding: 4px 18px 18px; }
+.collapsible-body.open { display: block; }
+
+/* Tabs */
+.tab-container { margin-bottom: 16px; }
+.tab-header { display: flex; gap: 2px; border-bottom: 2px solid var(--border); margin-bottom: 0; }
+.tab-btn {
+  padding: 10px 20px; cursor: pointer; font-size: 0.82rem; font-weight: 700;
+  color: var(--text-dim); background: transparent; border: none;
+  border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-panel { display: none; padding: 20px 0 0; }
+.tab-panel.active { display: block; }
+
+/* Diagram boxes */
+.diagram {
+  background: #12141d; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 16px 0; overflow-x: auto;
+  font-family: var(--mono); font-size: 0.78rem; line-height: 1.7; color: var(--text-dim);
+  white-space: pre;
+}
+.diagram .box {
+  display: inline; padding: 2px 8px; border-radius: 4px; font-weight: 700;
+}
+.diagram .estree { background: rgba(108,140,255,0.15); color: var(--accent); }
+.diagram .tsc { background: rgba(167,139,250,0.15); color: var(--accent2); }
+.diagram .both { background: rgba(74,222,128,0.15); color: var(--green); }
+.diagram .warn { background: rgba(248,113,113,0.15); color: var(--red); }
+
+/* Metrics */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.metric {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; text-align: center;
+}
+.metric .value { font-size: 1.8rem; font-weight: 800; margin-bottom: 2px; }
+.metric .label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.metric.blue .value { color: var(--accent); }
+.metric.purple .value { color: var(--accent2); }
+.metric.green .value { color: var(--green); }
+.metric.orange .value { color: var(--orange); }
+.metric.cyan .value { color: var(--cyan); }
+
+/* Pipeline */
+.pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0; flex-wrap: wrap; justify-content: center; }
+.pipeline-step {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 18px; text-align: center; min-width: 100px;
+}
+.pipeline-step .step-name { font-weight: 700; font-size: 0.85rem; margin-bottom: 2px; }
+.pipeline-step .step-file { font-size: 0.7rem; color: var(--text-dim); font-family: var(--mono); }
+.pipeline-arrow { font-size: 1.2rem; color: var(--text-dim); padding: 0 6px; }
+
+/* Flashcards */
+.flashcard-container { margin: 20px 0; }
+.flashcard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; min-height: 160px; cursor: pointer; position: relative;
+  transition: border-color 0.2s;
+}
+.flashcard:hover { border-color: var(--accent); }
+.flashcard .fc-label {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--accent); margin-bottom: 12px;
+}
+.flashcard .fc-question { font-size: 1.05rem; font-weight: 600; }
+.flashcard .fc-answer {
+  display: none; margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid var(--border); color: #b0b0c4; font-size: 0.9rem;
+}
+.flashcard .fc-answer.show { display: block; }
+.flashcard .fc-hint { font-size: 0.75rem; color: var(--text-dim); margin-top: 12px; }
+.fc-nav { display: flex; gap: 8px; margin-top: 12px; justify-content: center; }
+.fc-nav button {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 16px; color: var(--text-dim); cursor: pointer; font-size: 0.8rem;
+  font-weight: 600; transition: all 0.15s;
+}
+.fc-nav button:hover { border-color: var(--accent); color: var(--text); }
+.fc-counter { text-align: center; font-size: 0.75rem; color: var(--text-dim); margin-top: 8px; }
+
+/* Mapping diagram */
+.mapping-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.82rem;
+}
+.mapping-left {
+  min-width: 180px; text-align: right; font-family: var(--mono); font-weight: 600; color: var(--accent);
+}
+.mapping-arrow { color: var(--text-dim); font-size: 0.7rem; }
+.mapping-right {
+  font-family: var(--mono); font-weight: 600; color: var(--accent2);
+}
+
+/* Highlight callout */
+.callout {
+  border-left: 3px solid var(--accent); background: rgba(108,140,255,0.06);
+  padding: 14px 18px; border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 16px;
+}
+.callout.warn { border-left-color: var(--orange); background: rgba(251,146,60,0.06); }
+.callout.success { border-left-color: var(--green); background: rgba(74,222,128,0.06); }
+.callout.danger { border-left-color: var(--red); background: rgba(248,113,113,0.06); }
+.callout p { margin-bottom: 0; }
+.callout p:not(:last-child) { margin-bottom: 8px; }
+
+/* Interactive node explorer */
+.node-explorer { margin: 16px 0; }
+.ne-search {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px; color: var(--text);
+  font-size: 0.85rem; margin-bottom: 12px; outline: none;
+}
+.ne-search:focus { border-color: var(--accent); }
+.ne-search::placeholder { color: var(--text-dim); }
+.ne-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px; max-height: 400px; overflow-y: auto; padding-right: 4px;
+}
+.ne-grid::-webkit-scrollbar { width: 4px; }
+.ne-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.ne-item {
+  padding: 6px 10px; font-family: var(--mono); font-size: 0.76rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  display: flex; align-items: center; gap: 6px;
+}
+.ne-item .ne-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ne-item.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>ESTree vs TypeScript Compiler AST</h1>
+  <p class="subtitle">Two AST universes, their structural differences, node counts, conversion challenges, and whether you can mix-and-match parser with type checker</p>
+  <div class="badge-row">
+    <span class="badge blue">~85 ESTree Nodes</span>
+    <span class="badge purple">~345 tsc SyntaxKinds</span>
+    <span class="badge green">Conversion Possible</span>
+    <span class="badge orange">Checker Tightly Coupled</span>
+    <span class="badge cyan">typescript-eslint Bridge</span>
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#origins">Origins</a>
+    <a class="toc-link" href="#structure">Structure</a>
+    <a class="toc-link" href="#nodes">Node Catalog</a>
+    <a class="toc-link" href="#comparison">Comparison</a>
+    <a class="toc-link" href="#pipeline">tsc Pipeline</a>
+    <a class="toc-link" href="#conversion">Conversion</a>
+    <a class="toc-link" href="#bridging">Bridging</a>
+    <a class="toc-link" href="#alternatives">Alternatives</a>
+    <a class="toc-link" href="#verdict">Verdict</a>
+    <a class="toc-link" href="#quiz">Quiz</a>
+  </div>
+</nav>
+
+<!-- SECTION 1: ORIGINS -->
+<section id="origins">
+<div class="container">
+  <h2><span class="num">1</span>Origins & Philosophy</h2>
+  <p class="section-sub">Two AST formats born from different worlds with different goals</p>
+
+  <div class="side-by-side">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span> ESTree</div>
+      <p>Born from <strong>Mozilla's SpiderMonkey Parser API</strong> in Firefox. Formalized as a community specification when Esprima adopted the format, and later governed by representatives from ESLint, Acorn, and Babel.</p>
+      <p><strong>Goal:</strong> A universal interchange format for JavaScript tooling &mdash; linters, formatters, bundlers, and codemods can all operate on the same AST.</p>
+      <p><strong>Philosophy:</strong> Simplicity, human-readability, backwards compatibility. String-typed node discriminants. Minimal representation &mdash; no tokens, no trivia, no parenthesized expressions.</p>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent2)"></span> TypeScript Compiler AST</div>
+      <p>Built internally for the <strong>TypeScript compiler (tsc)</strong>. Not designed as an interchange format &mdash; it is the compiler's internal representation, tightly coupled to the scanner, binder, checker, and emitter.</p>
+      <p><strong>Goal:</strong> Support incremental parsing of potentially incomplete code, error recovery, type checking, and JavaScript emit with source maps.</p>
+      <p><strong>Philosophy:</strong> Completeness, performance, and compiler correctness. Numeric enum discriminants. Preserves tokens, parentheses, modifiers, and trivia positions. Closely aligned to Roslyn (C# compiler) AST design.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p><strong>Key insight:</strong> ESTree is a <em>specification</em> (many parsers implement it). tsc's AST is an <em>implementation detail</em> (only one parser produces it). This fundamental difference shapes everything about their design and interoperability.</p>
+  </div>
+
+  <h3>Who Uses What?</h3>
+  <div class="side-by-side">
+    <div class="card">
+      <div class="card-title" style="color:var(--accent)">ESTree Ecosystem</div>
+      <table>
+        <tr><th>Category</th><th>Tools</th></tr>
+        <tr><td>Parsers</td><td>Acorn, Espree, Esprima, @babel/parser (with estree plugin)</td></tr>
+        <tr><td>Linters</td><td>ESLint, typescript-eslint (TSESTree)</td></tr>
+        <tr><td>Formatters</td><td>Prettier</td></tr>
+        <tr><td>Bundlers</td><td>webpack (via Acorn), Rollup (via Acorn)</td></tr>
+        <tr><td>Codemods</td><td>jscodeshift, recast</td></tr>
+        <tr><td>Codegen</td><td>escodegen, astring</td></tr>
+        <tr><td>Traversal</td><td>estraverse, esquery, estree-walker</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--accent2)">tsc AST Ecosystem</div>
+      <table>
+        <tr><th>Category</th><th>Tools</th></tr>
+        <tr><td>Compiler</td><td>tsc (the only producer)</td></tr>
+        <tr><td>Language server</td><td>tsserver, VS Code TypeScript extension</td></tr>
+        <tr><td>API consumers</td><td>ts-morph, TypeDoc, ts-auto-mock</td></tr>
+        <tr><td>Converters</td><td>@typescript-eslint/typescript-estree</td></tr>
+        <tr><td>Type checkers</td><td>tsc checker (cannot be separated)</td></tr>
+        <tr><td>Emitters</td><td>tsc emitter + transformer pipeline</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 2: STRUCTURE -->
+<section id="structure">
+<div class="container">
+  <h2><span class="num">2</span>Node Structure</h2>
+  <p class="section-sub">How each AST represents a single node</p>
+
+  <div class="tab-container" data-tabs="structure">
+    <div class="tab-header">
+      <button class="tab-btn active" data-tab="estree-struct">ESTree Node</button>
+      <button class="tab-btn" data-tab="tsc-struct">tsc Node</button>
+      <button class="tab-btn" data-tab="diff-struct">Key Differences</button>
+    </div>
+
+    <div class="tab-panel active" data-tab="estree-struct">
+      <pre><span class="cm">// Every ESTree node implements this base</span>
+<span class="kw">interface</span> <span class="tp">Node</span> {
+  <span class="fn">type</span>: <span class="tp">string</span>;         <span class="cm">// "FunctionDeclaration", "IfStatement", etc.</span>
+  <span class="fn">loc</span>: <span class="tp">SourceLocation</span> | <span class="kw">null</span>;
+}
+
+<span class="kw">interface</span> <span class="tp">SourceLocation</span> {
+  <span class="fn">source</span>: <span class="tp">string</span> | <span class="kw">null</span>;
+  <span class="fn">start</span>: { <span class="fn">line</span>: <span class="tp">number</span>, <span class="fn">column</span>: <span class="tp">number</span> };  <span class="cm">// line is 1-indexed, column is 0-indexed</span>
+  <span class="fn">end</span>:   { <span class="fn">line</span>: <span class="tp">number</span>, <span class="fn">column</span>: <span class="tp">number</span> };
+}
+
+<span class="cm">// Example: FunctionDeclaration</span>
+<span class="kw">interface</span> <span class="tp">FunctionDeclaration</span> <span class="kw">extends</span> <span class="tp">Node</span> {
+  <span class="fn">type</span>: <span class="st">"FunctionDeclaration"</span>;
+  <span class="fn">id</span>: <span class="tp">Identifier</span> | <span class="kw">null</span>;
+  <span class="fn">params</span>: <span class="tp">Pattern</span>[];
+  <span class="fn">body</span>: <span class="tp">BlockStatement</span>;
+  <span class="fn">generator</span>: <span class="tp">boolean</span>;
+  <span class="fn">async</span>: <span class="tp">boolean</span>;
+}</pre>
+      <p><strong>Design pattern:</strong> The <code>type</code> field is a human-readable string used for visitor dispatch. Modifiers like <code>async</code> and <code>generator</code> are inline boolean properties. No tokens appear in the tree.</p>
+    </div>
+
+    <div class="tab-panel" data-tab="tsc-struct">
+      <pre><span class="cm">// Every tsc node extends this base</span>
+<span class="kw">interface</span> <span class="tp">Node</span> <span class="kw">extends</span> <span class="tp">ReadonlyTextRange</span> {
+  <span class="fn">kind</span>: <span class="tp">SyntaxKind</span>;          <span class="cm">// numeric enum, e.g. 259 = FunctionDeclaration</span>
+  <span class="fn">flags</span>: <span class="tp">NodeFlags</span>;          <span class="cm">// bitwise flags (Let, Const, Namespace, etc.)</span>
+  <span class="fn">pos</span>: <span class="tp">number</span>;               <span class="cm">// start byte offset (includes leading trivia)</span>
+  <span class="fn">end</span>: <span class="tp">number</span>;               <span class="cm">// end byte offset</span>
+  <span class="fn">parent</span>: <span class="tp">Node</span>;              <span class="cm">// back-pointer to parent (set by binder)</span>
+  <span class="fn">modifiers</span>?: <span class="tp">Modifier</span>[];    <span class="cm">// [ExportKeyword, AsyncKeyword, ...] nodes</span>
+  <span class="fn">transformFlags</span>: <span class="tp">TransformFlags</span>;  <span class="cm">// which ES target transforms needed</span>
+  <span class="fn">id</span>?: <span class="tp">number</span>;               <span class="cm">// unique node id (used by checker)</span>
+  <span class="fn">original</span>?: <span class="tp">Node</span>;           <span class="cm">// pre-transformation node</span>
+  <span class="fn">emitNode</span>?: <span class="tp">EmitNode</span>;       <span class="cm">// emit metadata</span>
+}
+
+<span class="cm">// Example: FunctionDeclaration</span>
+<span class="kw">interface</span> <span class="tp">FunctionDeclaration</span> <span class="kw">extends</span> <span class="tp">FunctionLikeDeclarationBase</span> {
+  <span class="fn">kind</span>: <span class="tp">SyntaxKind</span>.<span class="fn">FunctionDeclaration</span>;  <span class="cm">// numeric value</span>
+  <span class="fn">name</span>?: <span class="tp">Identifier</span>;
+  <span class="fn">body</span>?: <span class="tp">FunctionBody</span>;
+  <span class="cm">// Inherited: parameters, typeParameters, type (return type annotation)</span>
+  <span class="cm">// Modifiers (async, export) are separate Modifier nodes, not booleans</span>
+}</pre>
+      <p><strong>Design pattern:</strong> The <code>kind</code> field is a numeric enum for fast switch-case dispatch. Modifiers are separate AST nodes in a <code>modifiers</code> array. Tokens (operators, punctuation) are preserved as nodes. The <code>parent</code> pointer creates a bidirectional tree.</p>
+    </div>
+
+    <div class="tab-panel" data-tab="diff-struct">
+      <table>
+        <tr><th>Aspect</th><th>ESTree</th><th>tsc AST</th></tr>
+        <tr>
+          <td>Type discriminant</td>
+          <td><code>type: "FunctionDeclaration"</code> (string)</td>
+          <td><code>kind: SyntaxKind.FunctionDeclaration</code> (number)</td>
+        </tr>
+        <tr>
+          <td>Position encoding</td>
+          <td><code>loc: {start: {line, col}, end: {line, col}}</code></td>
+          <td><code>pos: number, end: number</code> (byte offsets)</td>
+        </tr>
+        <tr>
+          <td>Parent pointer</td>
+          <td>None (tree is unidirectional)</td>
+          <td><code>parent: Node</code> (bidirectional)</td>
+        </tr>
+        <tr>
+          <td>Modifiers</td>
+          <td>Inline booleans: <code>async: true</code></td>
+          <td>Separate <code>Modifier</code> node array</td>
+        </tr>
+        <tr>
+          <td>Tokens in tree</td>
+          <td>No &mdash; operators are string properties</td>
+          <td>Yes &mdash; <code>operatorToken</code> is a node</td>
+        </tr>
+        <tr>
+          <td>Parentheses</td>
+          <td>Not represented (only affect precedence)</td>
+          <td><code>ParenthesizedExpression</code> is a node</td>
+        </tr>
+        <tr>
+          <td>var/let/const</td>
+          <td><code>kind: "let" | "const" | "var"</code> on VariableDeclaration</td>
+          <td><code>NodeFlags.Let | NodeFlags.Const</code> on VariableDeclarationList</td>
+        </tr>
+        <tr>
+          <td>Traversal</td>
+          <td>Generic visitor, check <code>type</code> string</td>
+          <td><code>forEachChild()</code> knows each kind's children</td>
+        </tr>
+        <tr>
+          <td>Compiler metadata</td>
+          <td>None</td>
+          <td><code>flags</code>, <code>transformFlags</code>, <code>emitNode</code>, <code>id</code></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 3: NODE CATALOG -->
+<section id="nodes">
+<div class="container">
+  <h2><span class="num">3</span>Node Catalog & Counts</h2>
+  <p class="section-sub">Exactly how many node types each format defines</p>
+
+  <div class="metric-grid">
+    <div class="metric blue">
+      <div class="value">~70</div>
+      <div class="label">ESTree Core</div>
+    </div>
+    <div class="metric cyan">
+      <div class="value">~85</div>
+      <div class="label">ESTree + JSX</div>
+    </div>
+    <div class="metric green">
+      <div class="value">~165</div>
+      <div class="label">TSESTree (with TS)</div>
+    </div>
+    <div class="metric purple">
+      <div class="value">~345</div>
+      <div class="label">tsc SyntaxKind</div>
+    </div>
+    <div class="metric orange">
+      <div class="value">4:1</div>
+      <div class="label">tsc-to-ESTree Ratio</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p><strong>Why 4x more?</strong> tsc represents <em>every token</em> (operators, punctuation, keywords) as a SyntaxKind. It also has separate kinds for TypeScript-specific syntax, JSDoc nodes (~33), and fine-grained expression variants that ESTree merges into generic nodes.</p>
+  </div>
+
+  <div class="tab-container" data-tabs="nodes">
+    <div class="tab-header">
+      <button class="tab-btn active" data-tab="estree-nodes">ESTree (~70)</button>
+      <button class="tab-btn" data-tab="tsestree-nodes">TSESTree Extensions (~80+)</button>
+      <button class="tab-btn" data-tab="tsc-nodes">tsc SyntaxKind (~345)</button>
+    </div>
+
+    <div class="tab-panel active" data-tab="estree-nodes">
+      <h3>ES5 Core (37 nodes)</h3>
+      <div class="node-explorer">
+        <input class="ne-search" placeholder="Filter ES5 nodes..." data-target="es5-grid">
+        <div class="ne-grid" id="es5-grid"></div>
+      </div>
+
+      <div class="collapsible">
+        <div class="collapsible-header"><span class="arrow">&#9654;</span> ES2015 additions (+23 nodes)</div>
+        <div class="collapsible-body">
+          <p><code>ForOfStatement</code>, <code>Super</code>, <code>SpreadElement</code>, <code>ArrowFunctionExpression</code>, <code>YieldExpression</code>, <code>TaggedTemplateExpression</code>, <code>TemplateLiteral</code>, <code>TemplateElement</code>, <code>MetaProperty</code>, <code>ObjectPattern</code>, <code>ArrayPattern</code>, <code>RestElement</code>, <code>AssignmentPattern</code>, <code>ClassDeclaration</code>, <code>ClassExpression</code>, <code>ClassBody</code>, <code>MethodDefinition</code>, <code>ImportDeclaration</code>, <code>ImportSpecifier</code>, <code>ImportDefaultSpecifier</code>, <code>ImportNamespaceSpecifier</code>, <code>ExportNamedDeclaration</code>, <code>ExportDefaultDeclaration</code>, <code>ExportAllDeclaration</code>, <code>ExportSpecifier</code></p>
+        </div>
+      </div>
+
+      <div class="collapsible">
+        <div class="collapsible-header"><span class="arrow">&#9654;</span> ES2017&ndash;ES2022 additions (+7 nodes)</div>
+        <div class="collapsible-body">
+          <p><strong>ES2017:</strong> <code>AwaitExpression</code></p>
+          <p><strong>ES2020:</strong> <code>ChainExpression</code>, <code>ImportExpression</code>, <code>BigIntLiteral</code></p>
+          <p><strong>ES2022:</strong> <code>PropertyDefinition</code>, <code>PrivateIdentifier</code>, <code>StaticBlock</code></p>
+          <p><strong>ES2025:</strong> <code>ImportAttribute</code></p>
+          <p><strong>Stage 3:</strong> <code>Decorator</code>, <code>AccessorProperty</code></p>
+        </div>
+      </div>
+
+      <div class="collapsible">
+        <div class="collapsible-header"><span class="arrow">&#9654;</span> JSX extension (+15 nodes)</div>
+        <div class="collapsible-body">
+          <p><code>JSXIdentifier</code>, <code>JSXMemberExpression</code>, <code>JSXNamespacedName</code>, <code>JSXEmptyExpression</code>, <code>JSXExpressionContainer</code>, <code>JSXSpreadChild</code>, <code>JSXOpeningElement</code>, <code>JSXClosingElement</code>, <code>JSXAttribute</code>, <code>JSXSpreadAttribute</code>, <code>JSXText</code>, <code>JSXElement</code>, <code>JSXFragment</code>, <code>JSXOpeningFragment</code>, <code>JSXClosingFragment</code></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-tab="tsestree-nodes">
+      <p>The <code>@typescript-eslint</code> project extends ESTree with <strong>~80+ TypeScript-specific nodes</strong>, all prefixed with <code>TS</code>:</p>
+
+      <div class="collapsible">
+        <div class="collapsible-header"><span class="arrow">&#9654;</span> Type keyword nodes (~14)</div>
+        <div class="collapsible-body">
+          <p><code>TSAnyKeyword</code>, <code>TSBooleanKeyword</code>, <code>TSStringKeyword</code>, <code>TSNumberKeyword</code>, <code>TSBigIntKeyword</code>, <code>TSSymbolKeyword</code>, <code>TSNullKeyword</code>, <code>TSUndefinedKeyword</code>, <code>TSNeverKeyword</code>, <code>TSUnknownKeyword</code>, <code>TSVoidKeyword</code>, <code>TSObjectKeyword</code>, <code>TSIntrinsicKeyword</code>, <code>TSThisType</code></p>
+        </div>
+      </div>
+
+      <div class="collapsible">
+        <div class="collapsible-header"><span class="arrow">&#9654;</span> Type structure nodes (~21)</div>
+        <div class="collapsible-body">
+          <p><code>TSArrayType</code>, <code>TSTupleType</code>, <code>TSNamedTupleMember</code>, <code>TSUnionType</code>, <code>TSIntersectionType</code>, <code>TSConditionalType</code>, <code>TSMappedType</code>, <code>TSLiteralType</code>, <code>TSIndexedAccessType</code>, <code>TSTypeReference</code>, <code>TSQualifiedName</code>, <code>TSFunctionType</code>, <code>TSConstructorType</code>, <code>TSTypeLiteral</code>, <code>TSTemplateLiteralType</code>, <code>TSOptionalType</code>, <code>TSRestType</code>, <code>TSTypeOperator</code>, <code>TSTypePredicate</code>, <code>TSTypeQuery</code>, <code>TSInferType</code></p>
+        </div>
+      </div>
+
+      <div class="collapsible">
+        <div class="collapsible-header"><span class="arrow">&#9654;</span> Declaration & expression nodes (~15)</div>
+        <div class="collapsible-body">
+          <p><strong>Declarations:</strong> <code>TSInterfaceDeclaration</code>, <code>TSInterfaceBody</code>, <code>TSTypeAliasDeclaration</code>, <code>TSEnumDeclaration</code>, <code>TSEnumBody</code>, <code>TSEnumMember</code>, <code>TSModuleDeclaration</code>, <code>TSModuleBlock</code>, <code>TSNamespaceExportDeclaration</code></p>
+          <p><strong>Expressions:</strong> <code>TSAsExpression</code>, <code>TSSatisfiesExpression</code>, <code>TSTypeAssertion</code>, <code>TSNonNullExpression</code>, <code>TSInstantiationExpression</code></p>
+        </div>
+      </div>
+
+      <div class="collapsible">
+        <div class="collapsible-header"><span class="arrow">&#9654;</span> Signatures, annotations & modifiers (~25+)</div>
+        <div class="collapsible-body">
+          <p><strong>Annotations:</strong> <code>TSTypeAnnotation</code>, <code>TSTypeParameter</code>, <code>TSTypeParameterDeclaration</code>, <code>TSTypeParameterInstantiation</code></p>
+          <p><strong>Signatures:</strong> <code>TSCallSignatureDeclaration</code>, <code>TSConstructSignatureDeclaration</code>, <code>TSMethodSignature</code>, <code>TSPropertySignature</code>, <code>TSIndexSignature</code></p>
+          <p><strong>Class:</strong> <code>TSAbstractAccessorProperty</code>, <code>TSAbstractMethodDefinition</code>, <code>TSAbstractPropertyDefinition</code>, <code>TSClassImplements</code>, <code>TSParameterProperty</code></p>
+          <p><strong>Modifiers:</strong> <code>TSAbstractKeyword</code>, <code>TSAsyncKeyword</code>, <code>TSDeclareKeyword</code>, <code>TSExportKeyword</code>, <code>TSPrivateKeyword</code>, <code>TSProtectedKeyword</code>, <code>TSPublicKeyword</code>, <code>TSReadonlyKeyword</code>, <code>TSStaticKeyword</code></p>
+          <p><strong>Module:</strong> <code>TSImportEqualsDeclaration</code>, <code>TSImportType</code>, <code>TSExternalModuleReference</code>, <code>TSExportAssignment</code></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-tab="tsc-nodes">
+      <p>The <code>SyntaxKind</code> enum has <strong>~345 named entries</strong> (sentinel <code>Count = 345</code>). These include tokens, keywords, and marker ranges alongside AST nodes:</p>
+
+      <div class="node-explorer">
+        <input class="ne-search" placeholder="Search SyntaxKind values..." data-target="tsc-grid">
+        <div class="ne-grid" id="tsc-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 4: COMPARISON -->
+<section id="comparison">
+<div class="container">
+  <h2><span class="num">4</span>Side-by-Side Comparison</h2>
+  <p class="section-sub">The same code, two different AST representations</p>
+
+  <h3>Example: <code>const x = a + b;</code></h3>
+  <div class="side-by-side">
+    <div>
+      <p style="font-weight:700;color:var(--accent);margin-bottom:8px;">ESTree</p>
+      <pre>{
+  <span class="fn">"type"</span>: <span class="st">"VariableDeclaration"</span>,
+  <span class="fn">"kind"</span>: <span class="st">"const"</span>,
+  <span class="fn">"declarations"</span>: [{
+    <span class="fn">"type"</span>: <span class="st">"VariableDeclarator"</span>,
+    <span class="fn">"id"</span>: { <span class="fn">"type"</span>: <span class="st">"Identifier"</span>, <span class="fn">"name"</span>: <span class="st">"x"</span> },
+    <span class="fn">"init"</span>: {
+      <span class="fn">"type"</span>: <span class="st">"BinaryExpression"</span>,
+      <span class="fn">"operator"</span>: <span class="st">"+"</span>,
+      <span class="fn">"left"</span>:  { <span class="fn">"type"</span>: <span class="st">"Identifier"</span>, <span class="fn">"name"</span>: <span class="st">"a"</span> },
+      <span class="fn">"right"</span>: { <span class="fn">"type"</span>: <span class="st">"Identifier"</span>, <span class="fn">"name"</span>: <span class="st">"b"</span> }
+    }
+  }]
+}</pre>
+    </div>
+    <div>
+      <p style="font-weight:700;color:var(--accent2);margin-bottom:8px;">tsc AST (simplified)</p>
+      <pre>{
+  <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">VariableStatement</span>,
+  <span class="fn">"declarationList"</span>: {
+    <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">VariableDeclarationList</span>,
+    <span class="fn">"flags"</span>: NodeFlags.<span class="fn">Const</span>,   <span class="cm">// const-ness is a flag!</span>
+    <span class="fn">"declarations"</span>: [{
+      <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">VariableDeclaration</span>,
+      <span class="fn">"name"</span>: { <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">Identifier</span> },
+      <span class="fn">"initializer"</span>: {
+        <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">BinaryExpression</span>,
+        <span class="fn">"operatorToken"</span>: {
+          <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">PlusToken</span>  <span class="cm">// token is a node!</span>
+        },
+        <span class="fn">"left"</span>:  { <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">Identifier</span> },
+        <span class="fn">"right"</span>: { <span class="fn">"kind"</span>: SyntaxKind.<span class="fn">Identifier</span> }
+      }
+    }]
+  }
+}</pre>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <p><strong>Notice the differences:</strong> ESTree uses a single <code>VariableDeclaration</code> with a <code>kind: "const"</code> string. tsc uses <code>VariableStatement</code> &gt; <code>VariableDeclarationList</code> (with <code>Const</code> flag) &gt; <code>VariableDeclaration</code>. The <code>+</code> operator is a string property in ESTree but a <code>PlusToken</code> node in tsc.</p>
+  </div>
+
+  <h3>Many-to-One Mappings</h3>
+  <p>ESTree deliberately collapses many tsc node kinds into single generic nodes. These are the most notable:</p>
+
+  <div class="card">
+    <div class="card-title">ESTree <code>UnaryExpression</code> &#8592; 5 tsc kinds</div>
+    <div class="mapping-row"><span class="mapping-left">DeleteExpression</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">UnaryExpression { operator: "delete" }</span></div>
+    <div class="mapping-row"><span class="mapping-left">TypeOfExpression</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">UnaryExpression { operator: "typeof" }</span></div>
+    <div class="mapping-row"><span class="mapping-left">VoidExpression</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">UnaryExpression { operator: "void" }</span></div>
+    <div class="mapping-row"><span class="mapping-left">PrefixUnaryExpression</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">UnaryExpression { operator: "-" | "+" | ... }</span></div>
+    <div class="mapping-row"><span class="mapping-left">PostfixUnaryExpression</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">UpdateExpression { prefix: false }</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">ESTree <code>Property</code> &#8592; 6 tsc kinds</div>
+    <div class="mapping-row"><span class="mapping-left">PropertyAssignment</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">Property { kind: "init" }</span></div>
+    <div class="mapping-row"><span class="mapping-left">ShorthandPropertyAssignment</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">Property { shorthand: true }</span></div>
+    <div class="mapping-row"><span class="mapping-left">GetAccessorDeclaration</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">Property { kind: "get" }</span></div>
+    <div class="mapping-row"><span class="mapping-left">SetAccessorDeclaration</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">Property { kind: "set" }</span></div>
+    <div class="mapping-row"><span class="mapping-left">MethodDeclaration</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">Property { method: true }</span></div>
+    <div class="mapping-row"><span class="mapping-left">SpreadAssignment</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">SpreadElement</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">ESTree <code>FunctionExpression</code> &#8592; 5 tsc kinds</div>
+    <div class="mapping-row"><span class="mapping-left">FunctionExpression</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">FunctionExpression</span></div>
+    <div class="mapping-row"><span class="mapping-left">ConstructorDeclaration</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">FunctionExpression (within MethodDefinition)</span></div>
+    <div class="mapping-row"><span class="mapping-left">GetAccessorDeclaration</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">FunctionExpression (within Property)</span></div>
+    <div class="mapping-row"><span class="mapping-left">SetAccessorDeclaration</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">FunctionExpression (within Property)</span></div>
+    <div class="mapping-row"><span class="mapping-left">MethodDeclaration</span><span class="mapping-arrow">&#8594;</span><span class="mapping-right">FunctionExpression (within MethodDefinition)</span></div>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 5: TSC PIPELINE -->
+<section id="pipeline">
+<div class="container">
+  <h2><span class="num">5</span>The tsc Compiler Pipeline</h2>
+  <p class="section-sub">Understanding why the AST is inseparable from the later stages</p>
+
+  <div class="pipeline">
+    <div class="pipeline-step" style="border-color:var(--cyan)">
+      <div class="step-name" style="color:var(--cyan)">Scanner</div>
+      <div class="step-file">scanner.ts</div>
+    </div>
+    <div class="pipeline-arrow">&#8594;</div>
+    <div class="pipeline-step" style="border-color:var(--accent)">
+      <div class="step-name" style="color:var(--accent)">Parser</div>
+      <div class="step-file">parser.ts</div>
+    </div>
+    <div class="pipeline-arrow">&#8594;</div>
+    <div class="pipeline-step" style="border-color:var(--accent2)">
+      <div class="step-name" style="color:var(--accent2)">Binder</div>
+      <div class="step-file">binder.ts</div>
+    </div>
+    <div class="pipeline-arrow">&#8594;</div>
+    <div class="pipeline-step" style="border-color:var(--green)">
+      <div class="step-name" style="color:var(--green)">Checker</div>
+      <div class="step-file">checker.ts</div>
+    </div>
+    <div class="pipeline-arrow">&#8594;</div>
+    <div class="pipeline-step" style="border-color:var(--orange)">
+      <div class="step-name" style="color:var(--orange)">Emitter</div>
+      <div class="step-file">emitter.ts</div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header"><span class="arrow">&#9654;</span> Scanner &mdash; Source text to tokens</div>
+    <div class="collapsible-body">
+      <p>A stateful lexer that converts source characters into tokens. It tracks leading/trailing trivia (comments, whitespace). Has a separate mode for scanning JSDoc comments. Produces the token stream consumed by the parser.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header"><span class="arrow">&#9654;</span> Parser &mdash; Tokens to AST</div>
+    <div class="collapsible-body">
+      <p>A hand-written <strong>recursive descent parser</strong> that produces the AST. Designed for <strong>error recovery</strong> &mdash; it always produces a (partial) AST even for incomplete code. The root is a <code>SourceFile</code> node. Also parses JSDoc comments embedded in the source.</p>
+      <p><strong>Output:</strong> A tree of <code>ts.Node</code> objects with <code>kind</code>, <code>pos</code>, <code>end</code>, and type-specific child properties.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header open"><span class="arrow">&#9654;</span> Binder &mdash; AST augmentation (the critical phase)</div>
+    <div class="collapsible-body open">
+      <p>The first complete tree walk after parsing. Processes one <code>SourceFile</code> at a time. Creates:</p>
+      <ul>
+        <li><strong>Symbols</strong> &mdash; One <code>Symbol</code> per declaration, tracking its name, flags, and all declaration nodes</li>
+        <li><strong>Symbol Tables</strong> &mdash; Maps from name &rarr; Symbol on each container node (function, class, module, block), representing scopes</li>
+        <li><strong>Control Flow Graph</strong> &mdash; A directed graph of <code>FlowNode</code> objects with antecedent edges, used for type narrowing</li>
+        <li><strong>Parent pointers</strong> &mdash; Sets the <code>parent</code> property on every node</li>
+      </ul>
+      <pre><span class="kw">interface</span> <span class="tp">Symbol</span> {
+  <span class="fn">flags</span>: <span class="tp">SymbolFlags</span>;           <span class="cm">// value, type, namespace, etc.</span>
+  <span class="fn">name</span>: <span class="tp">string</span>;
+  <span class="fn">declarations</span>?: <span class="tp">Declaration</span>[]; <span class="cm">// all AST nodes declaring this symbol</span>
+  <span class="fn">valueDeclaration</span>?: <span class="tp">Declaration</span>;
+  <span class="fn">members</span>?: <span class="tp">SymbolTable</span>;       <span class="cm">// class/interface members</span>
+  <span class="fn">exports</span>?: <span class="tp">SymbolTable</span>;       <span class="cm">// module exports</span>
+}</pre>
+      <div class="callout warn">
+        <p><strong>This is where tight coupling begins.</strong> The binder walks tsc's AST using <code>forEachChild</code> and switches on <code>SyntaxKind</code>. It directly accesses node-specific child properties. The Symbol objects hold references back to the AST nodes. There is no abstraction layer.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header"><span class="arrow">&#9654;</span> Checker &mdash; Semantic analysis (~42,000 lines)</div>
+    <div class="collapsible-body">
+      <p>The heart of TypeScript. The <strong>largest single file</strong> in the compiler at ~42,000 lines. It is fundamentally <strong>lazy</strong> &mdash; types are computed on-demand as symbols are queried.</p>
+      <p><strong>Capabilities that require tsc's AST:</strong></p>
+      <ul>
+        <li>Name resolution via Symbol Tables (walking scope chains)</li>
+        <li>Type inference from AST node structure</li>
+        <li>Control flow type narrowing (using the FlowNode graph)</li>
+        <li>Generic type parameter inference from call sites</li>
+        <li>Overload resolution</li>
+        <li>Cross-file type resolution via merged Symbol Tables</li>
+        <li>Constructed types: <code>keyof</code>, <code>typeof</code>, conditional, mapped</li>
+      </ul>
+      <p>Contains <strong>thousands of <code>SyntaxKind</code> switch cases</strong> accessing specific child properties on specific node types. Not abstracted behind any AST-agnostic interface.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header"><span class="arrow">&#9654;</span> Emitter &mdash; AST to output files</div>
+    <div class="collapsible-body">
+      <p>Generates <code>.js</code>, <code>.d.ts</code>, and <code>.map</code> files by applying a chain of <strong>transformers</strong> that progressively strip TypeScript syntax, then downlevel ES2015+ syntax to the target.</p>
+      <p>Uses an <strong>EmitResolver</strong> (a curated set of checker functions) to access type information needed during emit. This establishes a unidirectional dependency: emit requires checking, but the checker does not know about the emitter.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 6: CONVERSION -->
+<section id="conversion">
+<div class="container">
+  <h2><span class="num">6</span>AST Conversion</h2>
+  <p class="section-sub">Can these ASTs be transformed to each other?</p>
+
+  <h3>tsc &#8594; ESTree: Yes (this is what typescript-eslint does)</h3>
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--green)"></span> @typescript-eslint/typescript-estree</div>
+    <div class="diagram">
+                    ┌──────────────┐
+  TypeScript        │  tsc Parser  │         ┌───────────────┐
+  Source Code ─────▶│  (internal)  │────────▶│   ts.Node     │
+                    └──────────────┘         │   (tsc AST)   │
+                                             └───────┬───────┘
+                                                     │
+                                              convert.ts
+                                                     │
+                                             ┌───────▼───────┐
+                                             │  TSESTree AST  │
+                                             │  (ESTree + TS) │
+                                             └───────┬───────┘
+                                                     │
+                                          ┌──────────┴──────────┐
+                                          │                     │
+                                  esTreeNodeToTSNodeMap   tsNodeToESTreeNodeMap
+                                   WeakMap&lt;ESTree,ts&gt;      WeakMap&lt;ts,ESTree&gt;
+    </div>
+    <p>The conversion logic lives in <code>convert.ts</code>. It walks the tsc AST and creates ESTree-compatible nodes, extended with <code>TS</code>-prefixed nodes for TypeScript syntax. Bidirectional <code>WeakMap</code>s maintain links between the two trees.</p>
+  </div>
+
+  <h3>ESTree &#8594; tsc: Theoretically possible, practically not done</h3>
+  <div class="callout danger">
+    <p><strong>No maintained project exists for this direction.</strong> TypeScript provides <code>ts.factory</code> methods to programmatically construct AST nodes, so it is <em>technically</em> possible. However:</p>
+    <p>1. You would need to map ~85 ESTree nodes to ~345 SyntaxKinds, expanding generic nodes into specific ones</p>
+    <p>2. The checker expects internal properties on <code>SourceFile</code> (<code>parseDiagnostics</code>, <code>identifiers</code>, <code>pragmas</code>) that only tsc's parser sets</p>
+    <p>3. <a href="https://github.com/microsoft/TypeScript/issues/43600" style="color:var(--accent)">TypeScript #43600</a> requests the ability to type-check factory-constructed source files &mdash; it remains open and unresolved</p>
+  </div>
+
+  <h3>What information is lost in conversion?</h3>
+  <table>
+    <tr><th>Lost in tsc &#8594; ESTree</th><th>Description</th></tr>
+    <tr><td>Compiler flags</td><td><code>NodeFlags</code>, <code>TransformFlags</code>, <code>ModifierFlags</code></td></tr>
+    <tr><td>Flow analysis graph</td><td><code>FlowNode</code> control flow information</td></tr>
+    <tr><td>Granular SyntaxKind</td><td>Collapsed into generic ESTree nodes with discriminating properties</td></tr>
+    <tr><td>Token nodes</td><td>Operators/punctuation become string properties</td></tr>
+    <tr><td>Internal diagnostics</td><td><code>parseDiagnostics</code>, <code>bindDiagnostics</code></td></tr>
+    <tr><td>Parenthesized expressions</td><td>Dropped entirely (only affect precedence)</td></tr>
+    <tr><td>Parent pointers</td><td>ESTree is unidirectional</td></tr>
+  </table>
+
+  <div class="callout success">
+    <p><strong>But nothing is truly lost:</strong> typescript-eslint preserves the original tsc AST in memory and maintains bidirectional maps. Any ESLint rule can reach back into the tsc AST via <code>esTreeNodeToTSNodeMap</code> to access anything the ESTree representation omits.</p>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 7: BRIDGING -->
+<section id="bridging">
+<div class="container">
+  <h2><span class="num">7</span>Can You Use a Different AST with tsc's Checker?</h2>
+  <p class="section-sub">The central question: is tsc's AST mandatory for type checking?</p>
+
+  <div class="callout danger">
+    <p><strong>Short answer: Yes, tsc's AST is mandatory for tsc's type checker.</strong></p>
+    <p>The binder, checker, and emitter are <strong>tightly coupled</strong> to tsc's internal AST format. You cannot substitute a different AST and still use tsc's later stages.</p>
+  </div>
+
+  <h3>Why the coupling is inescapable</h3>
+  <div class="card">
+    <ol style="margin-left:16px;">
+      <li style="margin-bottom:12px;">
+        <strong>The binder directly traverses tsc's AST.</strong> It uses <code>forEachChild</code> and switches on <code>SyntaxKind</code>, accessing node-specific child properties. It creates <code>Symbol</code> objects that hold references back to tsc AST <code>Declaration</code> nodes.
+      </li>
+      <li style="margin-bottom:12px;">
+        <strong>The checker is 42,000+ lines of SyntaxKind switches.</strong> It accesses specific child properties on specific node interfaces. There is no AST-agnostic abstraction layer. Every type inference, narrowing, and resolution path assumes tsc node shapes.
+      </li>
+      <li style="margin-bottom:12px;">
+        <strong>The emitter's transformers also switch on SyntaxKind.</strong> Each transformer (TypeScript erasure, ES2015 downlevel, etc.) knows the exact structure of tsc nodes it transforms.
+      </li>
+      <li style="margin-bottom:12px;">
+        <strong>SourceFile has internal-only properties.</strong> The checker expects <code>parseDiagnostics</code>, <code>identifiers</code>, <code>pragmas</code>, <code>imports</code>, etc. &mdash; all set exclusively by tsc's parser during parsing.
+      </li>
+    </ol>
+  </div>
+
+  <h3>What would it take to use a different AST?</h3>
+  <pre><span class="cm">// You would need to produce tsc's EXACT AST format...</span>
+<span class="cm">// For ALL ~345 SyntaxKind values...</span>
+<span class="cm">// With correct flags, pos, end, parent pointers...</span>
+<span class="cm">// With all internal SourceFile properties set...</span>
+
+<span class="cm">// At which point you've effectively reimplemented tsc's parser.</span>
+<span class="cm">// There is no shortcut.</span></pre>
+
+  <h3>The Three Viable Strategies</h3>
+
+  <div class="tab-container" data-tabs="strategies">
+    <div class="tab-header">
+      <button class="tab-btn active" data-tab="dual-ast">Dual-AST (typescript-eslint)</button>
+      <button class="tab-btn" data-tab="separate">Separate Concerns</button>
+      <button class="tab-btn" data-tab="reimplement">Reimplement (oxc/ts-go)</button>
+    </div>
+
+    <div class="tab-panel active" data-tab="dual-ast">
+      <div class="diagram">
+  ┌─────────────────────────────────────────────────────────┐
+  │  <span class="both">typescript-eslint approach</span>                              │
+  │                                                         │
+  │   Source ──▶ tsc parser ──▶ tsc AST ──▶ binder/checker  │
+  │                              │                          │
+  │                        convert.ts                       │
+  │                              │                          │
+  │                         TSESTree AST ──▶ ESLint rules   │
+  │                              │                          │
+  │                    WeakMap&lt;ESTree ↔ tsc&gt;                 │
+  │                              │                          │
+  │   Rule needs type? ──▶ map to ts.Node ──▶ checker API   │
+  └─────────────────────────────────────────────────────────┘
+      </div>
+      <p><strong>Pros:</strong> Full type information available. ESLint ecosystem compatibility. Battle-tested.</p>
+      <p><strong>Cons:</strong> Two ASTs in memory simultaneously. Performance overhead of conversion. Maintenance burden of keeping TSESTree in sync with both ESTree and TypeScript.</p>
+    </div>
+
+    <div class="tab-panel" data-tab="separate">
+      <div class="diagram">
+  ┌─────────────────────────────────────────────────────────┐
+  │  <span class="both">Separation of concerns</span> (Babel + tsc --noEmit)             │
+  │                                                         │
+  │   Source ──▶ <span class="estree">fast parser (SWC/Babel/esbuild)</span> ──▶ .js emit │
+  │      │                                                  │
+  │      └──▶ <span class="tsc">tsc --noEmit</span> ──▶ type errors (diagnostics)    │
+  │                                                         │
+  │   Two completely independent pipelines.                 │
+  │   No AST sharing. No bridging needed.                   │
+  └─────────────────────────────────────────────────────────┘
+      </div>
+      <p><strong>Pros:</strong> Fast transpilation. Full type checking. Simple mental model.</p>
+      <p><strong>Cons:</strong> No type info available to the transpiler. Two separate processes. Enums/namespaces may differ between Babel's erasure and tsc's emit.</p>
+    </div>
+
+    <div class="tab-panel" data-tab="reimplement">
+      <div class="diagram">
+  ┌─────────────────────────────────────────────────────────┐
+  │  <span class="both">Full reimplementation</span> (typescript-go, stc, oxc+tsgolint) │
+  │                                                         │
+  │   Source ──▶ <span class="tsc">custom parser</span> ──▶ <span class="tsc">custom AST</span> ──▶ <span class="tsc">custom checker</span>│
+  │                                                         │
+  │   Everything from scratch. Own AST, binder, checker.    │
+  │   No dependency on tsc at all.                          │
+  │                                                         │
+  │   <span class="warn">Risk: keeping up with TypeScript spec changes</span>          │
+  └─────────────────────────────────────────────────────────┘
+      </div>
+      <p><strong>Pros:</strong> Can be much faster (Rust/Go). No tsc dependency. Can optimize for specific use case.</p>
+      <p><strong>Cons:</strong> Enormous implementation effort. Must track every TypeScript release. Risk of behavior divergence. The Oxc team <em>abandoned</em> their own checker in favor of using typescript-go.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 8: ALTERNATIVES -->
+<section id="alternatives">
+<div class="container">
+  <h2><span class="num">8</span>The Alternative Parser Landscape</h2>
+  <p class="section-sub">How SWC, Oxc, Biome, and Babel approach the TypeScript AST problem</p>
+
+  <table>
+    <tr>
+      <th>Tool</th>
+      <th>Language</th>
+      <th>AST Format</th>
+      <th>Type Checking</th>
+      <th>Approach</th>
+    </tr>
+    <tr>
+      <td><strong>tsc</strong></td>
+      <td>JavaScript</td>
+      <td><code>ts.Node</code> (proprietary)</td>
+      <td>Full</td>
+      <td>Reference implementation</td>
+    </tr>
+    <tr>
+      <td><strong>typescript-go</strong></td>
+      <td>Go</td>
+      <td>Own (tsc-inspired)</td>
+      <td>Full</td>
+      <td>Microsoft's official Go port, 10x faster</td>
+    </tr>
+    <tr>
+      <td><strong>typescript-eslint</strong></td>
+      <td>JavaScript</td>
+      <td>TSESTree (ESTree+TS)</td>
+      <td>Via tsc</td>
+      <td>Dual-AST with bidirectional maps</td>
+    </tr>
+    <tr>
+      <td><strong>Babel</strong></td>
+      <td>JavaScript</td>
+      <td>Babel AST (ESTree-like)</td>
+      <td>None (type erasure)</td>
+      <td>Strip types, don't check them</td>
+    </tr>
+    <tr>
+      <td><strong>SWC</strong></td>
+      <td>Rust</td>
+      <td>Own (custom Rust structs)</td>
+      <td>None (type erasure)</td>
+      <td>Fast transpilation, no checking</td>
+    </tr>
+    <tr>
+      <td><strong>Oxc / Oxlint</strong></td>
+      <td>Rust</td>
+      <td>ESTree-conformant</td>
+      <td>Via typescript-go (tsgolint)</td>
+      <td>Rust parser + Go checker hybrid</td>
+    </tr>
+    <tr>
+      <td><strong>Biome</strong></td>
+      <td>Rust</td>
+      <td>CST (Concrete Syntax Tree)</td>
+      <td>None</td>
+      <td>Lossless syntax tree, no type checking</td>
+    </tr>
+    <tr>
+      <td><strong>esbuild</strong></td>
+      <td>Go</td>
+      <td>Internal (not exposed)</td>
+      <td>None (type erasure)</td>
+      <td>Fastest bundler, strips types</td>
+    </tr>
+  </table>
+
+  <div class="callout">
+    <p><strong>The pattern is clear:</strong> Every tool that needs TypeScript type checking either (a) uses tsc/typescript-go directly, or (b) runs tsc as a separate process. No tool has successfully used a non-tsc AST with tsc's checker. The Oxc team explicitly abandoned their own type checker reimplementation and adopted typescript-go instead.</p>
+  </div>
+
+  <h3>Oxlint's Hybrid Architecture (newest approach)</h3>
+  <div class="diagram">
+  ┌─────────────────────────────────────┐   ┌────────────────────────────┐
+  │         <span class="estree">Oxlint (Rust)</span>               │   │     <span class="tsc">tsgolint (Go)</span>           │
+  │                                     │   │                            │
+  │  • File traversal                   │   │  • Compiles against        │
+  │  • Non-type-aware rules             │   │    typescript-go directly  │
+  │  • CLI interface                    │◀─▶│  • Type-aware rules        │
+  │  • ESTree-conformant AST            │   │  • Full type checker       │
+  │                                     │   │  • 10-40x faster than      │
+  │                                     │   │    ESLint+typescript-eslint│
+  └─────────────────────────────────────┘   └────────────────────────────┘
+  </div>
+  <p>Oxlint demonstrates the state of the art: even the fastest Rust tools still defer to a tsc-derived checker (typescript-go) for type information. <strong>There is no escape from tsc's type system.</strong></p>
+</div>
+</section>
+
+<!-- SECTION 9: VERDICT -->
+<section id="verdict">
+<div class="container">
+  <h2><span class="num">9</span>The Verdict</h2>
+  <p class="section-sub">Can you mix-and-match ASTs with tsc's pipeline stages?</p>
+
+  <div class="card" style="border-color:var(--red);">
+    <h3 style="color:var(--red);margin-top:0;">Using tsc's later stages generally means using tsc's AST</h3>
+    <p>The binder, checker, and emitter are <strong>implementation details of the TypeScript compiler</strong>, not pluggable components. They make thousands of assumptions about the exact shape of tsc's AST nodes. There is no abstraction layer, no AST adapter pattern, no plugin system for alternative parsers.</p>
+  </div>
+
+  <div class="card" style="border-color:var(--green);">
+    <h3 style="color:var(--green);margin-top:0;">But you CAN use a different AST for YOUR tool's logic</h3>
+    <p>The typescript-eslint approach proves that you can use ESTree (or any other AST) for your tool's logic while keeping tsc running in parallel for type information. The key is maintaining bidirectional maps between the two AST representations.</p>
+  </div>
+
+  <h3>Decision Flowchart</h3>
+  <div class="diagram">
+  Do you need TypeScript <strong>type information</strong>?
+  │
+  ├── <span class="warn">NO</span> ──▶ Use any parser you want (Babel, SWC, Oxc, esbuild)
+  │          They all handle type erasure without tsc.
+  │
+  └── <span class="both">YES</span> ──▶ Do you need it <strong>in your tool's AST traversal</strong>?
+              │
+              ├── <span class="warn">NO</span> ──▶ Run <span class="tsc">tsc --noEmit</span> separately
+              │          (separation of concerns)
+              │
+              └── <span class="both">YES</span> ──▶ You <strong>must</strong> run tsc (or typescript-go).
+                          │
+                          ├── Option A: <span class="tsc">typescript-eslint approach</span>
+                          │   Dual AST + bidirectional maps
+                          │
+                          ├── Option B: <span class="tsc">Use tsc's AST directly</span>
+                          │   Build your tool on ts.Node (like ts-morph)
+                          │
+                          └── Option C: <span class="tsc">Oxlint approach</span>
+                              Use typescript-go for type info + own parser for speed
+  </div>
+
+  <div class="metric-grid">
+    <div class="metric green">
+      <div class="value" style="font-size:1.2rem;">ESTree</div>
+      <div class="label">For tool logic</div>
+    </div>
+    <div class="metric purple">
+      <div class="value" style="font-size:1.2rem;">tsc AST</div>
+      <div class="label">For type checking</div>
+    </div>
+    <div class="metric cyan">
+      <div class="value" style="font-size:1.2rem;">Both</div>
+      <div class="label">In parallel</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECTION 10: QUIZ -->
+<section id="quiz">
+<div class="container">
+  <h2><span class="num">10</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding with flashcards</p>
+
+  <div class="flashcard-container" id="flashcards">
+    <div class="flashcard" onclick="toggleFlashcard(this)">
+      <div class="fc-label">Question</div>
+      <div class="fc-question"></div>
+      <div class="fc-hint">Click to reveal answer</div>
+      <div class="fc-answer"></div>
+    </div>
+    <div class="fc-nav">
+      <button onclick="prevCard()">&#9664; Prev</button>
+      <button onclick="nextCard()">Next &#9654;</button>
+    </div>
+    <div class="fc-counter"></div>
+  </div>
+</div>
+</section>
+
+<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:0.8rem;border-top:1px solid var(--border);">
+  ESTree vs tsc AST Deep Dive &mdash; Generated from research on ESTree spec, TypeScript compiler internals, typescript-eslint, and alternative tooling
+</div>
+
+<script>
+// === Tab switching ===
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const container = btn.closest('.tab-container');
+    container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    container.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+  });
+});
+
+// === Collapsibles ===
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.classList.toggle('open');
+    header.nextElementSibling.classList.toggle('open');
+  });
+});
+
+// === Node explorer data ===
+const es5Nodes = [
+  {name:'Program',cat:'root'},
+  {name:'Identifier',cat:'expr'},{name:'Literal',cat:'expr'},{name:'RegExpLiteral',cat:'expr'},
+  {name:'ExpressionStatement',cat:'stmt'},{name:'Directive',cat:'stmt'},{name:'BlockStatement',cat:'stmt'},
+  {name:'EmptyStatement',cat:'stmt'},{name:'DebuggerStatement',cat:'stmt'},{name:'WithStatement',cat:'stmt'},
+  {name:'ReturnStatement',cat:'stmt'},{name:'LabeledStatement',cat:'stmt'},{name:'BreakStatement',cat:'stmt'},
+  {name:'ContinueStatement',cat:'stmt'},{name:'IfStatement',cat:'stmt'},{name:'SwitchStatement',cat:'stmt'},
+  {name:'ThrowStatement',cat:'stmt'},{name:'TryStatement',cat:'stmt'},{name:'WhileStatement',cat:'stmt'},
+  {name:'DoWhileStatement',cat:'stmt'},{name:'ForStatement',cat:'stmt'},{name:'ForInStatement',cat:'stmt'},
+  {name:'SwitchCase',cat:'clause'},{name:'CatchClause',cat:'clause'},
+  {name:'FunctionDeclaration',cat:'decl'},{name:'VariableDeclaration',cat:'decl'},{name:'VariableDeclarator',cat:'decl'},
+  {name:'ThisExpression',cat:'expr'},{name:'ArrayExpression',cat:'expr'},{name:'ObjectExpression',cat:'expr'},
+  {name:'FunctionExpression',cat:'expr'},{name:'UnaryExpression',cat:'expr'},{name:'UpdateExpression',cat:'expr'},
+  {name:'BinaryExpression',cat:'expr'},{name:'AssignmentExpression',cat:'expr'},{name:'LogicalExpression',cat:'expr'},
+  {name:'MemberExpression',cat:'expr'},{name:'ConditionalExpression',cat:'expr'},{name:'CallExpression',cat:'expr'},
+  {name:'NewExpression',cat:'expr'},{name:'SequenceExpression',cat:'expr'},
+  {name:'Property',cat:'other'}
+];
+
+const catColors = {root:'var(--green)',expr:'var(--accent)',stmt:'var(--accent2)',decl:'var(--orange)',clause:'var(--cyan)',other:'var(--pink)',
+  token:'var(--yellow)',keyword:'var(--red)',type:'var(--cyan)',jsdoc:'var(--text-dim)',jsx:'var(--pink)',marker:'#555'};
+
+function renderGrid(containerId, items) {
+  const grid = document.getElementById(containerId);
+  grid.innerHTML = items.map(n =>
+    `<div class="ne-item"><span class="ne-dot" style="background:${catColors[n.cat]||'var(--text-dim)'}"></span>${n.name}</div>`
+  ).join('');
+}
+
+renderGrid('es5-grid', es5Nodes);
+
+const tscNodes = [
+  // Tokens
+  {name:'EndOfFileToken',cat:'token'},{name:'SingleLineCommentTrivia',cat:'token'},{name:'MultiLineCommentTrivia',cat:'token'},
+  {name:'NewLineTrivia',cat:'token'},{name:'WhitespaceTrivia',cat:'token'},
+  {name:'NumericLiteral',cat:'token'},{name:'BigIntLiteral',cat:'token'},{name:'StringLiteral',cat:'token'},
+  {name:'RegularExpressionLiteral',cat:'token'},{name:'NoSubstitutionTemplateLiteral',cat:'token'},
+  {name:'TemplateHead',cat:'token'},{name:'TemplateMiddle',cat:'token'},{name:'TemplateTail',cat:'token'},
+  // Punctuation
+  {name:'OpenBraceToken',cat:'token'},{name:'CloseBraceToken',cat:'token'},{name:'OpenParenToken',cat:'token'},
+  {name:'CloseParenToken',cat:'token'},{name:'OpenBracketToken',cat:'token'},{name:'CloseBracketToken',cat:'token'},
+  {name:'DotToken',cat:'token'},{name:'DotDotDotToken',cat:'token'},{name:'SemicolonToken',cat:'token'},
+  {name:'CommaToken',cat:'token'},{name:'QuestionDotToken',cat:'token'},{name:'QuestionToken',cat:'token'},
+  {name:'ColonToken',cat:'token'},{name:'AtToken',cat:'token'},{name:'HashToken',cat:'token'},
+  // Operators
+  {name:'PlusToken',cat:'token'},{name:'MinusToken',cat:'token'},{name:'AsteriskToken',cat:'token'},
+  {name:'SlashToken',cat:'token'},{name:'PercentToken',cat:'token'},{name:'AsteriskAsteriskToken',cat:'token'},
+  {name:'PlusPlusToken',cat:'token'},{name:'MinusMinusToken',cat:'token'},
+  {name:'LessThanToken',cat:'token'},{name:'GreaterThanToken',cat:'token'},
+  {name:'LessThanEqualsToken',cat:'token'},{name:'GreaterThanEqualsToken',cat:'token'},
+  {name:'EqualsEqualsToken',cat:'token'},{name:'ExclamationEqualsToken',cat:'token'},
+  {name:'EqualsEqualsEqualsToken',cat:'token'},{name:'ExclamationEqualsEqualsToken',cat:'token'},
+  {name:'EqualsGreaterThanToken',cat:'token'},{name:'PlusEqualsToken',cat:'token'},
+  {name:'MinusEqualsToken',cat:'token'},{name:'AsteriskEqualsToken',cat:'token'},
+  {name:'AmpersandToken',cat:'token'},{name:'BarToken',cat:'token'},{name:'CaretToken',cat:'token'},
+  {name:'TildeToken',cat:'token'},{name:'ExclamationToken',cat:'token'},
+  {name:'AmpersandAmpersandToken',cat:'token'},{name:'BarBarToken',cat:'token'},
+  {name:'QuestionQuestionToken',cat:'token'},{name:'EqualsToken',cat:'token'},
+  // Keywords
+  {name:'BreakKeyword',cat:'keyword'},{name:'CaseKeyword',cat:'keyword'},{name:'CatchKeyword',cat:'keyword'},
+  {name:'ClassKeyword',cat:'keyword'},{name:'ConstKeyword',cat:'keyword'},{name:'ContinueKeyword',cat:'keyword'},
+  {name:'DebuggerKeyword',cat:'keyword'},{name:'DefaultKeyword',cat:'keyword'},{name:'DeleteKeyword',cat:'keyword'},
+  {name:'DoKeyword',cat:'keyword'},{name:'ElseKeyword',cat:'keyword'},{name:'EnumKeyword',cat:'keyword'},
+  {name:'ExportKeyword',cat:'keyword'},{name:'ExtendsKeyword',cat:'keyword'},{name:'FalseKeyword',cat:'keyword'},
+  {name:'FinallyKeyword',cat:'keyword'},{name:'ForKeyword',cat:'keyword'},{name:'FunctionKeyword',cat:'keyword'},
+  {name:'IfKeyword',cat:'keyword'},{name:'ImportKeyword',cat:'keyword'},{name:'InKeyword',cat:'keyword'},
+  {name:'InstanceOfKeyword',cat:'keyword'},{name:'NewKeyword',cat:'keyword'},{name:'NullKeyword',cat:'keyword'},
+  {name:'ReturnKeyword',cat:'keyword'},{name:'SuperKeyword',cat:'keyword'},{name:'SwitchKeyword',cat:'keyword'},
+  {name:'ThisKeyword',cat:'keyword'},{name:'ThrowKeyword',cat:'keyword'},{name:'TrueKeyword',cat:'keyword'},
+  {name:'TryKeyword',cat:'keyword'},{name:'TypeOfKeyword',cat:'keyword'},{name:'VarKeyword',cat:'keyword'},
+  {name:'VoidKeyword',cat:'keyword'},{name:'WhileKeyword',cat:'keyword'},{name:'WithKeyword',cat:'keyword'},
+  {name:'AsyncKeyword',cat:'keyword'},{name:'AwaitKeyword',cat:'keyword'},{name:'YieldKeyword',cat:'keyword'},
+  {name:'ImplementsKeyword',cat:'keyword'},{name:'InterfaceKeyword',cat:'keyword'},{name:'LetKeyword',cat:'keyword'},
+  {name:'PackageKeyword',cat:'keyword'},{name:'PrivateKeyword',cat:'keyword'},{name:'ProtectedKeyword',cat:'keyword'},
+  {name:'PublicKeyword',cat:'keyword'},{name:'StaticKeyword',cat:'keyword'},
+  {name:'AbstractKeyword',cat:'keyword'},{name:'DeclareKeyword',cat:'keyword'},{name:'ReadonlyKeyword',cat:'keyword'},
+  {name:'OverrideKeyword',cat:'keyword'},{name:'AsKeyword',cat:'keyword'},{name:'SatisfiesKeyword',cat:'keyword'},
+  // Type nodes
+  {name:'TypeReference',cat:'type'},{name:'FunctionType',cat:'type'},{name:'ConstructorType',cat:'type'},
+  {name:'TypeQuery',cat:'type'},{name:'TypeLiteral',cat:'type'},{name:'ArrayType',cat:'type'},
+  {name:'TupleType',cat:'type'},{name:'OptionalType',cat:'type'},{name:'RestType',cat:'type'},
+  {name:'UnionType',cat:'type'},{name:'IntersectionType',cat:'type'},{name:'ConditionalType',cat:'type'},
+  {name:'InferType',cat:'type'},{name:'ParenthesizedType',cat:'type'},{name:'ThisType',cat:'type'},
+  {name:'TypeOperator',cat:'type'},{name:'IndexedAccessType',cat:'type'},{name:'MappedType',cat:'type'},
+  {name:'LiteralType',cat:'type'},{name:'NamedTupleMember',cat:'type'},{name:'TemplateLiteralType',cat:'type'},
+  {name:'TypePredicate',cat:'type'},{name:'ImportType',cat:'type'},
+  // Expression nodes
+  {name:'Identifier',cat:'expr'},{name:'QualifiedName',cat:'expr'},
+  {name:'BinaryExpression',cat:'expr'},{name:'ConditionalExpression',cat:'expr'},
+  {name:'CallExpression',cat:'expr'},{name:'NewExpression',cat:'expr'},
+  {name:'PropertyAccessExpression',cat:'expr'},{name:'ElementAccessExpression',cat:'expr'},
+  {name:'ArrowFunction',cat:'expr'},{name:'FunctionExpression',cat:'expr'},
+  {name:'DeleteExpression',cat:'expr'},{name:'TypeOfExpression',cat:'expr'},{name:'VoidExpression',cat:'expr'},
+  {name:'PrefixUnaryExpression',cat:'expr'},{name:'PostfixUnaryExpression',cat:'expr'},
+  {name:'TaggedTemplateExpression',cat:'expr'},{name:'TemplateExpression',cat:'expr'},
+  {name:'ParenthesizedExpression',cat:'expr'},{name:'SpreadElement',cat:'expr'},
+  {name:'ClassExpression',cat:'expr'},{name:'ObjectLiteralExpression',cat:'expr'},
+  {name:'ArrayLiteralExpression',cat:'expr'},{name:'YieldExpression',cat:'expr'},
+  {name:'AwaitExpression',cat:'expr'},{name:'AsExpression',cat:'expr'},
+  {name:'SatisfiesExpression',cat:'expr'},{name:'NonNullExpression',cat:'expr'},
+  {name:'MetaProperty',cat:'expr'},{name:'CommaListExpression',cat:'expr'},
+  {name:'OmittedExpression',cat:'expr'},{name:'TypeAssertionExpression',cat:'expr'},
+  // Statement nodes
+  {name:'Block',cat:'stmt'},{name:'VariableStatement',cat:'stmt'},{name:'EmptyStatement',cat:'stmt'},
+  {name:'ExpressionStatement',cat:'stmt'},{name:'IfStatement',cat:'stmt'},{name:'DoStatement',cat:'stmt'},
+  {name:'WhileStatement',cat:'stmt'},{name:'ForStatement',cat:'stmt'},{name:'ForInStatement',cat:'stmt'},
+  {name:'ForOfStatement',cat:'stmt'},{name:'BreakStatement',cat:'stmt'},{name:'ContinueStatement',cat:'stmt'},
+  {name:'ReturnStatement',cat:'stmt'},{name:'WithStatement',cat:'stmt'},{name:'SwitchStatement',cat:'stmt'},
+  {name:'LabeledStatement',cat:'stmt'},{name:'ThrowStatement',cat:'stmt'},{name:'TryStatement',cat:'stmt'},
+  {name:'DebuggerStatement',cat:'stmt'},{name:'NotEmittedStatement',cat:'stmt'},
+  // Declaration nodes
+  {name:'FunctionDeclaration',cat:'decl'},{name:'ClassDeclaration',cat:'decl'},
+  {name:'InterfaceDeclaration',cat:'decl'},{name:'TypeAliasDeclaration',cat:'decl'},
+  {name:'EnumDeclaration',cat:'decl'},{name:'ModuleDeclaration',cat:'decl'},
+  {name:'ImportDeclaration',cat:'decl'},{name:'ExportDeclaration',cat:'decl'},
+  {name:'ExportAssignment',cat:'decl'},{name:'NamespaceExportDeclaration',cat:'decl'},
+  {name:'VariableDeclaration',cat:'decl'},{name:'VariableDeclarationList',cat:'decl'},
+  {name:'MethodDeclaration',cat:'decl'},{name:'Constructor',cat:'decl'},
+  {name:'GetAccessor',cat:'decl'},{name:'SetAccessor',cat:'decl'},
+  {name:'PropertyDeclaration',cat:'decl'},{name:'PropertyAssignment',cat:'decl'},
+  {name:'ShorthandPropertyAssignment',cat:'decl'},{name:'SpreadAssignment',cat:'decl'},
+  {name:'EnumMember',cat:'decl'},{name:'Parameter',cat:'decl'},
+  {name:'TypeParameter',cat:'decl'},{name:'Decorator',cat:'decl'},
+  // Clauses/Other
+  {name:'SourceFile',cat:'root'},{name:'CaseClause',cat:'clause'},{name:'DefaultClause',cat:'clause'},
+  {name:'CatchClause',cat:'clause'},{name:'HeritageClause',cat:'clause'},
+  {name:'CaseBlock',cat:'clause'},{name:'SwitchCase',cat:'clause'},
+  {name:'ImportClause',cat:'clause'},{name:'NamespaceImport',cat:'clause'},
+  {name:'NamedImports',cat:'clause'},{name:'ImportSpecifier',cat:'clause'},
+  {name:'NamedExports',cat:'clause'},{name:'ExportSpecifier',cat:'clause'},
+  {name:'TemplateSpan',cat:'other'},{name:'ComputedPropertyName',cat:'other'},
+  {name:'BindingElement',cat:'other'},{name:'ObjectBindingPattern',cat:'other'},
+  {name:'ArrayBindingPattern',cat:'other'},
+  // JSDoc
+  {name:'JSDocComment',cat:'jsdoc'},{name:'JSDocTag',cat:'jsdoc'},{name:'JSDocParameterTag',cat:'jsdoc'},
+  {name:'JSDocReturnTag',cat:'jsdoc'},{name:'JSDocTypeTag',cat:'jsdoc'},{name:'JSDocTypeExpression',cat:'jsdoc'},
+  {name:'JSDocTypeLiteral',cat:'jsdoc'},{name:'JSDocSignature',cat:'jsdoc'},
+  {name:'JSDocPropertyTag',cat:'jsdoc'},{name:'JSDocCallbackTag',cat:'jsdoc'},
+  {name:'JSDocAugmentsTag',cat:'jsdoc'},{name:'JSDocImplementsTag',cat:'jsdoc'},
+  {name:'JSDocTemplateTag',cat:'jsdoc'},{name:'JSDocTypedefTag',cat:'jsdoc'},
+  {name:'JSDocSeeTag',cat:'jsdoc'},{name:'JSDocDeprecatedTag',cat:'jsdoc'},
+  {name:'JSDocThrowsTag',cat:'jsdoc'},{name:'JSDocOverrideTag',cat:'jsdoc'},
+  {name:'JSDocSatisfiesTag',cat:'jsdoc'},{name:'JSDocOverloadTag',cat:'jsdoc'},
+  // JSX
+  {name:'JsxElement',cat:'jsx'},{name:'JsxOpeningElement',cat:'jsx'},{name:'JsxClosingElement',cat:'jsx'},
+  {name:'JsxSelfClosingElement',cat:'jsx'},{name:'JsxAttribute',cat:'jsx'},{name:'JsxSpreadAttribute',cat:'jsx'},
+  {name:'JsxExpression',cat:'jsx'},{name:'JsxText',cat:'jsx'},{name:'JsxFragment',cat:'jsx'},
+  {name:'JsxOpeningFragment',cat:'jsx'},{name:'JsxClosingFragment',cat:'jsx'},{name:'JsxAttributes',cat:'jsx'},
+];
+renderGrid('tsc-grid', tscNodes);
+
+// === Search filtering ===
+document.querySelectorAll('.ne-search').forEach(input => {
+  input.addEventListener('input', () => {
+    const filter = input.value.toLowerCase();
+    const grid = document.getElementById(input.dataset.target);
+    grid.querySelectorAll('.ne-item').forEach(item => {
+      item.classList.toggle('hidden', !item.textContent.toLowerCase().includes(filter));
+    });
+  });
+});
+
+// === Flashcards ===
+const cards = [
+  {q:'How many node types does core ESTree define (ES5 through ES2026)?', a:'Approximately 70 concrete node types. With JSX extensions, approximately 85.'},
+  {q:'How many SyntaxKind values does the tsc compiler define?', a:'Approximately 345 named entries (with the sentinel Count = 345). This is ~4x more than ESTree because tsc includes tokens, keywords, JSDoc nodes, and more granular expression types.'},
+  {q:'What field does ESTree use to identify node types? What does tsc use?', a:'ESTree uses a "type" field with human-readable strings (e.g., "FunctionDeclaration"). tsc uses a "kind" field with numeric SyntaxKind enum values (e.g., 259).'},
+  {q:'How does ESTree represent the "const" in "const x = 1"?', a:'As a "kind" string property on VariableDeclaration: kind: "const". tsc instead uses NodeFlags.Const on a VariableDeclarationList wrapper node.'},
+  {q:'Does ESTree preserve parenthesized expressions?', a:'No. Parentheses only affect precedence in ESTree and are not represented in the AST. tsc preserves them as ParenthesizedExpression nodes.'},
+  {q:'What does the tsc binder create?', a:'Symbols (one per declaration), SymbolTables (name→Symbol maps on container nodes representing scopes), and a control flow graph (directed FlowNode graph for type narrowing). It also sets parent pointers on every node.'},
+  {q:'How large is checker.ts?', a:'Approximately 42,000+ lines (~2.5 MB), making it by far the largest single file in the TypeScript compiler.'},
+  {q:'Can you use tsc\'s type checker with a non-tsc AST?', a:'No. The checker is tightly coupled to tsc\'s AST format with thousands of SyntaxKind switch cases accessing specific node properties. There is no abstraction layer. TypeScript #43600 requests this capability but remains unresolved.'},
+  {q:'How does typescript-eslint bridge ESTree and tsc?', a:'It runs tsc\'s parser to get a tsc AST, converts it to TSESTree (ESTree + TS-specific nodes), and maintains bidirectional WeakMaps between the two trees. ESLint rules traverse TSESTree but can reach back into tsc\'s checker via the maps.'},
+  {q:'What AST format does Biome use?', a:'A Concrete Syntax Tree (CST), not an AST. The CST preserves all source information including trivia (whitespace, comments), which is fundamentally different from both ESTree and tsc\'s AST.'},
+  {q:'What approach does Oxlint take for type-aware linting?', a:'A hybrid: Oxlint (Rust) handles file traversal and non-type-aware rules, while tsgolint (Go) compiles against Microsoft\'s typescript-go port for type checking and type-aware rules. 10-40x faster than ESLint + typescript-eslint.'},
+  {q:'Why did the Oxc team abandon their own type checker?', a:'TypeScript\'s type system is too complex and fast-evolving for an independent reimplementation to keep up. They adopted typescript-go (Microsoft\'s official Go port) instead, using it as a library.'},
+  {q:'Name three strategies for using type information with a non-tsc AST.', a:'(1) Dual-AST approach (typescript-eslint): maintain two ASTs with bidirectional maps. (2) Separation of concerns: use a fast parser for transpilation + tsc --noEmit for type checking. (3) Use typescript-go as a library (Oxlint/tsgolint approach).'},
+  {q:'How many TypeScript-specific nodes does TSESTree add on top of ESTree?', a:'Approximately 80+ nodes, all prefixed with "TS" (e.g., TSInterfaceDeclaration, TSTypeAnnotation, TSEnumDeclaration).'},
+];
+let currentCard = 0;
+
+function renderCard() {
+  const fc = document.querySelector('.flashcard');
+  fc.querySelector('.fc-question').textContent = cards[currentCard].q;
+  fc.querySelector('.fc-answer').textContent = cards[currentCard].a;
+  fc.querySelector('.fc-answer').classList.remove('show');
+  fc.querySelector('.fc-hint').style.display = '';
+  document.querySelector('.fc-counter').textContent = `${currentCard + 1} / ${cards.length}`;
+}
+
+function toggleFlashcard(el) {
+  const answer = el.querySelector('.fc-answer');
+  const hint = el.querySelector('.fc-hint');
+  answer.classList.toggle('show');
+  hint.style.display = answer.classList.contains('show') ? 'none' : '';
+}
+
+function nextCard() {
+  currentCard = (currentCard + 1) % cards.length;
+  renderCard();
+}
+
+function prevCard() {
+  currentCard = (currentCard - 1 + cards.length) % cards.length;
+  renderCard();
+}
+
+renderCard();
+</script>
+</body>
+</html>
