@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Behavioral Property Systems — Foundations, Theory &amp; Design for KindScript</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+.hero {
+  text-align: center; padding: 80px 24px 60px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 3rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.15rem; color: var(--text-dim); max-width: 700px; margin: 0 auto 24px; }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.ts { border-color: #3178c6; color: #3178c6; }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+.badge.pink { border-color: var(--pink); color: var(--pink); }
+
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+h2 .num {
+  display: inline-block; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  text-align: center; line-height: 38px; margin-right: 12px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 12px; }
+h4 { font-size: 1rem; font-weight: 700; color: var(--cyan); margin: 20px 0 8px; }
+
+p { margin-bottom: 16px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.84em;
+  line-height: 1.6; margin: 16px 0 20px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.number-lit { color: var(--orange); }
+.fn-name { color: var(--yellow); }
+.param { color: var(--pink); }
+
+.insight {
+  background: rgba(108,140,255,0.06); border-left: 3px solid var(--accent);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { background: rgba(251,146,60,0.06); border-left-color: var(--orange); }
+.insight.green { background: rgba(74,222,128,0.06); border-left-color: var(--green); }
+.insight.pink { background: rgba(244,114,182,0.06); border-left-color: var(--pink); }
+.insight strong { color: var(--text); }
+
+table {
+  width: 100%; border-collapse: collapse; margin: 16px 0 24px;
+  font-size: 0.88rem;
+}
+th {
+  text-align: left; padding: 10px 14px; background: var(--surface);
+  border-bottom: 2px solid var(--border); font-weight: 700; color: var(--accent);
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.4px;
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+td:first-child { color: var(--text); font-weight: 600; }
+tr:hover td { background: var(--surface); }
+
+.tabs { display: flex; gap: 2px; margin-bottom: 0; flex-wrap: wrap; }
+.tab {
+  padding: 10px 20px; background: var(--surface); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim); font-weight: 600; font-size: 0.82rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { box-shadow: inset 0 2px 0 var(--accent); color: var(--text); background: var(--surface2); }
+.tab-content { display: none; padding: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); }
+.tab-content.active { display: block; }
+
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 4px; overflow: hidden;
+  cursor: pointer; transition: all 0.2s;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+}
+.df-stage-title { font-weight: 700; font-size: 0.95rem; }
+.df-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
+  color: var(--bg); font-size: 0.75rem; font-weight: 800; margin-right: 10px;
+}
+.df-expand { color: var(--text-dim); transition: transform 0.3s; font-size: 0.8rem; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+  padding: 0 20px; font-size: 0.9rem; color: var(--text-dim); line-height: 1.7;
+}
+.df-stage.active .df-detail { max-height: 800px; padding: 0 20px 16px; }
+.df-connector {
+  width: 2px; height: 12px; background: var(--border); margin: 0 auto;
+}
+
+.pipeline-stepper {
+  display: flex; gap: 2px; margin-bottom: 4px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.step-btn {
+  flex: 1; padding: 12px 8px; border: none; background: var(--surface);
+  color: var(--text-dim); font-weight: 700; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  letter-spacing: 0.5px; font-family: var(--mono);
+}
+.step-btn:hover { background: var(--surface2); color: var(--text); }
+.step-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+}
+.step-content { display: none; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+.step-content.active { display: block; }
+
+.algebra-grid {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 12px; align-items: center; margin: 20px 0;
+}
+.algebra-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; text-align: center; font-size: 0.88rem; font-family: var(--mono);
+}
+.algebra-box.result { border-color: var(--green); }
+.algebra-op { font-size: 1.3rem; font-weight: 800; color: var(--accent); text-align: center; }
+
+.lattice-viz {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin: 24px 0; font-family: var(--mono); font-size: 0.85rem;
+}
+.lattice-row { display: flex; gap: 16px; align-items: center; }
+.lattice-node {
+  padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-dim); text-align: center;
+  cursor: default; transition: all 0.2s; min-width: 100px;
+}
+.lattice-node.highlight { border-color: var(--accent); color: var(--text); background: var(--surface2); }
+.lattice-node.top { border-color: var(--red); color: var(--red); }
+.lattice-node.bottom { border-color: var(--green); color: var(--green); }
+.lattice-edge { color: var(--text-dim); font-size: 1.2rem; }
+
+.constraint-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px; margin: 20px 0;
+}
+.constraint-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; cursor: pointer; transition: all 0.2s;
+}
+.constraint-card:hover { border-color: var(--accent); }
+.constraint-card.selected { border-color: var(--accent); box-shadow: 0 0 12px rgba(108,140,255,0.15); }
+.cc-name { font-weight: 700; font-family: var(--mono); font-size: 0.9rem; margin-bottom: 4px; }
+.cc-scope { font-size: 0.75rem; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.cc-desc { font-size: 0.82rem; color: var(--text-dim); }
+.constraint-detail {
+  display: none; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; margin-top: 12px; font-size: 0.9rem;
+}
+.constraint-detail.active { display: block; }
+
+ul, ol { margin: 8px 0 16px 24px; }
+li { margin-bottom: 6px; color: var(--text-dim); font-size: 0.92rem; }
+
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .algebra-grid { grid-template-columns: 1fr; }
+  .algebra-op { transform: rotate(90deg); }
+  .constraint-grid { grid-template-columns: 1fr; }
+  .lattice-row { flex-wrap: wrap; justify-content: center; }
+  .pipeline-stepper { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<div class="hero">
+  <h1>Behavioral Property Systems</h1>
+  <p class="subtitle">Foundations, Theory &amp; Design for KindScript &mdash; How effects, capabilities, and abstract interpretation provide the mathematical basis for static behavioral checking</p>
+  <div class="badge-row">
+    <span class="badge purple">Effect Systems</span>
+    <span class="badge cyan">Algebraic Effects</span>
+    <span class="badge green">Capabilities / OCAP</span>
+    <span class="badge orange">Abstract Interpretation</span>
+    <span class="badge ts">TypeScript Parallel</span>
+    <span class="badge pink">Lattice Theory</span>
+  </div>
+</div>
+
+<!-- ============ NAV ============ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#three-pillars">Three Pillars</a>
+    <a class="toc-link" href="#primitives">Primitive Effects</a>
+    <a class="toc-link" href="#composition">Composition</a>
+    <a class="toc-link" href="#detection">AST Detection</a>
+    <a class="toc-link" href="#inference">Inference</a>
+    <a class="toc-link" href="#systems">Implemented Systems</a>
+    <a class="toc-link" href="#kindscript">KindScript Design</a>
+    <a class="toc-link" href="#references">References</a>
+    <a class="toc-link" href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- ============ SECTION 1: THREE PILLARS ============ -->
+<section id="three-pillars">
+<div class="container">
+  <h2><span class="num">01</span>The Three Pillars</h2>
+  <p class="section-sub">Three independent research traditions converge on the same problem: constraining what code can <em>do</em>, not just what shape its data has.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('pillar-tabs','pillar-effects')">Effects</button>
+    <button class="tab" onclick="switchTab('pillar-tabs','pillar-caps')">Capabilities</button>
+    <button class="tab" onclick="switchTab('pillar-tabs','pillar-ai')">Abstract Interpretation</button>
+    <button class="tab" onclick="switchTab('pillar-tabs','pillar-unified')">Unified View</button>
+  </div>
+  <div id="pillar-tabs">
+
+    <!-- EFFECTS TAB -->
+    <div class="tab-content active" id="pillar-effects">
+      <h3>Type-and-Effect Systems</h3>
+      <p>Gifford &amp; Lucassen (1986&ndash;1988) introduced the idea of annotating types with <strong>effect information</strong> &mdash; tracking reads, writes, and allocations alongside structural types. The standard judgment form is:</p>
+      <pre><code>&Gamma; &#8866; e : &tau; <span class="keyword">!</span> <span class="type-name">&phi;</span>    <span class="comment">// expression e has type &tau; and effect &phi;</span></code></pre>
+      <p>Marino &amp; Millstein (TLDI 2009) generalized this into a <strong>generic type-and-effect framework</strong> parameterized by an <em>effect algebra</em> &mdash; a join-semilattice with bottom:</p>
+      <pre><code>(<span class="type-name">E</span>, &le;, <span class="fn-name">join</span>, <span class="keyword">&bot;</span>)
+<span class="comment">// &bot; = pure (no effects)</span>
+<span class="comment">// join(e1, e2) = combined effect (least upper bound)</span>
+<span class="comment">// &le; = subeffecting: e1 &le; e2 means e1 is a sub-effect</span></code></pre>
+      <p>There are actually <strong>three distinct meanings</strong> of "effect" in PL research:</p>
+      <ol>
+        <li><strong>Type-and-effect systems</strong> &mdash; annotate types with behavioral information (Lucassen &amp; Gifford)</li>
+        <li><strong>Notions-of-computation</strong> &mdash; Moggi's monadic approach (1989): F[T] = 1+T for partiality, F[T] = S&times;T for state</li>
+        <li><strong>Algebraic effects &amp; handlers</strong> &mdash; Plotkin &amp; Power (2002), Plotkin &amp; Pretnar (2009): separate operations from their handlers via free algebras</li>
+      </ol>
+      <p>An <strong>effect signature</strong> &Sigma; = {op<sub>i</sub> : A<sub>i</sub> &rarr; B<sub>i</sub>} gives rise to a <strong>free monad</strong>:</p>
+      <pre><code>Free &Sigma; A  =  <span class="keyword">Pure</span> A  |  <span class="keyword">Op</span>(op<sub>i</sub>, a<sub>i</sub>, B<sub>i</sub> &rarr; Free &Sigma; A)</code></pre>
+      <p>Handlers are <strong>algebra homomorphisms</strong> from this free model to a target model. The universal property of the free algebra guarantees a unique such homomorphism exists.</p>
+      <div class="insight warn">
+        <strong>Key limitation:</strong> Not all effects are algebraic. Continuations are the canonical non-algebraic effect. Higher-order effects like <code>try/catch</code> and <code>local</code> cannot be directly expressed as algebraic operations because they don't commute with bind.
+      </div>
+    </div>
+
+    <!-- CAPABILITIES TAB -->
+    <div class="tab-content" id="pillar-caps">
+      <h3>The Object-Capability Model (OCAP)</h3>
+      <p>Dennis &amp; Van Horn (1966) introduced <strong>capability lists (C-lists)</strong>: each capability = pointer + access rights. A process's C-list defines its <em>sphere of protection</em>.</p>
+      <p>Mark Miller formalized the OCAP discipline: authority flows <em>only</em> through references. There are exactly <strong>three ways</strong> to gain a new reference:</p>
+      <table>
+        <tr><th>Path</th><th>Mechanism</th><th>Example</th></tr>
+        <tr><td>Creation</td><td>You create an object, you hold its reference</td><td><code>const db = new Database()</code></td></tr>
+        <tr><td>Endowment</td><td>References placed in scope at construction</td><td>Constructor injection, closure variables</td></tr>
+        <tr><td>Introduction</td><td>Someone passes you their reference via message</td><td><code>import { fs } from 'node:fs'</code></td></tr>
+      </table>
+      <p><strong>"Only connectivity begets connectivity"</strong> &mdash; no global namespace, no ambient authority, no reflection can conjure references from nothing.</p>
+      <p>Key implementations: <strong>SES/Hardened JavaScript</strong> (Compartments with zero ambient authority), <strong>Joe-E</strong> (capability-safe Java subset with static verifier), <strong>Wyvern</strong> (capability-safe module system with proved authority-safety), <strong>Deno</strong> (runtime permission flags).</p>
+      <div class="insight green">
+        <strong>The import&ndash;capability connection:</strong> In a module system, <code>import</code> statements are capability acquisitions. Restricting imports restricts authority. This is exactly what KindScript's <code>noIO</code>, <code>noImports</code>, and <code>pure</code> constraints do &mdash; they are static capability restrictions.
+      </div>
+    </div>
+
+    <!-- ABSTRACT INTERPRETATION TAB -->
+    <div class="tab-content" id="pillar-ai">
+      <h3>Abstract Interpretation (Cousot &amp; Cousot, 1977)</h3>
+      <p>The concrete semantics F : P(State) &rarr; P(State) is uncomputable (Rice's theorem). Abstract interpretation approximates it via <strong>Galois connections</strong>:</p>
+      <pre><code>(<span class="type-name">C</span>, <span class="fn-name">&alpha;</span>, <span class="fn-name">&gamma;</span>, <span class="type-name">A</span>)
+<span class="comment">// &alpha;(c) &le; a  iff  c &le; &gamma;(a)   -- the adjunction property</span>
+<span class="comment">// Guarantees soundness: abstract over-approximates concrete</span></code></pre>
+      <p><strong>Fixpoint iteration</strong> computes properties: X<sub>0</sub> = &bot;, X<sub>n+1</sub> = F<sup>#</sup>(X<sub>n</sub>) until stabilization. The Knaster-Tarski theorem guarantees convergence for complete lattices.</p>
+      <p>For behavioral property checking, the abstract domain is a <strong>product lattice</strong> of independent property dimensions:</p>
+      <pre><code><span class="type-name">BehavioralDomain</span> = {
+  purity:      <span class="type-name">PurityLattice</span>,      <span class="comment">// {&bot;, pure, reads, writes, &top;}</span>
+  throws:      <span class="type-name">ThrowsLattice</span>,      <span class="comment">// {&bot;, never-throws, may-throw, &top;}</span>
+  terminates:  <span class="type-name">TerminationLattice</span>, <span class="comment">// {&bot;, terminates, may-diverge, &top;}</span>
+  determinism: <span class="type-name">DetLattice</span>,         <span class="comment">// {&bot;, deterministic, nondeterministic, &top;}</span>
+}</code></pre>
+      <p>Each component is analyzed independently via its own transfer functions. The <strong>reduced product</strong> enables cross-property reasoning: e.g., pure &and; non-null &rArr; deterministic output.</p>
+    </div>
+
+    <!-- UNIFIED TAB -->
+    <div class="tab-content" id="pillar-unified">
+      <h3>The Deep Connection: Effects &equiv; Capabilities</h3>
+      <p>These are <strong>two views of the same underlying concept</strong>:</p>
+      <table>
+        <tr><th>Capability Framing</th><th>Effect Framing</th><th>Meaning</th></tr>
+        <tr><td>No IO capabilities</td><td><code>pure</code> effect</td><td>No observable I/O</td></tr>
+        <tr><td>Has FileSystem cap</td><td><code>{FileIO}</code> effect</td><td>Can read/write files</td></tr>
+        <tr><td>Has Network cap</td><td><code>{NetworkIO}</code> effect</td><td>Can make network calls</td></tr>
+        <tr><td>No mutable references</td><td>No <code>State</code> effect</td><td>Referentially transparent</td></tr>
+      </table>
+      <p>The <strong>Effekt language</strong> (Brachth&auml;user et al.) demonstrates this duality directly: programs compile to <em>capability-passing style</em>, where effect handlers are passed as capabilities. Effects and capabilities are literally the same thing.</p>
+      <p>wasmCloud explicitly states: <em>"capabilities are managed algebraic effects for WebAssembly."</em></p>
+      <div class="insight pink">
+        <strong>The 2025 result:</strong> "Type, Ability, and Effect Systems" (arXiv:2510.07582) proves that when focusing on minimal meaningful systems, effects and capabilities are <strong>incomparable</strong> &mdash; neither subsumes the other. But a synthesis combining both avoids their respective weaknesses. This is precisely KindScript's position: combining capability-style import restrictions with effect-style AST analysis.
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 2: PRIMITIVE EFFECTS ============ -->
+<section id="primitives">
+<div class="container">
+  <h2><span class="num">02</span>Primitive Effects: The Atomic Alphabet</h2>
+  <p class="section-sub">Across all systems, a common set of fundamental effect primitives recurs &mdash; the "atoms" from which all behavioral properties are composed.</p>
+
+  <div class="lattice-viz">
+    <div class="lattice-row"><div class="lattice-node top">&top; (io / any effect)</div></div>
+    <div class="lattice-edge">&uarr;</div>
+    <div class="lattice-row">
+      <div class="lattice-node">state&lt;h&gt;</div>
+      <div class="lattice-node">ndet</div>
+      <div class="lattice-node">async</div>
+    </div>
+    <div class="lattice-edge">&uarr;</div>
+    <div class="lattice-row">
+      <div class="lattice-node">exn</div>
+      <div class="lattice-node">div</div>
+      <div class="lattice-node">console</div>
+    </div>
+    <div class="lattice-edge">&uarr;</div>
+    <div class="lattice-row"><div class="lattice-node highlight">exn &cup; div (= Haskell purity)</div></div>
+    <div class="lattice-edge">&uarr;</div>
+    <div class="lattice-row"><div class="lattice-node bottom">&bot; (pure / total)</div></div>
+  </div>
+
+  <table>
+    <tr><th>Primitive</th><th>Algebraic?</th><th>Signature / Monad</th><th>In Koka</th></tr>
+    <tr><td>Exception (exn)</td><td>Yes</td><td>raise : E &rarr; 0 &nbsp;/&nbsp; T(A) = A + E</td><td><code>exn</code></td></tr>
+    <tr><td>State</td><td>Yes</td><td>get : 1 &rarr; S, put : S &rarr; 1 &nbsp;/&nbsp; T(A) = S &rarr; (A &times; S)</td><td><code>read&lt;h&gt;</code>, <code>write&lt;h&gt;</code>, <code>alloc&lt;h&gt;</code></td></tr>
+    <tr><td>Nondeterminism</td><td>Yes</td><td>choose : 1 &rarr; Bool &nbsp;/&nbsp; T(A) = P(A)</td><td><code>ndet</code></td></tr>
+    <tr><td>Divergence (div)</td><td style="color:var(--red)">No</td><td>No operation; arises from recursion</td><td><code>div</code> (termination analysis)</td></tr>
+    <tr><td>Continuations</td><td style="color:var(--red)">No</td><td>T(A) = (A &rarr; R) &rarr; R</td><td>N/A</td></tr>
+    <tr><td>I/O</td><td>Composite</td><td>io = exn &cup; div &cup; ndet &cup; state&lt;global&gt;</td><td><code>io</code></td></tr>
+  </table>
+
+  <h3>Mapping to KindScript Constraints</h3>
+  <table>
+    <tr><th>KindScript Constraint</th><th>Effect Equivalent</th><th>Capability Equivalent</th></tr>
+    <tr><td><code>pure</code></td><td>Empty effect set (&bot;)</td><td>No capabilities at all</td></tr>
+    <tr><td><code>noIO</code></td><td>No {FileIO, NetworkIO, ProcessIO}</td><td>No I/O capabilities</td></tr>
+    <tr><td><code>noSideEffects</code></td><td>No top-level effectful expressions</td><td>No effect execution at import time</td></tr>
+    <tr><td><code>immutable</code></td><td>No write&lt;module-scope&gt;</td><td>No mutable binding capability</td></tr>
+    <tr><td><code>noConsole</code></td><td>No console IO effect</td><td>No console capability</td></tr>
+    <tr><td><code>noAsync</code></td><td>No async/await effect</td><td>No concurrency capability</td></tr>
+    <tr><td><code>noExceptions</code></td><td>No exn effect</td><td>No exception capability</td></tr>
+    <tr><td><code>deterministic</code></td><td>No ndet effect</td><td>No randomness capability</td></tr>
+    <tr><td><code>noMutation</code></td><td>No write effect on any reference</td><td>No mutable state capability</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ============ SECTION 3: COMPOSITION ============ -->
+<section id="composition">
+<div class="container">
+  <h2><span class="num">03</span>Composition: How Properties Build Up</h2>
+  <p class="section-sub">The rules for how atomic properties combine through function application, sequencing, and handling &mdash; forming a product lattice of behavioral kinds.</p>
+
+  <h3>Effect Composition Rules</h3>
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Abstraction (Latent Effect)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <pre><code>&Gamma;, x : &sigma; &#8866; M : &tau; <span class="keyword">!</span> <span class="type-name">&phi;</span>
+<span class="comment">-----------------------------------</span>
+&Gamma; &#8866; &lambda;x . M : &sigma; <span class="keyword">&mdash;[&phi;]&rarr;</span> &tau;</code></pre>
+        The effect &phi; is <strong>latent</strong>: stored in the function type, not released until application.
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Application (Effect Release)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <pre><code>&Gamma; &#8866; f : &sigma; <span class="keyword">&mdash;[&phi;]&rarr;</span> &tau;    &Gamma; &#8866; x : &sigma;
+<span class="comment">----------------------------------------------</span>
+&Gamma; &#8866; f(x) : &tau; <span class="keyword">!</span> <span class="type-name">&phi;</span></code></pre>
+        Applying a function <strong>releases</strong> its latent effect. This is where effects become observable.
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Sequential Composition (Join)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <pre><code>&Gamma; &#8866; M : &sigma; <span class="keyword">!</span> <span class="type-name">&phi;<sub>1</sub></span>    &Gamma;, x : &sigma; &#8866; N : &tau; <span class="keyword">!</span> <span class="type-name">&phi;<sub>2</sub></span>
+<span class="comment">---------------------------------------------------</span>
+&Gamma; &#8866; <span class="keyword">do</span> x &larr; M <span class="keyword">in</span> N : &tau; <span class="keyword">!</span> <span class="type-name">join(&phi;<sub>1</sub>, &phi;<sub>2</sub>)</span></code></pre>
+        The combined effect is the <strong>least upper bound</strong> (join) of both sub-effects. This is the fundamental monotonicity principle: effects only grow through composition.
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Effect Handling (Subtraction)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <pre><code>&Gamma; &#8866; M : &sigma; <span class="keyword">!</span> <span class="type-name">&psi;</span>    &Gamma; &#8866; H : &sigma; <span class="keyword">!</span> <span class="type-name">&psi;</span> &rArr; &tau; <span class="keyword">!</span> <span class="type-name">&phi;</span>
+<span class="comment">---------------------------------------------------</span>
+&Gamma; &#8866; <span class="keyword">with</span> H <span class="keyword">handle</span> M : &tau; <span class="keyword">!</span> <span class="type-name">&phi;</span></code></pre>
+        A handler <strong>subtracts</strong> effects. <code>try/catch</code> handles <code>exn</code>; <code>await</code> resolves <code>async</code>. This is the only mechanism that <em>reduces</em> the effect set.
+      </div>
+    </div>
+  </div>
+
+  <h3>The Product Lattice of Behavioral Properties</h3>
+  <p>Independent behavioral properties form a <strong>2<sup>n</sup> Boolean lattice</strong>. Each point is a "behavioral kind":</p>
+  <div class="algebra-grid">
+    <div class="algebra-box">{ pure: true }</div>
+    <div class="algebra-op">&and;</div>
+    <div class="algebra-box">{ terminates: true }</div>
+    <div class="algebra-op">=</div>
+    <div class="algebra-box result">total function</div>
+  </div>
+  <p><strong>Flix</strong> implements this directly: its effect system uses Boolean formulas over effect labels with Boolean unification for complete Hindley-Milner style inference.</p>
+
+  <h3>Subtyping and Implication Chains</h3>
+  <pre><code><span class="type-name">pure</span>  &sub;  <span class="type-name">noSideEffects</span>  &sub;  <span class="type-name">noIO</span>
+<span class="type-name">pure</span>  &sub;  <span class="type-name">deterministic</span>
+<span class="type-name">pure</span> &and; <span class="type-name">terminates</span>  =  <span class="type-name">total</span>
+<span class="comment">// A pure function can be used wherever noIO is expected (behavioral subtyping)</span>
+<span class="comment">// Function subtyping: contravariant in params, covariant in return AND effect</span></code></pre>
+
+  <div class="insight">
+    <strong>Key propagation rule:</strong> <code>effects(f(x)) = effects(f_body) &cup; effects(x) &minus; handled_effects</code>. Effects propagate monotonically through call chains. For higher-order functions, <strong>effect polymorphism</strong> is essential: <code>forall e. (A &rarr;[e] B) &rarr;[e] C</code>. Without it, <code>map()</code> would be typed impure, poisoning all callers.
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 4: DETECTION ============ -->
+<section id="detection">
+<div class="container">
+  <h2><span class="num">04</span>Detection: From AST to Behavioral Atoms</h2>
+  <p class="section-sub">What can be detected at a single AST node, what requires scope analysis, and what requires interprocedural reasoning.</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('det-syntactic')">Syntactic</button>
+    <button class="step-btn" onclick="showStep('det-scope')">Scope</button>
+    <button class="step-btn" onclick="showStep('det-flow')">Control Flow</button>
+    <button class="step-btn" onclick="showStep('det-callgraph')">Call Graph</button>
+  </div>
+  <div class="step-content active" id="det-syntactic">
+    <h4>Single-Node AST Detection (Atomic Properties)</h4>
+    <table>
+      <tr><th>AST Pattern</th><th>Behavioral Atom</th><th>Example</th></tr>
+      <tr><td><code>ImportDeclaration</code> + IO specifier</td><td>performsIO</td><td><code>import fs from 'fs'</code></td></tr>
+      <tr><td><code>ThrowStatement</code></td><td>mayThrow</td><td><code>throw new Error()</code></td></tr>
+      <tr><td><code>AwaitExpression</code></td><td>callsAsync</td><td><code>await fetch(url)</code></td></tr>
+      <tr><td><code>BinaryExpression</code> (=, +=, etc.)</td><td>writesMutableState</td><td><code>x = 5</code></td></tr>
+      <tr><td><code>PropertyAccessExpression</code> on console</td><td>performsConsoleIO</td><td><code>console.log()</code></td></tr>
+      <tr><td><code>CallExpression</code> &rarr; Math.random</td><td>nondeterministic</td><td><code>Math.random()</code></td></tr>
+      <tr><td><code>NewExpression</code> &rarr; Date()</td><td>nondeterministic</td><td><code>new Date()</code></td></tr>
+      <tr><td><code>LetKeyword</code>/<code>VarKeyword</code> at module scope</td><td>mutableBinding</td><td><code>let count = 0</code></td></tr>
+      <tr><td><code>DeleteExpression</code></td><td>performsMutation</td><td><code>delete obj.x</code></td></tr>
+      <tr><td><code>CallExpression</code> &rarr; eval</td><td>usesEval</td><td><code>eval('...')</code></td></tr>
+    </table>
+    <p>These are the <strong>base cases</strong> of the analysis &mdash; detectable from a single AST node visit. This is what KindScript's Phase 2 (current) checker does.</p>
+  </div>
+  <div class="step-content" id="det-scope">
+    <h4>Scope Analysis Requirements</h4>
+    <p>Some properties require <strong>scope resolution</strong> to determine:</p>
+    <ul>
+      <li><strong>"Is this variable global?"</strong> &mdash; requires scope chain traversal via TypeScript's symbol resolution</li>
+      <li><strong>"Is this a closure over mutable state?"</strong> &mdash; requires checking if the variable binding is in an outer scope and is <code>let</code>/<code>var</code></li>
+      <li><strong>"Is this assignment to a local or external variable?"</strong> &mdash; a <code>x = 5</code> inside a function is fine if <code>x</code> is a local; it's a side effect if <code>x</code> is captured from an outer scope</li>
+    </ul>
+    <p>TypeScript's <code>TypeChecker.getSymbolAtLocation()</code> provides this information. ESLint uses <code>eslint-scope</code> for the same purpose.</p>
+  </div>
+  <div class="step-content" id="det-flow">
+    <h4>Control Flow Analysis</h4>
+    <p>TypeScript builds its control flow graph <strong>greedily in the binder</strong> (binder.ts) via FlowNode structures, then <strong>lazily evaluates</strong> it in the checker. Each FlowNode has 4 fields: flags, id, node (payload), antecedent (parent nodes).</p>
+    <p>A behavioral checker could follow the same architecture:</p>
+    <ul>
+      <li><strong>Build a behavioral flow graph</strong> alongside the CFG</li>
+      <li><strong>Narrow behavioral properties</strong> via context: inside a <code>try/catch</code>, <code>mayThrow</code> is handled; after <code>await</code>, <code>callsAsync</code> is resolved</li>
+      <li>TypeScript narrows types by traversing <em>backwards</em> from symbol references &mdash; behavioral narrowing would work identically</li>
+    </ul>
+  </div>
+  <div class="step-content" id="det-callgraph">
+    <h4>Call Graph / Interprocedural Analysis</h4>
+    <p>This is where the <strong>transitive propagation</strong> happens. Required for checking:</p>
+    <ul>
+      <li>"Does this function <em>transitively</em> call something impure?"</li>
+      <li>"Does this module transitively import an IO module?"</li>
+    </ul>
+    <p>The approach: compute <strong>function summaries</strong> (direct effects + call targets), then propagate transitively via topological sort of the call graph. Cycles (mutual recursion) are handled conservatively via <strong>Tarjan's SCC</strong> algorithm: if any function in a cycle has an effect, all do.</p>
+    <p>The <strong>Known API Table</strong> is essential: external functions (JSON.parse, Math.random, fs.readFileSync) have no analyzable body. Ship a classification table (KNOWN_PURE, KNOWN_IO, KNOWN_NONDETERMINISTIC) &mdash; this is exactly Joe-E's "taming" approach applied to TypeScript.</p>
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 5: INFERENCE ============ -->
+<section id="inference">
+<div class="container">
+  <h2><span class="num">05</span>Inference: The TypeScript Parallel</h2>
+  <p class="section-sub">How behavioral properties could be inferred like types &mdash; the deep structural parallel between TypeScript's type system and a behavioral property system.</p>
+
+  <table>
+    <tr><th>Type System</th><th>Behavioral System</th></tr>
+    <tr><td>Primitive types (string, number)</td><td>Behavioral atoms (pure, noIO, noThrow)</td></tr>
+    <tr><td>Structural composition (objects, arrays)</td><td>Product lattice of properties</td></tr>
+    <tr><td>Type inference from initialization</td><td>Behavioral inference from AST analysis</td></tr>
+    <tr><td>Type narrowing via control flow</td><td>Behavioral narrowing via effect handling</td></tr>
+    <tr><td>Type propagation through expressions</td><td>Effect propagation through call graph</td></tr>
+    <tr><td><code>.d.ts</code> declarations</td><td>Known API behavioral signatures</td></tr>
+    <tr><td>Explicit annotation at module boundaries</td><td>Kind annotations at carrier boundaries</td></tr>
+  </table>
+
+  <h3>How Inference Would Work</h3>
+  <div class="data-flow">
+    <div class="df-stage active" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> AST Scanning &mdash; Detect Atomic Properties</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">Walk each function body. At leaf nodes, detect atomic behavioral properties (is this a <code>console.log</code>? a <code>throw</code>? an <code>import</code> of an IO module?). Assign initial behavioral atoms.</div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Constraint Generation &mdash; Build Call Graph</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">For each function call site, generate: if A calls B, then <code>effects(A) &supseteq; effects(B)</code>. Build a call graph mapping callers to callees.</div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Constraint Solving &mdash; Fixpoint Iteration</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">Propagate effects through the call graph via topological sort. For each function, merge its direct effects with its callees' transitive effects. Iterate until fixpoint (all summaries stable). This is Boolean unification (as in Flix) or least fixpoint (as in abstract interpretation).</div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Bidirectional Checking &mdash; Infer + Verify</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">Where Kind annotations exist, check inferred behavior against declared behavior (checking mode). Where they don't, synthesize behavior bottom-up (synthesis mode). This mirrors Dunfield &amp; Krishnaswami's bidirectional typing framework.</div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">5</span> Behavioral Narrowing &mdash; Context Refinement</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">Refine behavioral properties through control flow: <code>try/catch</code> handles <code>mayThrow</code>, <code>await</code> resolves <code>callsAsync</code>. Exactly how TypeScript narrows types via guards, but for behaviors.</div>
+    </div>
+  </div>
+
+  <h3>When Inference Works vs. Needs Annotation</h3>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('infer-tabs','infer-works')">Inference Works</button>
+    <button class="tab" onclick="switchTab('infer-tabs','infer-annotation')">Needs Annotation</button>
+  </div>
+  <div id="infer-tabs">
+    <div class="tab-content active" id="infer-works">
+      <ul>
+        <li>Local properties determinable from the function body alone</li>
+        <li>Properties that propagate monotonically through composition (join in the lattice)</li>
+        <li>Finite-height property domains (guaranteed convergence)</li>
+        <li>Direct function calls with analyzable bodies</li>
+      </ul>
+    </div>
+    <div class="tab-content" id="infer-annotation">
+      <ul>
+        <li><strong>External/FFI functions</strong> &mdash; no analyzable body (use Known API Table)</li>
+        <li><strong>Effect polymorphism at module boundaries</strong> &mdash; "this function is pure for all pure arguments"</li>
+        <li><strong>Dynamic dispatch / runtime reflection</strong> &mdash; <code>obj[key]()</code>, Proxy, Reflect</li>
+        <li><strong>Semantic properties</strong> &mdash; termination is undecidable in general</li>
+        <li><strong>Higher-order callbacks with unknown targets</strong> &mdash; points-to analysis or annotations needed</li>
+      </ul>
+      <p>This mirrors TypeScript exactly: infers locals and return types, requires annotation at module boundaries and for complex generics.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 6: IMPLEMENTED SYSTEMS ============ -->
+<section id="systems">
+<div class="container">
+  <h2><span class="num">06</span>Implemented Systems</h2>
+  <p class="section-sub">How major languages and tools have approached behavioral property checking, and the key design decisions they made.</p>
+
+  <h3>Language-Level Effect Systems</h3>
+  <table>
+    <tr><th>System</th><th>Effect Repr.</th><th>Inference</th><th>Key Innovation</th></tr>
+    <tr><td>Koka</td><td>Row-polymorphic</td><td>HM + effect unification</td><td>Duplicate labels &rarr; principal types</td></tr>
+    <tr><td>Eff</td><td>Set-based</td><td>Partial</td><td>Direct algebraic semantics</td></tr>
+    <tr><td>Flix</td><td>Boolean formulas</td><td>Boolean unification</td><td>Purity reflection</td></tr>
+    <tr><td>F*</td><td>Layered effects + WP</td><td>SMT solving (Z3)</td><td>Effects + dependent types</td></tr>
+    <tr><td>Haskell</td><td>Monadic (IO, MTL)</td><td>Manual</td><td>Type class composition</td></tr>
+    <tr><td>Rust</td><td>Ownership types</td><td>Implicit</td><td>&amp;mut T = write effect, affine types</td></tr>
+    <tr><td>Java</td><td>throws clause</td><td>None</td><td>First-order effect propagation</td></tr>
+  </table>
+
+  <h3>Static Analysis Systems</h3>
+  <table>
+    <tr><th>System</th><th>Foundation</th><th>Key Capability</th></tr>
+    <tr><td>Facebook Infer</td><td>Separation logic + bi-abduction</td><td>Compositional, scales to millions of LOC</td></tr>
+    <tr><td>Frama-C</td><td>ACSL + abstract interpretation</td><td><code>assigns \nothing</code> = purity spec</td></tr>
+    <tr><td>SLAM/SDV</td><td>CEGAR (predicate abstraction)</td><td>Start imprecise, refine on demand</td></tr>
+    <tr><td>Checker Framework</td><td>Pluggable type systems</td><td>@Pure, @SideEffectFree, @Deterministic</td></tr>
+    <tr><td>ESLint</td><td>AST visitor pattern</td><td>Independent rules, per-file</td></tr>
+  </table>
+
+  <div class="insight">
+    <strong>The Checker Framework parallel:</strong> Java's Checker Framework provides <code>@Pure</code> = <code>@SideEffectFree</code> + <code>@Deterministic</code>, verified via pluggable type checking with whole-program inference. This is the closest existing system to what KindScript aims to be for TypeScript.
+  </div>
+
+  <h3>Capability Systems</h3>
+  <table>
+    <tr><th>System</th><th>Mechanism</th><th>Enforcement</th></tr>
+    <tr><td>SES/Hardened JS</td><td>Compartments + lockdown + harden</td><td>Runtime</td></tr>
+    <tr><td>Deno</td><td>--allow-net, --allow-read flags</td><td>Runtime</td></tr>
+    <tr><td>Joe-E</td><td>Taming (API restriction)</td><td>Static (compile-time)</td></tr>
+    <tr><td>Wyvern</td><td>Capability-safe module system</td><td>Type system (proved safe)</td></tr>
+    <tr><td>KindScript</td><td>Import/AST analysis vs Kind constraints</td><td>Static (build-time)</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ============ SECTION 7: KINDSCRIPT DESIGN ============ -->
+<section id="kindscript">
+<div class="container">
+  <h2><span class="num">07</span>Design Implications for KindScript</h2>
+  <p class="section-sub">How the theory maps to KindScript's architecture, and the path from independent checks to a full behavioral type system.</p>
+
+  <h3>Are Properties Independent? (Addressing the Core Question)</h3>
+  <div class="insight warn">
+    <strong>The answer is nuanced.</strong> Within KindScript's current Phase 2 (syntactic checks), each property IS an independent boolean function over the AST. But for full behavioral semantics, they form a <strong>lattice</strong> with implication relationships (<code>pure &rArr; noIO &and; noMutation &and; noSideEffects</code>), transitive propagation (calling an impure function makes you impure), and compositional interaction. The independence is a <strong>valid simplification for the current implementation phase</strong>, not the theoretical end state.
+  </div>
+
+  <h3>The Implementation Phases</h3>
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('phase-2')">Phase 2</button>
+    <button class="step-btn" onclick="showStep('phase-3')">Phase 3</button>
+    <button class="step-btn" onclick="showStep('phase-4')">Phase 4</button>
+    <button class="step-btn" onclick="showStep('phase-56')">Phase 5&ndash;6</button>
+    <button class="step-btn" onclick="showStep('phase-7')">Phase 7</button>
+  </div>
+  <div class="step-content active" id="phase-2">
+    <h4>Phase 2 (Current): Independent Syntactic Checks</h4>
+    <p>Each property check walks the AST independently, looking for violating patterns. Properties are self-contained boolean functions. This is sound and catches real violations, but cannot detect transitive effects.</p>
+    <p><strong>What it can do:</strong> <code>noIO</code> checks import specifiers. <code>noConsole</code> checks <code>console.*</code> access. <code>immutable</code> checks <code>let</code>/<code>var</code> at module scope.</p>
+    <p><strong>What it cannot do:</strong> Detect that calling a function which internally uses <code>fs</code> violates <code>noIO</code>.</p>
+  </div>
+  <div class="step-content" id="phase-3">
+    <h4>Phase 3: Relational Properties (Cross-File)</h4>
+    <p>Checks across the import graph: <code>noDependency</code>, <code>noCycles</code>, <code>noTransitiveDependency</code>, <code>maxFanOut</code>. Requires building the file dependency graph and computing transitive closures.</p>
+  </div>
+  <div class="step-content" id="phase-4">
+    <h4>Phase 4: Transitive Effect Propagation</h4>
+    <p>The critical transition. Build a <strong>call graph</strong>, compute <strong>function summaries</strong> (direct effects + call targets), then propagate effects transitively via topological sort. This is where properties stop being independent &mdash; calling an impure function makes you impure.</p>
+    <p><strong>New data structures needed:</strong> CallGraph, EffectSummary per function, Known API behavioral signature table.</p>
+  </div>
+  <div class="step-content" id="phase-56">
+    <h4>Phases 5&ndash;6: Scope-Aware + Higher-Order</h4>
+    <p><strong>Phase 5:</strong> Use TypeScript's symbol resolution for scope-aware checks. Distinguish local mutation (fine) from external mutation (violation).</p>
+    <p><strong>Phase 6:</strong> Handle higher-order functions via type-based approximation and parametric effect summaries. If <code>fn</code>'s type is <code>Kind&lt;() =&gt; void, { pure: true }&gt;</code>, trust the declared behavioral type.</p>
+  </div>
+  <div class="step-content" id="phase-7">
+    <h4>Phase 7: Full Behavioral Type Environment</h4>
+    <p>The end state: a <code>WeakMap&lt;ts.Symbol, BehavioralSignature&gt;</code> mapping every symbol to its inferred behavioral kind. Support for <code>.d.ks.ts</code> files providing behavioral annotations for external libraries. Bidirectional checking: infer bottom-up, verify top-down against Kind annotations.</p>
+    <p>This mirrors TypeScript's full architecture: structural types &rarr; behavioral kinds, type inference &rarr; behavioral inference, <code>.d.ts</code> &rarr; <code>.d.ks.ts</code>.</p>
+  </div>
+
+  <h3>Required New Data Structures</h3>
+  <pre><code><span class="keyword">interface</span> <span class="type-name">CallGraph</span> {
+  callers: <span class="type-name">Map</span>&lt;ts.Symbol, <span class="type-name">Set</span>&lt;ts.Symbol&gt;&gt;;  <span class="comment">// func &rarr; set of funcs it calls</span>
+  callees: <span class="type-name">Map</span>&lt;ts.Symbol, <span class="type-name">Set</span>&lt;ts.Symbol&gt;&gt;;  <span class="comment">// func &rarr; set of funcs that call it</span>
+  unresolved: <span class="type-name">Set</span>&lt;ts.Node&gt;;                <span class="comment">// dynamic dispatch, HOFs</span>
+}
+
+<span class="keyword">interface</span> <span class="type-name">EffectSummary</span> {
+  directEffects: {
+    hasIO: <span class="keyword">boolean</span>; hasMutation: <span class="keyword">boolean</span>;
+    hasConsole: <span class="keyword">boolean</span>; hasThrow: <span class="keyword">boolean</span>;
+    hasAsync: <span class="keyword">boolean</span>; hasNondeterminism: <span class="keyword">boolean</span>;
+  };
+  callTargets: <span class="type-name">Set</span>&lt;ts.Symbol&gt;;
+  transitiveEffects?: <span class="type-name">EffectSummary</span>[<span class="string-lit">'directEffects'</span>];
+}
+
+<span class="keyword">interface</span> <span class="type-name">BehavioralTypeEnvironment</span> {
+  signatures: <span class="type-name">WeakMap</span>&lt;ts.Symbol, <span class="type-name">BehavioralSignature</span>&gt;;
+  knownAPIs: <span class="type-name">Map</span>&lt;<span class="keyword">string</span>, <span class="type-name">BehavioralSignature</span>&gt;;
+  moduleSummaries: <span class="type-name">Map</span>&lt;<span class="keyword">string</span>, <span class="type-name">BehavioralSignature</span>&gt;;
+  <span class="fn-name">resolve</span>(symbol: ts.Symbol): <span class="type-name">BehavioralSignature</span>;
+}</code></pre>
+</div>
+</section>
+
+<!-- ============ SECTION 8: REFERENCES ============ -->
+<section id="references">
+<div class="container">
+  <h2><span class="num">08</span>Key References</h2>
+  <p class="section-sub">Organized by topic. Papers marked with * are foundational.</p>
+
+  <h3>Effect Systems</h3>
+  <ul>
+    <li>* Gifford &amp; Lucassen, "Integrating Functional and Imperative Programming" (LFP 1986)</li>
+    <li>* Lucassen &amp; Gifford, "Polymorphic Effect Systems" (POPL 1988)</li>
+    <li>* Talpin &amp; Jouvelot, "The Type and Effect Discipline" (Information and Computation, 1994)</li>
+    <li>Marino &amp; Millstein, "A Generic Type-and-Effect System" (TLDI 2009)</li>
+    <li>Wadler &amp; Thiemann, "The Marriage of Effects and Monads" (TOCL 2003)</li>
+  </ul>
+
+  <h3>Algebraic Effects &amp; Handlers</h3>
+  <ul>
+    <li>* Moggi, "Notions of Computation and Monads" (Information and Computation, 1991)</li>
+    <li>* Plotkin &amp; Power, "Algebraic Operations and Generic Effects" (Applied Categorical Structures, 2003)</li>
+    <li>* Plotkin &amp; Pretnar, "Handlers of Algebraic Effects" (ESOP 2009)</li>
+    <li>Bauer &amp; Pretnar, "Programming with Algebraic Effects and Handlers" (JLAMP 2015)</li>
+    <li>Wu et al., "Handling Higher-Order Effects" (2022)</li>
+  </ul>
+
+  <h3>Row Effects &amp; Implemented Languages</h3>
+  <ul>
+    <li>* Leijen, "Koka: Programming with Row-polymorphic Effect Types" (MSFP 2014)</li>
+    <li>Leijen, "Type Directed Compilation of Row-Typed Algebraic Effects" (POPL 2017)</li>
+    <li>Madsen et al., "Polymorphic Types and Effects with Boolean Unification" (OOPSLA 2020) [Flix]</li>
+    <li>Kiselyov, "Freer Monads, More Extensible Effects" (Haskell Symposium 2015)</li>
+  </ul>
+
+  <h3>Abstract Interpretation</h3>
+  <ul>
+    <li>* Cousot &amp; Cousot, "Abstract Interpretation: A Unified Lattice Model" (POPL 1977)</li>
+    <li>Kam &amp; Ullman, "Monotone Data Flow Analysis Frameworks" (Acta Informatica, 1977)</li>
+    <li>Nielson, Nielson &amp; Hankin, <em>Principles of Program Analysis</em> (Springer, 1999)</li>
+    <li>Calcagno et al., "Moving Fast with Software Verification" [Infer] (NFM 2015)</li>
+  </ul>
+
+  <h3>Capabilities &amp; Security</h3>
+  <ul>
+    <li>* Dennis &amp; Van Horn, "Programming Semantics for Multiprogrammed Computations" (CACM 1966)</li>
+    <li>* Miller, "Robust Composition" (PhD dissertation, Johns Hopkins, 2006)</li>
+    <li>Mettler, Wagner &amp; Close, "Joe-E: A Security-Oriented Subset of Java" (NDSS 2010)</li>
+    <li>Melicher et al., "A Capability-Based Module System for Authority Control" [Wyvern] (ECOOP 2017)</li>
+    <li>Gordon, "Designing with Static Capabilities and Effects" (ECOOP 2020)</li>
+    <li>"Type, Ability, and Effect Systems" (arXiv:2510.07582, 2025)</li>
+  </ul>
+
+  <h3>Behavioral &amp; Refinement Types</h3>
+  <ul>
+    <li>Freeman &amp; Pfenning, "Refinement Types for ML" (PLDI 1991)</li>
+    <li>Rondon, Kawaguchi &amp; Jhala, "Liquid Types" (PLDI 2008)</li>
+    <li>Strom &amp; Yemini, "Typestate: A Programming Language Concept" (TSE 1986)</li>
+    <li>Ancona et al., "Behavioral Types in Programming Languages" (Foundations &amp; Trends, 2016)</li>
+  </ul>
+
+  <h3>JavaScript/TypeScript Specific</h3>
+  <ul>
+    <li>Nicolay, "Purity Analysis for JavaScript through Abstract Interpretation" (JSS, 2017)</li>
+    <li>"Static JavaScript Call Graphs: A Comparative Study" (SANER 2018)</li>
+    <li>JAM: "Modular Call Graph Construction for Node.js" (Aarhus Univ.)</li>
+    <li>Brachth&auml;user, Schuster &amp; Ostermann, "Effekt: Capability-Passing Style" (JFP 2020)</li>
+  </ul>
+</div>
+</section>
+
+<!-- ============ KNOWLEDGE CHECK ============ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">09</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What are the three formal paths by which an object gains a new capability reference in OCAP?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>Creation</strong> (you create it, you hold its reference), <strong>Endowment</strong> (references placed in your scope at construction), and <strong>Introduction</strong> (someone passes you their reference via message). No other mechanism exists &mdash; "only connectivity begets connectivity."</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why does Koka use row polymorphism for effects instead of subtyping?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Combining polymorphism with effect subtyping leads to constraints like &mu;<sub>1</sub> &cup; &mu;<sub>2</sub> ~ &mu;<sub>3</sub> &cup; &mu;<sub>4</sub> which cannot be solved uniquely, making type inference <strong>undecidable</strong>. Row polymorphism with duplicate labels avoids this: standard first-order unification suffices, guaranteeing <strong>principal types</strong>.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the fundamental rule for effect propagation through function calls?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>effects(f(x)) = effects(f_body) &cup; effects(x) &minus; handled_effects</code>. Effects propagate monotonically (union / join) through composition. The <strong>only</strong> mechanism that reduces effects is <em>handling</em> (try/catch for exceptions, await for async, effect handlers in algebraic systems).</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is divergence (non-termination) <em>not</em> an algebraic effect?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>There is no operation signature for divergence &mdash; you can't "invoke" non-termination. It arises from unrestricted recursion, not from calling an operation. Koka assigns the <code>div</code> effect via <strong>termination analysis</strong> on inductive data types. F* uses the effect hierarchy <code>Tot &lt; Dv</code> to isolate divergent code from the logical core.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does the 2025 paper "Type, Ability, and Effect Systems" prove about the relationship between capabilities and effects?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>When focusing on minimal meaningful systems, effects and capabilities are <strong>incomparable</strong> &mdash; neither subsumes the other in expressiveness for classifying semantically pure terms. However, a <strong>synthesis combining both</strong> (type + ability + effect systems) captures the strengths of each while avoiding their weaknesses.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is a Galois connection, and why does it guarantee soundness in abstract interpretation?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A Galois connection (C, &alpha;, &gamma;, A) links concrete domain C to abstract domain A via abstraction &alpha; and concretization &gamma;, satisfying: &alpha;(c) &le; a iff c &le; &gamma;(a). This guarantees <strong>over-approximation</strong>: if the abstract analysis says "pure," the code is genuinely pure. False positives are possible, but false negatives are not.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is effect polymorphism essential for higher-order functions like <code>Array.map</code>?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Without effect polymorphism, <code>map</code> would be typed with the maximal effect of any possible callback &mdash; making it universally impure and <strong>poisoning all callers</strong>. With effect polymorphism (<code>forall e. (A &rarr;[e] B) &rarr;[e] C</code>), map's effect is parameterized by its callback's effect: pass a pure function, get a pure map.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Are KindScript's property checks truly independent? What's the nuanced answer?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>In Phase 2 (current syntactic checks), yes &mdash; each is an independent boolean function over the AST. But for full behavioral semantics, they form a <strong>lattice with implication relationships</strong> (pure &rArr; noIO &and; noMutation), <strong>transitive propagation</strong> (calling impure = impure), and compositional interaction. Independence is a valid simplification for the current phase, not the theoretical end state.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<script>
+/* ── Tab switching ── */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  container.previousElementSibling.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* ── Pipeline stepper ── */
+function showStep(id) {
+  const btn = event.target;
+  const stepper = btn.parentElement;
+  stepper.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let el = stepper.nextElementSibling;
+  while (el && el.classList.contains('step-content')) {
+    el.classList.remove('active');
+    el = el.nextElementSibling;
+  }
+  document.getElementById(id).classList.add('active');
+}
+
+/* ── Collapsible stages ── */
+function toggleStage(el) { el.classList.toggle('active'); }
+
+/* ── Flashcard system ── */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+</body>
+</html>

@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KindScript Compiler Architecture — Interactive Guide</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Hero ── */
+.hero {
+  text-align: center; padding: 80px 24px 60px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 3rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.15rem; color: var(--text-dim); max-width: 640px; margin: 0 auto 24px; }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.ts { border-color: #3178c6; color: #3178c6; }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+
+/* ── Navigation ── */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+/* ── Sections ── */
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+h2 .num {
+  display: inline-block; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  text-align: center; line-height: 38px; margin-right: 12px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 12px; }
+
+p { margin-bottom: 16px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.84em;
+  line-height: 1.6; margin: 16px 0 20px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+/* Syntax highlighting */
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.number-lit { color: var(--orange); }
+.fn-name { color: var(--yellow); }
+.param { color: var(--pink); }
+
+/* ── Insight ── */
+.insight {
+  background: rgba(108,140,255,0.06); border-left: 3px solid var(--accent);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { background: rgba(251,146,60,0.06); border-left-color: var(--orange); }
+.insight.green { background: rgba(74,222,128,0.06); border-left-color: var(--green); }
+.insight strong { color: var(--text); }
+
+/* ── Tables ── */
+table {
+  width: 100%; border-collapse: collapse; margin: 16px 0 24px;
+  font-size: 0.88rem;
+}
+th {
+  text-align: left; padding: 10px 14px; background: var(--surface);
+  border-bottom: 2px solid var(--border); font-weight: 700; color: var(--accent);
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.4px;
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+td:first-child { color: var(--text); font-weight: 600; }
+tr:hover td { background: var(--surface); }
+
+/* ── Pipeline stepper ── */
+.pipeline-stepper {
+  display: flex; gap: 2px; margin-bottom: 4px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.step-btn {
+  flex: 1; padding: 12px 8px; border: none; background: var(--surface);
+  color: var(--text-dim); font-weight: 700; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  letter-spacing: 0.5px; font-family: var(--mono);
+}
+.step-btn:hover { background: var(--surface2); color: var(--text); }
+.step-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+}
+.step-content { display: none; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+.step-content.active { display: block; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; margin-bottom: 0; }
+.tab {
+  padding: 10px 20px; background: var(--surface); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim); font-weight: 600; font-size: 0.82rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { box-shadow: inset 0 2px 0 var(--accent); color: var(--text); background: var(--surface2); }
+.tab-content { display: none; padding: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); }
+.tab-content.active { display: block; }
+
+/* ── Collapsible stages ── */
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 4px; overflow: hidden;
+  cursor: pointer; transition: all 0.2s;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+}
+.df-stage-title { font-weight: 700; font-size: 0.95rem; }
+.df-num {
+  display: inline-flex; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.78rem;
+  align-items: center; justify-content: center; font-weight: 800;
+  margin-right: 10px;
+}
+.df-expand { color: var(--text-dim); transition: transform 0.3s; font-size: 0.8rem; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s;
+  padding: 0 20px; font-size: 0.9rem; color: var(--text-dim); line-height: 1.7;
+}
+.df-stage.active .df-detail { max-height: 2000px; padding: 0 20px 20px; }
+.df-connector {
+  width: 2px; height: 16px; background: var(--border); margin: 0 auto;
+}
+
+/* ── Cards grid ── */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 16px 0; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; cursor: pointer; transition: all 0.2s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card-name { font-weight: 700; margin-bottom: 4px; }
+.card-scope { font-size: 0.75rem; color: var(--accent2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+.card-desc { font-size: 0.85rem; color: var(--text-dim); }
+.card-detail { display: none; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 12px; }
+.card-detail.active { display: block; }
+
+/* ── Comparison columns ── */
+.compare-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.compare-col {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.compare-col h4 { font-size: 0.9rem; color: var(--accent); margin-bottom: 12px; font-weight: 700; }
+.compare-col.ks h4 { color: var(--accent2); }
+.compare-col pre { margin: 8px 0; font-size: 0.8em; }
+
+/* ── CLI sim ── */
+.cli-sim {
+  background: #1a1d27; border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; margin: 16px 0; font-family: var(--mono); font-size: 0.82em;
+}
+.cli-sim-bar {
+  background: #252836; padding: 8px 14px; display: flex; gap: 6px; align-items: center;
+}
+.cli-sim-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.cli-sim-body { padding: 16px 20px; line-height: 1.8; }
+.cli-prompt { color: var(--green); font-weight: 700; }
+.cli-output { color: var(--text-dim); }
+.cli-highlight { color: var(--green); font-weight: 600; }
+.cli-error { color: var(--red); }
+.cli-warn { color: var(--orange); }
+
+/* ── Architecture diagram ── */
+.arch-diagram {
+  display: flex; flex-direction: column; gap: 4px; margin: 20px 0;
+}
+.arch-row { display: flex; gap: 4px; }
+.arch-box {
+  flex: 1; padding: 14px 16px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface);
+  text-align: center; font-size: 0.82rem; font-weight: 600;
+  transition: all 0.2s;
+}
+.arch-box:hover { border-color: var(--accent); }
+.arch-box.ts-phase { border-color: #3178c644; background: #3178c60a; color: #5b9bd5; }
+.arch-box.ks-phase { border-color: var(--accent2); background: rgba(167,139,250,0.06); color: var(--accent2); }
+.arch-box.output { border-color: var(--green); background: rgba(74,222,128,0.06); color: var(--green); }
+.arch-arrow { text-align: center; color: var(--text-dim); font-size: 1.2rem; padding: 2px 0; }
+.arch-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 6px; }
+
+/* ── Flowchart ── */
+.flow-horizontal { display: flex; align-items: center; gap: 0; margin: 20px 0; overflow-x: auto; padding-bottom: 8px; }
+.flow-box {
+  padding: 10px 16px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--surface); font-size: 0.8rem; font-weight: 600;
+  white-space: nowrap; min-width: 80px; text-align: center;
+}
+.flow-box.active { border-color: var(--accent); color: var(--accent); }
+.flow-arrow { color: var(--text-dim); padding: 0 6px; font-size: 0.9rem; flex-shrink: 0; }
+
+/* ── Flashcards ── */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* ── Decision matrix ── */
+.decision-matrix { margin: 16px 0; }
+.dm-option {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px; margin-bottom: 8px;
+  cursor: pointer; transition: all 0.2s;
+}
+.dm-option:hover { border-color: var(--accent); }
+.dm-option.recommended { border-color: var(--green); }
+.dm-option-header { display: flex; align-items: center; justify-content: space-between; }
+.dm-option-title { font-weight: 700; }
+.dm-option-badge { font-size: 0.72rem; padding: 2px 10px; border-radius: 10px; font-weight: 600; }
+.dm-option-badge.rec { background: rgba(74,222,128,0.12); color: var(--green); }
+.dm-option-badge.alt { background: rgba(251,146,60,0.12); color: var(--orange); }
+.dm-option-body { font-size: 0.88rem; color: var(--text-dim); margin-top: 8px; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .compare-cols { grid-template-columns: 1fr; }
+  .card-grid { grid-template-columns: 1fr; }
+  .pipeline-stepper { flex-wrap: wrap; }
+  .step-btn { flex: none; width: 50%; }
+  .arch-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ HERO ════════════════════ -->
+<div class="hero">
+  <div class="container">
+    <h1>KindScript Compiler Architecture</h1>
+    <p class="subtitle">A greenfield rewrite modelled on the TypeScript compiler. Same phases, same patterns, extended with architectural property verification.</p>
+    <div class="badge-row">
+      <span class="badge ts">TypeScript Aligned</span>
+      <span class="badge purple">Kind = Type + Properties</span>
+      <span class="badge green">Greenfield Rewrite</span>
+      <span class="badge cyan">Scanner → Parser → Binder → Checker</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ NAV ════════════════════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#vision">Vision</a>
+    <a class="toc-link" href="#user-api">User API</a>
+    <a class="toc-link" href="#ts-parallel">TS Parallel</a>
+    <a class="toc-link" href="#pipeline">Pipeline</a>
+    <a class="toc-link" href="#program">Program</a>
+    <a class="toc-link" href="#scan-parse">Scan &amp; Parse</a>
+    <a class="toc-link" href="#binder">Binder</a>
+    <a class="toc-link" href="#checker">Checker</a>
+    <a class="toc-link" href="#decisions">Design Decisions</a>
+    <a class="toc-link" href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- ════════════════════ 01 VISION ════════════════════ -->
+<section id="vision">
+<div class="container">
+  <h2><span class="num">01</span>The Vision</h2>
+  <p class="section-sub">What KindScript is and why it exists.</p>
+
+  <p>TypeScript validates that values match their <strong>types</strong> — their data shape. KindScript extends this by validating that code matches its <strong>kinds</strong> — its architectural properties. A kind is a type with additional phantom properties: purity, dependency rules, import restrictions, mutation constraints.</p>
+
+  <p>The core equation:</p>
+  <pre><code><span class="type-name">Kind</span>  = <span class="type-name">Base Type</span>  + <span class="type-name">Properties</span> <span class="comment">(phantom)</span>
+<span class="type-name">Value</span> = <span class="type-name">Expression</span> : <span class="type-name">Kind</span></code></pre>
+
+  <p>TypeScript sees <code>Kind&lt;Base, Properties&gt;</code> as structurally identical to <code>Base</code>. The properties exist only as type arguments — KindScript reads them, TypeScript ignores them. This means <strong>zero runtime cost</strong>, full IDE support, and no new syntax.</p>
+
+  <h3>Everything is a Value</h3>
+  <p>Functions, classes, files, and directories are all values. Types are assigned to values. Kinds are types with additional properties. The checker evaluates values against their kinds — uniformly, at every level. A directory is just a value whose "body" is the set of files it contains, exactly as a function is a value whose body is its block statement.</p>
+
+  <div class="insight">
+    <strong>Key insight:</strong> KindScript extends the TypeScript AST <em>upward</em>. TypeScript has <code>SourceFile → Class → Method → Block</code>. KindScript adds <code>Directory → File → Class → Method → Block</code>. Same tree structure, same walk algorithm, same property computation — just a bigger tree.
+  </div>
+
+  <h3>The Business Case</h3>
+  <p>Architectural rules (dependency direction, purity, module isolation) are currently enforced by code review — inconsistently, after the fact, at scale never. KindScript makes these rules <strong>compiler-checked</strong>. Violations appear in the editor as red squiggles and in CI as failing builds, alongside regular TypeScript diagnostics.</p>
+
+  <table>
+    <tr><th>Without KindScript</th><th>With KindScript</th></tr>
+    <tr><td>Rules in wiki pages</td><td>Rules in the type system</td></tr>
+    <tr><td>Enforced by review</td><td>Enforced by compiler</td></tr>
+    <tr><td>Drift detected weeks later</td><td>Violation detected at save</td></tr>
+    <tr><td>Architecture-as-folklore</td><td>Architecture-as-code</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ════════════════════ 02 USER API ════════════════════ -->
+<section id="user-api">
+<div class="container">
+  <h2><span class="num">02</span>The User API</h2>
+  <p class="section-sub">What developers write. Four types, one builder, one config file.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('api-tabs','api-types')">Core Types</button>
+    <button class="tab" onclick="switchTab('api-tabs','api-properties')">PropertySpec</button>
+    <button class="tab" onclick="switchTab('api-tabs','api-builder')">ks Builder</button>
+    <button class="tab" onclick="switchTab('api-tabs','api-usage')">Usage Examples</button>
+  </div>
+  <div id="api-tabs">
+    <div class="tab-content active" id="api-types">
+      <h3>Provided Types</h3>
+      <pre><code><span class="comment">// A file value — path, filename, extension extracted by template literals</span>
+<span class="keyword">type</span> <span class="type-name">KSFile</span>&lt;<span class="param">Path</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt; = {
+  <span class="keyword">readonly</span> path: <span class="param">Path</span>;
+  <span class="keyword">readonly</span> filename: <span class="type-name">ExtractFilename</span>&lt;<span class="param">Path</span>&gt;;
+  <span class="keyword">readonly</span> extension: <span class="type-name">ExtractExtension</span>&lt;<span class="param">Path</span>&gt;;
+  <span class="keyword">readonly</span> __ks?: <span class="keyword">true</span>;
+};
+
+<span class="comment">// A directory value — path and name</span>
+<span class="keyword">type</span> <span class="type-name">KSDir</span>&lt;<span class="param">Path</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt; = {
+  <span class="keyword">readonly</span> path: <span class="param">Path</span>;
+  <span class="keyword">readonly</span> name: <span class="type-name">ExtractDirname</span>&lt;<span class="param">Path</span>&gt;;
+  <span class="keyword">readonly</span> __ks?: <span class="keyword">true</span>;
+};
+
+<span class="comment">// The Kind wrapper — resolves structurally to Base</span>
+<span class="keyword">type</span> <span class="type-name">Kind</span>&lt;<span class="param">Base</span>, <span class="param">_Properties</span> <span class="keyword">extends</span> <span class="type-name">PropertySpec</span>&gt; = <span class="param">Base</span> & {
+  <span class="keyword">readonly</span> __ks?: <span class="keyword">true</span>;
+};</code></pre>
+      <p>No name parameter — the type alias <em>is</em> the name. No members parameter — the base type's members are the members. <code>Kind&lt;Base, Properties&gt;</code> resolves to <code>Base</code> — transparent to TypeScript.</p>
+    </div>
+    <div class="tab-content" id="api-properties">
+      <h3>PropertySpec — the property vocabulary</h3>
+      <pre><code><span class="keyword">type</span> <span class="type-name">PropertySpec</span>&lt;<span class="param">Members</span>&gt; = {
+  <span class="comment">// Intrinsic — per-value AST walk</span>
+  <span class="keyword">readonly</span> pure?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> noIO?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> noImports?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> noMutation?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> noConsole?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> immutable?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> static?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> noSideEffects?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> maxFanOut?: <span class="type-name">number</span>;
+
+  <span class="comment">// Relational — import graph edges</span>
+  <span class="keyword">readonly</span> noDependency?: <span class="type-name">ReadonlyArray</span>&lt;
+    <span class="keyword">readonly</span> [<span class="keyword">keyof</span> <span class="param">Members</span>, <span class="keyword">keyof</span> <span class="param">Members</span>]
+  &gt;;
+  <span class="keyword">readonly</span> noCycles?: <span class="type-name">ReadonlyArray</span>&lt;<span class="keyword">keyof</span> <span class="param">Members</span>&gt;;
+  <span class="keyword">readonly</span> noSiblingDependency?: <span class="keyword">true</span>;
+
+  <span class="comment">// Structural — shape constraints</span>
+  <span class="keyword">readonly</span> exhaustive?: <span class="keyword">true</span>;
+  <span class="keyword">readonly</span> scope?: <span class="string-lit">'folder'</span> | <span class="string-lit">'file'</span>;
+};</code></pre>
+      <p>Three categories: <strong>intrinsic</strong> (properties of the value), <strong>relational</strong> (edges between members), and <strong>structural</strong> (shape of the scope). The <code>Members</code> parameter gives relational properties <code>keyof</code> checking for free.</p>
+    </div>
+    <div class="tab-content" id="api-builder">
+      <h3>ks — the fluent builder</h3>
+      <pre><code><span class="comment">// Runtime builder for file and directory values</span>
+<span class="keyword">declare const</span> <span class="fn-name">ks</span>: {
+  <span class="fn-name">file</span>&lt;<span class="param">P</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt;(path: <span class="param">P</span>): <span class="type-name">KSFile</span>&lt;<span class="param">P</span>&gt;;
+  <span class="fn-name">dir</span>&lt;<span class="param">P</span> <span class="keyword">extends</span> <span class="type-name">string</span>&gt;(path: <span class="param">P</span>): <span class="type-name">KSDir</span>&lt;<span class="param">P</span>&gt;;
+};</code></pre>
+      <p>Used in <code>context.ts</code> — the architectural contract file. These are real runtime functions used by the KindScript CLI and excluded from production builds. The builder returns typed values that carry path information in their types via string literal type parameters.</p>
+    </div>
+    <div class="tab-content" id="api-usage">
+      <h3>Complete Clean Architecture Example</h3>
+      <pre><code><span class="comment">// context.ts — the architectural contract</span>
+<span class="keyword">import</span> { ks, Kind, KSDir } <span class="keyword">from</span> <span class="string-lit">'kindscript'</span>;
+
+<span class="keyword">type</span> <span class="type-name">DomainLayer</span>  = <span class="type-name">Kind</span>&lt;<span class="type-name">KSDir</span>, { pure: <span class="keyword">true</span>, noIO: <span class="keyword">true</span> }&gt;;
+<span class="keyword">type</span> <span class="type-name">InfraLayer</span>   = <span class="type-name">Kind</span>&lt;<span class="type-name">KSDir</span>&gt;;
+<span class="keyword">type</span> <span class="type-name">AppLayer</span>     = <span class="type-name">Kind</span>&lt;<span class="type-name">KSDir</span>, { noConsole: <span class="keyword">true</span> }&gt;;
+
+<span class="keyword">type</span> <span class="type-name">CleanArch</span> = <span class="type-name">Kind</span>&lt;{
+  domain: <span class="type-name">DomainLayer</span>;
+  infrastructure: <span class="type-name">InfraLayer</span>;
+  application: <span class="type-name">AppLayer</span>;
+}, {
+  noDependency: [[<span class="string-lit">"domain"</span>, <span class="string-lit">"infrastructure"</span>], [<span class="string-lit">"domain"</span>, <span class="string-lit">"application"</span>]],
+  noCycles: [<span class="string-lit">"domain"</span>, <span class="string-lit">"infrastructure"</span>, <span class="string-lit">"application"</span>],
+}&gt;;
+
+<span class="keyword">const</span> app: <span class="type-name">CleanArch</span> = {
+  domain:         ks.<span class="fn-name">dir</span>(<span class="string-lit">'./src/domain'</span>),
+  infrastructure: ks.<span class="fn-name">dir</span>(<span class="string-lit">'./src/infrastructure'</span>),
+  application:    ks.<span class="fn-name">dir</span>(<span class="string-lit">'./src/application'</span>),
+};</code></pre>
+      <div class="cli-sim">
+        <div class="cli-sim-bar"><span class="cli-sim-dot" style="background:#ff5f57"></span><span class="cli-sim-dot" style="background:#ffbd2e"></span><span class="cli-sim-dot" style="background:#28c840"></span></div>
+        <div class="cli-sim-body">
+          <span class="cli-prompt">$ </span>ksc check<br>
+          <span class="cli-output">Checking context.ts...</span><br>
+          <span class="cli-highlight">✓ domain — pure, noIO</span><br>
+          <span class="cli-highlight">✓ application — noConsole</span><br>
+          <span class="cli-highlight">✓ noDependency — domain ↛ infrastructure</span><br>
+          <span class="cli-highlight">✓ noDependency — domain ↛ application</span><br>
+          <span class="cli-highlight">✓ noCycles — no cycles found</span><br><br>
+          <span class="cli-highlight">All checks passed.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 03 TS PARALLEL ════════════════════ -->
+<section id="ts-parallel">
+<div class="container">
+  <h2><span class="num">03</span>The TypeScript Parallel</h2>
+  <p class="section-sub">KindScript mirrors TypeScript's compiler phases exactly. For every <code>ts</code> there is a <code>ks</code>.</p>
+
+  <div class="compare-cols">
+    <div class="compare-col">
+      <h4>TypeScript Compiler (tsc)</h4>
+      <pre><code>Source Text
+  │
+Scanner  → tokens
+  │
+Parser   → ts.SourceFile (AST)
+  │
+Binder   → ts.Symbol + SymbolTable
+  │
+Checker  → ts.Type + ts.Diagnostic
+  │
+Emitter  → .js / .d.ts</code></pre>
+    </div>
+    <div class="compare-col ks">
+      <h4>KindScript Compiler (ksc)</h4>
+      <pre><code>Source Text
+  │
+Scanner  → <span class="comment">delegates to tsc</span>
+  │
+Parser   → <span class="comment">delegates to tsc</span>
+  │
+Binder   → ks.KindSymbol + KindSymbolTable
+  │         <span class="comment">(built ON TOP of ts.Symbol)</span>
+  │
+Checker  → ks.PropertySpec + ks.Diagnostic
+  │         <span class="comment">(getKindOfExpr, checkKindAssignedTo)</span>
+  │
+<span class="comment">No emitter — diagnostics only</span></code></pre>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>TypeScript Concept</th><th>KindScript Equivalent</th><th>Notes</th></tr>
+    <tr><td><code>ts.Program</code></td><td><code>ks.Program</code></td><td>Holds source files, compiler options, creates checker</td></tr>
+    <tr><td><code>ts.createProgram()</code></td><td><code>ks.createProgram()</code></td><td>Entry point — wraps ts.createProgram internally</td></tr>
+    <tr><td><code>ts.SourceFile</code></td><td>Reuse directly</td><td>No new AST nodes needed for scan/parse</td></tr>
+    <tr><td><code>ts.Symbol</code></td><td><code>ks.KindSymbol</code></td><td>Maps a ts.Symbol to its PropertySpec</td></tr>
+    <tr><td><code>ts.SymbolTable</code></td><td><code>ks.KindSymbolTable</code></td><td>WeakMap&lt;ts.Symbol, KindSymbol&gt;</td></tr>
+    <tr><td><code>ts.Type</code></td><td><code>ks.PropertySpec</code></td><td>The "type" in KindScript is the computed properties</td></tr>
+    <tr><td><code>getTypeOfExpression</code></td><td><code>getKindOfExpression</code></td><td>Computes properties by walking the AST</td></tr>
+    <tr><td><code>getTypeFromTypeNode</code></td><td><code>getKindFromKindNode</code></td><td>Extracts declared PropertySpec from type node</td></tr>
+    <tr><td><code>checkTypeAssignableTo</code></td><td><code>checkKindAssignedTo</code></td><td>Checks computed ⊇ declared</td></tr>
+    <tr><td><code>ts.Diagnostic</code></td><td>Reuse format</td><td>Same error shape, KS error codes</td></tr>
+    <tr><td><code>tsc</code> CLI</td><td><code>ksc</code> CLI</td><td>Same naming convention</td></tr>
+  </table>
+
+  <div class="insight">
+    <strong>Key insight:</strong> TypeScript uses a side-table array pattern (<code>nodeLinks[]</code>, <code>symbolLinks[]</code>) for caching — arrays indexed by node ID, not WeakMaps. This is faster because the compiler controls ID assignment. KindScript can use the same pattern <em>or</em> use WeakMaps keyed on <code>ts.Symbol</code> objects — the choice depends on whether we need the performance characteristics of array indexing.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 04 PIPELINE ════════════════════ -->
+<section id="pipeline">
+<div class="container">
+  <h2><span class="num">04</span>The Full Pipeline</h2>
+  <p class="section-sub">How source files become architectural diagnostics, phase by phase.</p>
+
+  <div class="arch-diagram">
+    <div class="arch-label">TypeScript Phases (delegated — we call them, they run)</div>
+    <div class="arch-row">
+      <div class="arch-box ts-phase">TS Scanner</div>
+      <div class="arch-box ts-phase">TS Parser</div>
+      <div class="arch-box ts-phase">TS Binder</div>
+      <div class="arch-box ts-phase">TS Checker</div>
+    </div>
+    <div class="arch-arrow">↓ <span style="font-size:0.7rem; color: var(--text-dim);">ts.SourceFile + ts.Symbol + ts.TypeChecker available</span></div>
+    <div class="arch-label">KindScript Phases (our code)</div>
+    <div class="arch-row">
+      <div class="arch-box ks-phase">KS Binder</div>
+      <div class="arch-box ks-phase">KS Checker</div>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-row">
+      <div class="arch-box output">Diagnostics</div>
+    </div>
+  </div>
+
+  <p>The critical insight: <strong>KindScript has no scanner or parser of its own</strong>. We call TypeScript's compiler to get ASTs and symbols. Our work begins at the <strong>binder</strong> stage — walking TypeScript's output to identify which types are Kinds and building our own symbol table — and continues through the <strong>checker</strong> stage.</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('ps-scan')">1. TS Scan/Parse</button>
+    <button class="step-btn" onclick="showStep('ps-tsbind')">2. TS Bind</button>
+    <button class="step-btn" onclick="showStep('ps-ksbind')">3. KS Bind</button>
+    <button class="step-btn" onclick="showStep('ps-kscheck')">4. KS Check</button>
+  </div>
+  <div class="step-content active" id="ps-scan">
+    <h3>Stage 1: TypeScript Scan &amp; Parse</h3>
+    <p><strong>What happens:</strong> We call <code>ts.createProgram(rootFiles, compilerOptions)</code>. TypeScript's scanner tokenizes source files and the parser builds <code>ts.SourceFile</code> AST nodes — exactly as it would for a normal <code>tsc</code> invocation.</p>
+    <p><strong>Our involvement:</strong> None. We are consumers of the output.</p>
+    <p><strong>Output:</strong> A <code>ts.Program</code> holding all <code>ts.SourceFile</code> nodes (full ASTs).</p>
+    <pre><code><span class="comment">// What TypeScript produces for: type PureDomain = Kind&lt;KSDir, { pure: true }&gt;</span>
+TypeAliasDeclaration
+  ├── name: Identifier(<span class="string-lit">"PureDomain"</span>)
+  └── type: TypeReferenceNode
+        ├── typeName: Identifier(<span class="string-lit">"Kind"</span>)
+        └── typeArguments: [
+              TypeReferenceNode(<span class="string-lit">"KSDir"</span>),
+              TypeLiteralNode({ pure: true })
+            ]</code></pre>
+  </div>
+  <div class="step-content" id="ps-tsbind">
+    <h3>Stage 2: TypeScript Bind</h3>
+    <p><strong>What happens:</strong> TypeScript's binder walks each AST and creates <code>ts.Symbol</code> objects for every declaration, populating <code>SymbolTable</code> maps on scope nodes. For <code>type PureDomain = Kind&lt;...&gt;</code>, a symbol is created with <code>SymbolFlags.TypeAlias</code>.</p>
+    <p><strong>Our involvement:</strong> None — but we designed our user API so that <strong>Kind declarations embed a detectable marker</strong>. Every type using <code>Kind&lt;Base, Props&gt;</code> resolves to <code>Base &amp; { readonly __ks?: true }</code>. The <code>__ks</code> member is our "kind token" — a phantom field that exists in the structural type but has no runtime footprint.</p>
+    <p><strong>Output:</strong> Symbol tables with all type aliases bound to symbols. The TypeChecker can now resolve any <code>ts.Symbol</code> to its type.</p>
+  </div>
+  <div class="step-content" id="ps-ksbind">
+    <h3>Stage 3: KindScript Bind</h3>
+    <p><strong>What happens:</strong> This is our first custom phase. We walk TypeScript's symbol tables, find all symbols whose resolved type contains <code>__ks</code>, and build our own <strong>KindSymbolTable</strong>.</p>
+    <p><strong>Details in <a href="#binder" style="color:var(--accent)">Section 07</a>.</strong></p>
+  </div>
+  <div class="step-content" id="ps-kscheck">
+    <h3>Stage 4: KindScript Check</h3>
+    <p><strong>What happens:</strong> For each declaration annotated with a Kind type, we walk the corresponding AST (function body, file, or directory tree) to <em>compute</em> the value's actual properties, then compare against the <em>declared</em> PropertySpec.</p>
+    <p><strong>Details in <a href="#checker" style="color:var(--accent)">Section 08</a>.</strong></p>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 05 PROGRAM ════════════════════ -->
+<section id="program">
+<div class="container">
+  <h2><span class="num">05</span>The Program Object</h2>
+  <p class="section-sub">The top-level coordinator — just like <code>ts.Program</code>.</p>
+
+  <p>TypeScript's <code>Program</code> is the root object that holds all source files, compiler options, and lazily creates the TypeChecker. KindScript's <code>ks.Program</code> mirrors this exactly:</p>
+
+  <pre><code><span class="comment">// ks.Program — the top-level KindScript coordination object</span>
+<span class="keyword">interface</span> <span class="type-name">KSProgram</span> {
+  <span class="comment">// Delegates</span>
+  <span class="fn-name">getTSProgram</span>(): ts.Program;
+  <span class="fn-name">getSourceFiles</span>(): <span class="keyword">readonly</span> ts.SourceFile[];
+  <span class="fn-name">getCompilerOptions</span>(): ts.CompilerOptions;
+
+  <span class="comment">// KindScript-specific</span>
+  <span class="fn-name">getKindChecker</span>(): <span class="type-name">KSChecker</span>;              <span class="comment">// lazy, memoized</span>
+  <span class="fn-name">getKindSymbolTable</span>(): <span class="type-name">KindSymbolTable</span>;   <span class="comment">// built during bind</span>
+  <span class="fn-name">getKindDiagnostics</span>(sourceFile?: ts.SourceFile): <span class="type-name">KSDiagnostic</span>[];
+}</code></pre>
+
+  <h3>Creation Flow</h3>
+  <div class="flow-horizontal">
+    <div class="flow-box"><code>ks.createProgram()</code></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box"><code>ts.createProgram()</code></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">TS scan/parse/bind</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box active">KS bind</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box"><code>KSProgram</code></div>
+  </div>
+
+  <p><code>ks.createProgram()</code> is the single entry point. It calls TypeScript to do all the heavy lifting (scanning, parsing, binding), then runs the KindScript binder to produce the <code>KindSymbolTable</code>. The checker is created lazily when diagnostics are first requested — matching TypeScript's pattern of deferred computation.</p>
+
+  <div class="insight">
+    <strong>Key insight:</strong> Like TypeScript's Program, <code>KSProgram</code> is <strong>immutable after creation</strong>. In a language service (IDE plugin), a new <code>KSProgram</code> is created on each file edit. But it can reuse TypeScript's structural sharing — unchanged <code>SourceFile</code> nodes carry over from the previous program.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 06 SCAN/PARSE ════════════════════ -->
+<section id="scan-parse">
+<div class="container">
+  <h2><span class="num">06</span>Scan &amp; Parse</h2>
+  <p class="section-sub">Fully delegated to TypeScript. We call, we don't build.</p>
+
+  <p>KindScript has no scanner or parser. We invoke TypeScript's compiler and consume the output. This is a deliberate design choice — TypeScript's parser is battle-tested, handles every edge case, and produces the exact AST format we need.</p>
+
+  <pre><code><span class="comment">// All we do at scan/parse time:</span>
+<span class="keyword">const</span> tsProgram = ts.<span class="fn-name">createProgram</span>({
+  rootNames: [<span class="string-lit">'./context.ts'</span>],
+  options: compilerOptions,
+});
+
+<span class="comment">// Now we have full ASTs for every source file</span>
+<span class="keyword">for</span> (<span class="keyword">const</span> sf <span class="keyword">of</span> tsProgram.<span class="fn-name">getSourceFiles</span>()) {
+  <span class="comment">// sf is a ts.SourceFile — complete AST with all type annotations</span>
+  <span class="comment">// TypeReferenceNodes for Kind&lt;...&gt; are preserved in the tree</span>
+  <span class="comment">// TypeAliasDeclaration nodes carry the full type argument structure</span>
+}</code></pre>
+
+  <h3>What TypeScript Gives Us</h3>
+
+  <p>After TypeScript's scan, parse, and bind phases, we have access to:</p>
+
+  <table>
+    <tr><th>Artifact</th><th>What It Contains</th><th>How We Use It</th></tr>
+    <tr><td><code>ts.SourceFile</code></td><td>Full AST with every node, position, and parent pointer</td><td>Walk to find Kind-related declarations</td></tr>
+    <tr><td><code>ts.Symbol</code></td><td>Named entities with declarations, flags, and scope</td><td>Resolve type aliases, find Kind markers</td></tr>
+    <tr><td><code>ts.TypeChecker</code></td><td>Type resolver with <code>getTypeAtLocation</code>, <code>getSymbolAtLocation</code></td><td>Resolve <code>Kind&lt;Base, Props&gt;</code> to its type arguments</td></tr>
+    <tr><td>Type argument nodes</td><td><code>TypeReferenceNode.typeArguments</code> array</td><td>Extract <code>PropertySpec</code> from the second type arg of <code>Kind</code></td></tr>
+  </table>
+
+  <div class="insight green">
+    <strong>Zero custom parsing needed:</strong> <code>type PureDomain = Kind&lt;KSDir, { pure: true }&gt;</code> is a standard TypeScript type alias. The parser produces a <code>TypeAliasDeclaration</code> with a <code>TypeReferenceNode</code> whose <code>typeArguments</code> array contains both the base type and the property spec. We just read what's already there.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 07 BINDER ════════════════════ -->
+<section id="binder">
+<div class="container">
+  <h2><span class="num">07</span>The KindScript Binder</h2>
+  <p class="section-sub">The first KindScript-specific phase. Walk TypeScript's symbols, find Kinds, build the KindSymbolTable.</p>
+
+  <p>After TypeScript has parsed and bound everything, we enter the KindScript binder. Its job: identify which TypeScript symbols represent Kind types or values annotated with Kind types, extract their PropertySpec, and build a side-channel symbol table.</p>
+
+  <h3>The Kind Token: <code>__ks</code></h3>
+  <p>Every type produced by <code>Kind&lt;Base, Props&gt;</code> structurally includes <code>{ readonly __ks?: true }</code>. This phantom field is our detection mechanism. We don't need string matching on type names — we can use TypeScript's own type checker to detect the marker structurally.</p>
+
+  <h3>Binder Algorithm</h3>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Walk type alias declarations</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>For each <code>TypeAliasDeclaration</code> in every source file, use the TypeChecker to resolve the alias to its full type. Check if the resolved type has a property named <code>__ks</code>. If yes, this is a Kind definition.</p>
+        <pre><code><span class="keyword">function</span> <span class="fn-name">isKindType</span>(type: ts.Type, checker: ts.TypeChecker): <span class="type-name">boolean</span> {
+  <span class="keyword">return</span> type.<span class="fn-name">getProperty</span>(<span class="string-lit">'__ks'</span>) !== <span class="keyword">undefined</span>;
+}</code></pre>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Extract PropertySpec from type arguments</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>Once we've confirmed a type alias references <code>Kind</code>, we extract the second type argument — the <code>PropertySpec</code>. TypeScript preserves type alias information (since TS 4.2), so we can follow the chain:</p>
+        <pre><code><span class="comment">// The TypeAliasDeclaration's type node is a TypeReferenceNode</span>
+<span class="comment">// TypeReferenceNode.typeArguments[0] → Base type</span>
+<span class="comment">// TypeReferenceNode.typeArguments[1] → PropertySpec object literal</span>
+
+<span class="keyword">function</span> <span class="fn-name">extractPropertySpec</span>(
+  kindRef: ts.TypeReferenceNode,
+  checker: ts.TypeChecker
+): <span class="type-name">PropertySpec</span> {
+  <span class="keyword">const</span> propsNode = kindRef.typeArguments?.[<span class="number-lit">1</span>];
+  <span class="keyword">if</span> (!propsNode) <span class="keyword">return</span> {};  <span class="comment">// Kind&lt;Base&gt; with no properties</span>
+
+  <span class="comment">// Walk the type literal to extract property values</span>
+  <span class="keyword">const</span> propsType = checker.<span class="fn-name">getTypeAtLocation</span>(propsNode);
+  <span class="keyword">return</span> <span class="fn-name">typeToPropertySpec</span>(propsType, checker);
+}</code></pre>
+        <p>We can resolve each property of the PropertySpec either from the AST nodes directly (walking the <code>TypeLiteralNode</code>) or from the resolved <code>ts.Type</code> object. The AST approach is more reliable for extracting literal values like string tuples in <code>noDependency</code>.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Walk value declarations for Kind-annotated variables</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>Beyond Kind type definitions, we also need to find <strong>values annotated with Kind types</strong>. For example:</p>
+        <pre><code><span class="keyword">const</span> domain: <span class="type-name">PureDomain</span> = ks.<span class="fn-name">dir</span>(<span class="string-lit">'./src/domain'</span>);</code></pre>
+        <p>Here <code>domain</code> is a variable declaration whose type annotation resolves to a Kind type. We walk all variable declarations, resolve their type annotations via the TypeChecker, and check for the <code>__ks</code> marker.</p>
+        <p>For <code>ks.file()</code> and <code>ks.dir()</code> calls, we also extract the string literal path from the call expression's first argument — this tells us which filesystem path the value represents.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Build the KindSymbolTable</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>Finally, we assemble the <code>KindSymbolTable</code> — a side-channel mapping from <code>ts.Symbol</code> to <code>KindSymbol</code>:</p>
+        <pre><code><span class="keyword">interface</span> <span class="type-name">KindSymbol</span> {
+  tsSymbol: ts.Symbol;                <span class="comment">// Back-reference to TS</span>
+  name: <span class="type-name">string</span>;                       <span class="comment">// Type alias name</span>
+  declaredProperties: <span class="type-name">PropertySpec</span>;  <span class="comment">// What the Kind declares</span>
+  baseType: ts.Type;                  <span class="comment">// The Base in Kind&lt;Base, Props&gt;</span>
+  members?: <span class="type-name">Map</span>&lt;<span class="type-name">string</span>, <span class="type-name">KindSymbol</span>&gt;; <span class="comment">// For composite Kinds</span>
+  path?: <span class="type-name">string</span>;                     <span class="comment">// Filesystem path (from ks.file/dir)</span>
+  valueKind: <span class="string-lit">'function'</span> | <span class="string-lit">'file'</span> | <span class="string-lit">'directory'</span> | <span class="string-lit">'composite'</span>;
+}
+
+<span class="keyword">type</span> <span class="type-name">KindSymbolTable</span> = WeakMap&lt;ts.Symbol, <span class="type-name">KindSymbol</span>&gt;;</code></pre>
+        <p>This is analogous to TypeScript's own <code>symbolLinks[]</code> side table — it extends the symbol with additional metadata without mutating TypeScript's data structures.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>What Goes Into the KindSymbolTable</h3>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('bind-tabs','bind-kinds')">Kind Definitions</button>
+    <button class="tab" onclick="switchTab('bind-tabs','bind-values')">Kind-Annotated Values</button>
+    <button class="tab" onclick="switchTab('bind-tabs','bind-options')">Storage Options</button>
+  </div>
+  <div id="bind-tabs">
+    <div class="tab-content active" id="bind-kinds">
+      <h3>Kind Definitions (type aliases)</h3>
+      <p>Every <code>type X = Kind&lt;...&gt;</code> gets an entry. We store:</p>
+      <ul style="margin: 12px 0 12px 24px; color: var(--text-dim);">
+        <li>The <strong>PropertySpec</strong> extracted from the type arguments</li>
+        <li>The <strong>base type</strong> (the first type argument to Kind)</li>
+        <li>If the base type is an object type with properties that are themselves Kinds, we recursively resolve <strong>members</strong></li>
+      </ul>
+      <p>TypeScript analogy: this is like how TS creates a Symbol for <code>type Foo = Bar</code> with <code>SymbolFlags.TypeAlias</code>. We create a KindSymbol that extends this with architectural metadata.</p>
+    </div>
+    <div class="tab-content" id="bind-values">
+      <h3>Kind-Annotated Values (variable declarations)</h3>
+      <p>Every <code>const x: SomeKind = ...</code> gets an entry. We store:</p>
+      <ul style="margin: 12px 0 12px 24px; color: var(--text-dim);">
+        <li>A reference back to the <strong>Kind definition</strong>'s KindSymbol</li>
+        <li>The <strong>filesystem path</strong> extracted from <code>ks.file()</code> or <code>ks.dir()</code> arguments</li>
+        <li>The <strong>value kind</strong> — whether this is a function, file, directory, or composite</li>
+      </ul>
+      <p>TypeScript analogy: this is like how TS resolves <code>const x: Foo</code> by calling <code>getTypeFromTypeNode</code> on the annotation, which walks the chain Foo → Kind&lt;Base, Props&gt; → the full type. We do the same but extract the PropertySpec along the way.</p>
+    </div>
+    <div class="tab-content" id="bind-options">
+      <h3>Storage: WeakMap vs Array Side-Table</h3>
+
+      <div class="decision-matrix">
+        <div class="dm-option recommended">
+          <div class="dm-option-header">
+            <span class="dm-option-title">Option A: <code>WeakMap&lt;ts.Symbol, KindSymbol&gt;</code></span>
+            <span class="dm-option-badge rec">Recommended</span>
+          </div>
+          <div class="dm-option-body">
+            Simplest approach. Key directly on <code>ts.Symbol</code> objects. Automatic garbage collection. No need to manage IDs. Matches the WeakMap pattern mentioned in the original design doc. Good enough performance for architectural checking (we're not checking millions of symbols).
+          </div>
+        </div>
+        <div class="dm-option">
+          <div class="dm-option-header">
+            <span class="dm-option-title">Option B: Array side-table indexed by <code>getNodeId()</code></span>
+            <span class="dm-option-badge alt">TS-native pattern</span>
+          </div>
+          <div class="dm-option-body">
+            How TypeScript itself does it. Use <code>ts.getNodeId()</code> (a monotonic counter) to assign IDs to nodes, then index into an array. Faster for hot paths. But adds complexity: we'd need to mirror TS's internal ID mechanism and manage array lifecycle. Overkill unless profiling shows WeakMap is a bottleneck.
+          </div>
+        </div>
+        <div class="dm-option">
+          <div class="dm-option-header">
+            <span class="dm-option-title">Option C: <code>Map&lt;string, KindSymbol&gt;</code> keyed by qualified name</span>
+            <span class="dm-option-badge alt">Alternative</span>
+          </div>
+          <div class="dm-option-body">
+            Key by the fully-qualified name of the symbol (e.g., <code>"context.ts::PureDomain"</code>). Easier to debug and serialize. But risky if two different scopes have the same name. Only viable if all Kind types are at module scope.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight warn">
+    <strong>Open question — do we need the values in the KindSymbolTable, or just the Kind definitions?</strong> TypeScript's binder creates symbols for <em>both</em> type declarations and value declarations. For KindScript, we need both: Kind definitions tell us <em>what properties to check</em>, and kind-annotated values tell us <em>what code to check them against</em>. The value entries are what drive the checker — without them, we wouldn't know which function bodies or directory trees to walk.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 08 CHECKER ════════════════════ -->
+<section id="checker">
+<div class="container">
+  <h2><span class="num">08</span>The KindScript Checker</h2>
+  <p class="section-sub">Infer properties from ASTs. Compare against declarations. Emit diagnostics.</p>
+
+  <p>The checker is the core of KindScript's verification. It mirrors TypeScript's checker in structure: a large set of functions that walk AST nodes, compute properties, and check assignability. The key difference: instead of computing <em>types</em>, we compute <em>property specs</em>.</p>
+
+  <h3>The Three Core Functions</h3>
+
+  <div class="card-grid">
+    <div class="card" onclick="selectCard(this, 'detail-getKind')">
+      <div class="card-name">getKindFromKindNode</div>
+      <div class="card-scope">Declaration → PropertySpec</div>
+      <div class="card-desc">Given a type annotation node that references a Kind, extract the declared PropertySpec from the type arguments.</div>
+    </div>
+    <div class="card" onclick="selectCard(this, 'detail-getKindExpr')">
+      <div class="card-name">getKindOfExpression</div>
+      <div class="card-scope">Value → Computed Properties</div>
+      <div class="card-desc">Given a value (function, file, directory), walk its AST to infer which properties it actually satisfies.</div>
+    </div>
+    <div class="card" onclick="selectCard(this, 'detail-checkAssign')">
+      <div class="card-name">checkKindAssignedTo</div>
+      <div class="card-scope">Computed vs Declared → Diagnostics</div>
+      <div class="card-desc">Compare the computed properties of a value against the declared properties of its Kind. Emit diagnostics for violations.</div>
+    </div>
+  </div>
+
+  <div class="card-detail" id="detail-getKind">
+    <h3>getKindFromKindNode</h3>
+    <p>Analogous to TypeScript's <code>getTypeFromTypeNode</code>. When we encounter a type annotation that references a Kind, we need to extract the PropertySpec.</p>
+    <pre><code><span class="comment">// TypeScript's flow:</span>
+<span class="comment">//   TypeReferenceNode("Foo") → resolveEntityName("Foo") → Symbol → getDeclaredTypeOfAlias</span>
+<span class="comment">// Our flow:</span>
+<span class="comment">//   TypeReferenceNode("PureDomain") → lookup in KindSymbolTable → KindSymbol.declaredProperties</span>
+
+<span class="keyword">function</span> <span class="fn-name">getKindFromKindNode</span>(
+  node: ts.TypeNode,
+  kindTable: <span class="type-name">KindSymbolTable</span>
+): <span class="type-name">PropertySpec</span> | <span class="keyword">undefined</span> {
+  <span class="keyword">const</span> symbol = checker.<span class="fn-name">getSymbolAtLocation</span>(node);
+  <span class="keyword">if</span> (!symbol) <span class="keyword">return undefined</span>;
+  <span class="keyword">const</span> kindSym = kindTable.<span class="fn-name">get</span>(symbol);
+  <span class="keyword">return</span> kindSym?.declaredProperties;
+}</code></pre>
+  </div>
+
+  <div class="card-detail" id="detail-getKindExpr">
+    <h3>getKindOfExpression — Kind Inference</h3>
+    <p>This is the big one. Analogous to TypeScript's <code>getTypeOfExpression</code>, but instead of inferring a type, we infer a <strong>PropertySpec</strong> by walking the AST.</p>
+    <pre><code><span class="keyword">function</span> <span class="fn-name">getKindOfExpression</span>(
+  value: <span class="type-name">KindSymbol</span>,
+  checker: ts.TypeChecker
+): <span class="type-name">ComputedPropertySpec</span> {
+  <span class="keyword">switch</span> (value.valueKind) {
+    <span class="keyword">case</span> <span class="string-lit">'function'</span>:
+      <span class="keyword">return</span> <span class="fn-name">inferPropertiesFromFunctionBody</span>(value, checker);
+    <span class="keyword">case</span> <span class="string-lit">'file'</span>:
+      <span class="keyword">return</span> <span class="fn-name">inferPropertiesFromSourceFile</span>(value.path!, checker);
+    <span class="keyword">case</span> <span class="string-lit">'directory'</span>:
+      <span class="keyword">return</span> <span class="fn-name">inferPropertiesFromDirectory</span>(value.path!, checker);
+    <span class="keyword">case</span> <span class="string-lit">'composite'</span>:
+      <span class="keyword">return</span> <span class="fn-name">inferPropertiesFromComposite</span>(value, checker);
+  }
+}</code></pre>
+    <p>For a <strong>trivial first property</strong> (recommended starting point), implement <code>noImports</code>:</p>
+    <pre><code><span class="keyword">function</span> <span class="fn-name">checkNoImports</span>(sourceFile: ts.SourceFile): <span class="type-name">boolean</span> {
+  <span class="comment">// Walk the source file's statements</span>
+  <span class="keyword">for</span> (<span class="keyword">const</span> stmt <span class="keyword">of</span> sourceFile.statements) {
+    <span class="keyword">if</span> (ts.<span class="fn-name">isImportDeclaration</span>(stmt)) <span class="keyword">return false</span>;
+    <span class="keyword">if</span> (ts.<span class="fn-name">isImportEqualsDeclaration</span>(stmt)) <span class="keyword">return false</span>;
+  }
+  <span class="keyword">return true</span>;
+}</code></pre>
+    <div class="insight green">
+      <strong>Start trivial, grow incrementally.</strong> The <code>noImports</code> check is a single loop over top-level statements. It validates the entire inference→checking pipeline end-to-end. Once that works, more complex property inference (purity analysis, mutation tracking) follows the same pattern but with deeper AST walks.
+    </div>
+  </div>
+
+  <div class="card-detail" id="detail-checkAssign">
+    <h3>checkKindAssignedTo</h3>
+    <p>Analogous to TypeScript's <code>checkTypeAssignableTo</code>. Compares computed properties against declared properties and emits diagnostics for mismatches.</p>
+    <pre><code><span class="keyword">function</span> <span class="fn-name">checkKindAssignedTo</span>(
+  computed: <span class="type-name">ComputedPropertySpec</span>,
+  declared: <span class="type-name">PropertySpec</span>,
+  errorNode: ts.Node
+): <span class="type-name">KSDiagnostic</span>[] {
+  <span class="keyword">const</span> diagnostics: <span class="type-name">KSDiagnostic</span>[] = [];
+
+  <span class="comment">// For each declared property, check that computed satisfies it</span>
+  <span class="keyword">if</span> (declared.pure && !computed.pure) {
+    diagnostics.<span class="fn-name">push</span>(<span class="fn-name">createKSDiagnostic</span>(
+      errorNode, <span class="string-lit">"Value is not pure: {0}"</span>, computed.purityViolation
+    ));
+  }
+  <span class="keyword">if</span> (declared.noIO && !computed.noIO) {
+    diagnostics.<span class="fn-name">push</span>(<span class="fn-name">createKSDiagnostic</span>(
+      errorNode, <span class="string-lit">"Value performs IO: {0}"</span>, computed.ioViolation
+    ));
+  }
+  <span class="keyword">if</span> (declared.noImports && !computed.noImports) {
+    diagnostics.<span class="fn-name">push</span>(<span class="fn-name">createKSDiagnostic</span>(
+      errorNode, <span class="string-lit">"Value has imports"</span>
+    ));
+  }
+  <span class="comment">// ... each property in the PropertySpec vocabulary</span>
+
+  <span class="keyword">return</span> diagnostics;
+}</code></pre>
+    <p>For relational properties (<code>noDependency</code>, <code>noCycles</code>), the check operates on the import graph between composite members rather than on individual AST walks.</p>
+  </div>
+
+  <h3>Checker Walk — What Gets Inspected Per Value Type</h3>
+
+  <table>
+    <tr><th>Value Type</th><th>AST Walked</th><th>Example Check</th></tr>
+    <tr><td>Function</td><td>Function body (<code>BlockStatement</code>)</td><td>Walk body for IO calls → <code>noIO</code></td></tr>
+    <tr><td>Class</td><td>All method bodies</td><td>Walk each method for mutations → <code>noMutation</code></td></tr>
+    <tr><td>File (<code>KSFile</code>)</td><td>Full <code>ts.SourceFile</code> AST</td><td>Walk all declarations for imports → <code>noImports</code></td></tr>
+    <tr><td>Directory (<code>KSDir</code>)</td><td>Virtual node → children are file ASTs</td><td>Walk all files for console → <code>noConsole</code></td></tr>
+    <tr><td>Composite</td><td>Each member recursively + import graph</td><td>Check <code>noDependency</code> between members</td></tr>
+  </table>
+
+  <h3>The Directory AST</h3>
+  <p>For directories, KindScript constructs a virtual tree from the filesystem:</p>
+  <pre><code><span class="comment">// Virtual directory tree — extends TS AST upward</span>
+DirNode(<span class="string-lit">'./src/domain'</span>)
+├── FileNode(<span class="string-lit">'./src/domain/handler.ts'</span>)     → full ts.SourceFile AST
+├── FileNode(<span class="string-lit">'./src/domain/service.ts'</span>)     → full ts.SourceFile AST
+└── DirNode(<span class="string-lit">'./src/domain/models'</span>)
+      ├── FileNode(<span class="string-lit">'./src/domain/models/user.ts'</span>)
+      └── FileNode(<span class="string-lit">'./src/domain/models/order.ts'</span>)</code></pre>
+
+  <p>Checking a directory for <code>noIO</code> means: walk every file in the directory tree, and for each file, walk its AST checking for IO operations. The property holds for the directory only if it holds for every file.</p>
+
+  <h3>Implementation Phases for the Checker</h3>
+
+  <div class="data-flow">
+    <div class="df-stage active" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Phase 1: noImports (trivial — validates the pipeline)</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>Implement the simplest possible property check: <code>noImports</code>. This only requires iterating top-level statements of a SourceFile and checking for <code>ImportDeclaration</code> nodes. Zero recursion, zero type resolution — just node kind checking.</p>
+        <p><strong>Why start here:</strong> This validates the entire end-to-end pipeline (parse → bind → getKindOfExpression → checkKindAssignedTo → diagnostic emission) with minimal complexity in the inference logic.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Phase 2: noConsole, immutable, static, noSideEffects</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>These are "shallow walk" properties — they require walking the AST but only looking for specific node patterns:</p>
+        <ul style="margin: 8px 0 8px 24px; color: var(--text-dim);">
+          <li><code>noConsole</code> — find <code>console.*</code> call expressions</li>
+          <li><code>immutable</code> — find <code>let</code>/<code>var</code> at module scope</li>
+          <li><code>static</code> — find dynamic <code>import()</code> expressions</li>
+          <li><code>noSideEffects</code> — find top-level call expressions and assignments</li>
+        </ul>
+        <p>All follow the pattern: walk statements, check node kind, return boolean.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Phase 3: noDependency, noCycles (relational — import graph)</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>These require building the import graph between composite members. For each file, resolve its imports to file paths using <code>ts.TypeChecker</code>, then check edges between member file sets.</p>
+        <p><code>noDependency</code>: No file in member A's set may import a file in member B's set.</p>
+        <p><code>noCycles</code>: The SCC (strongly connected component) analysis of the member-level dependency graph must yield no cycles among the listed members.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Phase 4: pure, noIO, noMutation (deep — transitive analysis)</span>
+        <span class="df-expand">▼</span>
+      </div>
+      <div class="df-detail">
+        <p>These require <em>transitive</em> analysis. A function is only pure if everything it calls is also pure. This requires:</p>
+        <ul style="margin: 8px 0 8px 24px; color: var(--text-dim);">
+          <li>Resolving call targets via the TypeChecker</li>
+          <li>Walking callee bodies recursively</li>
+          <li>Detecting IO operations (fs, net, process, etc.)</li>
+          <li>Tracking mutations (reassignment, object mutation)</li>
+        </ul>
+        <p>These are the most complex checks and should be built after the simpler ones are solid.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 09 DECISIONS ════════════════════ -->
+<section id="decisions">
+<div class="container">
+  <h2><span class="num">09</span>Design Decisions &amp; Open Questions</h2>
+  <p class="section-sub">Architectural choices and their trade-offs.</p>
+
+  <h3>Do We Need to Modify the AST?</h3>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('ast-tabs','ast-no')">No — Side-Channel Only</button>
+    <button class="tab" onclick="switchTab('ast-tabs','ast-yes')">Yes — Kind Annotation Nodes</button>
+    <button class="tab" onclick="switchTab('ast-tabs','ast-rec')">Recommendation</button>
+  </div>
+  <div id="ast-tabs">
+    <div class="tab-content active" id="ast-no">
+      <h3>Side-channel approach (like TS's nodeLinks[])</h3>
+      <p>Don't touch the AST at all. Kind information lives entirely in the <code>KindSymbolTable</code> — a WeakMap/side-table that maps ts.Symbols to KindSymbols. The AST is read-only.</p>
+      <p><strong>Pros:</strong></p>
+      <ul style="margin: 8px 0 8px 24px; color: var(--text-dim);">
+        <li>No risk of breaking TypeScript's invariants</li>
+        <li>Clean separation — KS data is entirely in our own structures</li>
+        <li>Matches TypeScript's own pattern (checker never mutates the AST)</li>
+        <li>Works with TS language service structural sharing</li>
+      </ul>
+      <p><strong>Cons:</strong></p>
+      <ul style="margin: 8px 0 8px 24px; color: var(--text-dim);">
+        <li>Need to look up the side table every time we want Kind info for a node</li>
+        <li>Two-step access: node → symbol → KindSymbol</li>
+      </ul>
+    </div>
+    <div class="tab-content" id="ast-yes">
+      <h3>AST extension approach</h3>
+      <p>Create new node types (<code>KindAnnotationNode</code>, <code>KindDeclarationNode</code>) that wrap or extend TypeScript's existing nodes. Values annotated with Kinds get their AST nodes extended with kind information.</p>
+      <p><strong>Pros:</strong></p>
+      <ul style="margin: 8px 0 8px 24px; color: var(--text-dim);">
+        <li>Kind information is directly on the node — no lookup needed</li>
+        <li>More "TypeScript-like" — TS attaches types to nodes via Node.type</li>
+      </ul>
+      <p><strong>Cons:</strong></p>
+      <ul style="margin: 8px 0 8px 24px; color: var(--text-dim);">
+        <li>Requires creating parallel node types or mutating TS nodes (fragile)</li>
+        <li>Breaks structural sharing — modified nodes can't be reused</li>
+        <li>Significantly more complex implementation</li>
+      </ul>
+    </div>
+    <div class="tab-content" id="ast-rec">
+      <h3>Recommendation: Side-Channel (No AST Modification)</h3>
+      <div class="insight green">
+        <strong>Use the side-channel approach.</strong> TypeScript's own checker never mutates AST nodes. It stores all type information in <code>nodeLinks[]</code> and <code>symbolLinks[]</code> side tables. We should follow the same pattern with our <code>KindSymbolTable</code>. This is simpler, safer, and compatible with TypeScript's language service architecture.
+      </div>
+      <p>The two-step lookup (<code>node → symbol → KindSymbol</code>) is not a performance concern — the binder runs once and the checker accesses the table via <code>ts.Symbol</code> which TypeScript already provides at every relevant location.</p>
+    </div>
+  </div>
+
+  <h3>Do We Need Kind Annotation Nodes? (Pre-processing)</h3>
+  <p>The question: when we see <code>const domain: PureDomain = ks.dir('./src/domain')</code>, do we need to create a separate "KindAnnotation" node in some IR, or can we work directly from the TypeScript AST?</p>
+
+  <div class="decision-matrix">
+    <div class="dm-option recommended">
+      <div class="dm-option-header">
+        <span class="dm-option-title">Work directly from the TypeScript AST</span>
+        <span class="dm-option-badge rec">Recommended</span>
+      </div>
+      <div class="dm-option-body">
+        The TypeScript AST already contains everything we need. The <code>VariableDeclaration</code> node has a <code>.type</code> property (the type annotation) and an <code>.initializer</code> property (the expression). The type annotation can be resolved to a Kind via the TypeChecker and our KindSymbolTable. No intermediate representation needed.
+      </div>
+    </div>
+    <div class="dm-option">
+      <div class="dm-option-header">
+        <span class="dm-option-title">Create a KindScript IR layer</span>
+        <span class="dm-option-badge alt">Future option</span>
+      </div>
+      <div class="dm-option-body">
+        Build an intermediate representation that pairs each Kind-annotated value with its resolved Kind info: <code>{ node, kindSymbol, path, members }</code>. This would make the checker's input cleaner. Worth considering if the binder's output needs to be consumed by multiple downstream phases.
+      </div>
+    </div>
+  </div>
+
+  <h3>TS Type Resolution vs AST Node Walking</h3>
+
+  <p>For extracting the PropertySpec from <code>Kind&lt;Base, { pure: true }&gt;</code>, we have two approaches:</p>
+
+  <div class="compare-cols">
+    <div class="compare-col">
+      <h4>AST Node Walking</h4>
+      <p style="font-size:0.88rem; color:var(--text-dim)">Walk the <code>TypeReferenceNode.typeArguments</code> array directly in the AST. Read the property assignments from the <code>TypeLiteralNode</code>.</p>
+      <p style="font-size:0.88rem; color:var(--text-dim)"><strong>Pro:</strong> Exact source positions for diagnostics. Handles string literal tuples precisely.</p>
+      <p style="font-size:0.88rem; color:var(--text-dim)"><strong>Con:</strong> More verbose code. Need to handle all AST node kinds.</p>
+    </div>
+    <div class="compare-col ks">
+      <h4>TypeChecker Resolution</h4>
+      <p style="font-size:0.88rem; color:var(--text-dim)">Use <code>checker.getTypeAtLocation(propsNode)</code> to get the resolved Type object, then read its properties.</p>
+      <p style="font-size:0.88rem; color:var(--text-dim)"><strong>Pro:</strong> Handles type aliases, intersections, and computed types automatically.</p>
+      <p style="font-size:0.88rem; color:var(--text-dim)"><strong>Con:</strong> Loses source position for individual properties. TS may merge/simplify types.</p>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Recommendation:</strong> Use <strong>both</strong>. Use the TypeChecker for resolving type references (finding what Kind a type alias resolves to) and the AST for extracting PropertySpec values (reading the literal <code>{ pure: true }</code> properties). This matches how TypeScript itself works: the checker uses the AST for structural analysis but calls <code>getTypeFromTypeNode</code> for resolution.
+  </div>
+
+  <h3>Complete Data Flow Summary</h3>
+
+  <div class="cli-sim">
+    <div class="cli-sim-bar"><span class="cli-sim-dot" style="background:#ff5f57"></span><span class="cli-sim-dot" style="background:#ffbd2e"></span><span class="cli-sim-dot" style="background:#28c840"></span></div>
+    <div class="cli-sim-body">
+      <span class="cli-output">Source: context.ts + src/**/*.ts</span><br>
+      <span class="cli-output">  │</span><br>
+      <span class="cli-output">  ├─ </span><span class="cli-highlight">ts.createProgram()</span><span class="cli-output"> → scan, parse, bind</span><br>
+      <span class="cli-output">  │   └─ ts.SourceFile[] + ts.Symbol tables + ts.TypeChecker</span><br>
+      <span class="cli-output">  │</span><br>
+      <span class="cli-output">  ├─ </span><span class="cli-warn">ksBind()</span><span class="cli-output"> → walk symbols, find __ks marker</span><br>
+      <span class="cli-output">  │   └─ KindSymbolTable: WeakMap&lt;ts.Symbol, KindSymbol&gt;</span><br>
+      <span class="cli-output">  │</span><br>
+      <span class="cli-output">  ├─ </span><span class="cli-warn">ksCheck()</span><span class="cli-output"> → for each kind-annotated value:</span><br>
+      <span class="cli-output">  │   ├─ getKindFromKindNode()  → declared PropertySpec</span><br>
+      <span class="cli-output">  │   ├─ getKindOfExpression()  → computed PropertySpec</span><br>
+      <span class="cli-output">  │   └─ checkKindAssignedTo()  → diagnostics</span><br>
+      <span class="cli-output">  │</span><br>
+      <span class="cli-output">  └─ </span><span class="cli-highlight">KSDiagnostic[]</span><span class="cli-output"> → editor / CLI / CI</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 10 KNOWLEDGE CHECK ════════════════════ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">10</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does KindScript detect that a TypeScript type alias is a Kind, without string-matching on type names?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>Kind&lt;Base, Props&gt;</code> resolves structurally to <code>Base &amp; { readonly __ks?: true }</code>. The binder uses the TypeChecker to resolve each type alias's type, then checks if the resolved type has a property named <code>__ks</code>. This is a structural check — no name matching needed.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does <code>getKindOfExpression</code> compute, and how does it differ from TypeScript's <code>getTypeOfExpression</code>?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>getKindOfExpression</code> computes a <code>PropertySpec</code> — the actual architectural properties of a value (purity, IO usage, imports, etc.) by walking its AST. TypeScript's <code>getTypeOfExpression</code> computes a <code>Type</code> — the data shape. Both walk ASTs, but they extract different information.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why does KindScript have no scanner or parser of its own?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>KindScript's user API (<code>Kind&lt;Base, Props&gt;</code>, <code>KSFile</code>, <code>KSDir</code>) is expressed entirely as standard TypeScript types. TypeScript's parser already handles them correctly — <code>Kind&lt;...&gt;</code> is a normal <code>TypeReference</code> node. KindScript only needs to <em>interpret</em> the AST that TypeScript produces, not create new AST structures.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the <code>KindSymbolTable</code> and what TypeScript pattern does it mirror?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The <code>KindSymbolTable</code> is a <code>WeakMap&lt;ts.Symbol, KindSymbol&gt;</code> that maps TypeScript symbols to their Kind metadata (declared properties, base type, members, filesystem path). It mirrors TypeScript's <code>symbolLinks[]</code> side-table pattern — extending symbols with additional computed data without mutating TypeScript's own data structures.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the recommended first property to implement in the KindScript checker, and why?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>noImports</code> — it only requires checking top-level statements of a SourceFile for <code>ImportDeclaration</code> nodes. Zero recursion, zero type resolution. It validates the entire end-to-end pipeline (bind → getKindOfExpression → checkKindAssignedTo → diagnostics) with minimal inference complexity.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does <code>checkKindAssignedTo</code> differ from TypeScript's <code>checkTypeAssignableTo</code>?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>TypeScript's <code>checkTypeAssignableTo</code> performs structural subtyping — checking if every property of the target type exists (with compatible type) on the source. KindScript's <code>checkKindAssignedTo</code> checks that <em>computed</em> boolean/numeric properties satisfy <em>declared</em> constraints: e.g., computed <code>pure: true</code> satisfies declared <code>pure: true</code>, but computed <code>noIO: false</code> does not satisfy declared <code>noIO: true</code>.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why does the recommended approach use a side-channel (<code>WeakMap</code>) rather than modifying the TypeScript AST?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>TypeScript's own checker never mutates AST nodes — it stores all computed type info in <code>nodeLinks[]</code> and <code>symbolLinks[]</code> side tables. Mutating the AST would break structural sharing (reusing unchanged SourceFile nodes across compilations), violate TypeScript's immutability assumption, and risk breaking the language service. The side-channel approach is simpler, safer, and TS-idiomatic.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does KindScript handle directories as values? What does the "virtual directory AST" look like?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>KindScript constructs a virtual tree from the filesystem: a <code>DirNode</code> whose children are <code>FileNode</code>s (each wrapping a <code>ts.SourceFile</code> AST) and nested <code>DirNode</code>s. This extends the TypeScript AST upward — TS has <code>SourceFile → Class → Method</code>, KindScript adds <code>Directory → File</code> above it. Checking a directory property means walking every file's AST in the tree.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<script>
+/* ── Tab switching ── */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  container.previousElementSibling.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* ── Pipeline stepper ── */
+function showStep(stepId) {
+  document.querySelectorAll('.pipeline-stepper + .step-content, .pipeline-stepper ~ .step-content').forEach(el => {
+    if (el.classList.contains('step-content')) el.classList.remove('active');
+  });
+  const stepper = document.querySelector('.pipeline-stepper');
+  let sibling = stepper.nextElementSibling;
+  while (sibling && sibling.classList.contains('step-content')) {
+    sibling.classList.remove('active');
+    sibling = sibling.nextElementSibling;
+  }
+  document.getElementById(stepId).classList.add('active');
+  stepper.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* ── Collapsible stages ── */
+function toggleStage(el) {
+  el.classList.toggle('active');
+}
+
+/* ── Card selection ── */
+function selectCard(cardEl, detailId) {
+  const grid = cardEl.parentElement;
+  grid.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  cardEl.classList.add('selected');
+  const section = cardEl.closest('section') || cardEl.closest('.container');
+  section.querySelectorAll('.card-detail').forEach(d => d.classList.remove('active'));
+  const detail = document.getElementById(detailId);
+  if (detail) detail.classList.add('active');
+}
+
+/* ── Flashcards ── */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  const total = document.querySelectorAll('#flashcard-deck .flashcard').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = total;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+</body>
+</html>

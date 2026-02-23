@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why KindScript Properties Form a Lattice</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+.hero {
+  text-align: center; padding: 60px 24px 40px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 10px;
+}
+.hero .subtitle { font-size: 1.05rem; color: var(--text-dim); max-width: 640px; margin: 0 auto; }
+
+section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 6px; }
+h2 .num {
+  display: inline-block; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.8rem;
+  text-align: center; line-height: 34px; margin-right: 10px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 24px; font-size: 0.92rem; }
+h3 { font-size: 1.1rem; font-weight: 700; color: var(--accent2); margin: 24px 0 10px; }
+p { margin-bottom: 14px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; overflow-x: auto; font-family: var(--mono); font-size: 0.82em;
+  line-height: 1.6; margin: 14px 0 18px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+.kw { color: #c792ea; } .fn { color: #82aaff; } .str { color: #c3e88d; }
+.cmt { color: #546e7a; font-style: italic; } .type { color: #ffcb6b; }
+.bool { color: #ff5370; }
+
+/* ── Card ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 16px 0;
+}
+.card-accent { border-left: 3px solid var(--accent); }
+.card-warn { border-left: 3px solid var(--orange); }
+.card-green { border-left: 3px solid var(--green); }
+
+/* ── Toggle ── */
+.toggle-bar {
+  display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+  width: fit-content; margin: 0 auto 24px;
+}
+.toggle-btn {
+  padding: 10px 24px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  background: var(--surface); color: var(--text-dim); border: none; transition: all 0.2s;
+}
+.toggle-btn.active { background: var(--accent); color: var(--bg); }
+.toggle-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+/* ── Lattice SVG ── */
+.lattice-wrap {
+  display: flex; justify-content: center; margin: 20px 0;
+}
+.lattice-wrap svg { max-width: 100%; }
+.lattice-wrap svg text { font-family: var(--mono); }
+
+/* ── Comparison grid ── */
+.compare-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;
+}
+@media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
+
+/* ── Implication table ── */
+.impl-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+.impl-table th, .impl-table td {
+  padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+}
+.impl-table th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.impl-table code { font-size: 0.82em; }
+
+/* ── Propagation demo ── */
+.prop-demo {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 16px 0; position: relative;
+}
+.prop-row {
+  display: flex; align-items: center; gap: 12px; margin: 8px 0; font-family: var(--mono);
+  font-size: 0.85em;
+}
+.prop-label { min-width: 180px; }
+.prop-tag {
+  display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 0.78em; font-weight: 600;
+}
+.prop-tag.ok { background: rgba(74,222,128,0.15); color: var(--green); }
+.prop-tag.fail { background: rgba(248,113,113,0.15); color: var(--red); }
+.prop-tag.infer { background: rgba(167,139,250,0.15); color: var(--accent2); }
+.prop-arrow { color: var(--text-dim); }
+
+/* ── Step controls ── */
+.step-controls {
+  display: flex; gap: 10px; justify-content: center; margin: 20px 0 10px;
+}
+.step-btn {
+  padding: 8px 20px; border-radius: 6px; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  transition: all 0.2s;
+}
+.step-btn:hover { background: var(--surface2); border-color: var(--accent); }
+.step-btn:disabled { opacity: 0.4; cursor: default; }
+.step-btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.step-btn.primary:hover { opacity: 0.9; }
+.step-info { text-align: center; color: var(--text-dim); font-size: 0.82rem; margin-bottom: 8px; }
+
+/* ── Node highlight ── */
+.node-highlight { transition: all 0.4s ease; }
+.node-pulse { animation: pulse 1s ease-in-out; }
+@keyframes pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5); }
+}
+
+/* ── Edge highlight ── */
+.edge-default { stroke: #3a3e50; stroke-width: 2; transition: all 0.4s ease; }
+.edge-active { stroke: var(--accent); stroke-width: 3; }
+.edge-infer { stroke: var(--accent2); stroke-width: 3; stroke-dasharray: 6 4; animation: dash 1s linear infinite; }
+@keyframes dash { to { stroke-dashoffset: -10; } }
+
+/* ── Callgraph demo ── */
+.cg-box {
+  display: inline-block; padding: 8px 16px; border-radius: 8px; font-family: var(--mono);
+  font-size: 0.82em; font-weight: 600; border: 2px solid var(--border); background: var(--surface2);
+  transition: all 0.4s ease; min-width: 120px; text-align: center;
+}
+.cg-box.pure-yes { border-color: var(--green); color: var(--green); }
+.cg-box.pure-no { border-color: var(--red); color: var(--red); }
+.cg-box.pure-unknown { border-color: var(--text-dim); color: var(--text-dim); }
+.cg-box.pure-checking { border-color: var(--yellow); color: var(--yellow); animation: pulse 0.8s ease-in-out infinite; }
+.cg-arrow { color: var(--text-dim); font-size: 1.2em; }
+
+.cg-row {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin: 12px 0; flex-wrap: wrap;
+}
+
+/* ── Flashcard ── */
+.flashcard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 12px 0; cursor: pointer; transition: all 0.2s;
+}
+.flashcard:hover { border-color: var(--accent); }
+.fc-q { font-weight: 600; margin-bottom: 8px; }
+.fc-a { color: var(--text-dim); max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.flashcard.open .fc-a { max-height: 300px; }
+.fc-hint { font-size: 0.78rem; color: var(--text-dim); font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ═══════ HERO ═══════ -->
+<div class="hero">
+  <h1>Why Properties Form a Lattice</h1>
+  <p class="subtitle">KindScript's behavioral properties aren't flat booleans &mdash; they have implication, composition, and propagation structure that forms a mathematical lattice.</p>
+</div>
+
+<!-- ═══════ §1 THE ILLUSION OF INDEPENDENCE ═══════ -->
+<section id="s1">
+<div class="container">
+  <h2><span class="num">1</span> The Illusion of Independence</h2>
+  <p class="section-sub">Phase 2 treats properties as independent booleans. Here's why that's a useful lie.</p>
+
+  <div class="toggle-bar" id="viewToggle">
+    <button class="toggle-btn active" data-view="flat" onclick="setView('flat')">Phase 2: Flat Booleans</button>
+    <button class="toggle-btn" data-view="lattice" onclick="setView('lattice')">Reality: Lattice</button>
+  </div>
+
+  <div class="compare-grid">
+    <!-- Flat view -->
+    <div class="card card-accent" id="flatView">
+      <h3>Current Implementation</h3>
+      <pre><code><span class="cmt">// Each check is independent</span>
+<span class="kw">interface</span> <span class="type">ComputedPropertySpec</span> {
+  <span class="fn">pure</span>:          <span class="type">boolean</span>;
+  <span class="fn">noIO</span>:          <span class="type">boolean</span>;
+  <span class="fn">noMutation</span>:    <span class="type">boolean</span>;
+  <span class="fn">noSideEffects</span>: <span class="type">boolean</span>;
+  <span class="fn">noImports</span>:     <span class="type">boolean</span>;
+  <span class="fn">noConsole</span>:     <span class="type">boolean</span>;
+}</code></pre>
+      <p style="font-size:0.88rem">Each property is checked by a separate function. No property check knows about any other. Simple, testable, correct for syntactic checks.</p>
+    </div>
+
+    <!-- Lattice view -->
+    <div class="card card-warn" id="latticeView">
+      <h3>What's Actually True</h3>
+      <pre><code><span class="cmt">// Properties have relationships</span>
+<span class="fn">pure</span> <span class="kw">===</span> <span class="fn">noIO</span> <span class="kw">∧</span> <span class="fn">noMutation</span> <span class="kw">∧</span> <span class="fn">noSideEffects</span>
+
+<span class="cmt">// Implications flow downward</span>
+<span class="fn">pure</span>  <span class="kw">⇒</span>  <span class="fn">noIO</span>
+<span class="fn">pure</span>  <span class="kw">⇒</span>  <span class="fn">noMutation</span>
+<span class="fn">pure</span>  <span class="kw">⇒</span>  <span class="fn">noSideEffects</span>
+
+<span class="cmt">// Transitive propagation</span>
+<span class="fn">f</span> calls <span class="fn">g</span> <span class="kw">∧</span> <span class="fn">g</span> is impure
+  <span class="kw">⇒</span> <span class="fn">f</span> is impure</code></pre>
+      <p style="font-size:0.88rem">Properties imply each other, compose via meet/join, and propagate transitively through call graphs. That's a lattice.</p>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <p style="margin:0"><strong>Both views are correct.</strong> Phase 2's flat booleans are a <em>projection</em> of the lattice &mdash; they compute each property independently and get the right answer for syntactic checks. But when you need transitive analysis (Phase 3-4), the lattice structure becomes essential.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §2 THE LATTICE ═══════ -->
+<section id="s2">
+<div class="container">
+  <h2><span class="num">2</span> The Property Lattice</h2>
+  <p class="section-sub">A Hasse diagram of KindScript's behavioral properties, ordered by restrictiveness.</p>
+
+  <div class="lattice-wrap">
+    <svg id="latticeSvg" viewBox="0 0 680 440" width="680" height="440">
+      <!-- Edges (drawn first, behind nodes) -->
+      <g id="latticeEdges">
+        <!-- pure → noIO -->
+        <line x1="340" y1="70" x2="180" y2="170" class="edge-default" data-from="pure" data-to="noIO"/>
+        <!-- pure → noMutation -->
+        <line x1="340" y1="70" x2="340" y2="170" class="edge-default" data-from="pure" data-to="noMutation"/>
+        <!-- pure → noSideEffects -->
+        <line x1="340" y1="70" x2="500" y2="170" class="edge-default" data-from="pure" data-to="noSideEffects"/>
+        <!-- noIO → ⊥ -->
+        <line x1="180" y1="210" x2="340" y2="360" class="edge-default" data-from="noIO" data-to="bottom"/>
+        <!-- noMutation → ⊥ -->
+        <line x1="340" y1="210" x2="340" y2="360" class="edge-default" data-from="noMutation" data-to="bottom"/>
+        <!-- noSideEffects → ⊥ -->
+        <line x1="500" y1="210" x2="340" y2="360" class="edge-default" data-from="noSideEffects" data-to="bottom"/>
+        <!-- noImports → ⊥ -->
+        <line x1="80" y1="300" x2="340" y2="360" class="edge-default" data-from="noImports" data-to="bottom"/>
+        <!-- noConsole → ⊥ -->
+        <line x1="600" y1="300" x2="340" y2="360" class="edge-default" data-from="noConsole" data-to="bottom"/>
+      </g>
+
+      <!-- Nodes -->
+      <g id="latticeNodes">
+        <!-- ⊤ = pure (most restrictive) -->
+        <g data-node="pure" class="node-highlight" style="cursor:pointer" onclick="highlightNode('pure')">
+          <rect x="270" y="40" width="140" height="38" rx="8" fill="#1e2230" stroke="#a78bfa" stroke-width="2"/>
+          <text x="340" y="65" text-anchor="middle" fill="#a78bfa" font-size="14" font-weight="700">pure</text>
+          <text x="340" y="28" text-anchor="middle" fill="#546e7a" font-size="11">⊤  most restrictive</text>
+        </g>
+
+        <!-- Middle tier -->
+        <g data-node="noIO" class="node-highlight" style="cursor:pointer" onclick="highlightNode('noIO')">
+          <rect x="110" y="162" width="140" height="38" rx="8" fill="#1e2230" stroke="#6c8cff" stroke-width="2"/>
+          <text x="180" y="187" text-anchor="middle" fill="#6c8cff" font-size="14" font-weight="700">noIO</text>
+        </g>
+        <g data-node="noMutation" class="node-highlight" style="cursor:pointer" onclick="highlightNode('noMutation')">
+          <rect x="270" y="162" width="140" height="38" rx="8" fill="#1e2230" stroke="#6c8cff" stroke-width="2"/>
+          <text x="340" y="187" text-anchor="middle" fill="#6c8cff" font-size="14" font-weight="700">noMutation</text>
+        </g>
+        <g data-node="noSideEffects" class="node-highlight" style="cursor:pointer" onclick="highlightNode('noSideEffects')">
+          <rect x="425" y="162" width="150" height="38" rx="8" fill="#1e2230" stroke="#6c8cff" stroke-width="2"/>
+          <text x="500" y="187" text-anchor="middle" fill="#6c8cff" font-size="14" font-weight="700">noSideEffects</text>
+        </g>
+
+        <!-- Independent leaves (not implied by pure directly) -->
+        <g data-node="noImports" class="node-highlight" style="cursor:pointer" onclick="highlightNode('noImports')">
+          <rect x="10" y="275" width="140" height="38" rx="8" fill="#1e2230" stroke="#22d3ee" stroke-width="2"/>
+          <text x="80" y="300" text-anchor="middle" fill="#22d3ee" font-size="14" font-weight="700">noImports</text>
+        </g>
+        <g data-node="noConsole" class="node-highlight" style="cursor:pointer" onclick="highlightNode('noConsole')">
+          <rect x="530" y="275" width="140" height="38" rx="8" fill="#1e2230" stroke="#22d3ee" stroke-width="2"/>
+          <text x="600" y="300" text-anchor="middle" fill="#22d3ee" font-size="14" font-weight="700">noConsole</text>
+        </g>
+
+        <!-- ⊥ = unconstrained -->
+        <g data-node="bottom" class="node-highlight" style="cursor:pointer" onclick="highlightNode('bottom')">
+          <rect x="270" y="348" width="140" height="38" rx="8" fill="#1e2230" stroke="#3a3e50" stroke-width="2"/>
+          <text x="340" y="373" text-anchor="middle" fill="#546e7a" font-size="14" font-weight="700">⊥  unconstrained</text>
+        </g>
+      </g>
+
+      <!-- Annotation -->
+      <text x="120" y="140" fill="#546e7a" font-size="11" text-anchor="middle">implies ↓</text>
+      <text x="80" y="256" fill="#546e7a" font-size="10" text-anchor="middle">orthogonal</text>
+      <text x="600" y="256" fill="#546e7a" font-size="10" text-anchor="middle">orthogonal</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <p style="margin:0"><strong>Reading the diagram:</strong> An edge from A down to B means A <em>implies</em> B (A is more restrictive). <code>pure</code> sits at the top because it implies <code>noIO</code>, <code>noMutation</code>, and <code>noSideEffects</code>. Properties like <code>noImports</code> and <code>noConsole</code> are <strong>orthogonal</strong> &mdash; they don't imply or get implied by the core trio. Click any node to highlight its relationships.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §3 THREE REASONS IT'S A LATTICE ═══════ -->
+<section id="s3">
+<div class="container">
+  <h2><span class="num">3</span> Three Reasons It's a Lattice</h2>
+  <p class="section-sub">Implication, composition, and propagation break the "independent booleans" model.</p>
+
+  <!-- Reason 1: Implication -->
+  <h3>Reason 1 &mdash; Implication</h3>
+  <div class="card card-accent">
+    <p>If code is <code>pure</code>, it <em>must</em> also be <code>noIO</code>, <code>noMutation</code>, and <code>noSideEffects</code>. You can't be pure and also do IO. This creates a partial order:</p>
+    <table class="impl-table">
+      <tr><th>If you declare...</th><th>You automatically get...</th><th>Why</th></tr>
+      <tr><td><code>pure</code></td><td><code>noIO</code> + <code>noMutation</code> + <code>noSideEffects</code></td><td>Purity is their conjunction</td></tr>
+      <tr><td><code>noIO</code></td><td>&mdash;</td><td>Independently checkable</td></tr>
+      <tr><td><code>noMutation</code></td><td>&mdash;</td><td>Independently checkable</td></tr>
+      <tr><td><code>noSideEffects</code></td><td>&mdash;</td><td>Independently checkable</td></tr>
+    </table>
+    <p style="margin:0;font-size:0.88rem">This partial order is the skeleton of a lattice. "Independent booleans" can't represent <code>pure = noIO ∧ noMutation ∧ noSideEffects</code> without duplicating logic.</p>
+  </div>
+
+  <!-- Reason 2: Composition via Meet/Join -->
+  <h3>Reason 2 &mdash; Composition (Meet &amp; Join)</h3>
+  <div class="card card-accent">
+    <p>Given any two sets of behavioral constraints, a lattice gives you two operations for free:</p>
+    <table class="impl-table">
+      <tr><th>Operation</th><th>Symbol</th><th>Meaning</th><th>Example</th></tr>
+      <tr>
+        <td><strong>Meet</strong> (greatest lower bound)</td><td>∧</td>
+        <td>Intersection of guarantees: what's true of <em>both</em></td>
+        <td><code>{noIO} ∧ {noMutation} = {noIO, noMutation}</code></td>
+      </tr>
+      <tr>
+        <td><strong>Join</strong> (least upper bound)</td><td>∨</td>
+        <td>Union of allowed behaviors: what <em>might</em> be true</td>
+        <td><code>{pure} ∨ {noIO} = {noIO}</code> (weaker)</td>
+      </tr>
+    </table>
+    <p><strong>Why this matters:</strong> When two code paths merge (e.g., <code>if/else</code> branches), the result's properties are the <strong>join</strong> of both branches. If the <code>if</code> branch is <code>pure</code> but the <code>else</code> branch only guarantees <code>noIO</code>, the whole expression can only guarantee <code>noIO</code>.</p>
+    <pre><code><span class="kw">const</span> result = condition
+  ? pureComputation()      <span class="cmt">// {pure} = {noIO, noMutation, noSideEffects}</span>
+  : readConfig();           <span class="cmt">// {noMutation} only</span>
+
+<span class="cmt">// result: join = {noMutation}  (only guarantee shared by both)</span></code></pre>
+    <p style="margin:0;font-size:0.88rem">Flat booleans would AND each property independently and get the same result here &mdash; but only because this is a simple case. Lattice join handles the general case correctly, including future composite properties.</p>
+  </div>
+
+  <!-- Reason 3: Transitive Propagation -->
+  <h3>Reason 3 &mdash; Transitive Propagation</h3>
+  <div class="card card-accent">
+    <p>Properties infect callers. This is the biggest difference from flat booleans:</p>
+
+    <div class="prop-demo" id="propDemo">
+      <div class="step-info" id="propStepInfo">Click "Step" to see propagation in action</div>
+      <div class="step-controls">
+        <button class="step-btn" onclick="propReset()">Reset</button>
+        <button class="step-btn primary" id="propStepBtn" onclick="propStep()">Step →</button>
+      </div>
+
+      <!-- Call graph -->
+      <div style="margin-top: 16px;">
+        <div class="cg-row">
+          <div class="cg-box pure-unknown" id="cg-app">app()</div>
+        </div>
+        <div class="cg-row">
+          <span class="cg-arrow">↓ calls</span>
+        </div>
+        <div class="cg-row">
+          <div class="cg-box pure-unknown" id="cg-process">process()</div>
+          <div class="cg-box pure-unknown" id="cg-validate">validate()</div>
+        </div>
+        <div class="cg-row">
+          <span class="cg-arrow">↓ calls</span>
+          <span style="min-width:60px"></span>
+          <span class="cg-arrow">↓ calls</span>
+        </div>
+        <div class="cg-row">
+          <div class="cg-box pure-unknown" id="cg-transform">transform()</div>
+          <div class="cg-box pure-unknown" id="cg-log">log()</div>
+          <div class="cg-box pure-unknown" id="cg-check">check()</div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.88rem"><strong>Key rule:</strong> <code>effects(f) = effects(f_body) ∪ effects(calls from f)</code>. A function's behavioral properties are the <strong>join</strong> of its own body's properties and everything it calls. One impure leaf poisons the entire call chain. This is transitive closure over the call graph &mdash; exactly what lattice fixpoint iteration computes.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §4 WHAT IS A LATTICE, FORMALLY? ═══════ -->
+<section id="s4">
+<div class="container">
+  <h2><span class="num">4</span> What Makes It a Lattice, Formally?</h2>
+  <p class="section-sub">The four properties that make behavioral constraints a lattice.</p>
+
+  <div class="card">
+    <p>A <strong>lattice</strong> is a partially ordered set where every pair of elements has a <strong>meet</strong> (greatest lower bound) and <strong>join</strong> (least upper bound). KindScript's properties satisfy all four requirements:</p>
+
+    <table class="impl-table">
+      <tr><th>#</th><th>Axiom</th><th>In KindScript</th></tr>
+      <tr>
+        <td>1</td>
+        <td><strong>Partial order</strong><br><span style="color:var(--text-dim);font-size:0.85em">Reflexive, antisymmetric, transitive</span></td>
+        <td>Properties ordered by implication: <code>pure ≤ noIO</code> means "pure implies noIO." Reflexive (a ⇒ a), antisymmetric (mutual implication = identity), transitive (a ⇒ b ⇒ c means a ⇒ c).</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Meet (∧)</strong><br><span style="color:var(--text-dim);font-size:0.85em">Greatest lower bound exists</span></td>
+        <td>For any two constraint sets, their meet is the intersection of guaranteed properties. <code>{pure} ∧ {noIO} = {pure}</code> (pure is more restrictive, so it's the meet).</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Join (∨)</strong><br><span style="color:var(--text-dim);font-size:0.85em">Least upper bound exists</span></td>
+        <td>For any two constraint sets, their join is the shared guarantees. <code>{pure} ∨ {noMutation} = {noMutation}</code>.</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>Bounded</strong><br><span style="color:var(--text-dim);font-size:0.85em">Top and bottom elements</span></td>
+        <td><code>⊤ = pure</code> (all constraints). <code>⊥ = unconstrained</code> (no guarantees).</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card card-green">
+    <p style="margin:0"><strong>The TypeScript parallel:</strong> TypeScript's type system is also a lattice. <code>never</code> is ⊥, <code>unknown</code> is ⊤, intersection types are meet, union types are join. KindScript does the same thing with <em>behavioral constraints</em> instead of structural types. The inference algorithm is the same pattern: propagate information through the program graph until you reach a fixpoint.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §5 WHY FLAT BOOLEANS WORK (FOR NOW) ═══════ -->
+<section id="s5">
+<div class="container">
+  <h2><span class="num">5</span> Why Flat Booleans Work (For Now)</h2>
+  <p class="section-sub">Phase 2's simplification is valid because of what it doesn't do.</p>
+
+  <div class="card">
+    <table class="impl-table">
+      <tr><th>Phase 2 avoids...</th><th>So flat booleans suffice because...</th></tr>
+      <tr><td>Transitive analysis</td><td>No call graph means no propagation, so no need for fixpoint iteration over a lattice</td></tr>
+      <tr><td>Branch merging</td><td>No control flow analysis means no join operations on divergent paths</td></tr>
+      <tr><td>Composite properties</td><td><code>pure</code> is checked separately, not derived from noIO ∧ noMutation ∧ noSideEffects</td></tr>
+      <tr><td>Implication inference</td><td>If you declare <code>pure</code>, Phase 2 checks <code>pure</code> directly — it doesn't infer noIO from it</td></tr>
+    </table>
+  </div>
+
+  <div class="card card-warn">
+    <p style="margin:0"><strong>When flat booleans break:</strong> Phase 3 introduces call graph construction and transitive propagation. At that point, <code>checkPure()</code> can't just scan for syntax &mdash; it needs to query <code>noIO</code>, <code>noMutation</code>, and <code>noSideEffects</code> results, merge them across call chains, and handle cycles. That's lattice-theoretic fixpoint computation. The property check registry pattern already supports this evolution &mdash; checks can call other checks &mdash; but the underlying model shifts from flat map to lattice.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════ §6 QUIZ ═══════ -->
+<section id="s6">
+<div class="container">
+  <h2><span class="num">6</span> Knowledge Check</h2>
+  <p class="section-sub">Click to reveal answers.</p>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q1: If a function is declared <code>pure</code>, what other properties must it satisfy?</div>
+    <div class="fc-a"><br><code>noIO</code>, <code>noMutation</code>, and <code>noSideEffects</code>. Purity is defined as the conjunction of all three.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q2: If an <code>if</code> branch is <code>pure</code> and the <code>else</code> branch is <code>noIO</code>, what can the overall expression guarantee?</div>
+    <div class="fc-a"><br>Only <code>noIO</code>. The join (∨) of <code>{noIO, noMutation, noSideEffects}</code> and <code>{noIO}</code> is <code>{noIO}</code> &mdash; the weakest shared guarantee.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q3: A leaf function calls <code>fs.writeFile</code>. What happens to every function in the call chain above it?</div>
+    <div class="fc-a"><br>They all lose <code>noIO</code> (and therefore <code>pure</code>). Properties propagate transitively through the call graph &mdash; one impure leaf poisons the entire chain.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="fc-q">Q4: Why can Phase 2 get away with independent boolean checks?</div>
+    <div class="fc-a"><br>Phase 2 only does syntactic (shallow) checks within a single scope. No call graph analysis means no transitive propagation, no branch merging, and no need for fixpoint iteration. Each property can be checked in isolation because the analysis doesn't cross function boundaries.</div>
+    <div class="fc-hint">Click to reveal</div>
+  </div>
+</div>
+</section>
+
+<script>
+// ── View toggle ──
+function setView(view) {
+  document.querySelectorAll('#viewToggle .toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === view);
+  });
+}
+
+// ── Lattice node highlight ──
+const nodeRelations = {
+  pure: { implies: ['noIO', 'noMutation', 'noSideEffects', 'bottom'], impliedBy: [] },
+  noIO: { implies: ['bottom'], impliedBy: ['pure'] },
+  noMutation: { implies: ['bottom'], impliedBy: ['pure'] },
+  noSideEffects: { implies: ['bottom'], impliedBy: ['pure'] },
+  noImports: { implies: ['bottom'], impliedBy: [] },
+  noConsole: { implies: ['bottom'], impliedBy: [] },
+  bottom: { implies: [], impliedBy: ['pure', 'noIO', 'noMutation', 'noSideEffects', 'noImports', 'noConsole'] }
+};
+
+let activeNode = null;
+
+function highlightNode(name) {
+  const svg = document.getElementById('latticeSvg');
+
+  // Reset all
+  svg.querySelectorAll('.edge-default, .edge-active, .edge-infer').forEach(e => {
+    e.setAttribute('class', 'edge-default');
+  });
+  svg.querySelectorAll('[data-node]').forEach(n => {
+    n.querySelector('rect').style.opacity = '1';
+  });
+
+  if (activeNode === name) { activeNode = null; return; }
+  activeNode = name;
+
+  // Dim unrelated nodes
+  const rel = nodeRelations[name];
+  const related = new Set([name, ...rel.implies, ...rel.impliedBy]);
+  svg.querySelectorAll('[data-node]').forEach(n => {
+    if (!related.has(n.dataset.node)) n.querySelector('rect').style.opacity = '0.3';
+  });
+
+  // Highlight edges
+  svg.querySelectorAll('line').forEach(line => {
+    const from = line.dataset.from, to = line.dataset.to;
+    if ((from === name && rel.implies.includes(to)) || (to === name && rel.impliedBy.includes(from))) {
+      line.setAttribute('class', 'edge-active');
+    }
+  });
+}
+
+// ── Propagation demo ──
+let propState = 0;
+const propSteps = [
+  {
+    info: 'Step 1/5: Analyze leaf functions',
+    nodes: { 'cg-transform': 'pure-yes', 'cg-log': 'pure-no', 'cg-check': 'pure-yes' },
+    labels: { 'cg-transform': 'transform() ✓ pure', 'cg-log': 'log() ✗ does IO', 'cg-check': 'check() ✓ pure' }
+  },
+  {
+    info: 'Step 2/5: Propagate to process() — calls transform() ✓ and log() ✗',
+    nodes: { 'cg-process': 'pure-checking' },
+    labels: { 'cg-process': 'process() checking...' }
+  },
+  {
+    info: 'Step 3/5: process() inherits impurity from log()',
+    nodes: { 'cg-process': 'pure-no' },
+    labels: { 'cg-process': 'process() ✗ impure' }
+  },
+  {
+    info: 'Step 4/5: validate() only calls check() ✓ — stays pure',
+    nodes: { 'cg-validate': 'pure-yes' },
+    labels: { 'cg-validate': 'validate() ✓ pure' }
+  },
+  {
+    info: 'Step 5/5: app() calls process() ✗ — poisoned!',
+    nodes: { 'cg-app': 'pure-no' },
+    labels: { 'cg-app': 'app() ✗ impure' }
+  }
+];
+
+// Track accumulated state
+let accNodes = {};
+let accLabels = {};
+
+function propStep() {
+  if (propState >= propSteps.length) return;
+  const step = propSteps[propState];
+  document.getElementById('propStepInfo').textContent = step.info;
+
+  // Accumulate
+  Object.assign(accNodes, step.nodes);
+  Object.assign(accLabels, step.labels);
+
+  // Apply all accumulated state
+  for (const [id, cls] of Object.entries(accNodes)) {
+    const el = document.getElementById(id);
+    el.className = 'cg-box ' + cls;
+  }
+  for (const [id, txt] of Object.entries(accLabels)) {
+    document.getElementById(id).textContent = txt;
+  }
+
+  propState++;
+  if (propState >= propSteps.length) {
+    document.getElementById('propStepBtn').disabled = true;
+  }
+}
+
+function propReset() {
+  propState = 0;
+  accNodes = {};
+  accLabels = {};
+  document.getElementById('propStepInfo').textContent = 'Click "Step" to see propagation in action';
+  document.getElementById('propStepBtn').disabled = false;
+  ['cg-app','cg-process','cg-validate','cg-transform','cg-log','cg-check'].forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'cg-box pure-unknown';
+    el.textContent = id.replace('cg-','') + '()';
+  });
+}
+</script>
+</body>
+</html>

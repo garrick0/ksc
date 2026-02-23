@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KindScript Checker — Implementation Plan</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Hero ── */
+.hero {
+  text-align: center; padding: 80px 24px 60px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 3rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.15rem; color: var(--text-dim); max-width: 640px; margin: 0 auto 24px; }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.ts { border-color: #3178c6; color: #3178c6; }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+
+/* ── Navigation ── */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+/* ── Sections ── */
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+h2 .num {
+  display: inline-block; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  text-align: center; line-height: 38px; margin-right: 12px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 12px; }
+
+p { margin-bottom: 16px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.84em;
+  line-height: 1.6; margin: 16px 0 20px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+/* Syntax highlighting */
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.number-lit { color: var(--orange); }
+.fn-name { color: var(--yellow); }
+.param { color: var(--pink); }
+
+/* ── Insight ── */
+.insight {
+  background: rgba(108,140,255,0.06); border-left: 3px solid var(--accent);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { background: rgba(251,146,60,0.06); border-left-color: var(--orange); }
+.insight.green { background: rgba(74,222,128,0.06); border-left-color: var(--green); }
+.insight strong { color: var(--text); }
+
+/* ── Tables ── */
+table {
+  width: 100%; border-collapse: collapse; margin: 16px 0 24px;
+  font-size: 0.88rem;
+}
+th {
+  text-align: left; padding: 10px 14px; background: var(--surface);
+  border-bottom: 2px solid var(--border); font-weight: 700; color: var(--accent);
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.4px;
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+td:first-child { color: var(--text); font-weight: 600; }
+tr:hover td { background: var(--surface); }
+
+/* ── Pipeline stepper ── */
+.pipeline-stepper {
+  display: flex; gap: 2px; margin-bottom: 4px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.step-btn {
+  flex: 1; padding: 12px 8px; border: none; background: var(--surface);
+  color: var(--text-dim); font-weight: 700; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  letter-spacing: 0.5px; font-family: var(--mono);
+}
+.step-btn:hover { background: var(--surface2); color: var(--text); }
+.step-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+}
+.step-content { display: none; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+.step-content.active { display: block; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; margin-bottom: 0; }
+.tab {
+  padding: 10px 20px; background: var(--surface); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim); font-weight: 600; font-size: 0.82rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { box-shadow: inset 0 2px 0 var(--accent); color: var(--text); background: var(--surface2); }
+.tab-content { display: none; padding: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); }
+.tab-content.active { display: block; }
+
+/* ── Collapsible stages ── */
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 4px; overflow: hidden;
+  cursor: pointer; transition: all 0.2s;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+}
+.df-stage-title { font-weight: 700; font-size: 0.95rem; }
+.df-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.75rem;
+  font-weight: 800; margin-right: 10px;
+}
+.df-expand { color: var(--text-dim); transition: transform 0.3s; font-size: 0.8rem; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  display: none; padding: 0 20px 16px;
+  color: var(--text-dim); font-size: 0.9rem; line-height: 1.7;
+}
+.df-stage.active .df-detail { display: block; }
+.df-connector {
+  width: 2px; height: 12px; background: var(--border); margin: 0 auto;
+}
+
+/* ── Decision cards ── */
+.decision-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px; margin: 20px 0;
+}
+.decision-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; cursor: pointer; transition: all 0.2s;
+}
+.decision-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.decision-card.selected { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+.decision-card.selected .dc-tag { background: var(--green); color: var(--bg); }
+.dc-tag {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  background: var(--surface2); color: var(--text-dim); margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+.dc-tag.rec { background: rgba(74,222,128,0.15); color: var(--green); }
+.dc-name { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+.dc-desc { color: var(--text-dim); font-size: 0.85rem; line-height: 1.6; }
+.dc-pros { margin-top: 12px; }
+.dc-pros li { color: var(--green); font-size: 0.82rem; margin-bottom: 4px; list-style: none; }
+.dc-pros li::before { content: "+ "; font-weight: 800; }
+.dc-cons { margin-top: 6px; }
+.dc-cons li { color: var(--orange); font-size: 0.82rem; margin-bottom: 4px; list-style: none; }
+.dc-cons li::before { content: "- "; font-weight: 800; }
+
+.decision-detail {
+  display: none; padding: 20px; margin-top: 12px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 0.9rem; color: var(--text-dim);
+}
+.decision-detail.active { display: block; }
+.decision-detail pre { margin: 12px 0; }
+
+/* ── Algebra grid ── */
+.algebra-grid {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 12px; align-items: center; margin: 20px 0;
+}
+.algebra-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; text-align: center; font-size: 0.88rem;
+}
+.algebra-box.result { border-color: var(--green); }
+.algebra-op {
+  font-size: 1.4rem; font-weight: 800; color: var(--accent); text-align: center;
+}
+
+/* ── CLI Sim ── */
+.cli-sim {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin: 16px 0;
+}
+.cli-sim-bar {
+  padding: 10px 14px; background: var(--surface2);
+  display: flex; gap: 6px;
+}
+.cli-sim-dot { width: 10px; height: 10px; border-radius: 50%; }
+.cli-sim-body {
+  padding: 16px 20px; font-family: var(--mono); font-size: 0.82em; line-height: 1.8;
+}
+.cli-prompt { color: var(--green); font-weight: 700; }
+.cli-output { color: var(--text-dim); }
+.cli-highlight { color: var(--cyan); font-weight: 600; }
+.cli-error { color: var(--red); font-weight: 600; }
+
+/* ── Vote tracker ── */
+.vote-summary {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; margin: 24px 0;
+}
+.vote-summary h4 { color: var(--accent); font-size: 0.9rem; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.vote-row {
+  display: flex; align-items: center; gap: 12px; padding: 8px 0;
+  border-bottom: 1px solid var(--border); font-size: 0.88rem;
+}
+.vote-row:last-child { border-bottom: none; }
+.vote-label { flex: 1; font-weight: 600; }
+.vote-choice { color: var(--green); font-family: var(--mono); font-size: 0.82rem; }
+.vote-choice.pending { color: var(--text-dim); font-style: italic; }
+
+/* ── Flashcards ── */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .decision-grid { grid-template-columns: 1fr; }
+  .algebra-grid { grid-template-columns: 1fr; }
+  .pipeline-stepper { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<div class="hero">
+  <div class="container">
+    <h1>Checker Implementation Plan</h1>
+    <p class="subtitle">The decision guide for building KindScript's verification engine &mdash; from trivial <code>noImports</code> to transitive <code>pure</code> analysis.</p>
+    <div class="badge-row">
+      <span class="badge green">Phase 1+2 Complete</span>
+      <span class="badge ts">TypeScript AST</span>
+      <span class="badge green">8 Checks Implemented</span>
+      <span class="badge purple">69 Tests Passing</span>
+      <span class="badge cyan">Phase 3&ndash;4 Remaining</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TOC NAV ═══════════════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#status">Status</a>
+    <a class="toc-link" href="#overview">Overview</a>
+    <a class="toc-link" href="#architecture">Architecture</a>
+    <a class="toc-link" href="#d1-checker-shape">D1: Checker Shape</a>
+    <a class="toc-link" href="#d2-resolution">D2: Value Resolution</a>
+    <a class="toc-link" href="#d3-diagnostics">D3: Diagnostics</a>
+    <a class="toc-link" href="#d4-import-graph">D4: Import Graph</a>
+    <a class="toc-link" href="#d5-purity">D5: Purity Model</a>
+    <a class="toc-link" href="#phases">Phased Rollout</a>
+    <a class="toc-link" href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- ═══════════════ 00: IMPLEMENTATION STATUS ═══════════════ -->
+<section id="status" style="background: linear-gradient(180deg, rgba(74,222,128,0.04) 0%, var(--bg) 100%);">
+<div class="container">
+  <h2><span class="num" style="background:var(--green)">&#10003;</span>Implementation Status</h2>
+  <p class="section-sub">Phase 1+2 implemented. The checker is live in <code>src/checker.ts</code> with 8 property checks and 69 passing tests.</p>
+
+  <div class="insight green">
+    <strong>Decisions made &amp; implemented:</strong> Property Check Registry (D1), Program Source Files Only (D2), Declaration Site errors with first-violation detail (D3a+D3b), Own KSDiagnostic type (D3c), Phase 1+2 scope (D6). Purity model is shallow/syntactic (D5). Import graph (D4) deferred to Phase 3.
+  </div>
+
+  <h3>What Was Built</h3>
+  <table>
+    <tr><th>Component</th><th>File</th><th>Status</th></tr>
+    <tr><td><code>createKSChecker</code></td><td><code>src/checker.ts</code></td><td style="color:var(--green)">Implemented</td></tr>
+    <tr><td>Property Check Registry</td><td><code>src/checker.ts</code></td><td style="color:var(--green)">8 checks registered</td></tr>
+    <tr><td>Value Resolution (function/file/dir)</td><td><code>src/checker.ts</code></td><td style="color:var(--green)">Implemented</td></tr>
+    <tr><td><code>checkKindAssignedTo</code> loop</td><td><code>src/checker.ts</code></td><td style="color:var(--green)">Implemented</td></tr>
+    <tr><td>Diagnostic creation</td><td><code>src/checker.ts</code></td><td style="color:var(--green)">Error codes + source positions</td></tr>
+    <tr><td>Test fixtures (4 new)</td><td><code>test/fixtures/checker-*</code></td><td style="color:var(--green)">Clean + violation fixtures</td></tr>
+    <tr><td>Checker tests</td><td><code>test/checker.test.ts</code></td><td style="color:var(--green)">25 tests passing</td></tr>
+  </table>
+
+  <h3>Property Check Status</h3>
+  <table>
+    <tr><th>Property</th><th>Code</th><th>Phase</th><th>Status</th></tr>
+    <tr><td><code>noImports</code></td><td>KS70008</td><td>1</td><td style="color:var(--green)">Done</td></tr>
+    <tr><td><code>noConsole</code></td><td>KS70009</td><td>2</td><td style="color:var(--green)">Done</td></tr>
+    <tr><td><code>immutable</code></td><td>KS70010</td><td>2</td><td style="color:var(--green)">Done</td></tr>
+    <tr><td><code>static</code></td><td>KS70011</td><td>2</td><td style="color:var(--green)">Done</td></tr>
+    <tr><td><code>noSideEffects</code></td><td>KS70012</td><td>2</td><td style="color:var(--green)">Done</td></tr>
+    <tr><td><code>noMutation</code></td><td>KS70013</td><td>2</td><td style="color:var(--green)">Done</td></tr>
+    <tr><td><code>noIO</code></td><td>KS70007</td><td>2</td><td style="color:var(--green)">Done (shallow)</td></tr>
+    <tr><td><code>pure</code></td><td>KS70003</td><td>2</td><td style="color:var(--green)">Done (shallow)</td></tr>
+    <tr><td><code>maxFanOut</code></td><td>KS70014</td><td>2</td><td style="color:var(--green)">Done</td></tr>
+    <tr><td><code>noDependency</code></td><td>KS70001</td><td>3</td><td style="color:var(--orange)">Not started</td></tr>
+    <tr><td><code>noCycles</code></td><td>KS70004</td><td>3</td><td style="color:var(--orange)">Not started</td></tr>
+    <tr><td><code>noTransitiveDep</code></td><td>KS70002</td><td>3</td><td style="color:var(--orange)">Not started</td></tr>
+    <tr><td><code>noSiblingDep</code></td><td>KS70015</td><td>3</td><td style="color:var(--orange)">Not started</td></tr>
+    <tr><td><code>exhaustive</code></td><td>KS70006</td><td>3</td><td style="color:var(--orange)">Not started</td></tr>
+    <tr><td><code>scope</code></td><td>KS70005</td><td>3</td><td style="color:var(--orange)">Not started</td></tr>
+  </table>
+
+  <h3>Test Summary</h3>
+  <div class="cli-sim">
+    <div class="cli-sim-bar"><span class="cli-sim-dot" style="background:#ff5f57"></span><span class="cli-sim-dot" style="background:#ffbd2e"></span><span class="cli-sim-dot" style="background:#28c840"></span></div>
+    <div class="cli-sim-body">
+      <span class="cli-prompt">$ </span>npx vitest run<br>
+      <span class="cli-output">&nbsp;</span><br>
+      <span class="cli-highlight">  &#10003; test/api.test.ts (4 tests)</span><br>
+      <span class="cli-highlight">  &#10003; test/binder.test.ts (30 tests)</span><br>
+      <span class="cli-highlight">  &#10003; test/program.test.ts (10 tests)</span><br>
+      <span class="cli-highlight">  &#10003; test/checker.test.ts (25 tests)</span><br>
+      <span class="cli-output">&nbsp;</span><br>
+      <span class="cli-highlight">  Test Files  4 passed (4)</span><br>
+      <span class="cli-highlight">  Tests       69 passed (69)</span><br>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 01: OVERVIEW ═══════════════ -->
+<section id="overview">
+<div class="container">
+  <h2><span class="num">01</span>What the Checker Does</h2>
+  <p class="section-sub">The checker is the verification engine. It takes the binder's output and answers one question per kind-annotated value: <em>"Do the computed properties of this code satisfy its declared constraints?"</em></p>
+
+  <div class="algebra-grid">
+    <div class="algebra-box">
+      <strong style="color:var(--accent2)">Declared</strong><br>
+      <code style="font-size:0.8em">{ pure: true, noIO: true }</code><br>
+      <span style="color:var(--text-dim);font-size:0.82rem">From type annotation</span>
+    </div>
+    <div class="algebra-op">vs</div>
+    <div class="algebra-box">
+      <strong style="color:var(--cyan)">Computed</strong><br>
+      <code style="font-size:0.8em">{ pure: true, noIO: false }</code><br>
+      <span style="color:var(--text-dim);font-size:0.82rem">From AST walking</span>
+    </div>
+    <div class="algebra-op">=</div>
+    <div class="algebra-box result" style="border-color:var(--red)">
+      <strong style="color:var(--red)">Diagnostic</strong><br>
+      <code style="font-size:0.8em">KS70007: Value performs IO</code><br>
+      <span style="color:var(--text-dim);font-size:0.82rem">At the declaration site</span>
+    </div>
+  </div>
+
+  <p>The three core functions mirror TypeScript's checker pattern:</p>
+  <table>
+    <tr><th>Function</th><th>TS Equivalent</th><th>Purpose</th></tr>
+    <tr>
+      <td><code>getKindFromKindNode</code></td>
+      <td><code>getTypeFromTypeNode</code></td>
+      <td>Extract declared <code>PropertySpec</code> from the annotation</td>
+    </tr>
+    <tr>
+      <td><code>getKindOfExpression</code></td>
+      <td><code>getTypeOfExpression</code></td>
+      <td>Compute actual properties by walking AST</td>
+    </tr>
+    <tr>
+      <td><code>checkKindAssignedTo</code></td>
+      <td><code>checkTypeAssignableTo</code></td>
+      <td>Compare computed vs declared, emit diagnostics</td>
+    </tr>
+  </table>
+
+  <div class="insight green">
+    <strong>Key insight:</strong> Unlike TypeScript's 44,000-line checker, KindScript's properties are <em>independent checks</em>. Each property (noImports, noConsole, etc.) is a self-contained boolean function. This means we can implement and test them one at a time, and they compose naturally.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 02: ARCHITECTURE ═══════════════ -->
+<section id="architecture">
+<div class="container">
+  <h2><span class="num">02</span>Checker Architecture</h2>
+  <p class="section-sub">How the checker fits into the existing pipeline and what it receives from the binder.</p>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Binder Output (already implemented)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The binder produces a <code>KindSymbolTable</code> &mdash; a <code>WeakMap&lt;ts.Symbol, KindSymbol&gt;</code>. Each entry has:</p>
+        <ul style="margin:8px 0 0 20px">
+          <li><code>role</code>: <code>'definition'</code> or <code>'value'</code></li>
+          <li><code>declaredProperties</code>: the <code>PropertySpec</code> to check against</li>
+          <li><code>valueKind</code>: <code>'function'</code> | <code>'file'</code> | <code>'directory'</code> | <code>'composite'</code></li>
+          <li><code>path</code>: filesystem path from <code>ks.dir()</code> / <code>ks.file()</code></li>
+          <li><code>members</code>: child members for composite kinds</li>
+        </ul>
+        <p style="margin-top:8px">The checker only processes entries where <code>role === 'value'</code>.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Value Resolution</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>For each kind-annotated value, the checker determines <em>what AST to walk</em>:</p>
+        <table style="margin:8px 0">
+          <tr><th>valueKind</th><th>AST Source</th></tr>
+          <tr><td>function</td><td>Function body from <code>declaration.initializer</code></td></tr>
+          <tr><td>file</td><td><code>program.getSourceFile(path)</code></td></tr>
+          <tr><td>directory</td><td>All <code>.ts</code> files in directory tree</td></tr>
+          <tr><td>composite</td><td>Each member recursively + import graph</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Property Inference</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Walk the resolved AST and compute a <code>ComputedPropertySpec</code>. Each property is an independent boolean check:</p>
+        <pre><code><span class="keyword">interface</span> <span class="type-name">ComputedPropertySpec</span> {
+  <span class="param">pure</span>: <span class="type-name">boolean</span>;
+  <span class="param">noIO</span>: <span class="type-name">boolean</span>;
+  <span class="param">noImports</span>: <span class="type-name">boolean</span>;
+  <span class="param">noConsole</span>: <span class="type-name">boolean</span>;
+  <span class="param">immutable</span>: <span class="type-name">boolean</span>;
+  <span class="comment">// ... 8 more ...</span>
+  <span class="param">violations</span>: <span class="type-name">PropertyViolation</span>[];
+}</code></pre>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Assignability Check + Diagnostics</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Compare each computed property against its declared constraint. If <code>declared.noIO === true</code> but <code>computed.noIO === false</code>, emit a <code>KSDiagnostic</code> with the error code, source location, and violation details.</p>
+        <div class="cli-sim">
+          <div class="cli-sim-bar"><span class="cli-sim-dot" style="background:#ff5f57"></span><span class="cli-sim-dot" style="background:#ffbd2e"></span><span class="cli-sim-dot" style="background:#28c840"></span></div>
+          <div class="cli-sim-body">
+            <span class="cli-prompt">$ </span>ksc check<br>
+            <span class="cli-error">context.ts:12:7 - error KS70007: Value performs IO</span><br>
+            <span class="cli-output">&nbsp;&nbsp;import { readFile } from 'fs';</span><br>
+            <span class="cli-output">&nbsp;&nbsp;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</span><br>
+            <span class="cli-output">&nbsp;&nbsp;'domain' is declared as { noIO: true } but imports 'fs'</span><br>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 03: DECISION 1 — CHECKER SHAPE ═══════════════ -->
+<section id="d1-checker-shape">
+<div class="container">
+  <h2><span class="num">03</span>Decision 1: Checker Internal Shape</h2>
+  <p class="section-sub">How should the individual property checks be organized inside the checker?</p>
+
+  <div class="decision-grid" id="d1-grid">
+    <div class="decision-card" onclick="selectDecision('d1', 'registry', this)">
+      <span class="dc-tag rec">Recommended</span>
+      <div class="dc-name">Property Check Registry</div>
+      <div class="dc-desc">A <code>Map&lt;string, CheckFn&gt;</code> where each property check is a named function. The checker iterates declared properties, looks up the check by name, and calls it.</div>
+      <ul class="dc-pros">
+        <li>New properties = new entries, zero core changes</li>
+        <li>Each check is independently testable</li>
+        <li>Natural for partial implementation (skip what isn't registered)</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Slight indirection vs direct if-chains</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d1', 'if-chain', this)">
+      <span class="dc-tag">Alternative</span>
+      <div class="dc-name">Direct If-Chain</div>
+      <div class="dc-desc">A single <code>checkKindAssignedTo</code> function with an <code>if</code> statement for every property, as shown in <code>docs/04-checker.md</code>.</div>
+      <ul class="dc-pros">
+        <li>Simplest to write initially</li>
+        <li>No abstraction overhead, easy to follow</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Adding properties requires editing core checker</li>
+        <li>Harder to test checks in isolation</li>
+        <li>Grows linearly with property count</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d1', 'visitor', this)">
+      <span class="dc-tag">Alternative</span>
+      <div class="dc-name">AST Visitor Pattern</div>
+      <div class="dc-desc">A single AST walk that computes <em>all</em> properties simultaneously. Each visitor callback collects evidence for all active properties.</div>
+      <ul class="dc-pros">
+        <li>Single pass over the AST (performance win)</li>
+        <li>Shared walk infrastructure</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Tight coupling between property checks</li>
+        <li>Harder to test properties in isolation</li>
+        <li>More complex to implement</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="decision-detail" id="d1-detail-registry">
+    <h3>Registry Pattern &mdash; Shape</h3>
+    <pre><code><span class="keyword">type</span> <span class="type-name">IntrinsicCheckFn</span> = (
+  <span class="param">node</span>: <span class="type-name">ts.Node</span>,
+  <span class="param">checker</span>: <span class="type-name">ts.TypeChecker</span>,
+) =&gt; { <span class="param">ok</span>: <span class="type-name">boolean</span>; <span class="param">violations</span>: <span class="type-name">PropertyViolation</span>[] };
+
+<span class="keyword">const</span> <span class="fn-name">intrinsicChecks</span> = <span class="keyword">new</span> <span class="type-name">Map</span>&lt;<span class="type-name">string</span>, <span class="type-name">IntrinsicCheckFn</span>&gt;([
+  [<span class="string-lit">'noImports'</span>, <span class="fn-name">checkNoImports</span>],
+  [<span class="string-lit">'noConsole'</span>, <span class="fn-name">checkNoConsole</span>],
+  [<span class="string-lit">'immutable'</span>, <span class="fn-name">checkImmutable</span>],
+  [<span class="string-lit">'noSideEffects'</span>, <span class="fn-name">checkNoSideEffects</span>],
+  <span class="comment">// add more as implemented...</span>
+]);</code></pre>
+    <p>The main loop becomes:</p>
+    <pre><code><span class="keyword">for</span> (<span class="keyword">const</span> [<span class="param">prop</span>, <span class="param">value</span>] <span class="keyword">of</span> Object.entries(declared)) {
+  <span class="keyword">const</span> <span class="param">check</span> = intrinsicChecks.get(prop);
+  <span class="keyword">if</span> (check &amp;&amp; value === <span class="keyword">true</span>) {
+    <span class="keyword">const</span> <span class="param">result</span> = check(astNode, tsChecker);
+    <span class="keyword">if</span> (!result.ok) diagnostics.push(...);
+  }
+}</code></pre>
+  </div>
+  <div class="decision-detail" id="d1-detail-if-chain">
+    <h3>If-Chain Pattern &mdash; Shape</h3>
+    <pre><code><span class="keyword">if</span> (declared.noImports &amp;&amp; !computed.noImports) {
+  diagnostics.push(<span class="fn-name">createDiag</span>(...));
+}
+<span class="keyword">if</span> (declared.noConsole &amp;&amp; !computed.noConsole) {
+  diagnostics.push(<span class="fn-name">createDiag</span>(...));
+}
+<span class="comment">// repeat for every property...</span></code></pre>
+    <p>This is the approach shown in <code>docs/04-checker.md</code>. Simple and explicit, but becomes mechanical repetition as properties grow.</p>
+  </div>
+  <div class="decision-detail" id="d1-detail-visitor">
+    <h3>Visitor Pattern &mdash; Shape</h3>
+    <pre><code><span class="keyword">function</span> <span class="fn-name">walkAndCompute</span>(<span class="param">node</span>: <span class="type-name">ts.Node</span>, <span class="param">ctx</span>: <span class="type-name">CheckContext</span>) {
+  <span class="keyword">if</span> (ts.<span class="fn-name">isImportDeclaration</span>(node)) ctx.noImports = <span class="keyword">false</span>;
+  <span class="keyword">if</span> (ts.<span class="fn-name">isPropertyAccessExpression</span>(node) &amp;&amp; ...) ctx.noConsole = <span class="keyword">false</span>;
+  <span class="comment">// all checks in one walk</span>
+  ts.<span class="fn-name">forEachChild</span>(node, n =&gt; <span class="fn-name">walkAndCompute</span>(n, ctx));
+}</code></pre>
+    <p>Efficient but couples all checks together. Better suited for a later optimization pass if performance matters.</p>
+  </div>
+
+  <div class="insight">
+    <strong>Recommendation:</strong> Start with the <strong>Registry pattern</strong>. It gives us incremental implementation (add one check at a time), isolated testing, and clean extensibility. If profiling later shows the per-property walks are too slow, we can consolidate into a single-pass visitor without changing the external API.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 04: DECISION 2 — VALUE RESOLUTION ═══════════════ -->
+<section id="d2-resolution">
+<div class="container">
+  <h2><span class="num">04</span>Decision 2: Directory Value Resolution</h2>
+  <p class="section-sub">When the checker encounters a <code>ks.dir('./src/domain')</code> value, how should it resolve that path to actual source files?</p>
+
+  <div class="decision-grid" id="d2-grid">
+    <div class="decision-card" onclick="selectDecision('d2', 'program-fs', this)">
+      <span class="dc-tag rec">Recommended</span>
+      <div class="dc-name">Program Source Files + fs</div>
+      <div class="dc-desc">First check <code>ts.Program.getSourceFiles()</code> for files under the path. Fall back to <code>fs.readdirSync</code> for files the program doesn't know about.</div>
+      <ul class="dc-pros">
+        <li>Gets pre-parsed ASTs from TS program (no re-parsing)</li>
+        <li>Handles files not in the program (e.g., new files)</li>
+        <li>Aligns with how TS language service works</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Two resolution strategies to maintain</li>
+        <li>fs dependency makes pure unit testing harder</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d2', 'program-only', this)">
+      <span class="dc-tag">Alternative</span>
+      <div class="dc-name">Program Source Files Only</div>
+      <div class="dc-desc">Only check files already in the <code>ts.Program</code>. If a file isn't included in the program's rootFiles, it won't be checked.</div>
+      <ul class="dc-pros">
+        <li>Zero filesystem access in the checker</li>
+        <li>All ASTs already parsed and available</li>
+        <li>Simple, deterministic, easy to test</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>May miss files not included in tsconfig</li>
+        <li>Requires users to include all files in rootFiles</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d2', 'virtual-fs', this)">
+      <span class="dc-tag">Alternative</span>
+      <div class="dc-name">Virtual Filesystem Abstraction</div>
+      <div class="dc-desc">Inject a <code>FileSystem</code> interface that the checker uses for all file operations. Allows swapping real fs for in-memory in tests.</div>
+      <ul class="dc-pros">
+        <li>Fully testable without touching disk</li>
+        <li>Supports custom environments (browser, WASM)</li>
+        <li>Clean separation of concerns</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>More abstraction up front</li>
+        <li>May be over-engineering for Phase 1</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="decision-detail" id="d2-detail-program-fs">
+    <h3>Program + fs Approach</h3>
+    <pre><code><span class="keyword">function</span> <span class="fn-name">resolveDirectoryFiles</span>(
+  <span class="param">dirPath</span>: <span class="type-name">string</span>,
+  <span class="param">program</span>: <span class="type-name">ts.Program</span>,
+): <span class="type-name">ts.SourceFile</span>[] {
+  <span class="keyword">const</span> <span class="param">resolved</span> = path.<span class="fn-name">resolve</span>(dirPath);
+  <span class="comment">// First: check program's source files</span>
+  <span class="keyword">const</span> <span class="param">programFiles</span> = program.<span class="fn-name">getSourceFiles</span>()
+    .filter(sf =&gt; sf.fileName.<span class="fn-name">startsWith</span>(resolved));
+  <span class="keyword">if</span> (programFiles.length &gt; <span class="number-lit">0</span>) <span class="keyword">return</span> programFiles;
+
+  <span class="comment">// Fallback: enumerate filesystem, create source files</span>
+  <span class="keyword">const</span> <span class="param">files</span> = <span class="fn-name">walkDirectory</span>(resolved, <span class="string-lit">'.ts'</span>);
+  <span class="keyword">return</span> files.map(f =&gt; ts.<span class="fn-name">createSourceFile</span>(f, fs.<span class="fn-name">readFileSync</span>(f, <span class="string-lit">'utf-8'</span>), ...));
+}</code></pre>
+  </div>
+  <div class="decision-detail" id="d2-detail-program-only">
+    <h3>Program-Only Approach</h3>
+    <pre><code><span class="keyword">function</span> <span class="fn-name">resolveDirectoryFiles</span>(
+  <span class="param">dirPath</span>: <span class="type-name">string</span>,
+  <span class="param">program</span>: <span class="type-name">ts.Program</span>,
+): <span class="type-name">ts.SourceFile</span>[] {
+  <span class="keyword">const</span> <span class="param">resolved</span> = path.<span class="fn-name">resolve</span>(dirPath);
+  <span class="keyword">return</span> program.<span class="fn-name">getSourceFiles</span>()
+    .filter(sf =&gt; !sf.isDeclarationFile &amp;&amp; sf.fileName.<span class="fn-name">startsWith</span>(resolved));
+}</code></pre>
+    <p style="margin-top:12px">Clean and simple. Relies on users having their tsconfig set up correctly. This is already how TypeScript itself works &mdash; if a file isn't in the program, TS doesn't type-check it either.</p>
+  </div>
+  <div class="decision-detail" id="d2-detail-virtual-fs">
+    <h3>Virtual Filesystem Approach</h3>
+    <pre><code><span class="keyword">interface</span> <span class="type-name">KSFileSystem</span> {
+  <span class="fn-name">readDirectory</span>(<span class="param">path</span>: <span class="type-name">string</span>): <span class="type-name">string</span>[];
+  <span class="fn-name">readFile</span>(<span class="param">path</span>: <span class="type-name">string</span>): <span class="type-name">string</span>;
+  <span class="fn-name">fileExists</span>(<span class="param">path</span>: <span class="type-name">string</span>): <span class="type-name">boolean</span>;
+}
+
+<span class="comment">// Production: delegates to node:fs</span>
+<span class="keyword">const</span> <span class="fn-name">realFS</span>: <span class="type-name">KSFileSystem</span> = { ... };
+
+<span class="comment">// Tests: in-memory</span>
+<span class="keyword">const</span> <span class="fn-name">memFS</span>: <span class="type-name">KSFileSystem</span> = { ... };</code></pre>
+    <p style="margin-top:12px">TypeScript itself uses <code>ts.sys</code> for this. Clean but adds API surface before we know if we need it.</p>
+  </div>
+
+  <div class="insight">
+    <strong>Recommendation:</strong> Start with <strong>Program Source Files Only</strong> for Phase 1-2. This avoids filesystem dependencies entirely and matches TypeScript's model. Move to Program + fs or Virtual FS in Phase 3 when directory resolution becomes critical for relational property checks.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 05: DECISION 3 — DIAGNOSTICS ═══════════════ -->
+<section id="d3-diagnostics">
+<div class="container">
+  <h2><span class="num">05</span>Decision 3: Diagnostic Reporting</h2>
+  <p class="section-sub">How should diagnostics be structured? Where should the error point? How much context should be included?</p>
+
+  <div class="tabs" id="d3-tabs">
+    <button class="tab active" onclick="switchTab('d3-container','d3-location')">Error Location</button>
+    <button class="tab" onclick="switchTab('d3-container','d3-chain')">Violation Chains</button>
+    <button class="tab" onclick="switchTab('d3-container','d3-format')">Output Format</button>
+  </div>
+  <div id="d3-container">
+    <div class="tab-content active" id="d3-location">
+      <h3>Where should the diagnostic point?</h3>
+
+      <div class="decision-grid" id="d3a-grid">
+        <div class="decision-card" onclick="selectDecision('d3a', 'decl-site', this)">
+          <span class="dc-tag rec">Recommended</span>
+          <div class="dc-name">Declaration Site</div>
+          <div class="dc-desc">Point the error at the variable declaration where the Kind annotation lives. This is where the "contract" is established.</div>
+          <ul class="dc-pros">
+            <li>Matches TypeScript's type error pattern</li>
+            <li>Always a single, predictable location</li>
+            <li>User sees "this promise was broken here"</li>
+          </ul>
+        </div>
+        <div class="decision-card" onclick="selectDecision('d3a', 'violation-site', this)">
+          <span class="dc-tag">Alternative</span>
+          <div class="dc-name">Violation Site</div>
+          <div class="dc-desc">Point the error at the actual violating code (e.g., the <code>import</code> statement, the <code>console.log</code> call).</div>
+          <ul class="dc-pros">
+            <li>User jumps directly to the problem code</li>
+            <li>More actionable for fixing</li>
+          </ul>
+          <ul class="dc-cons">
+            <li>May be in a different file than the declaration</li>
+            <li>Multiple violations = multiple diagnostics per property</li>
+          </ul>
+        </div>
+        <div class="decision-card" onclick="selectDecision('d3a', 'both', this)">
+          <span class="dc-tag">Alternative</span>
+          <div class="dc-name">Both (Primary + Related)</div>
+          <div class="dc-desc">Primary error at declaration site, with <code>relatedInformation</code> pointing at each violation site. Mirrors TypeScript's "related spans" pattern.</div>
+          <ul class="dc-pros">
+            <li>Best of both worlds</li>
+            <li>IDE-friendly (shows related locations)</li>
+          </ul>
+          <ul class="dc-cons">
+            <li>More complex diagnostic structure</li>
+            <li>Requires adding relatedInformation to KSDiagnostic</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="decision-detail" id="d3a-detail-both">
+        <h3>Primary + Related Pattern</h3>
+        <pre><code><span class="keyword">interface</span> <span class="type-name">KSDiagnostic</span> {
+  file: <span class="type-name">ts.SourceFile</span>;
+  start: <span class="type-name">number</span>;
+  length: <span class="type-name">number</span>;
+  messageText: <span class="type-name">string</span>;
+  category: <span class="type-name">ts.DiagnosticCategory</span>;
+  code: <span class="type-name">number</span>;
+  <span class="comment">// NEW: violation locations</span>
+  relatedInformation?: <span class="type-name">ts.DiagnosticRelatedInformation</span>[];
+}</code></pre>
+        <p style="margin-top:12px">In VS Code, this renders as: primary error underline at declaration, with clickable "related" links to each violation.</p>
+      </div>
+      <div class="decision-detail" id="d3a-detail-decl-site">
+        <p>Errors always point at the declaration: <code>const domain: DomainLayer = ks.dir('./src/domain')</code>. Violation details go in the message text, not in location spans.</p>
+      </div>
+      <div class="decision-detail" id="d3a-detail-violation-site">
+        <p>Each violation becomes its own diagnostic. A directory with 3 console.log calls in different files produces 3 separate KS70009 diagnostics, each pointing at the offending line.</p>
+      </div>
+    </div>
+
+    <div class="tab-content" id="d3-chain">
+      <h3>How detailed should violation chains be?</h3>
+      <p>When <code>noIO</code> fails because <code>./src/domain/handler.ts</code> imports <code>fs</code>, should we just say "Value performs IO" or include the full chain?</p>
+
+      <div class="decision-grid" id="d3b-grid">
+        <div class="decision-card" onclick="selectDecision('d3b', 'summary', this)">
+          <span class="dc-tag rec">Recommended for Phase 1</span>
+          <div class="dc-name">Summary Only</div>
+          <div class="dc-desc">One-line message: <code>"Value performs IO"</code>. Enough to know what's wrong, investigation is left to the user.</div>
+          <ul class="dc-pros">
+            <li>Simplest to implement</li>
+            <li>Clean, uncluttered output</li>
+          </ul>
+        </div>
+        <div class="decision-card" onclick="selectDecision('d3b', 'first-violation', this)">
+          <span class="dc-tag">Alternative</span>
+          <div class="dc-name">First Violation Detail</div>
+          <div class="dc-desc"><code>"Value performs IO: ./src/domain/handler.ts imports 'fs'"</code>. Shows one concrete example.</div>
+          <ul class="dc-pros">
+            <li>Actionable without digging</li>
+            <li>Still concise</li>
+          </ul>
+        </div>
+        <div class="decision-card" onclick="selectDecision('d3b', 'full-chain', this)">
+          <span class="dc-tag">Alternative</span>
+          <div class="dc-name">Full Chain</div>
+          <div class="dc-desc">List every violation with file paths and line numbers. Complete picture but verbose.</div>
+          <ul class="dc-pros">
+            <li>Complete picture in one diagnostic</li>
+          </ul>
+          <ul class="dc-cons">
+            <li>Verbose, especially for directory checks</li>
+            <li>More complex to build</li>
+          </ul>
+        </div>
+      </div>
+      <div class="decision-detail" id="d3b-detail-summary">
+        <p>Phase 1 keeps it simple. Just the property name and a stock message. We can add violation detail later without breaking the diagnostic interface.</p>
+      </div>
+      <div class="decision-detail" id="d3b-detail-first-violation">
+        <p>Shows the first violation found as context in the message. Good balance of detail and brevity.</p>
+      </div>
+      <div class="decision-detail" id="d3b-detail-full-chain">
+        <p>Outputs all violations. More useful as <code>relatedInformation</code> spans than as message text.</p>
+      </div>
+    </div>
+
+    <div class="tab-content" id="d3-format">
+      <h3>Should KSDiagnostic extend ts.Diagnostic?</h3>
+
+      <div class="decision-grid" id="d3c-grid">
+        <div class="decision-card" onclick="selectDecision('d3c', 'own-type', this)">
+          <span class="dc-tag rec">Recommended</span>
+          <div class="dc-name">Own KSDiagnostic Type</div>
+          <div class="dc-desc">Keep the current <code>KSDiagnostic</code> interface (already in <code>src/types.ts</code>). Add a <code>toTSDiagnostic()</code> converter for IDE integration.</div>
+          <ul class="dc-pros">
+            <li>No dependency on TS internal diagnostic shape</li>
+            <li>Can add KS-specific fields freely</li>
+            <li>Already implemented in types.ts</li>
+          </ul>
+        </div>
+        <div class="decision-card" onclick="selectDecision('d3c', 'extend-ts', this)">
+          <span class="dc-tag">Alternative</span>
+          <div class="dc-name">Extend ts.Diagnostic</div>
+          <div class="dc-desc">Make <code>KSDiagnostic</code> a superset of <code>ts.Diagnostic</code>, usable directly in TS language service.</div>
+          <ul class="dc-pros">
+            <li>Zero conversion for IDE plugin</li>
+            <li>Works with TS diagnostic formatters out of the box</li>
+          </ul>
+          <ul class="dc-cons">
+            <li>Tied to TS's diagnostic shape (source, not file, etc.)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="decision-detail" id="d3c-detail-own-type">
+        <p>Our <code>KSDiagnostic</code> already exists. Add a thin <code>toTSDiagnostic()</code> function when we build the language service plugin.</p>
+      </div>
+      <div class="decision-detail" id="d3c-detail-extend-ts">
+        <p>Means renaming <code>file</code> to <code>source</code> and ensuring all fields match <code>ts.Diagnostic</code>. Convenient but locks us in.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 06: DECISION 4 — IMPORT GRAPH ═══════════════ -->
+<section id="d4-import-graph">
+<div class="container">
+  <h2><span class="num">06</span>Decision 4: Import Graph Strategy</h2>
+  <p class="section-sub">Relational properties (<code>noDependency</code>, <code>noCycles</code>) need an import graph between composite members. How should we build it?</p>
+
+  <div class="decision-grid" id="d4-grid">
+    <div class="decision-card" onclick="selectDecision('d4', 'ast-walk', this)">
+      <span class="dc-tag rec">Recommended</span>
+      <div class="dc-name">AST Import Walk</div>
+      <div class="dc-desc">Walk each source file's import declarations. Resolve module specifiers using TS's module resolution. Map resolved paths to member ownership.</div>
+      <ul class="dc-pros">
+        <li>Uses TS module resolution (handles paths, baseUrl, etc.)</li>
+        <li>Straightforward implementation</li>
+        <li>Can reuse for noIO (checking import specifiers)</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Must handle re-exports, barrel files</li>
+        <li>Dynamic imports require extra handling</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d4', 'type-checker', this)">
+      <span class="dc-tag">Alternative</span>
+      <div class="dc-name">TypeChecker Symbol Resolution</div>
+      <div class="dc-desc">For each import, use <code>checker.getSymbolAtLocation()</code> to resolve to the declaration file. More precise but heavier.</div>
+      <ul class="dc-pros">
+        <li>Handles re-exports and barrel files automatically</li>
+        <li>Gets the "real" target, not the specifier text</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Heavier &mdash; invokes full TS resolution per import</li>
+        <li>May over-resolve (transitive re-exports)</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d4', 'ts-references', this)">
+      <span class="dc-tag">Alternative</span>
+      <div class="dc-name">TS Program References</div>
+      <div class="dc-desc">Use <code>ts.preProcessFile()</code> or the program's internal module graph. Piggybacks on what TS already computed.</div>
+      <ul class="dc-pros">
+        <li>No re-parsing of imports</li>
+        <li>Aligned with TS module graph</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>preProcessFile is a lower-level API</li>
+        <li>Less control over what counts as a dependency</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="decision-detail" id="d4-detail-ast-walk">
+    <h3>AST Import Walk &mdash; Implementation Sketch</h3>
+    <pre><code><span class="keyword">function</span> <span class="fn-name">buildMemberDependencyGraph</span>(
+  <span class="param">composite</span>: <span class="type-name">KindSymbol</span>,
+  <span class="param">program</span>: <span class="type-name">ts.Program</span>,
+): <span class="type-name">MemberDependencyGraph</span> {
+  <span class="comment">// 1. Resolve each member to file paths</span>
+  <span class="keyword">const</span> <span class="param">memberFiles</span> = <span class="keyword">new</span> Map&lt;string, Set&lt;string&gt;&gt;();
+  <span class="keyword">for</span> (<span class="keyword">const</span> [name, member] <span class="keyword">of</span> composite.members!) {
+    memberFiles.set(name, <span class="fn-name">resolveFiles</span>(member, program));
+  }
+
+  <span class="comment">// 2. Walk each file's imports</span>
+  <span class="keyword">const</span> <span class="param">edges</span>: <span class="type-name">Edge</span>[] = [];
+  <span class="keyword">for</span> (<span class="keyword">const</span> [fromMember, files] <span class="keyword">of</span> memberFiles) {
+    <span class="keyword">for</span> (<span class="keyword">const</span> filePath <span class="keyword">of</span> files) {
+      <span class="keyword">const</span> sf = program.<span class="fn-name">getSourceFile</span>(filePath);
+      <span class="keyword">for</span> (<span class="keyword">const</span> stmt <span class="keyword">of</span> sf.statements) {
+        <span class="keyword">if</span> (!ts.<span class="fn-name">isImportDeclaration</span>(stmt)) <span class="keyword">continue</span>;
+        <span class="keyword">const</span> resolved = ts.<span class="fn-name">resolveModuleName</span>(
+          stmt.moduleSpecifier.text, filePath,
+          program.<span class="fn-name">getCompilerOptions</span>(), ts.sys
+        );
+        <span class="comment">// Map resolved path to member ownership</span>
+        <span class="keyword">const</span> toMember = <span class="fn-name">findOwningMember</span>(resolved, memberFiles);
+        <span class="keyword">if</span> (toMember) edges.push({ from: fromMember, to: toMember });
+      }
+    }
+  }
+  <span class="keyword">return</span> { memberFiles, edges };
+}</code></pre>
+  </div>
+  <div class="decision-detail" id="d4-detail-type-checker">
+    <p>Uses <code>checker.getSymbolAtLocation(importSpecifier)</code> to resolve each import to the actual declaration's source file. More robust for re-exports but invokes TS checker per import.</p>
+  </div>
+  <div class="decision-detail" id="d4-detail-ts-references">
+    <p>Uses <code>ts.preProcessFile(sourceText)</code> to extract import specifiers without full parsing. Fastest but loses some resolution accuracy.</p>
+  </div>
+
+  <div class="insight warn">
+    <strong>Watch out:</strong> Relational properties only apply to <strong>composite</strong> kinds. The import graph is scoped to the composite's members &mdash; imports to code <em>outside</em> the composite are not graph edges. This scoping is critical for correct <code>noDependency</code> checks.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 07: DECISION 5 — PURITY MODEL ═══════════════ -->
+<section id="d5-purity">
+<div class="container">
+  <h2><span class="num">07</span>Decision 5: Purity &amp; IO Analysis Model</h2>
+  <p class="section-sub">The hardest properties to check: <code>pure</code>, <code>noIO</code>, and <code>noMutation</code> in their full transitive form. These require understanding call chains.</p>
+
+  <div class="decision-grid" id="d5-grid">
+    <div class="decision-card" onclick="selectDecision('d5', 'shallow', this)">
+      <span class="dc-tag rec">Recommended for Phase 1-2</span>
+      <div class="dc-name">Shallow / Syntactic</div>
+      <div class="dc-desc">Check only the immediate AST: does this file import <code>fs</code>? Does it call <code>console.log</code>? Does it have assignment operators? No transitive analysis.</div>
+      <ul class="dc-pros">
+        <li>Simple, fast, deterministic</li>
+        <li>Catches most common violations</li>
+        <li>No call graph needed</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Misses violations through wrapper functions</li>
+        <li>False negatives for transitive IO</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d5', 'allowlist', this)">
+      <span class="dc-tag">Phase 3 Upgrade</span>
+      <div class="dc-name">Known-API Allowlist</div>
+      <div class="dc-desc">Maintain a curated list of known-pure and known-impure APIs. <code>Array.map</code> is pure. <code>fs.readFile</code> is IO. Unknown functions are treated as impure.</div>
+      <ul class="dc-pros">
+        <li>Catches API-level violations without call graph</li>
+        <li>Pragmatic &mdash; covers 90% of real-world cases</li>
+        <li>User-configurable via config file</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Maintenance burden for the allowlist</li>
+        <li>Still conservative (unknowns = impure)</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d5', 'transitive', this)">
+      <span class="dc-tag">Phase 4 Goal</span>
+      <div class="dc-name">Full Transitive Analysis</div>
+      <div class="dc-desc">Build a call graph and propagate purity/IO status transitively. A function is pure only if everything it calls is also pure. Uses memoization.</div>
+      <ul class="dc-pros">
+        <li>Correct by construction</li>
+        <li>Catches deep violations</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Complex implementation (call graph, memoization)</li>
+        <li>Performance implications for large codebases</li>
+        <li>Needs escape hatches for FFI/native calls</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="decision-detail" id="d5-detail-shallow">
+    <h3>Shallow Checks &mdash; What We Detect</h3>
+    <table>
+      <tr><th>Property</th><th>Detection Method</th><th>False Negatives</th></tr>
+      <tr>
+        <td><code>noIO</code></td>
+        <td>Import specifiers matching known IO modules (<code>fs</code>, <code>net</code>, <code>http</code>, etc.)</td>
+        <td>Wrapper functions that re-export IO</td>
+      </tr>
+      <tr>
+        <td><code>noMutation</code></td>
+        <td>Assignment operators, <code>++</code>/<code>--</code>, <code>delete</code></td>
+        <td>Mutation through method calls (<code>arr.push()</code>)</td>
+      </tr>
+      <tr>
+        <td><code>pure</code></td>
+        <td>Combination of noIO + noMutation + noSideEffects</td>
+        <td>Everything transitive</td>
+      </tr>
+    </table>
+    <p style="margin-top:12px">This is the right starting point. Ship something useful, then improve detection progressively.</p>
+  </div>
+  <div class="decision-detail" id="d5-detail-allowlist">
+    <h3>Known-API Allowlist &mdash; Shape</h3>
+    <pre><code><span class="keyword">const</span> <span class="fn-name">IO_MODULES</span> = <span class="keyword">new</span> Set([
+  <span class="string-lit">'fs'</span>, <span class="string-lit">'fs/promises'</span>, <span class="string-lit">'net'</span>, <span class="string-lit">'http'</span>, <span class="string-lit">'https'</span>,
+  <span class="string-lit">'child_process'</span>, <span class="string-lit">'dgram'</span>, <span class="string-lit">'dns'</span>, <span class="string-lit">'tls'</span>,
+]);
+
+<span class="keyword">const</span> <span class="fn-name">IMPURE_GLOBALS</span> = <span class="keyword">new</span> Set([
+  <span class="string-lit">'console'</span>, <span class="string-lit">'process'</span>, <span class="string-lit">'setTimeout'</span>,
+  <span class="string-lit">'setInterval'</span>, <span class="string-lit">'fetch'</span>,
+]);</code></pre>
+  </div>
+  <div class="decision-detail" id="d5-detail-transitive">
+    <h3>Transitive Analysis &mdash; Sketch</h3>
+    <pre><code><span class="keyword">const</span> <span class="param">purityCache</span> = <span class="keyword">new</span> Map&lt;<span class="type-name">ts.Symbol</span>, <span class="type-name">boolean</span>&gt;();
+
+<span class="keyword">function</span> <span class="fn-name">isPure</span>(<span class="param">symbol</span>: <span class="type-name">ts.Symbol</span>): <span class="type-name">boolean</span> {
+  <span class="keyword">if</span> (purityCache.has(symbol)) <span class="keyword">return</span> purityCache.get(symbol)!;
+  purityCache.set(symbol, <span class="keyword">true</span>); <span class="comment">// optimistic (handles cycles)</span>
+
+  <span class="keyword">const</span> <span class="param">body</span> = <span class="fn-name">getFunctionBody</span>(symbol);
+  <span class="keyword">const</span> <span class="param">callees</span> = <span class="fn-name">findCallExpressions</span>(body);
+
+  <span class="keyword">for</span> (<span class="keyword">const</span> callee <span class="keyword">of</span> callees) {
+    <span class="keyword">if</span> (!<span class="fn-name">isPure</span>(callee)) {
+      purityCache.set(symbol, <span class="keyword">false</span>);
+      <span class="keyword">return false</span>;
+    }
+  }
+  <span class="keyword">return true</span>;
+}</code></pre>
+    <p style="margin-top:12px">This is the end goal. Requires call graph construction, cycle handling (optimistic marking), and an escape hatch for native/FFI functions.</p>
+  </div>
+
+  <div class="insight">
+    <strong>Recommendation:</strong> Progressive refinement. <strong>Phase 1-2</strong>: shallow syntactic checks (catches 80% of violations). <strong>Phase 3</strong>: add known-API allowlists (catches 95%). <strong>Phase 4</strong>: full transitive analysis for <code>pure</code> (catches ~100% with escape hatches). Each phase builds on the previous &mdash; the check function signatures don't change, only the implementation depth.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 08: PHASED ROLLOUT ═══════════════ -->
+<section id="phases">
+<div class="container">
+  <h2><span class="num">08</span>Phased Implementation Rollout</h2>
+  <p class="section-sub">Each phase validates the full pipeline end-to-end while adding complexity incrementally.</p>
+
+  <div class="pipeline-stepper" id="phase-stepper">
+    <button class="step-btn active" onclick="showStep('phase1')" style="border-bottom:2px solid var(--green)">Phase 1 &#10003;</button>
+    <button class="step-btn" onclick="showStep('phase2')" style="border-bottom:2px solid var(--green)">Phase 2 &#10003;</button>
+    <button class="step-btn" onclick="showStep('phase3')">Phase 3</button>
+    <button class="step-btn" onclick="showStep('phase4')">Phase 4</button>
+  </div>
+
+  <div class="step-content active" id="phase1">
+    <h3>Phase 1: <code>noImports</code> &mdash; End-to-End Validation</h3>
+    <p>The simplest property check. One loop over top-level statements. Zero recursion, zero type resolution. But it validates the <em>entire</em> checker pipeline:</p>
+    <table>
+      <tr><th>What Gets Built</th><th>Why It Matters</th></tr>
+      <tr><td><code>createKSChecker</code> (real implementation)</td><td>Replaces the stub in <code>src/checker.ts</code></td></tr>
+      <tr><td><code>getKindOfExpression</code> dispatcher</td><td>Routes by <code>valueKind</code> (function/file/dir/composite)</td></tr>
+      <tr><td><code>checkKindAssignedTo</code></td><td>Compares computed vs declared, creates diagnostics</td></tr>
+      <tr><td><code>checkNoImports</code></td><td>First property check function</td></tr>
+      <tr><td><code>KSDiagnostic</code> creation</td><td>Error codes, source positions, messages</td></tr>
+      <tr><td>Test fixtures with violations</td><td>Proves diagnostics actually fire</td></tr>
+    </table>
+    <div class="insight green">
+      <strong>Exit criteria: MET &#10003;</strong> <code>checker-violations</code> fixture with imports in a <code>noImports: true</code> directory produces KS70008 diagnostics. Clean fixtures (<code>checker-clean</code>, <code>basic</code>, <code>inline</code>, <code>alias-chain</code>, <code>functions</code>) produce zero diagnostics. All 25 checker tests pass.
+    </div>
+  </div>
+
+  <div class="step-content" id="phase2">
+    <h3>Phase 2: Shallow AST Walks</h3>
+    <p>Add 5 more property checks, all following the same pattern: walk statements, check node kind, return boolean.</p>
+    <table>
+      <tr><th>Property</th><th>Complexity</th><th>AST Pattern</th></tr>
+      <tr><td><code>noConsole</code></td><td>Low</td><td><code>console.*</code> property access</td></tr>
+      <tr><td><code>immutable</code></td><td>Low</td><td><code>let</code>/<code>var</code> at module scope</td></tr>
+      <tr><td><code>static</code></td><td>Low</td><td>Dynamic <code>import()</code>, <code>import.meta</code></td></tr>
+      <tr><td><code>noSideEffects</code></td><td>Low</td><td>Non-declaration top-level statements</td></tr>
+      <tr><td><code>noMutation</code></td><td>Medium</td><td>Assignment operators, <code>++</code>/<code>--</code>, <code>delete</code></td></tr>
+    </table>
+    <p style="margin-top:12px">Also: <code>maxFanOut</code> (count distinct import specifiers) and <code>scope</code> validation.</p>
+    <div class="insight green">
+      <strong>Exit criteria: MET &#10003;</strong> All 8 intrinsic property checks (<code>noImports</code>, <code>noConsole</code>, <code>immutable</code>, <code>static</code>, <code>noSideEffects</code>, <code>noMutation</code>, <code>noIO</code>, <code>pure</code>) plus <code>maxFanOut</code> produce correct diagnostics. Test fixtures cover function, file, and directory value kinds with both clean and violation cases.
+    </div>
+  </div>
+
+  <div class="step-content" id="phase3">
+    <h3>Phase 3: Relational Properties</h3>
+    <p>Build the import graph between composite members. Check <code>noDependency</code>, <code>noCycles</code>, <code>noTransitiveDependency</code>, <code>noSiblingDependency</code>.</p>
+    <table>
+      <tr><th>Component</th><th>Complexity</th><th>Notes</th></tr>
+      <tr><td><code>buildMemberDependencyGraph</code></td><td>Medium</td><td>File-to-member ownership + import resolution</td></tr>
+      <tr><td><code>checkNoDependency</code></td><td>Low</td><td>Filter edges by forbidden pairs</td></tr>
+      <tr><td><code>checkNoCycles</code></td><td>Medium</td><td>DFS cycle detection on member graph</td></tr>
+      <tr><td><code>checkNoTransitiveDependency</code></td><td>Medium</td><td>BFS reachability check</td></tr>
+      <tr><td><code>checkNoSiblingDependency</code></td><td>Low</td><td>Check for any cross-member edges</td></tr>
+      <tr><td><code>checkExhaustive</code></td><td>Low</td><td>All files in scope assigned to members</td></tr>
+    </table>
+    <p style="margin-top:12px">This phase requires directory resolution to work (Decision 2). If using "Program Only", composites must have all member files in the program.</p>
+    <div class="insight green">
+      <strong>Exit criteria:</strong> A composite kind with forbidden dependencies produces KS70001 diagnostics with correct from/to member names. Cycle detection reports the cycle path.
+    </div>
+  </div>
+
+  <div class="step-content" id="phase4">
+    <h3>Phase 4: Deep Transitive Analysis</h3>
+    <p>Full <code>pure</code>, <code>noIO</code>, <code>noMutation</code> with call graph construction and transitive propagation.</p>
+    <table>
+      <tr><th>Component</th><th>Complexity</th><th>Notes</th></tr>
+      <tr><td>Call graph construction</td><td>High</td><td>Resolve call expressions to function symbols</td></tr>
+      <tr><td>Memoized purity propagation</td><td>High</td><td>Cache per-symbol, handle cycles optimistically</td></tr>
+      <tr><td>Known-API database</td><td>Medium</td><td>Curated list of pure/impure Node.js APIs</td></tr>
+      <tr><td>Escape hatch annotations</td><td>Low</td><td><code>@ks-pure</code> / <code>@ks-impure</code> JSDoc tags</td></tr>
+    </table>
+    <div class="insight warn">
+      <strong>Watch out:</strong> Phase 4 is substantially more complex than Phases 1-3. Consider shipping Phases 1-3 as v0.1 and treating Phase 4 as a separate milestone.
+    </div>
+  </div>
+
+  <h3 style="margin-top:40px">Decision: Phase Scope for Initial Implementation</h3>
+  <div class="decision-grid" id="d6-grid">
+    <div class="decision-card" onclick="selectDecision('d6', 'phase1-2', this)">
+      <span class="dc-tag rec">Recommended</span>
+      <div class="dc-name">Implement Phase 1 + 2</div>
+      <div class="dc-desc">Build the checker core with all intrinsic property checks. Proves the architecture, gives users immediate value, defers cross-file complexity.</div>
+      <ul class="dc-pros">
+        <li>7 properties working end-to-end</li>
+        <li>No cross-file or filesystem complexity</li>
+        <li>Ship fast, iterate later</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d6', 'phase1-3', this)">
+      <span class="dc-tag">Alternative</span>
+      <div class="dc-name">Implement Phase 1 + 2 + 3</div>
+      <div class="dc-desc">Include relational properties. This is the full architectural enforcement story: "domain cannot import infrastructure" is the flagship use case.</div>
+      <ul class="dc-pros">
+        <li>Covers the most valuable use case</li>
+        <li>Complete story for demos and docs</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Import graph adds real complexity</li>
+        <li>Needs filesystem access for directories</li>
+      </ul>
+    </div>
+    <div class="decision-card" onclick="selectDecision('d6', 'phase1-only', this)">
+      <span class="dc-tag">Conservative</span>
+      <div class="dc-name">Phase 1 Only</div>
+      <div class="dc-desc">Just <code>noImports</code>. Validate the architecture with minimal scope, then decide what's next based on what we learn.</div>
+      <ul class="dc-pros">
+        <li>Fastest possible delivery</li>
+        <li>Lowest risk</li>
+      </ul>
+      <ul class="dc-cons">
+        <li>Only 1 property &mdash; limited utility</li>
+      </ul>
+    </div>
+  </div>
+  <div class="decision-detail" id="d6-detail-phase1-2">
+    <p>Recommended: Phase 1+2 gives us all intrinsic property checks. These are the "local" checks (no cross-file analysis) that catch the most common violations. Relational properties (Phase 3) can follow in a separate PR/milestone.</p>
+  </div>
+  <div class="decision-detail" id="d6-detail-phase1-3">
+    <p>More ambitious but delivers the full value proposition. The <code>noDependency</code> check is arguably <em>the</em> feature of KindScript.</p>
+  </div>
+  <div class="decision-detail" id="d6-detail-phase1-only">
+    <p>Minimal scope. Good if we're uncertain about the architecture and want to validate before committing to more.</p>
+  </div>
+
+  <!-- Vote Summary -->
+  <div class="vote-summary" id="vote-summary">
+    <h4>Design Decisions &mdash; Resolved</h4>
+    <div class="vote-row">
+      <span class="vote-label">D1: Checker Shape</span>
+      <span class="vote-choice" id="vote-d1">Property Check Registry &#10003;</span>
+    </div>
+    <div class="vote-row">
+      <span class="vote-label">D2: Directory Resolution</span>
+      <span class="vote-choice" id="vote-d2">Program Source Files Only &#10003;</span>
+    </div>
+    <div class="vote-row">
+      <span class="vote-label">D3a: Error Location</span>
+      <span class="vote-choice" id="vote-d3a">Declaration Site &#10003;</span>
+    </div>
+    <div class="vote-row">
+      <span class="vote-label">D3b: Violation Detail</span>
+      <span class="vote-choice" id="vote-d3b">First Violation Detail &#10003;</span>
+    </div>
+    <div class="vote-row">
+      <span class="vote-label">D3c: Diagnostic Type</span>
+      <span class="vote-choice" id="vote-d3c">Own KSDiagnostic Type &#10003;</span>
+    </div>
+    <div class="vote-row">
+      <span class="vote-label">D4: Import Graph Strategy</span>
+      <span class="vote-choice pending" id="vote-d4">Deferred to Phase 3</span>
+    </div>
+    <div class="vote-row">
+      <span class="vote-label">D5: Purity Model</span>
+      <span class="vote-choice" id="vote-d5">Shallow / Syntactic &#10003;</span>
+    </div>
+    <div class="vote-row">
+      <span class="vote-label">D6: Phase Scope</span>
+      <span class="vote-choice" id="vote-d6">Phase 1 + 2 &#10003;</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ KNOWLEDGE CHECK ═══════════════ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">09</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">7</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What are the three core functions of the checker and what are their TypeScript equivalents?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>getKindFromKindNode</code> (= <code>getTypeFromTypeNode</code>) extracts declared PropertySpec. <code>getKindOfExpression</code> (= <code>getTypeOfExpression</code>) computes actual properties by walking AST. <code>checkKindAssignedTo</code> (= <code>checkTypeAssignableTo</code>) compares and emits diagnostics.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is <code>noImports</code> the right property to implement first?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>It's the simplest check (one loop over top-level statements, no recursion, no type resolution), but it validates the <em>entire</em> end-to-end pipeline: binder output &rarr; value resolution &rarr; property inference &rarr; assignability check &rarr; diagnostic creation.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does the checker know what AST to walk for a <code>ks.dir('./src/domain')</code> value?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The binder sets <code>valueKind: 'directory'</code> and <code>path: './src/domain'</code> on the <code>KindSymbol</code>. The checker's <code>getKindOfExpression</code> dispatches on <code>valueKind</code>, resolves all <code>.ts</code> source files under that path from the program, and walks each one.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What makes relational properties (like <code>noDependency</code>) fundamentally different from intrinsic properties (like <code>noConsole</code>)?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Intrinsic properties are checked by walking a single AST node/file. Relational properties require building a <em>dependency graph</em> between composite members and analyzing its edges &mdash; they operate on the import relationships between multiple files/directories, not on individual code.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is full transitive <code>pure</code> checking deferred to Phase 4?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Full purity requires call graph construction (resolving call expressions to function symbols), memoized transitive propagation (a function is pure only if everything it calls is pure), cycle handling, and a known-API database. This is substantially more complex than syntactic checks and needs escape hatches for FFI/native calls.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the advantage of a "property check registry" over a direct if-chain for organizing the checker?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A registry (<code>Map&lt;string, CheckFn&gt;</code>) lets each property check be independently testable, allows incremental implementation (skip unregistered properties), and means adding new properties requires zero changes to the core checker loop &mdash; just add a new entry to the map.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does <code>checkKindAssignedTo</code> differ from TypeScript's <code>checkTypeAssignableTo</code>?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>TypeScript checks structural subtyping (data shapes). KindScript checks <em>property satisfaction</em>: does each computed boolean property satisfy the corresponding declared constraint? It's simpler &mdash; no recursive type instantiation, no variance, no conditional types. Just: for each declared property, is the computed value compliant?</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 7</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<script>
+// ── Tab switching ──
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabsRow = container.previousElementSibling;
+  tabsRow.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ── Collapsible stages ──
+function toggleStage(el) { el.classList.toggle('active'); }
+
+// ── Pipeline stepper ──
+function showStep(stepId) {
+  document.querySelectorAll('#phase-stepper + .step-content, #phase-stepper ~ .step-content').forEach(s => {
+    s.classList.remove('active');
+  });
+  // Find all step-content elements that are siblings after the stepper
+  const stepper = document.getElementById('phase-stepper');
+  let el = stepper.nextElementSibling;
+  while (el && el.classList.contains('step-content')) {
+    el.classList.remove('active');
+    el = el.nextElementSibling;
+  }
+  document.getElementById(stepId).classList.add('active');
+  document.querySelectorAll('#phase-stepper .step-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ── Decision cards ──
+const decisions = {};
+
+function selectDecision(decisionId, value, cardEl) {
+  const grid = document.getElementById(decisionId + '-grid');
+  grid.querySelectorAll('.decision-card').forEach(c => c.classList.remove('selected'));
+  cardEl.classList.add('selected');
+  decisions[decisionId] = value;
+
+  // Show detail
+  const allDetails = document.querySelectorAll('[id^="' + decisionId + '-detail-"]');
+  allDetails.forEach(d => d.classList.remove('active'));
+  const detail = document.getElementById(decisionId + '-detail-' + value);
+  if (detail) detail.classList.add('active');
+
+  // Update vote summary
+  const voteEl = document.getElementById('vote-' + decisionId);
+  if (voteEl) {
+    voteEl.textContent = value;
+    voteEl.classList.remove('pending');
+  }
+}
+
+// ── Flashcard quiz ──
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+
+</body>
+</html>
