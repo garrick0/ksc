@@ -19,8 +19,8 @@ Thumbs.db
 .claude/
 .playwright-mcp/
 
-# Verification screenshots
-verify-*.png
+# Screenshots (Playwright verification artifacts)
+*.png
 
 # Showcase temp folder
 .showcase-tmp/
