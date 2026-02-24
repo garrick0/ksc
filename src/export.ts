@@ -8,6 +8,17 @@
 import ts from 'typescript';
 import type { KSProgram, KindSymbol, PropertySpec } from './types.js';
 
+// ── AST node type ───────────────────────────────────────────────────────
+
+export interface ASTNode {
+  kind: string;
+  name?: string;
+  pos: number;
+  end: number;
+  text: string;
+  children: ASTNode[];
+}
+
 // ── DashboardExportData type ────────────────────────────────────────────
 
 export interface DashboardExportData {
@@ -30,6 +41,7 @@ export interface DashboardExportData {
         text: string;
       }>;
       source?: string;
+      ast?: ASTNode;
     }>;
   };
   bind: {
@@ -157,6 +169,41 @@ function extractDeclarations(sf: ts.SourceFile): DashboardExportData['parse']['s
   return decls;
 }
 
+/** Recursively walk the AST and produce a serializable tree. */
+function extractAST(sf: ts.SourceFile): ASTNode {
+  function walk(node: ts.Node): ASTNode {
+    const kind = ts.SyntaxKind[node.kind] ?? 'Unknown';
+
+    // Extract name if the node has a named identifier
+    let name: string | undefined;
+    const named = node as { name?: ts.Node };
+    if (named.name && ts.isIdentifier(named.name)) {
+      name = named.name.text;
+    }
+
+    // Get a short text preview (first line, max 80 chars)
+    let text: string;
+    try {
+      const full = node.getText(sf);
+      const firstLine = full.split('\n')[0];
+      text = firstLine.length > 80 ? firstLine.slice(0, 77) + '...' : firstLine;
+    } catch {
+      text = '';
+    }
+
+    const children: ASTNode[] = [];
+    ts.forEachChild(node, child => {
+      children.push(walk(child));
+    });
+
+    const result: ASTNode = { kind, pos: node.getStart(sf), end: node.getEnd(), text, children };
+    if (name) result.name = name;
+    return result;
+  }
+
+  return walk(sf);
+}
+
 // ── Error code → property name mapping ──────────────────────────────────
 
 const codeToProperty: Record<number, string> = {
@@ -210,7 +257,7 @@ export function exportDashboardData(
       fileName: sf.fileName,
       lineCount,
       declarations,
-      ...(includeSource ? { source: text } : {}),
+      ...(includeSource ? { source: text, ast: extractAST(sf) } : {}),
     });
   }
 

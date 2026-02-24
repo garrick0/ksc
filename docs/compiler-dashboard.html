@@ -200,6 +200,65 @@
   .dp-diag-msg { font-size: 11px; color: var(--text3); margin-top: 2px; }
   .dp-diag-loc { font-size: 10px; color: var(--text2); font-family: var(--mono); margin-top: 2px; }
 
+  /* ---- File viewer ---- */
+  .fv-stats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .fv-stat-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+  .fv-code-wrap {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #0d0f14; overflow: auto; max-height: 60vh;
+  }
+  .fv-line {
+    display: flex; line-height: 1.7; font-family: var(--mono); font-size: 11px;
+    padding-right: 12px; min-height: 19px;
+  }
+  .fv-line.violation { background: rgba(248,113,113,0.1); }
+  .fv-line.violation .fv-ln { border-left: 2px solid var(--red); }
+  .fv-ln {
+    display: inline-block; min-width: 40px; padding: 0 10px 0 8px;
+    text-align: right; color: var(--text2); user-select: none; flex-shrink: 0;
+    opacity: 0.4; border-left: 2px solid transparent;
+  }
+  .fv-code { white-space: pre; color: var(--text3); }
+  .fv-decl-item {
+    display: flex; align-items: center; gap: 6px; padding: 3px 0;
+    font-size: 11px; cursor: pointer; color: var(--text2);
+  }
+  .fv-decl-item:hover { color: var(--text); }
+
+  /* ---- File viewer tabs ---- */
+  .fv-tabs {
+    display: flex; gap: 2px; margin-bottom: 10px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 2px;
+  }
+  .fv-tab {
+    background: transparent; border: none; padding: 4px 14px; border-radius: 4px;
+    color: var(--text2); cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.15s;
+  }
+  .fv-tab:hover { color: var(--text); background: var(--bg3); }
+  .fv-tab.active { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+
+  /* ---- AST tree ---- */
+  .ast-wrap {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #0d0f14; overflow: auto; max-height: 60vh; padding: 8px 0;
+  }
+  .ast-node { padding-left: 16px; }
+  .ast-node.root { padding-left: 0; }
+  .ast-header {
+    display: flex; align-items: center; gap: 4px;
+    padding: 1px 8px; font-size: 11px; cursor: pointer;
+    border-radius: 3px; min-height: 20px;
+  }
+  .ast-header:hover { background: rgba(124,106,247,0.08); }
+  .ast-header.selected { background: rgba(124,106,247,0.15); }
+  .ast-toggle { width: 12px; font-size: 8px; color: var(--text2); text-align: center; flex-shrink: 0; }
+  .ast-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .ast-kind { color: var(--text2); font-family: var(--mono); font-size: 10px; }
+  .ast-name { color: var(--text); font-weight: 600; font-size: 11px; }
+  .ast-text { color: var(--text2); font-family: var(--mono); font-size: 10px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+  .ast-children { }
+  .ast-children.collapsed { display: none; }
+
   /* ---- Status bar ---- */
   #statusbar {
     height: 28px; background: var(--bg2); border-top: 1px solid var(--border);
@@ -554,8 +613,12 @@ function renderParseSidebar(el, query) {
     const hdr = document.createElement('div');
     hdr.className = 'sb-group-header';
     hdr.innerHTML = '<span class="chevron">&#9662;</span> ' + escHtml(shortFileName(sf.fileName)) +
-      ' <span style="color:var(--text2);font-size:10px;font-weight:400">(' + sf.declarations.length + ')</span>';
-    hdr.onclick = () => toggleSbGroup(hdr);
+      ' <span style="color:var(--text2);font-size:10px;font-weight:400">(' + sf.declarations.length + ')</span>' +
+      '<span class="fv-sb-icon" title="View file" style="margin-left:auto;cursor:pointer;opacity:0.4;font-size:10px;padding:0 4px" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">&#128196;</span>';
+    hdr.onclick = (e) => {
+      if (e.target.classList.contains('fv-sb-icon')) { showFileViewer(sf.fileName); return; }
+      toggleSbGroup(hdr);
+    };
     group.appendChild(hdr);
 
     const body = document.createElement('div');
@@ -716,8 +779,13 @@ function showParseDetail(sf, decl) {
   html += '<div class="dp-section"><div class="dp-label">Source Preview</div><div class="dp-code-block">' + escHtml(decl.text) + '</div></div>';
 
   if (sf.source) {
-    html += '<div class="dp-section"><div class="dp-label">Full Source</div><div class="dp-code-block">' + highlightSource(sf.source) + '</div></div>';
+    html += '<div class="dp-section"><div class="dp-label">Full Source</div><div class="fv-code-wrap">';
+    sf.source.split('\n').forEach(function(line, i) {
+      html += '<div class="fv-line"><span class="fv-ln">' + (i+1) + '</span><span class="fv-code">' + highlightTS(line) + '</span></div>';
+    });
+    html += '</div></div>';
   }
+  html += '<div class="dp-section"><button class="dp-nav-btn" onclick="showFileViewer(\'' + sf.fileName.replace(/'/g, "\\'") + '\')">View File &#8594;</button></div>';
   openDetail(decl.name, 'PARSE', '#4f8ef7', html);
 }
 
@@ -745,7 +813,7 @@ function showBindDetail(sym) {
     html += '<div class="dp-section"><div class="dp-label">Resolved Files (' + sym.resolvedFiles.length + ')</div><div class="dp-file-list">';
     sym.resolvedFiles.forEach(f => {
       const hasDiag = data.check.diagnostics.some(d => d.file === f);
-      html += '<div class="dp-file-item"><div class="fi-dot" style="background:' + (hasDiag ? 'var(--red)' : 'var(--green)') + '"></div>' + escHtml(f) + '</div>';
+      html += '<div class="dp-file-item" onclick="showFileViewer(\'' + f.replace(/'/g, "\\'") + '\')"><div class="fi-dot" style="background:' + (hasDiag ? 'var(--red)' : 'var(--green)') + '"></div>' + escHtml(f) + '</div>';
     });
     html += '</div></div>';
   }
@@ -777,20 +845,242 @@ function showCheckDetail(diag) {
   const sf = data.parse.sourceFiles.find(f => f.fileName === diag.file);
   if (sf && sf.source) {
     const lines = sf.source.split('\n');
-    let codeHtml = '';
+    let codeHtml = '<div class="fv-code-wrap">';
     lines.forEach((line, i) => {
       const lineNum = i + 1;
       const isViolation = lineNum === diag.line;
-      const cls = isViolation ? 'hl-line' : '';
-      codeHtml += '<span class="' + cls + '">' + padNum(lineNum) + ' ' + escHtml(line) + '</span>\n';
+      const cls = isViolation ? 'fv-line violation' : 'fv-line';
+      codeHtml += '<div class="' + cls + '"><span class="fv-ln">' + lineNum + '</span><span class="fv-code">' + highlightTS(line) + '</span></div>';
     });
-    html += '<div class="dp-section"><div class="dp-label">Source</div><div class="dp-code-block">' + codeHtml + '</div></div>';
+    codeHtml += '</div>';
+    html += '<div class="dp-section"><div class="dp-label">Source</div>' + codeHtml + '</div>';
   }
 
-  // Cross-stage link to parse view
-  html += '<div class="dp-section"><button class="dp-nav-btn" onclick="switchStage(\'parse\')">Show in Parse &#8594;</button></div>';
+  // Cross-stage links
+  html += '<div class="dp-section" style="display:flex;gap:6px">';
+  html += '<button class="dp-nav-btn" onclick="showFileViewer(\'' + diag.file.replace(/'/g, "\\'") + '\')">View File &#8594;</button>';
+  html += '<button class="dp-nav-btn" onclick="switchStage(\'parse\')">Show in Parse &#8594;</button>';
+  html += '</div>';
 
   openDetail('KS' + diag.code + ': ' + diag.property, 'CHECK', diag.code ? '#f87171' : '#4ade80', html);
+}
+
+function showFileViewer(fileName) {
+  var sf = data.parse.sourceFiles.find(function(f) { return f.fileName === fileName; });
+  if (!sf) return;
+
+  var fileDiags = data.check.diagnostics.filter(function(d) { return d.file === fileName; });
+  var violationLines = new Set(fileDiags.map(function(d) { return d.line; }));
+  var symbols = data.bind.symbols.filter(function(s) { return (s.resolvedFiles || []).includes(fileName); });
+
+  var html = '';
+
+  // Stats bar
+  html += '<div class="fv-stats">';
+  html += '<span class="fv-stat-badge" style="background:var(--bg4);color:var(--text3)">' + sf.lineCount + ' lines</span>';
+  html += '<span class="fv-stat-badge" style="background:rgba(79,142,247,0.15);color:var(--parse-color)">' + sf.declarations.length + ' declarations</span>';
+  if (fileDiags.length > 0) {
+    html += '<span class="fv-stat-badge" style="background:rgba(248,113,113,0.15);color:var(--red)">' + fileDiags.length + ' violations</span>';
+  } else {
+    html += '<span class="fv-stat-badge" style="background:rgba(74,222,128,0.12);color:var(--green)">clean</span>';
+  }
+  html += '</div>';
+
+  // Governing symbols
+  if (symbols.length > 0) {
+    html += '<div class="dp-section"><div class="dp-label">Governed By</div>';
+    symbols.forEach(function(s) {
+      html += '<span class="dp-prop-chip" style="border-color:' + valueKindColor(s) + ';color:' + valueKindColor(s) + ';background:' + valueKindColor(s) + '12;cursor:pointer;margin-right:4px" onclick="navigateToSymbol(\'' + s.id + '\')">' + escHtml(s.name) + '</span>';
+    });
+    html += '</div>';
+  }
+
+  // Diagnostics
+  if (fileDiags.length > 0) {
+    html += '<div class="dp-section"><div class="dp-label">Diagnostics</div>';
+    fileDiags.forEach(function(d) {
+      html += '<div class="dp-diag-item" style="cursor:pointer" onclick="showCheckDetailById(\'' + d.id + '\')">';
+      html += '<div class="dp-diag-code">KS' + d.code + ' &mdash; ' + d.property + ' <span style="color:var(--text2);font-weight:400">L' + d.line + '</span></div>';
+      html += '<div class="dp-diag-msg">' + escHtml(d.message) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Declarations
+  if (sf.declarations.length > 0) {
+    html += '<div class="dp-section"><div class="dp-label">Declarations</div>';
+    sf.declarations.forEach(function(d) {
+      html += '<div class="fv-decl-item" onclick="showParseDetailById(\'' + fileName.replace(/'/g, "\\'") + '\',\'' + d.id + '\')">';
+      html += '<span class="dp-badge" style="background:' + kindColor(d.kind) + ';color:#fff;font-size:9px;padding:1px 5px">' + kindBadge(d.kind) + '</span>';
+      html += '<span>' + escHtml(d.name) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Tabs: Source / AST
+  var hasAST = sf.ast && sf.ast.children;
+  if (sf.source || hasAST) {
+    html += '<div class="dp-section">';
+    html += '<div class="fv-tabs">';
+    html += '<button class="fv-tab active" data-fvtab="source" onclick="switchFileViewerTab(\'source\')">Source</button>';
+    if (hasAST) {
+      html += '<button class="fv-tab" data-fvtab="ast" onclick="switchFileViewerTab(\'ast\')">AST</button>';
+    }
+    html += '</div>';
+
+    // Source tab content
+    if (sf.source) {
+      var lines = sf.source.split('\n');
+      html += '<div id="fv-tab-source" class="fv-tab-content">';
+      html += '<div class="fv-code-wrap">';
+      lines.forEach(function(line, i) {
+        var lineNum = i + 1;
+        var isViolation = violationLines.has(lineNum);
+        var cls = isViolation ? 'fv-line violation' : 'fv-line';
+        html += '<div class="' + cls + '"><span class="fv-ln">' + lineNum + '</span><span class="fv-code">' + highlightTS(line) + '</span></div>';
+      });
+      html += '</div></div>';
+    }
+
+    // AST tab content (rendered after panel opens)
+    if (hasAST) {
+      html += '<div id="fv-tab-ast" class="fv-tab-content" style="display:none"><div class="ast-wrap" id="ast-container"></div></div>';
+    }
+
+    html += '</div>';
+  }
+
+  openDetail(shortFileName(fileName), 'FILE', 'var(--parse-color)', html);
+
+  // Render AST tree after the panel HTML is in the DOM
+  if (hasAST) {
+    setTimeout(function() {
+      var container = document.getElementById('ast-container');
+      if (container) renderASTTree(sf.ast, container);
+    }, 0);
+  }
+}
+
+function showCheckDetailById(id) {
+  var d = data.check.diagnostics.find(function(x) { return x.id === id; });
+  if (d) showCheckDetail(d);
+}
+
+function showParseDetailById(fileName, declId) {
+  var sf = data.parse.sourceFiles.find(function(f) { return f.fileName === fileName; });
+  if (!sf) return;
+  var decl = sf.declarations.find(function(d) { return d.id === declId; });
+  if (decl) showParseDetail(sf, decl);
+}
+
+// ============================================================
+// FILE VIEWER TAB SWITCHING
+// ============================================================
+function switchFileViewerTab(tab) {
+  document.querySelectorAll('.fv-tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.fvtab === tab);
+  });
+  var srcEl = document.getElementById('fv-tab-source');
+  var astEl = document.getElementById('fv-tab-ast');
+  if (srcEl) srcEl.style.display = tab === 'source' ? '' : 'none';
+  if (astEl) astEl.style.display = tab === 'ast' ? '' : 'none';
+}
+
+// ============================================================
+// AST TREE RENDERING
+// ============================================================
+function astKindColor(kind) {
+  // Declarations
+  if (/Declaration|Signature/.test(kind)) return 'var(--blue)';
+  // Statements
+  if (/Statement|Block|Clause|Case/.test(kind)) return 'var(--purple)';
+  // Expressions
+  if (/Expression|Call|Arrow|Template|Spread|Yield|Await/.test(kind)) return 'var(--yellow)';
+  // Literals
+  if (/Literal|Keyword$/.test(kind) && /String|Numeric|True|False|Null|NoSubstitution|BigInt/.test(kind)) return 'var(--orange)';
+  // Types
+  if (/Type|Union|Intersection|Mapped|Conditional|Indexed|Infer/.test(kind)) return 'var(--cyan)';
+  // Imports/Exports
+  if (/Import|Export/.test(kind)) return 'var(--text2)';
+  // Identifiers
+  if (kind === 'Identifier') return 'var(--text2)';
+  return 'var(--text2)';
+}
+
+function renderASTTree(astNode, container) {
+  container.innerHTML = '';
+
+  function buildNode(node, depth) {
+    var el = document.createElement('div');
+    el.className = depth === 0 ? 'ast-node root' : 'ast-node';
+
+    var hdr = document.createElement('div');
+    hdr.className = 'ast-header';
+
+    var hasChildren = node.children && node.children.length > 0;
+
+    // Toggle arrow
+    var toggle = document.createElement('span');
+    toggle.className = 'ast-toggle';
+    toggle.textContent = hasChildren ? (depth < 2 ? '\u25BE' : '\u25B8') : ' ';
+    hdr.appendChild(toggle);
+
+    // Color dot
+    var dot = document.createElement('span');
+    dot.className = 'ast-dot';
+    dot.style.background = astKindColor(node.kind);
+    hdr.appendChild(dot);
+
+    // Kind name
+    var kindEl = document.createElement('span');
+    kindEl.className = 'ast-kind';
+    kindEl.textContent = node.kind;
+    hdr.appendChild(kindEl);
+
+    // Name (if present)
+    if (node.name) {
+      var nameEl = document.createElement('span');
+      nameEl.className = 'ast-name';
+      nameEl.textContent = node.name;
+      hdr.appendChild(nameEl);
+    }
+
+    // Text preview for leaf nodes or small nodes
+    if (!hasChildren && node.text && node.text !== node.name) {
+      var textEl = document.createElement('span');
+      textEl.className = 'ast-text';
+      textEl.textContent = node.text;
+      hdr.appendChild(textEl);
+    }
+
+    el.appendChild(hdr);
+
+    // Children container
+    if (hasChildren) {
+      var childrenEl = document.createElement('div');
+      childrenEl.className = depth >= 2 ? 'ast-children collapsed' : 'ast-children';
+
+      node.children.forEach(function(child) {
+        childrenEl.appendChild(buildNode(child, depth + 1));
+      });
+
+      el.appendChild(childrenEl);
+
+      // Click to toggle
+      hdr.onclick = function(e) {
+        e.stopPropagation();
+        var isCollapsed = childrenEl.classList.contains('collapsed');
+        childrenEl.classList.toggle('collapsed');
+        toggle.textContent = isCollapsed ? '\u25BE' : '\u25B8';
+      };
+    }
+
+    return el;
+  }
+
+  container.appendChild(buildNode(astNode, 0));
 }
 
 function navigateToSymbol(symId) {
@@ -886,11 +1176,17 @@ function renderTree() {
       .attr('width', levelW - 10).attr('height', nodeH)
       .attr('rx', 3);
 
-    // Toggle
+    // Toggle arrow (clickable to expand/collapse independently of node click)
     nodeEnter.filter(d => d.data.children && d.data.children.length > 0 || d.children || d._children)
       .append('text')
       .attr('class', 'tree-toggle')
-      .attr('x', -14).attr('dy', '0.35em').attr('text-anchor', 'middle');
+      .attr('x', -14).attr('dy', '0.35em').attr('text-anchor', 'middle')
+      .on('click', (e, d) => {
+        e.stopPropagation();
+        if (d.children) { d._children = d.children; d.children = null; }
+        else if (d._children) { d.children = d._children; d._children = null; }
+        update(d);
+      });
 
     // Node dot
     nodeEnter.append('circle')
@@ -948,6 +1244,11 @@ function renderTree() {
 
     // Click handler
     nodeEnter.on('click', (e, d) => {
+      // File/dir nodes with onClick: open file viewer (toggle via arrow)
+      if (d.data.onClick && (d.data._isFile || d.data._isDir)) {
+        d.data.onClick();
+        return;
+      }
       if (d.children) { d._children = d.children; d.children = null; }
       else if (d._children) { d.children = d._children; d._children = null; }
       else {
@@ -996,7 +1297,7 @@ function buildParseTree() {
       badge: null,
       countText: '(' + sf.declarations.length + ' decls, ' + sf.lineCount + ' lines)',
       tooltip: { title: sf.fileName, rows: [['Lines', sf.lineCount + ''], ['Declarations', sf.declarations.length + '']] },
-      onClick: () => showParseDetail(sf, sf.declarations[0]),
+      onClick: () => showFileViewer(sf.fileName),
       children: sf.declarations.map(d => ({
         id: d.id,
         name: d.name,
@@ -1068,10 +1369,7 @@ function buildBindNode(sym) {
         _isFile: true,
         color: fileDiag ? 'var(--red)' : 'var(--green)',
         tooltip: { title: f, rows: [['Status', fileDiag ? 'Has violations' : 'Clean']] },
-        onClick: () => {
-          const sf = data.parse.sourceFiles.find(s => s.fileName === f);
-          if (sf) showParseDetail(sf, sf.declarations[0]);
-        },
+        onClick: () => showFileViewer(f),
         children: []
       };
     })
@@ -1099,6 +1397,7 @@ function buildCheckTreeByFile() {
         color: 'var(--red)',
         countText: '(' + byFile[file].length + ' errors)',
         tooltip: { title: file, rows: [['Errors', byFile[file].length + '']] },
+        onClick: () => showFileViewer(file),
         children: byFile[file].map(d => ({
           id: d.id,
           name: 'KS' + d.code + ': ' + d.property,
@@ -1121,6 +1420,7 @@ function buildCheckTreeByFile() {
           badge: '\u2713',
           badgeColor: '#16a34a',
           tooltip: { title: sf.fileName, rows: [['Status', 'No violations']] },
+          onClick: () => showFileViewer(sf.fileName),
           children: []
         }))
       }] : [])
@@ -1290,13 +1590,23 @@ function propsChips(props) {
   return keys.map(k => '<span style="font-size:9px;font-weight:700;padding:0 4px;border-radius:3px;background:rgba(74,222,128,0.1);color:#4ade80;margin-left:3px">' + k + '</span>').join('');
 }
 
-function highlightSource(src) {
-  // Simple syntax highlighting
-  return escHtml(src)
-    .replace(/\b(type|const|let|var|function|export|import|from|declare|return|readonly|extends)\b/g, '<span class="hl-kw">$1</span>')
-    .replace(/\b(string|number|boolean|void|true|false|unknown)\b/g, '<span class="hl-type">$1</span>')
-    .replace(/(\/\/[^\n]*)/g, '<span class="hl-cmt">$1</span>')
-    .replace(/('[^']*')/g, '<span class="hl-str">$1</span>');
+function highlightTS(code) {
+  var re = /(\/\/[^\n]*)|('(?:[^'\\]|\\.)*')|(`(?:[^`\\]|\\.)*`)|("(?:[^"\\]|\\.)*")|\b(import|export|from|type|interface|class|function|const|let|var|return|if|else|for|of|in|new|readonly|extends|implements|private|public|protected|get|set|async|await|this|typeof|void|declare|as|while|switch|case|default|break|continue|throw|try|catch|finally|yield|null|undefined|static|abstract|enum)\b|\b(true|false|string|number|boolean|any|unknown|never|object|Record|Array|Map|Set|Promise|Partial|Required|Readonly|Pick|Omit)\b|\b([A-Z][A-Za-z0-9_]*)\b|(\b\d+(?:\.\d+)?\b)/g;
+  var result = '', lastIndex = 0, m;
+  while ((m = re.exec(code)) !== null) {
+    if (m.index > lastIndex) result += escHtml(code.slice(lastIndex, m.index));
+    var escaped = escHtml(m[0]);
+    if (m[1] != null) result += '<span class="hl-cmt">' + escaped + '</span>';
+    else if (m[2] != null || m[3] != null || m[4] != null) result += '<span class="hl-str">' + escaped + '</span>';
+    else if (m[5] != null) result += '<span class="hl-kw">' + escaped + '</span>';
+    else if (m[6] != null) result += '<span class="hl-type">' + escaped + '</span>';
+    else if (m[7] != null) result += '<span class="hl-type">' + escaped + '</span>';
+    else if (m[8] != null) result += '<span class="hl-num">' + escaped + '</span>';
+    else result += escaped;
+    lastIndex = m.index + m[0].length;
+  }
+  if (lastIndex < code.length) result += escHtml(code.slice(lastIndex));
+  return result;
 }
 
 // ============================================================
