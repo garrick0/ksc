@@ -1,346 +1,203 @@
+/**
+ * Tests for the KindScript Checker — AG spec for kind property enforcement.
+ */
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../src/program.js';
-import { defineConfig } from '../src/config.js';
-import type { KindScriptConfig } from '../src/config.js';
-import type { KSProgram } from '../src/types.js';
+import { buildKSTree } from '../src/pipeline/convert.js';
+import { createBinderSpec } from '../src/pipeline/binder.js';
+import { createCheckerSpec } from '../src/pipeline/checker.js';
+import { createGrammar } from '../libs/ag/src/grammar.js';
+import { createSemantics } from '../libs/ag/src/semantics.js';
+import { interpret } from '../libs/ag/src/interpret.js';
+import { getChildren } from '../src/pipeline/ast.js';
+import type { KindDefinition, CheckerDiagnostic } from '../src/pipeline/types.js';
+import type { KSNode } from '../src/pipeline/ast.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
-// ────────────────────────────────────────────────────────────────────────
-// Helper: create a program from a fixture directory with a config
-// ────────────────────────────────────────────────────────────────────────
-
-function createFixtureProgram(fixtureName: string, config: KindScriptConfig): KSProgram {
-  const fixtureDir = path.join(FIXTURES, fixtureName);
-  const rootFiles = findTsFiles(fixtureDir);
-
-  return createProgram(rootFiles, config, {
+function buildAndCheck(fixtureDir: string) {
+  const files = ts.sys.readDirectory(
+    path.join(FIXTURES, fixtureDir, 'src'),
+    ['.ts'],
+  );
+  const tsProgram = ts.createProgram(files, {
     strict: true,
     noEmit: true,
-    rootDir: fixtureDir,
+    rootDir: path.join(FIXTURES, fixtureDir),
   });
-}
-
-/** Recursively find all .ts files in a directory. */
-function findTsFiles(dir: string): string[] {
-  const fs = require('fs') as typeof import('fs');
-  const results: string[] = [];
-
-  function walk(d: string) {
-    let entries: string[];
-    try {
-      entries = fs.readdirSync(d);
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = path.join(d, entry);
-      const stat = fs.statSync(full);
-      if (stat.isDirectory()) {
-        walk(full);
-      } else if (entry.endsWith('.ts')) {
-        results.push(full);
-      }
-    }
-  }
-
-  walk(dir);
-  return results;
+  const ksTree = buildKSTree(tsProgram);
+  const grammar = createGrammar(getChildren);
+  const semantics = createSemantics(grammar, [
+    createBinderSpec(),
+    createCheckerSpec(),
+  ]);
+  const results = interpret(semantics, ksTree.root);
+  const allDefs = (results.get('ksc-binder') as KindDefinition[]) ?? [];
+  const diagnostics = (results.get('ksc-checker') as CheckerDiagnostic[]) ?? [];
+  return { ksTree, allDefs, diagnostics };
 }
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('checker — clean fixtures produce zero diagnostics', () => {
-  it('clean checker fixture (pure directory + pure function file)', () => {
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { pure: true, noIO: true, noImports: true } },
-      pureFuncFile: { path: './src/funcs/pure-func.ts', rules: { noMutation: true, noConsole: true } },
-    });
-    const program = createFixtureProgram('checker-clean', config);
-    const diags = program.getKindDiagnostics();
-    expect(diags).toEqual([]);
-  });
-
-  it('clean directory fixture (all files satisfy constraints)', () => {
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true, immutable: true, noSideEffects: true } },
-    });
-    const program = createFixtureProgram('checker-dir-clean', config);
-    const diags = program.getKindDiagnostics();
-    expect(diags).toEqual([]);
-  });
-
-  it('empty config produces no diagnostics', () => {
-    const config = defineConfig({});
-    const program = createFixtureProgram('checker-clean', config);
-    const diags = program.getKindDiagnostics();
-    expect(diags).toEqual([]);
-  });
-
-  it('config targeting non-existent directory produces no diagnostics', () => {
-    const config = defineConfig({
-      phantom: { path: './src/does-not-exist', rules: { noConsole: true } },
-    });
-    const program = createFixtureProgram('checker-clean', config);
-    const diags = program.getKindDiagnostics();
-    expect(diags).toEqual([]);
+describe('checker — SpecInput contract', () => {
+  it('createCheckerSpec returns a valid SpecInput', () => {
+    const spec = createCheckerSpec();
+    expect(spec.name).toBe('ksc-checker');
+    expect(spec.deps).toContain('ksc-binder');
+    expect(typeof spec.project).toBe('function');
+    expect(spec.declarations).toHaveProperty('valueImports');
+    expect(spec.declarations).toHaveProperty('fileImports');
+    expect(spec.declarations).toHaveProperty('localBindings');
+    expect(spec.declarations).toHaveProperty('enclosingLocals');
+    expect(spec.declarations).toHaveProperty('isReference');
+    expect(spec.declarations).toHaveProperty('kindAnnotations');
+    expect(spec.declarations).toHaveProperty('noImportsContext');
+    expect(spec.declarations).toHaveProperty('importViolation');
+    expect(spec.declarations).toHaveProperty('allViolations');
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('checker — noConsole violations', () => {
-  const config = defineConfig({
-    noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-    noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-    domain: { path: './src/domain', rules: { noImports: true } },
-    infra: { path: './src/infra', rules: { noIO: true } },
+describe('checker — kind-basic fixture (clean, no violations)', () => {
+  it('produces 0 diagnostics', () => {
+    const { diagnostics } = buildAndCheck('kind-basic');
+    expect(diagnostics).toEqual([]);
   });
 
-  it('detects console.log in source file', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const consoleDiags = diags.filter(d => d.code === 70009);
-    expect(consoleDiags.length).toBeGreaterThanOrEqual(1);
-    expect(consoleDiags[0].messageText).toContain('console');
-  });
-
-  it('diagnostic has correct error code', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const consoleDiags = diags.filter(d => d.code === 70009);
-    expect(consoleDiags.length).toBeGreaterThanOrEqual(1);
-    expect(consoleDiags[0].category).toBe(ts.DiagnosticCategory.Error);
+  it('binder still finds kind definitions', () => {
+    const { allDefs } = buildAndCheck('kind-basic');
+    const names = allDefs.map(d => d.name);
+    expect(names).toContain('NoImports');
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('checker — noMutation violations', () => {
-  const config = defineConfig({
-    noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-    noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-    domain: { path: './src/domain', rules: { noImports: true } },
-    infra: { path: './src/infra', rules: { noIO: true } },
+describe('checker — kind-violations fixture', () => {
+  it('detects violation in violating.ts', () => {
+    const { diagnostics } = buildAndCheck('kind-violations');
+    expect(diagnostics.length).toBeGreaterThanOrEqual(1);
+
+    const violation = diagnostics.find(d => d.fileName.includes('violating.ts'));
+    expect(violation).toBeDefined();
+    expect(violation!.kindName).toBe('NoImports');
+    expect(violation!.property).toBe('noImports');
+    expect(violation!.message).toContain('helper');
+    expect(violation!.message).toContain('imported binding');
   });
 
-  it('detects assignment and increment in source file', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const mutDiags = diags.filter(d => d.code === 70013);
-    // Assignment (x = 1) and increment (x++) should both be caught
-    expect(mutDiags.length).toBeGreaterThanOrEqual(1);
+  it('does not flag clean.ts', () => {
+    const { diagnostics } = buildAndCheck('kind-violations');
+    const cleanViolations = diagnostics.filter(d => d.fileName.includes('clean.ts'));
+    expect(cleanViolations).toEqual([]);
   });
 
-  it('diagnostic message mentions mutation', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const mutDiags = diags.filter(d => d.code === 70013);
-    expect(mutDiags.length).toBeGreaterThanOrEqual(1);
-    expect(mutDiags[0].messageText).toContain('mutation');
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-
-describe('checker — noImports violations (directory)', () => {
-  const config = defineConfig({
-    noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-    noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-    domain: { path: './src/domain', rules: { noImports: true } },
-    infra: { path: './src/infra', rules: { noIO: true } },
-  });
-
-  it('detects imports in directory source files', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const importDiags = diags.filter(d => d.code === 70008);
-    expect(importDiags.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('diagnostic message mentions import', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const importDiags = diags.filter(d => d.code === 70008);
-    expect(importDiags.length).toBeGreaterThanOrEqual(1);
-    expect(importDiags[0].messageText).toContain('import');
+  it('does not flag unannotated functions', () => {
+    const { diagnostics } = buildAndCheck('kind-violations');
+    const helperViolations = diagnostics.filter(d => d.fileName.includes('helpers.ts'));
+    expect(helperViolations).toEqual([]);
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('checker — noIO violations (directory)', () => {
-  const config = defineConfig({
-    noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-    noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-    domain: { path: './src/domain', rules: { noImports: true } },
-    infra: { path: './src/infra', rules: { noIO: true } },
+describe('checker — individual attributes', () => {
+  it('valueImports collects non-type-only imports', () => {
+    const { ksTree } = buildAndCheck('kind-violations');
+    const violating = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('violating.ts'),
+    )!;
+    const imports: Set<string> = (violating as any).valueImports;
+    expect(imports.has('helper')).toBe(true);
   });
 
-  it('detects IO module imports in directory source files', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const ioDiags = diags.filter(d => d.code === 70007);
-    expect(ioDiags.length).toBeGreaterThanOrEqual(1);
+  it('valueImports skips type-only imports', () => {
+    const { ksTree } = buildAndCheck('kind-basic');
+    const mathFile = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('math.ts'),
+    )!;
+    const imports: Set<string> = (mathFile as any).valueImports;
+    expect(imports.size).toBe(0);
   });
 
-  it('diagnostic message mentions IO', () => {
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    const ioDiags = diags.filter(d => d.code === 70007);
-    expect(ioDiags.length).toBeGreaterThanOrEqual(1);
-    expect(ioDiags[0].messageText).toContain('IO');
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-
-describe('checker — directory violations (immutable, noConsole, noSideEffects)', () => {
-  const config = defineConfig({
-    impureDir: {
-      path: './src/impure',
-      rules: { noConsole: true, immutable: true, noSideEffects: true, static: true },
-    },
+  it('fileImports propagates to descendants', () => {
+    const { ksTree } = buildAndCheck('kind-violations');
+    const violating = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('violating.ts'),
+    )!;
+    const deepNode = violating.children[violating.children.length - 1];
+    const imports: Set<string> = (deepNode as any).fileImports;
+    expect(imports.has('helper')).toBe(true);
   });
 
-  it('detects immutable violation (let at module scope)', () => {
-    const program = createFixtureProgram('checker-dir-violations', config);
-    const diags = program.getKindDiagnostics();
-    const immDiags = diags.filter(d => d.code === 70010);
-    expect(immDiags.length).toBeGreaterThanOrEqual(1);
-    expect(immDiags[0].messageText).toContain('mutable');
-  });
-
-  it('detects noConsole violation in directory files', () => {
-    const program = createFixtureProgram('checker-dir-violations', config);
-    const diags = program.getKindDiagnostics();
-    const consoleDiags = diags.filter(d => d.code === 70009);
-    expect(consoleDiags.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('detects noSideEffects violation (top-level call)', () => {
-    const program = createFixtureProgram('checker-dir-violations', config);
-    const diags = program.getKindDiagnostics();
-    const seDiags = diags.filter(d => d.code === 70012);
-    expect(seDiags.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('total diagnostics cover multiple property violations', () => {
-    const program = createFixtureProgram('checker-dir-violations', config);
-    const diags = program.getKindDiagnostics();
-    // Should have at least: immutable + noConsole + noSideEffects
-    expect(diags.length).toBeGreaterThanOrEqual(3);
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-
-describe('checker — per-source-file checking', () => {
-  it('checkSourceFile only returns diagnostics for that file', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-      infra: { path: './src/infra', rules: { noIO: true } },
-    });
-
-    const program = createFixtureProgram('checker-violations', config);
-    const checker = program.getKindChecker();
-
-    const noConsoleFile = program.getSourceFiles()
-      .find(sf => sf.fileName.includes('no-console.ts'))!;
-
-    const diags = checker.checkSourceFile(noConsoleFile);
-    expect(diags.length).toBeGreaterThan(0);
-    // All diagnostics should reference the no-console file
-    for (const d of diags) {
-      expect(d.file.fileName).toBe(noConsoleFile.fileName);
+  it('localBindings collects parameters', () => {
+    const { ksTree } = buildAndCheck('kind-violations');
+    const violating = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('violating.ts'),
+    )!;
+    const stack: KSNode[] = [...violating.children];
+    let arrowFn: KSNode | undefined;
+    while (stack.length > 0) {
+      const n = stack.pop()!;
+      if (n.kind === 'ArrowFunction') { arrowFn = n; break; }
+      stack.push(...n.children);
     }
+    expect(arrowFn).toBeDefined();
+    const locals: Set<string> = (arrowFn as any).localBindings;
+    expect(locals.has('a')).toBe(true);
+    expect(locals.has('b')).toBe(true);
   });
 
-  it('clean source file produces empty diagnostics', () => {
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true, immutable: true } },
-    });
-    const program = createFixtureProgram('checker-clean', config);
-    const checker = program.getKindChecker();
+  it('kindAnnotations finds NoImports on annotated declarations', () => {
+    const { ksTree } = buildAndCheck('kind-violations');
+    const violating = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('violating.ts'),
+    )!;
+    const stack: KSNode[] = [...violating.children];
+    let varDecl: KSNode | undefined;
+    while (stack.length > 0) {
+      const n = stack.pop()!;
+      if (n.kind === 'VariableDeclaration') { varDecl = n; break; }
+      stack.push(...n.children);
+    }
+    expect(varDecl).toBeDefined();
+    const annotations: KindDefinition[] = (varDecl as any).kindAnnotations;
+    expect(annotations.length).toBeGreaterThan(0);
+    expect(annotations[0].name).toBe('NoImports');
+    expect(annotations[0].properties.noImports).toBe(true);
+  });
 
-    const mathFile = program.getSourceFiles()
-      .find(sf => sf.fileName.includes('math.ts'))!;
-
-    const diags = checker.checkSourceFile(mathFile);
-    expect(diags).toEqual([]);
+  it('noImportsContext is non-null inside annotated function body', () => {
+    const { ksTree } = buildAndCheck('kind-violations');
+    const violating = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('violating.ts'),
+    )!;
+    const stack: KSNode[] = [...violating.children];
+    let arrowFn: KSNode | undefined;
+    while (stack.length > 0) {
+      const n = stack.pop()!;
+      if (n.kind === 'ArrowFunction') { arrowFn = n; break; }
+      stack.push(...n.children);
+    }
+    expect(arrowFn).toBeDefined();
+    const ctx: KindDefinition | null = (arrowFn as any).noImportsContext;
+    expect(ctx).not.toBeNull();
+    expect(ctx!.name).toBe('NoImports');
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('checker — diagnostic structure', () => {
-  it('diagnostics have correct KSDiagnostic shape', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-      infra: { path: './src/infra', rules: { noIO: true } },
-    });
-
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-
-    expect(diags.length).toBeGreaterThan(0);
-
-    for (const d of diags) {
-      expect(d).toHaveProperty('file');
-      expect(d).toHaveProperty('start');
-      expect(d).toHaveProperty('length');
-      expect(d).toHaveProperty('messageText');
-      expect(d).toHaveProperty('category');
-      expect(d).toHaveProperty('code');
-      expect(typeof d.start).toBe('number');
-      expect(typeof d.length).toBe('number');
-      expect(d.start).toBeGreaterThanOrEqual(0);
-      expect(d.length).toBeGreaterThan(0);
-      expect(d.code).toBeGreaterThanOrEqual(70001);
-      expect(d.code).toBeLessThanOrEqual(70015);
+describe('checker — diagnostic position info', () => {
+  it('diagnostics have valid pos/end/fileName', () => {
+    const { diagnostics } = buildAndCheck('kind-violations');
+    for (const d of diagnostics) {
+      expect(d.pos).toBeGreaterThanOrEqual(0);
+      expect(d.end).toBeGreaterThan(d.pos);
+      expect(d.fileName).toBeTruthy();
+      expect(d.node).toBeDefined();
     }
-  });
-
-  it('diagnostics have Error category', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-    });
-
-    const program = createFixtureProgram('checker-violations', config);
-    const diags = program.getKindDiagnostics();
-    for (const d of diags) {
-      expect(d.category).toBe(ts.DiagnosticCategory.Error);
-    }
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-
-describe('checker — composite targets', () => {
-  it('composite kind with no concrete files produces no diagnostics', () => {
-    const config = defineConfig({
-      app: {
-        members: {
-          domain: { path: './src/domain', rules: { pure: true, noIO: true } },
-          infrastructure: { path: './src/infrastructure' },
-          application: { path: './src/application', rules: { noConsole: true } },
-        },
-        rules: {
-          noDependency: [['domain', 'infrastructure'], ['domain', 'application']],
-          noCycles: ['domain', 'infrastructure', 'application'],
-        },
-      },
-    });
-    // Use checker-clean which doesn't have domain/infrastructure/application dirs
-    const program = createFixtureProgram('checker-clean', config);
-    const diags = program.getKindDiagnostics();
-    expect(diags).toEqual([]);
   });
 });

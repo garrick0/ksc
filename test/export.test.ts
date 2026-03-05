@@ -1,65 +1,42 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
+import ts from 'typescript';
 import { createProgram } from '../src/program.js';
-import { defineConfig } from '../src/config.js';
-import { exportDashboardData } from '../src/export.js';
-import type { KindScriptConfig } from '../src/config.js';
-import type { KSProgram } from '../src/types.js';
+import { exportDashboardData } from '../src/dashboard/export.js';
+import type { KSProgramInterface } from '../src/pipeline/types.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
-function createFixtureProgram(fixtureName: string, config: KindScriptConfig): KSProgram {
+function createFixtureProgram(fixtureName: string): KSProgramInterface {
   const fixtureDir = path.join(FIXTURES, fixtureName);
-  const rootFiles = findTsFiles(fixtureDir);
-
-  return createProgram(rootFiles, config, {
+  const rootFiles = ts.sys.readDirectory(
+    path.join(fixtureDir, 'src'),
+    ['.ts'],
+  );
+  return createProgram(rootFiles, undefined, {
     strict: true,
     noEmit: true,
     rootDir: fixtureDir,
   });
 }
 
-function findTsFiles(dir: string): string[] {
-  const fs = require('fs') as typeof import('fs');
-  const results: string[] = [];
-  function walk(d: string) {
-    let entries: string[];
-    try { entries = fs.readdirSync(d); } catch { return; }
-    for (const entry of entries) {
-      const full = path.join(d, entry);
-      const stat = fs.statSync(full);
-      if (stat.isDirectory()) walk(full);
-      else if (entry.endsWith('.ts')) results.push(full);
-    }
-  }
-  walk(dir);
-  return results;
-}
-
 // ────────────────────────────────────────────────────────────────────────
 
 describe('exportDashboardData — structure', () => {
   it('returns correct top-level shape', () => {
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true } },
-    });
-    const program = createFixtureProgram('checker-clean', config);
+    const program = createFixtureProgram('kind-basic');
     const data = exportDashboardData(program, { root: '/test' });
 
-    expect(data.version).toBe(1);
+    expect(data.version).toBe(2);
     expect(data.project.root).toBe('/test');
     expect(data.project.generatedAt).toBeTruthy();
     expect(data.project.rootFiles.length).toBeGreaterThan(0);
     expect(data.parse).toBeDefined();
-    expect(data.bind).toBeDefined();
-    expect(data.check).toBeDefined();
+    expect(data.kinds).toBeDefined();
   });
 
   it('parse stage lists source files with declarations', () => {
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true } },
-    });
-    const program = createFixtureProgram('checker-clean', config);
+    const program = createFixtureProgram('kind-basic');
     const data = exportDashboardData(program);
 
     expect(data.parse.sourceFiles.length).toBeGreaterThan(0);
@@ -71,10 +48,7 @@ describe('exportDashboardData — structure', () => {
   });
 
   it('parse stage includes source text when requested', () => {
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true } },
-    });
-    const program = createFixtureProgram('checker-clean', config);
+    const program = createFixtureProgram('kind-basic');
     const withSource = exportDashboardData(program, { includeSource: true });
     const withoutSource = exportDashboardData(program);
 
@@ -88,127 +62,101 @@ describe('exportDashboardData — structure', () => {
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('exportDashboardData — bind stage', () => {
-  it('lists all kind symbols with unique IDs', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-      infra: { path: './src/infra', rules: { noIO: true } },
-    });
-    const program = createFixtureProgram('checker-violations', config);
+describe('exportDashboardData — kinds stage', () => {
+  it('lists kind definitions', () => {
+    const program = createFixtureProgram('kind-basic');
     const data = exportDashboardData(program);
 
-    expect(data.bind.symbols.length).toBeGreaterThan(0);
-    const ids = data.bind.symbols.map(s => s.id);
-    expect(new Set(ids).size).toBe(ids.length);
+    expect(data.kinds.definitions.length).toBeGreaterThan(0);
+    const names = data.kinds.definitions.map(d => d.name);
+    expect(names).toContain('NoImports');
   });
 
-  it('symbols have required fields', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-    });
-    const program = createFixtureProgram('checker-violations', config);
+  it('definitions have properties', () => {
+    const program = createFixtureProgram('kind-basic');
     const data = exportDashboardData(program);
 
-    for (const sym of data.bind.symbols) {
-      expect(sym.id).toBeTruthy();
-      expect(sym.name).toBeTruthy();
-      expect(sym.declaredProperties).toBeDefined();
-    }
+    const noImports = data.kinds.definitions.find(d => d.name === 'NoImports');
+    expect(noImports).toBeDefined();
+    expect(noImports!.properties).toHaveProperty('noImports', true);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+
+describe('exportDashboardData — annotations', () => {
+  it('extracts kind annotations from annotated variables', () => {
+    const program = createFixtureProgram('kind-violations');
+    const data = exportDashboardData(program);
+
+    expect(data.kinds.annotations.length).toBeGreaterThan(0);
+    const ann = data.kinds.annotations.find(a => a.kindName === 'NoImports');
+    expect(ann).toBeDefined();
+    expect(ann!.sourceFile).toBeTruthy();
   });
 
-  it('directory values have path', () => {
-    const config = defineConfig({
-      domain: { path: './src/domain', rules: { noImports: true } },
-      infra: { path: './src/infra', rules: { noIO: true } },
-    });
-    const program = createFixtureProgram('checker-violations', config);
+  it('includes no annotations for clean fixture', () => {
+    const file = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
+    const program = createProgram([file]);
     const data = exportDashboardData(program);
 
-    const dirValues = data.bind.symbols.filter(s => s.valueKind === 'directory');
-    for (const sym of dirValues) {
-      expect(sym.path).toBeTruthy();
-    }
+    expect(data.kinds.annotations).toEqual([]);
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
 describe('exportDashboardData — check stage', () => {
-  it('reports diagnostics for violation fixtures', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-      infra: { path: './src/infra', rules: { noIO: true } },
-    });
-    const program = createFixtureProgram('checker-violations', config);
+  it('includes check section with diagnostics for violations', () => {
+    const program = createFixtureProgram('kind-violations');
     const data = exportDashboardData(program);
 
-    expect(data.check.diagnostics.length).toBeGreaterThan(0);
+    expect(data.check).toBeDefined();
+    expect(data.check.diagnostics.length).toBeGreaterThanOrEqual(1);
+
+    const diag = data.check.diagnostics[0];
+    expect(diag.id).toBeTruthy();
+    expect(diag.file).toBeTruthy();
+    expect(diag.code).toBe(70200);
+    expect(diag.property).toBe('noImports');
+    expect(diag.message).toBeTruthy();
+    expect(diag.start).toBeGreaterThanOrEqual(0);
+    expect(diag.length).toBeGreaterThan(0);
+    expect(diag.line).toBeGreaterThanOrEqual(1);
+    expect(diag.column).toBeGreaterThanOrEqual(1);
   });
 
-  it('diagnostics have line/column', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-    });
-    const program = createFixtureProgram('checker-violations', config);
+  it('includes summary with correct counts', () => {
+    const program = createFixtureProgram('kind-violations');
     const data = exportDashboardData(program);
 
-    for (const d of data.check.diagnostics) {
-      expect(d.line).toBeGreaterThanOrEqual(1);
-      expect(d.column).toBeGreaterThanOrEqual(1);
-      expect(d.property).toBeTruthy();
-      expect(d.code).toBeGreaterThanOrEqual(70001);
-    }
+    const s = data.check.summary;
+    expect(s.totalFiles).toBeGreaterThan(0);
+    expect(s.totalDiagnostics).toBe(data.check.diagnostics.length);
+    expect(s.violatingFiles).toBeGreaterThan(0);
+    expect(s.cleanFiles).toBe(s.totalFiles - s.violatingFiles);
   });
 
-  it('clean fixtures have zero diagnostics', () => {
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true, immutable: true } },
-      pureFuncFile: { path: './src/funcs/pure-func.ts', rules: { noMutation: true, noConsole: true } },
-    });
-    const program = createFixtureProgram('checker-clean', config);
+  it('check section is empty for clean code', () => {
+    const program = createFixtureProgram('kind-basic');
     const data = exportDashboardData(program);
 
     expect(data.check.diagnostics).toEqual([]);
     expect(data.check.summary.totalDiagnostics).toBe(0);
+    expect(data.check.summary.violatingFiles).toBe(0);
   });
+});
 
-  it('summary aggregates are consistent', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-      infra: { path: './src/infra', rules: { noIO: true } },
-    });
-    const program = createFixtureProgram('checker-violations', config);
-    const data = exportDashboardData(program);
-    const s = data.check.summary;
+// ────────────────────────────────────────────────────────────────────────
 
-    expect(s.totalDiagnostics).toBe(data.check.diagnostics.length);
-    expect(s.totalFiles).toBeGreaterThan(0);
-    expect(s.totalSymbols).toBe(data.bind.symbols.length);
-    expect(s.cleanFiles + s.violatingFiles).toBeLessThanOrEqual(s.totalFiles);
-  });
-
-  it('byProperty has entries for violated properties', () => {
-    const config = defineConfig({
-      noConsoleFile: { path: './src/funcs/no-console.ts', rules: { noConsole: true } },
-      noMutationFile: { path: './src/funcs/no-mutation.ts', rules: { noMutation: true } },
-      domain: { path: './src/domain', rules: { noImports: true } },
-      infra: { path: './src/infra', rules: { noIO: true } },
-    });
-    const program = createFixtureProgram('checker-violations', config);
+describe('exportDashboardData — no kinds', () => {
+  it('works with files that have no kind definitions', () => {
+    const file = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
+    const program = createProgram([file]);
     const data = exportDashboardData(program);
 
-    const violatedProps = new Set(data.check.diagnostics.map(d => d.property));
-    for (const prop of violatedProps) {
-      expect(data.check.summary.byProperty[prop]).toBeDefined();
-      expect(data.check.summary.byProperty[prop].violations).toBeGreaterThan(0);
-    }
+    expect(data.kinds.definitions).toEqual([]);
+    expect(data.kinds.annotations).toEqual([]);
+    expect(data.check.diagnostics).toEqual([]);
   });
 });

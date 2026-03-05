@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collection Attributes: Silver vs JastAdd vs @ksc/ag</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 1020px; margin: 0 auto; padding: 0 24px; }
+
+/* Hero */
+.hero {
+  text-align: center; padding: 80px 24px 60px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.1rem; color: var(--text-dim); max-width: 700px; margin: 0 auto 24px; }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.ts { border-color: #3178c6; color: #3178c6; }
+.badge.silver-b { border-color: var(--green); color: var(--green); }
+.badge.jastadd { border-color: var(--orange); color: var(--orange); }
+
+/* Navigation */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover, .toc-link.active { color: var(--text); background: var(--surface); }
+
+/* Sections */
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+h2 .num {
+  display: inline-block; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  text-align: center; line-height: 38px; margin-right: 12px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 12px; }
+
+p { margin-bottom: 16px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.82em;
+  line-height: 1.6; margin: 16px 0 20px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+/* Syntax highlighting */
+.kw { color: var(--accent2); }
+.fn { color: var(--accent); }
+.str { color: var(--green); }
+.cm { color: #555570; }
+.ty { color: var(--cyan); }
+.num-lit { color: var(--orange); }
+.op { color: var(--pink); }
+
+/* Comparison table */
+.cmp-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.88rem; }
+.cmp-table th {
+  background: var(--surface2); color: var(--accent); font-weight: 700;
+  padding: 12px 16px; text-align: left; border: 1px solid var(--border);
+}
+.cmp-table td {
+  padding: 10px 16px; border: 1px solid var(--border); vertical-align: top;
+}
+.cmp-table tr:hover td { background: rgba(108,140,255,0.04); }
+.cmp-table .check { color: var(--green); font-weight: 700; }
+.cmp-table .cross { color: var(--red); font-weight: 700; }
+.cmp-table .partial { color: var(--yellow); font-weight: 700; }
+
+/* Cards */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 20px 0; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; transition: border-color 0.2s;
+}
+.card:hover { border-color: var(--accent); }
+.card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+.card.silver { border-left: 3px solid var(--green); }
+.card.jastadd { border-left: 3px solid var(--orange); }
+.card.kscag { border-left: 3px solid var(--accent); }
+.card.option { border-left: 3px solid var(--accent2); }
+
+/* Tabs */
+.tab-group { margin: 20px 0; }
+.tab-bar { display: flex; gap: 2px; margin-bottom: -1px; position: relative; z-index: 1; }
+.tab-btn {
+  padding: 10px 20px; background: var(--surface); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--surface2); color: var(--accent); border-color: var(--accent); }
+.tab-panel {
+  display: none; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) var(--radius); padding: 24px;
+}
+.tab-panel.active { display: block; }
+
+/* Collapsible */
+.collapsible {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  margin: 16px 0; overflow: hidden;
+}
+.collapsible-header {
+  padding: 14px 20px; cursor: pointer; display: flex; justify-content: space-between;
+  align-items: center; font-weight: 600; font-size: 0.92rem; user-select: none;
+  transition: background 0.2s;
+}
+.collapsible-header:hover { background: var(--surface2); }
+.collapsible-arrow { transition: transform 0.2s; color: var(--text-dim); }
+.collapsible.open .collapsible-arrow { transform: rotate(90deg); }
+.collapsible-body { padding: 0 20px 20px; display: none; }
+.collapsible.open .collapsible-body { display: block; }
+
+/* Visual diagram */
+.diagram-container {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 20px 0; overflow-x: auto;
+}
+.diagram-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 16px; color: var(--accent); }
+
+/* SVG styling */
+svg text { font-family: var(--mono); }
+svg .node-rect { rx: 8; ry: 8; }
+svg .label { fill: var(--text); font-size: 13px; }
+svg .dim-label { fill: var(--text-dim); font-size: 11px; }
+svg .arrow { stroke: var(--text-dim); stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+svg .arrow-green { stroke: var(--green); marker-end: url(#arrowhead-green); }
+svg .arrow-orange { stroke: var(--orange); marker-end: url(#arrowhead-orange); }
+svg .arrow-accent { stroke: var(--accent); marker-end: url(#arrowhead-accent); }
+
+/* Verdict box */
+.verdict {
+  background: linear-gradient(135deg, rgba(108,140,255,0.08), rgba(167,139,250,0.08));
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 28px; margin: 24px 0;
+}
+.verdict h4 { color: var(--accent); font-size: 1.1rem; margin-bottom: 12px; }
+
+/* Option cards */
+.option-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin: 20px 0; }
+.option-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px; position: relative;
+}
+.option-card.recommended { border-color: var(--green); }
+.option-card.recommended::after {
+  content: 'RECOMMENDED'; position: absolute; top: -10px; right: 20px;
+  background: var(--green); color: var(--bg); padding: 2px 12px; border-radius: 4px;
+  font-size: 0.7rem; font-weight: 800;
+}
+.option-card h4 { font-size: 1.1rem; margin-bottom: 8px; }
+.option-card .pros, .option-card .cons { margin: 12px 0; }
+.option-card .pros li { color: var(--green); }
+.option-card .cons li { color: var(--red); }
+.option-card ul { list-style: none; padding-left: 0; }
+.option-card li { padding: 4px 0; font-size: 0.88rem; }
+.option-card li::before { margin-right: 8px; }
+.option-card .pros li::before { content: '+'; color: var(--green); font-weight: 700; }
+.option-card .cons li::before { content: '-'; color: var(--red); font-weight: 700; }
+
+/* Flashcards */
+.flashcard-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+.flashcard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; min-height: 150px; cursor: pointer; position: relative;
+  perspective: 1000px; transition: border-color 0.2s;
+}
+.flashcard:hover { border-color: var(--accent2); }
+.flashcard-inner {
+  transition: transform 0.5s; transform-style: preserve-3d;
+  width: 100%; height: 100%;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  backface-visibility: hidden; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; padding: 24px; display: flex;
+  align-items: center; justify-content: center; text-align: center;
+}
+.flashcard-front { font-weight: 600; color: var(--accent); font-size: 0.95rem; }
+.flashcard-back {
+  transform: rotateY(180deg); font-size: 0.85rem; color: var(--text-dim);
+  line-height: 1.6;
+}
+.flashcard-hint { position: absolute; bottom: 8px; right: 12px; font-size: 0.7rem; color: var(--text-dim); }
+
+/* Highlight */
+.hl-green { color: var(--green); font-weight: 600; }
+.hl-orange { color: var(--orange); font-weight: 600; }
+.hl-accent { color: var(--accent); font-weight: 600; }
+.hl-cyan { color: var(--cyan); font-weight: 600; }
+.hl-pink { color: var(--pink); font-weight: 600; }
+
+/* Lists */
+ul, ol { margin: 8px 0 16px 20px; }
+li { margin-bottom: 6px; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .hero h1 { font-size: 1.8rem; }
+  .card-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>Collection Attributes: Silver vs JastAdd</h1>
+  <p class="subtitle">
+    How should <code>@ksc/ag</code> aggregate contributions from distributed tree nodes?
+    Comparing Silver's monoid propagation, JastAdd's two-phase coll/contributes, and our current subtree-walk approach.
+  </p>
+  <div class="badge-row">
+    <span class="badge silver-b">Silver (U. Minnesota)</span>
+    <span class="badge jastadd">JastAdd (Lund)</span>
+    <span class="badge ts">@ksc/ag (TypeScript)</span>
+  </div>
+</div>
+
+<!-- Navigation -->
+<nav class="toc-nav">
+  <div class="container">
+    <a href="#current" class="toc-link">Current State</a>
+    <a href="#silver" class="toc-link">Silver</a>
+    <a href="#jastadd" class="toc-link">JastAdd</a>
+    <a href="#visual" class="toc-link">Visual Comparison</a>
+    <a href="#verdict" class="toc-link">Verdict</a>
+    <a href="#options" class="toc-link">Uplift Options</a>
+    <a href="#api" class="toc-link">API Designs</a>
+    <a href="#quiz" class="toc-link">Quiz</a>
+  </div>
+</nav>
+
+<!-- Section 1: Current State -->
+<section id="current">
+<div class="container">
+  <h2><span class="num">1</span>Current @ksc/ag Collection</h2>
+  <p class="section-sub">What we have today: a simple subtree DFS walk</p>
+
+  <p>Our <code>coll()</code> function walks the subtree rooted at the evaluated node using a DFS stack,
+  extracts contributions from each descendant via a <code>contribute</code> function, and folds them
+  into an accumulator via <code>combine</code>. It's implemented as a <code>syn()</code> wrapper &mdash;
+  the collection is just a synthesized attribute whose equation happens to walk the subtree.</p>
+
+  <pre><code><span class="cm">// @ksc/ag — current coll() implementation</span>
+<span class="kw">export function</span> <span class="fn">coll</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt;(
+  init: () =&gt; <span class="ty">V</span>,
+  combine: (acc: <span class="ty">V</span>, contribution: <span class="ty">V</span>) =&gt; <span class="ty">V</span>,
+  contribute: (node: <span class="ty">N</span>) =&gt; <span class="ty">V</span> | <span class="kw">undefined</span>,
+): <span class="ty">AttributeDef</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt; {
+  <span class="kw">return</span> <span class="fn">syn</span>((node) =&gt; {
+    <span class="kw">let</span> acc = <span class="fn">init</span>();
+    <span class="kw">const</span> stack = [node];
+    <span class="kw">while</span> (stack.length &gt; <span class="num-lit">0</span>) {
+      <span class="kw">const</span> current = stack.<span class="fn">pop</span>()!;
+      <span class="kw">const</span> c = <span class="fn">contribute</span>(current);
+      <span class="kw">if</span> (c !== <span class="kw">undefined</span>) acc = <span class="fn">combine</span>(acc, c);
+      <span class="kw">for</span> (<span class="kw">const</span> kid <span class="kw">of</span> (current <span class="kw">as any</span>).$children ?? [])
+        stack.<span class="fn">push</span>(kid);
+    }
+    <span class="kw">return</span> acc;
+  });
+}</code></pre>
+
+  <div class="card-grid">
+    <div class="card kscag">
+      <h4>What works</h4>
+      <ul>
+        <li>Simple error collection from subtrees</li>
+        <li>Sum/count aggregation over descendants</li>
+        <li>Any case where the target = the subtree root</li>
+        <li>O(subtree) per evaluation, cached via <code>syn()</code></li>
+      </ul>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <h4>What breaks</h4>
+      <ul>
+        <li>Cannot contribute to a <em>remote</em> node (e.g., module-level errors from a deeply nested expression)</li>
+        <li>Cannot contribute to <em>multiple</em> targets</li>
+        <li>No conditional contribution (<code>when</code> clause)</li>
+        <li>O(subtree) per node &mdash; redundant work when parent and child both collect</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- Section 2: Silver -->
+<section id="silver">
+<div class="container">
+  <h2><span class="num">2</span>Silver's Approach</h2>
+  <p class="section-sub">Monoid attributes with <code>:=</code> base values, <code>&lt;-</code> contributions, and <code>propagate</code></p>
+
+  <div class="tab-group">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab(this, 'silver-classic')">Classic with</button>
+      <button class="tab-btn" onclick="switchTab(this, 'silver-monoid')">Modern monoid</button>
+      <button class="tab-btn" onclick="switchTab(this, 'silver-propagate')">propagate</button>
+    </div>
+    <div id="silver-classic" class="tab-panel active">
+      <pre><code><span class="cm">-- Classic collection via 'with' clause</span>
+<span class="kw">synthesized attribute</span> errors :: [<span class="ty">Message</span>] <span class="kw">with</span> <span class="op">++</span>;
+
+<span class="cm">-- In a production:</span>
+<span class="kw">production</span> <span class="fn">add</span>
+e::<span class="ty">Expr</span> ::= l::<span class="ty">Expr</span> r::<span class="ty">Expr</span>
+{
+  e.errors <span class="op">:=</span> [];          <span class="cm">-- base value</span>
+  e.errors <span class="op">&lt;-</span> l.errors;   <span class="cm">-- contribution from left child</span>
+  e.errors <span class="op">&lt;-</span> r.errors;   <span class="cm">-- contribution from right child</span>
+}</code></pre>
+      <p>The <code>:=</code> operator sets the <strong>base value</strong> (identity element). The <code>&lt;-</code> operator adds a <strong>contribution</strong>. Silver combines them using the <code>with</code> operator (<code>++</code> for list append).</p>
+    </div>
+    <div id="silver-monoid" class="tab-panel">
+      <pre><code><span class="cm">-- Modern: monoid declares empty + operator together</span>
+<span class="kw">monoid attribute</span> allErrors :: [<span class="ty">Message</span>] <span class="kw">with</span> [], <span class="op">++</span>;
+
+<span class="kw">production</span> <span class="fn">add</span>
+e::<span class="ty">Expr</span> ::= l::<span class="ty">Expr</span> r::<span class="ty">Expr</span>
+{
+  e.allErrors <span class="op">&lt;-</span> l.allErrors;
+  e.allErrors <span class="op">&lt;-</span> r.allErrors;
+  <span class="cm">-- base is automatically []</span>
+}</code></pre>
+      <p><code>monoid attribute</code> combines the identity element and the operator in one declaration. The base value is implicit &mdash; it's the identity element of the monoid. Cleaner, but semantically equivalent.</p>
+    </div>
+    <div id="silver-propagate" class="tab-panel">
+      <pre><code><span class="cm">-- Auto-generate combining equations for all children</span>
+<span class="kw">propagate</span> errors <span class="kw">on</span> <span class="ty">Expr</span>;
+
+<span class="cm">-- Equivalent to writing:</span>
+<span class="cm">--   e.errors := [];</span>
+<span class="cm">--   e.errors <- child1.errors;</span>
+<span class="cm">--   e.errors <- child2.errors;</span>
+<span class="cm">--   ... for every child in every Expr production</span></code></pre>
+      <p><code>propagate</code> auto-generates the combining equations for all children of all productions of a nonterminal. This is Silver's version of "default inherited attribute copy" applied to collection attributes. Massively reduces boilerplate.</p>
+    </div>
+  </div>
+
+  <div class="card silver">
+    <h4>Key Insight: Silver collections are synthesized</h4>
+    <p>In Silver, collection attributes <strong>flow bottom-up along the tree structure</strong>, just like synthesized attributes.
+    Each production explicitly combines its children's contributions. The <code>&lt;-</code> syntax is sugar for folding with the monoid operator.
+    Contributions always flow <strong>from child to parent</strong> along the tree edges.</p>
+    <p style="margin-bottom:0">This means Silver collections <strong>cannot target remote nodes</strong>. A deeply-nested <code>Use</code> node cannot
+    directly contribute to a distant <code>Module.errors</code> &mdash; the contribution must bubble up through every intermediate production.</p>
+  </div>
+</div>
+</section>
+
+<!-- Section 3: JastAdd -->
+<section id="jastadd">
+<div class="container">
+  <h2><span class="num">3</span>JastAdd's Two-Phase System</h2>
+  <p class="section-sub">Remote targeting via <code>coll</code> declarations and <code>contributes</code> clauses</p>
+
+  <div class="tab-group">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab(this, 'ja-declare')">Declaration</button>
+      <button class="tab-btn" onclick="switchTab(this, 'ja-contribute')">Contributions</button>
+      <button class="tab-btn" onclick="switchTab(this, 'ja-remote')">Remote Targeting</button>
+      <button class="tab-btn" onclick="switchTab(this, 'ja-internals')">Internals</button>
+    </div>
+    <div id="ja-declare" class="tab-panel active">
+      <pre><code><span class="cm">// Phase 1: Declare the collection attribute on a target node type</span>
+<span class="kw">coll</span> <span class="ty">Set</span>&lt;<span class="ty">String</span>&gt; <span class="ty">Program</span>.<span class="fn">errors</span>()
+  [<span class="kw">new</span> <span class="ty">HashSet</span>&lt;&gt;()]   <span class="cm">// initial value (identity element)</span>
+  <span class="kw">with</span> add              <span class="cm">// combine method</span>
+  <span class="kw">root</span> <span class="ty">Program</span>;         <span class="cm">// survey root (where to start looking for contributors)</span></code></pre>
+      <p>The <code>coll</code> declaration specifies: the attribute type, initial value, combining method,
+      and the survey root (which node to start scanning for contributors).</p>
+    </div>
+    <div id="ja-contribute" class="tab-panel">
+      <pre><code><span class="cm">// Phase 2: Contributions from ANYWHERE in the tree</span>
+<span class="ty">Expr</span> <span class="kw">contributes</span> <span class="fn">errorMsg</span>()
+  <span class="kw">when</span> <span class="fn">hasError</span>()
+  <span class="kw">to</span> <span class="ty">Program</span>.<span class="fn">errors</span>();
+
+<span class="cm">// 'each' for contributing multiple items</span>
+<span class="ty">Stmt</span> <span class="kw">contributes each</span> <span class="fn">getWarnings</span>()
+  <span class="kw">to</span> <span class="ty">Program</span>.<span class="fn">errors</span>();</code></pre>
+      <p><code>contributes</code> clauses can appear anywhere &mdash; even in separate <code>.jrag</code> files (aspect-oriented).
+      The <code>when</code> clause is a guard condition. <code>each</code> flattens an iterable of contributions.</p>
+    </div>
+    <div id="ja-remote" class="tab-panel">
+      <pre><code><span class="cm">// Target a SPECIFIC node (not just the root)</span>
+<span class="ty">Use</span> <span class="kw">contributes</span> <span class="str">"undefined: "</span> + <span class="fn">getName</span>()
+  <span class="kw">to</span> <span class="ty">Block</span>.<span class="fn">errors</span>()
+  <span class="kw">for</span> <span class="fn">enclosingBlock</span>();    <span class="cm">// reference attribute resolving to target</span>
+
+<span class="cm">// Multiple targets via 'for each'</span>
+<span class="ty">Decl</span> <span class="kw">contributes each</span> <span class="fn">getWarnings</span>()
+  <span class="kw">to</span> <span class="ty">Module</span>.<span class="fn">warnings</span>()
+  <span class="kw">for each</span> <span class="fn">getAffectedModules</span>();  <span class="cm">// contributes to multiple nodes</span></code></pre>
+      <p>The <code>for</code> clause uses a <strong>reference attribute</strong> to resolve the specific target node.
+      This is the killer feature: contributions can target <em>any</em> reachable node, not just ancestors or subtree roots.</p>
+    </div>
+    <div id="ja-internals" class="tab-panel">
+      <pre><code><span class="cm">// Generated code (simplified):</span>
+<span class="kw">public</span> <span class="ty">Set</span>&lt;<span class="ty">String</span>&gt; <span class="fn">errors</span>() {
+  <span class="kw">if</span> (errors_computed) <span class="kw">return</span> errors_value;
+
+  <span class="cm">// Phase 1: Survey — walk tree, build contributor map</span>
+  <span class="kw">if</span> (state.IN_COLLECT != <span class="fn">errors</span>) {
+    state.IN_COLLECT = <span class="fn">errors</span>;
+    <span class="fn">survey_errors</span>(root());  <span class="cm">// DFS from survey root</span>
+  }
+
+  <span class="cm">// Phase 2: Collect — aggregate contributions targeting THIS node</span>
+  errors_value = <span class="kw">new</span> <span class="ty">HashSet</span>&lt;&gt;();
+  <span class="kw">for</span> (<span class="ty">ASTNode</span> contributor : contributorMap.<span class="fn">get</span>(<span class="kw">this</span>)) {
+    contributor.<span class="fn">contributeTo_errors</span>(errors_value);
+  }
+  errors_computed = <span class="kw">true</span>;
+  <span class="kw">return</span> errors_value;
+}</code></pre>
+      <p>The survey phase runs <strong>once per collection attribute</strong> (amortized across all nodes).
+      It walks the tree and builds an <code>IdentityHashMap</code> mapping each target node to its list of contributors.
+      The collect phase is then O(contributors) per target node, not O(tree).</p>
+    </div>
+  </div>
+
+  <div class="card jastadd">
+    <h4>Key Insight: JastAdd decouples contributor from target</h4>
+    <p>The <code>contributes...to...for</code> pattern lets any node in the tree contribute to any other node.
+    A <code>Use</code> deep in the tree can contribute an error directly to its <code>enclosingBlock()</code>
+    without the intermediate nodes knowing about it. This is fundamentally more powerful than
+    Silver's bottom-up-only flow.</p>
+    <p style="margin-bottom:0">The trade-off: it requires a global survey phase and code generation to wire up the contributor dispatch. It also requires reference attributes (<code>for</code> clause) that can resolve to arbitrary nodes, which demands the AG already has those reference attributes defined.</p>
+  </div>
+</div>
+</section>
+
+<!-- Section 4: Visual Comparison -->
+<section id="visual">
+<div class="container">
+  <h2><span class="num">4</span>Visual Comparison</h2>
+  <p class="section-sub">How contributions flow in each system</p>
+
+  <div class="diagram-container">
+    <div class="diagram-title">Silver: Bottom-up synthesized flow (contributions follow tree edges)</div>
+    <svg viewBox="0 0 700 320" width="700" height="320">
+      <defs>
+        <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#4ade80"/>
+        </marker>
+      </defs>
+      <!-- Tree nodes -->
+      <rect x="280" y="20" width="120" height="44" class="node-rect" fill="#1e2230" stroke="#4ade80" stroke-width="2"/>
+      <text x="340" y="47" text-anchor="middle" class="label">Program</text>
+
+      <rect x="120" y="120" width="110" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="175" y="147" text-anchor="middle" class="label">FunDecl</text>
+
+      <rect x="440" y="120" width="110" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="495" y="147" text-anchor="middle" class="label">FunDecl</text>
+
+      <rect x="40" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="90" y="247" text-anchor="middle" class="label">Add</text>
+      <text x="90" y="282" text-anchor="middle" class="dim-label" fill="#f87171">has error</text>
+
+      <rect x="180" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="230" y="247" text-anchor="middle" class="label">Var</text>
+
+      <rect x="380" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="430" y="247" text-anchor="middle" class="label">Call</text>
+      <text x="430" y="282" text-anchor="middle" class="dim-label" fill="#f87171">has error</text>
+
+      <rect x="520" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="570" y="247" text-anchor="middle" class="label">Lit</text>
+
+      <!-- Tree edges -->
+      <line x1="300" y1="64" x2="175" y2="120" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="380" y1="64" x2="495" y2="120" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="145" y1="164" x2="90" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="200" y1="164" x2="230" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="465" y1="164" x2="430" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="520" y1="164" x2="570" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+
+      <!-- Green arrows: bottom-up error flow -->
+      <line x1="100" y1="220" x2="155" y2="168" class="arrow-green" stroke-width="2"/>
+      <line x1="420" y1="220" x2="485" y2="168" class="arrow-green" stroke-width="2"/>
+      <line x1="165" y1="120" x2="305" y2="68" class="arrow-green" stroke-width="2"/>
+      <line x1="505" y1="120" x2="375" y2="68" class="arrow-green" stroke-width="2"/>
+
+      <text x="620" y="40" class="dim-label" fill="#4ade80">errors</text>
+      <text x="620" y="56" class="dim-label">must bubble up</text>
+      <text x="620" y="72" class="dim-label">through every</text>
+      <text x="620" y="88" class="dim-label">intermediate node</text>
+    </svg>
+  </div>
+
+  <div class="diagram-container">
+    <div class="diagram-title">JastAdd: Remote targeting (contributions jump directly to target)</div>
+    <svg viewBox="0 0 700 320" width="700" height="320">
+      <defs>
+        <marker id="arrowhead-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#fb923c"/>
+        </marker>
+      </defs>
+      <!-- Tree nodes -->
+      <rect x="280" y="20" width="120" height="44" class="node-rect" fill="#1e2230" stroke="#fb923c" stroke-width="2"/>
+      <text x="340" y="47" text-anchor="middle" class="label">Program</text>
+      <text x="340" y="12" text-anchor="middle" class="dim-label" fill="#fb923c">coll errors()</text>
+
+      <rect x="120" y="120" width="110" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="175" y="147" text-anchor="middle" class="label">FunDecl</text>
+
+      <rect x="440" y="120" width="110" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="495" y="147" text-anchor="middle" class="label">FunDecl</text>
+
+      <rect x="40" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="90" y="247" text-anchor="middle" class="label">Add</text>
+      <text x="90" y="282" text-anchor="middle" class="dim-label" fill="#f87171">has error</text>
+
+      <rect x="180" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="230" y="247" text-anchor="middle" class="label">Var</text>
+
+      <rect x="380" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="430" y="247" text-anchor="middle" class="label">Call</text>
+      <text x="430" y="282" text-anchor="middle" class="dim-label" fill="#f87171">has error</text>
+
+      <rect x="520" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="570" y="247" text-anchor="middle" class="label">Lit</text>
+
+      <!-- Tree edges -->
+      <line x1="300" y1="64" x2="175" y2="120" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="380" y1="64" x2="495" y2="120" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="145" y1="164" x2="90" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="200" y1="164" x2="230" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="465" y1="164" x2="430" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="520" y1="164" x2="570" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+
+      <!-- Orange arrows: direct contributions jumping to Program -->
+      <path d="M 90 220 C 90 140, 300 100, 310 68" class="arrow-orange" stroke-width="2.5" stroke-dasharray="6,3"/>
+      <path d="M 430 220 C 430 140, 360 100, 355 68" class="arrow-orange" stroke-width="2.5" stroke-dasharray="6,3"/>
+
+      <text x="580" y="40" class="dim-label" fill="#fb923c">contributes</text>
+      <text x="580" y="56" class="dim-label">directly to</text>
+      <text x="580" y="72" class="dim-label">Program.errors()</text>
+      <text x="580" y="88" class="dim-label">via 'for' clause</text>
+    </svg>
+  </div>
+
+  <div class="diagram-container">
+    <div class="diagram-title">@ksc/ag: Subtree DFS walk (each node collects from its own subtree)</div>
+    <svg viewBox="0 0 700 320" width="700" height="320">
+      <defs>
+        <marker id="arrowhead-accent" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#6c8cff"/>
+        </marker>
+      </defs>
+      <!-- Tree nodes -->
+      <rect x="280" y="20" width="120" height="44" class="node-rect" fill="#1e2230" stroke="#6c8cff" stroke-width="2"/>
+      <text x="340" y="47" text-anchor="middle" class="label">Program</text>
+
+      <rect x="120" y="120" width="110" height="44" class="node-rect" fill="#1e2230" stroke="#6c8cff" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="175" y="147" text-anchor="middle" class="label">FunDecl</text>
+
+      <rect x="440" y="120" width="110" height="44" class="node-rect" fill="#1e2230" stroke="#6c8cff" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="495" y="147" text-anchor="middle" class="label">FunDecl</text>
+
+      <rect x="40" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#6c8cff" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="90" y="247" text-anchor="middle" class="label">Add</text>
+
+      <rect x="180" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="230" y="247" text-anchor="middle" class="label">Var</text>
+
+      <rect x="380" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#6c8cff" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="430" y="247" text-anchor="middle" class="label">Call</text>
+
+      <rect x="520" y="220" width="100" height="44" class="node-rect" fill="#1e2230" stroke="#2a2e3d"/>
+      <text x="570" y="247" text-anchor="middle" class="label">Lit</text>
+
+      <!-- Tree edges -->
+      <line x1="300" y1="64" x2="175" y2="120" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="380" y1="64" x2="495" y2="120" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="145" y1="164" x2="90" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="200" y1="164" x2="230" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="465" y1="164" x2="430" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+      <line x1="520" y1="164" x2="570" y2="220" stroke="#2a2e3d" stroke-width="1.5"/>
+
+      <!-- Blue arrows: DFS walk covering all nodes -->
+      <path d="M 320 64 L 175 120" class="arrow-accent" stroke-width="1.5"/>
+      <path d="M 155 164 L 90 220" class="arrow-accent" stroke-width="1.5"/>
+      <path d="M 190 164 L 230 220" class="arrow-accent" stroke-width="1.5"/>
+      <path d="M 360 64 L 495 120" class="arrow-accent" stroke-width="1.5"/>
+      <path d="M 475 164 L 430 220" class="arrow-accent" stroke-width="1.5"/>
+      <path d="M 510 164 L 570 220" class="arrow-accent" stroke-width="1.5"/>
+
+      <text x="580" y="300" class="dim-label" fill="#6c8cff">DFS visits every</text>
+      <text x="580" y="316" class="dim-label">node in subtree</text>
+    </svg>
+  </div>
+
+  <!-- Side-by-side comparison table -->
+  <table class="cmp-table">
+    <thead>
+      <tr>
+        <th>Aspect</th>
+        <th style="color: var(--green)">Silver</th>
+        <th style="color: var(--orange)">JastAdd</th>
+        <th style="color: var(--accent)">@ksc/ag</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Contribution scope</td>
+        <td>Parent production only</td>
+        <td>Any node in tree</td>
+        <td>Subtree of evaluated node</td>
+      </tr>
+      <tr>
+        <td>Remote targeting</td>
+        <td class="cross">No</td>
+        <td class="check">Yes (<code>for</code> clause)</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td>Multiple targets</td>
+        <td class="cross">No</td>
+        <td class="check">Yes (<code>for each</code>)</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td>Conditional contributions</td>
+        <td class="partial">Manual (if/then)</td>
+        <td class="check">Yes (<code>when</code> clause)</td>
+        <td class="partial">Return undefined to skip</td>
+      </tr>
+      <tr>
+        <td>Auto-propagation</td>
+        <td class="check"><code>propagate</code> keyword</td>
+        <td class="cross">Not applicable</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td>Aspect-oriented</td>
+        <td class="check">Separate .sv files</td>
+        <td class="check">Separate .jrag files</td>
+        <td class="cross">Single definition</td>
+      </tr>
+      <tr>
+        <td>Complexity per access</td>
+        <td>O(children) per production</td>
+        <td>O(contributors) per target, O(tree) survey once</td>
+        <td>O(subtree) per access</td>
+      </tr>
+      <tr>
+        <td>Implementation mechanism</td>
+        <td>Code generation (equations)</td>
+        <td>Code generation (survey + IdentityHashMap)</td>
+        <td>Runtime DFS walk</td>
+      </tr>
+      <tr>
+        <td>Monoid abstraction</td>
+        <td class="check">First-class (<code>monoid</code> keyword)</td>
+        <td class="partial">Manual (init + with method)</td>
+        <td class="partial">Manual (init + combine)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</section>
+
+<!-- Section 5: Verdict -->
+<section id="verdict">
+<div class="container">
+  <h2><span class="num">5</span>Verdict: Which Is Better?</h2>
+  <p class="section-sub">It depends on whether you need remote targeting</p>
+
+  <div class="verdict">
+    <h4>Short answer: JastAdd's is more powerful, Silver's is more practical for us</h4>
+    <p>JastAdd's <code>coll/contributes</code> system is objectively <strong>more expressive</strong>. The ability to contribute to
+    remote nodes via <code>for</code> clauses enables patterns that are simply impossible in Silver or our current approach:
+    a <code>Use</code> node contributing an error to its enclosing <code>Block</code>, a <code>Decl</code> contributing to
+    a distant <code>Module</code>'s symbol table.</p>
+
+    <p>However, JastAdd achieves this through <strong>code generation</strong> &mdash; it emits custom Java classes with survey methods,
+    contributor maps, and <code>contributeTo_X()</code> dispatch methods. This is fundamentally at odds with our design principle
+    of being a <strong>pure runtime TypeScript library</strong> (no code generation, accept the Kiama ceiling).</p>
+
+    <p>Silver's approach &mdash; monoid attributes with bottom-up propagation &mdash; maps naturally to a runtime library.
+    It's essentially what we already do, but with better ergonomics (monoid declaration) and auto-propagation (<code>propagate</code>).
+    The limitation (no remote targeting) is the same as our current limitation.</p>
+
+    <p style="margin-bottom:0"><strong>The real question is:</strong> can we approximate JastAdd's remote targeting at runtime, or is the
+    expressiveness gap acceptable?</p>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      Why JastAdd's two-phase approach is hard to replicate at runtime
+      <span class="collapsible-arrow">&#9654;</span>
+    </div>
+    <div class="collapsible-body">
+      <p>JastAdd's <code>contributes...to...for</code> works because the code generator:</p>
+      <ol>
+        <li><strong>Knows all contribution declarations at compile time.</strong> It can enumerate every <code>contributes</code> clause
+        and generate a <code>contributeTo_X()</code> method on each contributing node type.</li>
+        <li><strong>Generates survey methods.</strong> The survey phase walks the tree once and builds an <code>IdentityHashMap&lt;ASTNode, List&lt;ASTNode&gt;&gt;</code>
+        mapping each target to its contributors. This is O(tree) but amortized across all accesses.</li>
+        <li><strong>Uses static dispatch.</strong> Each contributor's <code>contributeTo_X()</code> is a generated method that
+        directly evaluates the contribution equation. No dynamic dispatch or callback registration.</li>
+      </ol>
+      <p>In a runtime library, we'd need to either:</p>
+      <ul>
+        <li><strong>Walk the entire tree on every access</strong> (O(tree), not just O(subtree)), or</li>
+        <li><strong>Build a contributor registry</strong> at install time (mimicking the survey phase), which requires
+        a registration API that the user calls during attribute definition.</li>
+      </ul>
+      <p style="margin-bottom:0">Both are possible but add complexity. The registry approach is the more practical one,
+      and that's what Option B below proposes.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      When you actually need remote targeting
+      <span class="collapsible-arrow">&#9654;</span>
+    </div>
+    <div class="collapsible-body">
+      <p>Remote targeting matters when:</p>
+      <ul>
+        <li><strong>Error collection:</strong> A deeply-nested <code>Use</code> node discovers an undefined variable and wants to
+        report it to the enclosing <code>Module</code>, not to every intermediate node.</li>
+        <li><strong>Symbol tables:</strong> A <code>Decl</code> wants to register itself in the nearest enclosing scope's
+        symbol table. The scope node might be several levels up.</li>
+        <li><strong>Cross-cutting concerns:</strong> A node wants to contribute to a node that isn't its ancestor at all
+        (e.g., contributing to a node reachable via a reference attribute).</li>
+      </ul>
+      <p>For most use cases in <code>@ksc/ag</code> today (KindScript checker), subtree-scoped collection
+      is sufficient. The checker uses <code>coll()</code> for error collection from subtrees, and more complex
+      patterns like scope-based error collection can be handled with <code>inh()</code> + manual aggregation.</p>
+      <p style="margin-bottom:0">Remote targeting becomes important when building larger analyses (full compilers, IDE tooling)
+      where the "report to nearest enclosing X" pattern is common.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- Section 6: Uplift Options -->
+<section id="options">
+<div class="container">
+  <h2><span class="num">6</span>Uplift Options</h2>
+  <p class="section-sub">Three concrete paths for replacing the current <code>coll()</code></p>
+
+  <div class="option-grid">
+    <!-- Option A -->
+    <div class="option-card recommended">
+      <h4>Option A: Silver-style Monoid Attributes</h4>
+      <p>Replace <code>coll()</code> with a <code>monoid()</code> factory that declares the identity element and
+      combine operator. Add auto-propagation: by default, a monoid attribute on a parent node combines
+      all children's values for the same attribute. Manual contributions via the existing <code>contribute</code>
+      function for node-local additions.</p>
+
+      <p><strong>Implementation:</strong> Still a <code>syn()</code> wrapper internally. The difference is ergonomic: instead of
+      manually specifying a DFS walk, the attribute auto-combines children's values (like Silver's <code>propagate</code>).
+      The user can add local contributions per node type.</p>
+
+      <ul class="pros">
+        <li>Minimal API change &mdash; drop-in replacement for <code>coll()</code></li>
+        <li>No new infrastructure (still a synthesized attribute)</li>
+        <li>Matches Silver's proven semantics</li>
+        <li>Auto-propagation reduces boilerplate significantly</li>
+        <li>Type-safe monoid declaration</li>
+      </ul>
+      <ul class="cons">
+        <li>Still no remote targeting (same expressiveness ceiling as Silver)</li>
+        <li>Still O(subtree) per access (though cached)</li>
+        <li>No aspect-oriented distribution of contributions</li>
+      </ul>
+    </div>
+
+    <!-- Option B -->
+    <div class="option-card">
+      <h4>Option B: JastAdd-style Two-Phase with Registry</h4>
+      <p>Implement a contributor registry that mimics JastAdd's survey phase. At install time, contributors
+      register themselves. A separate <code>coll()</code> declaration on the target node type consumes registered
+      contributions. Uses a WeakMap to track contributor &rarr; target mappings.</p>
+
+      <p><strong>Implementation:</strong> Two new APIs: <code>coll(init, combine)</code> for declaring collection targets,
+      and <code>contributes(targetAttr, contribution, { when?, for? })</code> for declaring contributions.
+      At <code>applyAttributes</code> time, a survey walk builds the contributor map. Collection attribute access
+      iterates only registered contributors.</p>
+
+      <ul class="pros">
+        <li>Full JastAdd expressiveness: remote targeting, conditional, multi-target</li>
+        <li>O(contributors) per access after O(tree) survey (better than O(subtree) repeated)</li>
+        <li>Aspect-oriented: contributions can be defined separately from the target</li>
+      </ul>
+      <ul class="cons">
+        <li>Significantly more complex implementation</li>
+        <li>Requires WeakMap infrastructure (breaks "no external data structures" principle)</li>
+        <li>Survey phase must be triggered explicitly (when? at apply time? on first access?)</li>
+        <li>The <code>for</code> clause requires reference attributes to already be computed &mdash; introduces ordering constraints</li>
+        <li>More complex API for the user</li>
+      </ul>
+    </div>
+
+    <!-- Option C -->
+    <div class="option-card">
+      <h4>Option C: Hybrid &mdash; Monoid + Targeted Contributions</h4>
+      <p>Keep Silver-style monoid as the default (Option A), but add an <strong>optional</strong> targeted contribution
+      mechanism for cases that need it. Monoid attributes auto-combine children by default. For remote targeting,
+      a <code>contributeTo()</code> helper collects contributions into a node-keyed registry that the monoid
+      attribute drains.</p>
+
+      <p><strong>Implementation:</strong> <code>monoid()</code> works as in Option A. Additionally, <code>contributeTo(targetAttr, targetResolver, contribution)</code>
+      installs a side-effect during tree walk that populates a per-target collection. The monoid attribute checks
+      this registry in addition to children's values.</p>
+
+      <ul class="pros">
+        <li>Simple for simple cases (monoid), powerful when needed (contributions)</li>
+        <li>Gradual adoption &mdash; start with monoid, add contributions when needed</li>
+        <li>Remote targeting available for complex analyses</li>
+      </ul>
+      <ul class="cons">
+        <li>Two mechanisms for the same concept &mdash; conceptual overhead</li>
+        <li>Registry is effectively a side-channel &mdash; harder to reason about evaluation order</li>
+        <li>Still has the ordering constraint problem from Option B</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- Section 7: API Designs -->
+<section id="api">
+<div class="container">
+  <h2><span class="num">7</span>API Designs</h2>
+  <p class="section-sub">What each option looks like in practice</p>
+
+  <div class="tab-group">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab(this, 'api-a')">Option A: monoid()</button>
+      <button class="tab-btn" onclick="switchTab(this, 'api-b')">Option B: coll/contributes</button>
+      <button class="tab-btn" onclick="switchTab(this, 'api-c')">Option C: Hybrid</button>
+      <button class="tab-btn" onclick="switchTab(this, 'api-current')">Current coll()</button>
+    </div>
+
+    <div id="api-a" class="tab-panel active">
+      <pre><code><span class="cm">// Option A: Silver-style monoid attribute</span>
+<span class="kw">import</span> { monoid } <span class="kw">from</span> <span class="str">'@ksc/ag'</span>;
+
+<span class="cm">// Declaration: identity element + combine operator</span>
+<span class="kw">const</span> errors = <span class="fn">monoid</span>&lt;<span class="ty">TNode</span>, <span class="ty">string</span>[]&gt;({
+  empty: () =&gt; [],
+  combine: (a, b) =&gt; [...a, ...b],
+  <span class="cm">// Optional: local contribution per node (like Silver's :=)</span>
+  local: (node) =&gt; {
+    <span class="kw">if</span> (node.type === <span class="str">'Use'</span> && !node.resolved)
+      <span class="kw">return</span> [<span class="str">`undefined: ${node.name}`</span>];
+    <span class="kw">return</span> [];  <span class="cm">// identity element = no contribution</span>
+  },
+});
+
+<span class="cm">// Usage: errors at any node = local contribution + all children's errors</span>
+<span class="fn">applyAttributes</span>(root, { errors });
+<span class="cm">// root.errors contains all errors from entire tree</span>
+
+<span class="cm">// ─────────────────────────────────────────────</span>
+<span class="cm">// API signature:</span>
+<span class="kw">function</span> <span class="fn">monoid</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt;(opts: {
+  empty: () =&gt; <span class="ty">V</span>;                     <span class="cm">// identity element factory</span>
+  combine: (a: <span class="ty">V</span>, b: <span class="ty">V</span>) =&gt; <span class="ty">V</span>;         <span class="cm">// associative binary operator</span>
+  local?: (node: <span class="ty">N</span>) =&gt; <span class="ty">V</span>;              <span class="cm">// node-local contribution (default: empty)</span>
+}): <span class="ty">AttributeDef</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt;;</code></pre>
+      <p>Internally: <code>monoid()</code> returns a <code>syn()</code> that computes
+      <code>combine(local(node), combine(child1.attr, combine(child2.attr, ...)))</code>.
+      Same as current <code>coll()</code> but with auto-propagation from children instead of a DFS walk.</p>
+    </div>
+
+    <div id="api-b" class="tab-panel">
+      <pre><code><span class="cm">// Option B: JastAdd-style coll/contributes</span>
+<span class="kw">import</span> { coll, contributes } <span class="kw">from</span> <span class="str">'@ksc/ag'</span>;
+
+<span class="cm">// Step 1: Declare the collection target</span>
+<span class="kw">const</span> errors = <span class="fn">coll</span>&lt;<span class="ty">TNode</span>, <span class="ty">string</span>[]&gt;({
+  init: () =&gt; [],
+  combine: (acc, item) =&gt; [...acc, item],
+});
+
+<span class="cm">// Step 2: Declare contributions (can be in separate files)</span>
+<span class="kw">const</span> useContrib = <span class="fn">contributes</span>&lt;<span class="ty">TNode</span>, <span class="ty">string</span>&gt;({
+  to: <span class="str">'errors'</span>,
+  value: (node) =&gt; <span class="str">`undefined: ${node.name}`</span>,
+  when: (node) =&gt; node.type === <span class="str">'Use'</span> && !node.resolved,
+  for: (node) =&gt; (node <span class="kw">as any</span>).enclosingModule,  <span class="cm">// remote target!</span>
+});
+
+<span class="cm">// Step 3: Apply both</span>
+<span class="fn">applyAttributes</span>(root, {
+  errors,
+  _useContrib: useContrib,  <span class="cm">// contributes attrs are side-effects</span>
+});
+
+<span class="cm">// ─────────────────────────────────────────────</span>
+<span class="cm">// API signatures:</span>
+<span class="kw">function</span> <span class="fn">coll</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt;(opts: {
+  init: () =&gt; <span class="ty">V</span>;
+  combine: (acc: <span class="ty">V</span>, item: <span class="ty">V</span>) =&gt; <span class="ty">V</span>;
+}): <span class="ty">AttributeDef</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt;;
+
+<span class="kw">function</span> <span class="fn">contributes</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt;(opts: {
+  to: <span class="kw">string</span>;                        <span class="cm">// target attribute name</span>
+  value: (node: <span class="ty">N</span>) =&gt; <span class="ty">V</span>;             <span class="cm">// contribution value</span>
+  when?: (node: <span class="ty">N</span>) =&gt; <span class="kw">boolean</span>;       <span class="cm">// guard condition</span>
+  for?: (node: <span class="ty">N</span>) =&gt; <span class="ty">N</span>;              <span class="cm">// target resolver (default: root)</span>
+}): <span class="ty">AttributeDef</span>&lt;<span class="ty">N</span>, <span class="kw">void</span>&gt;;</code></pre>
+    </div>
+
+    <div id="api-c" class="tab-panel">
+      <pre><code><span class="cm">// Option C: Hybrid — monoid() for most cases, contributeTo() for remote</span>
+<span class="kw">import</span> { monoid, contributeTo } <span class="kw">from</span> <span class="str">'@ksc/ag'</span>;
+
+<span class="cm">// Simple case: monoid with auto-propagation (like Option A)</span>
+<span class="kw">const</span> errors = <span class="fn">monoid</span>&lt;<span class="ty">TNode</span>, <span class="ty">string</span>[]&gt;({
+  empty: () =&gt; [],
+  combine: (a, b) =&gt; [...a, ...b],
+});
+
+<span class="cm">// Advanced case: remote contribution</span>
+<span class="kw">const</span> reportToModule = <span class="fn">contributeTo</span>&lt;<span class="ty">TNode</span>, <span class="ty">string</span>&gt;({
+  target: <span class="str">'errors'</span>,
+  resolve: (node) =&gt; (node <span class="kw">as any</span>).enclosingModule,
+  value: (node) =&gt; <span class="str">`type error: ${node.msg}`</span>,
+  when: (node) =&gt; node.type === <span class="str">'TypeErr'</span>,
+});
+
+<span class="fn">applyAttributes</span>(root, {
+  errors,
+  _reportToModule: reportToModule,
+});</code></pre>
+    </div>
+
+    <div id="api-current" class="tab-panel">
+      <pre><code><span class="cm">// Current @ksc/ag coll() — for comparison</span>
+<span class="kw">import</span> { coll } <span class="kw">from</span> <span class="str">'@ksc/ag'</span>;
+
+<span class="kw">const</span> errors = <span class="fn">coll</span>&lt;<span class="ty">TNode</span>, <span class="ty">string</span>[]&gt;(
+  () =&gt; [],                                          <span class="cm">// init</span>
+  (acc, v) =&gt; [...acc, v],                            <span class="cm">// combine</span>
+  (node) =&gt; {                                         <span class="cm">// contribute</span>
+    <span class="kw">if</span> (node.type === <span class="str">'Use'</span> && !node.resolved)
+      <span class="kw">return</span> <span class="str">`undefined: ${node.name}`</span>;
+    <span class="kw">return</span> <span class="kw">undefined</span>;  <span class="cm">// skip</span>
+  },
+);
+
+<span class="fn">applyAttributes</span>(root, { errors });
+<span class="cm">// root.errors: all errors from root's subtree (= entire tree)</span>
+<span class="cm">// child.errors: all errors from child's subtree only</span></code></pre>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      Performance comparison
+      <span class="collapsible-arrow">&#9654;</span>
+    </div>
+    <div class="collapsible-body">
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Current coll()</th>
+            <th>Option A: monoid()</th>
+            <th>Option B: coll/contributes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Install time</td>
+            <td>O(1) per node</td>
+            <td>O(1) per node</td>
+            <td>O(tree) survey</td>
+          </tr>
+          <tr>
+            <td>First access (root)</td>
+            <td>O(tree) DFS</td>
+            <td>O(tree) via children recursion</td>
+            <td>O(contributors)</td>
+          </tr>
+          <tr>
+            <td>First access (leaf)</td>
+            <td>O(1) DFS</td>
+            <td>O(1)</td>
+            <td>O(contributors of leaf)</td>
+          </tr>
+          <tr>
+            <td>Subsequent access</td>
+            <td>O(1) cached</td>
+            <td>O(1) cached</td>
+            <td>O(1) cached</td>
+          </tr>
+          <tr>
+            <td>Total work (all nodes)</td>
+            <td>O(n^2) worst case</td>
+            <td>O(n) total</td>
+            <td>O(n) total</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Key insight: Option A's auto-propagation via children recursion avoids the O(n^2) worst case of the current DFS approach.
+      When a parent accesses <code>.errors</code>, it reads each child's <code>.errors</code> (which are cached from their own computation).
+      Each node's equation runs exactly once &mdash; O(n) total, same as Option B's survey phase.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      Migration path from current coll()
+      <span class="collapsible-arrow">&#9654;</span>
+    </div>
+    <div class="collapsible-body">
+      <p><strong>Option A migration</strong> (straightforward):</p>
+      <pre><code><span class="cm">// Before:</span>
+errors: <span class="fn">coll</span>(() =&gt; [], (a, v) =&gt; [...a, v], (n) =&gt; n.error ?? <span class="kw">undefined</span>)
+
+<span class="cm">// After:</span>
+errors: <span class="fn">monoid</span>({
+  empty: () =&gt; [],
+  combine: (a, b) =&gt; [...a, ...b],
+  local: (n) =&gt; n.error ? [n.error] : [],
+})</code></pre>
+      <p>The key difference: <code>coll</code>'s <code>contribute</code> returns a single value, <code>monoid</code>'s <code>local</code> returns
+      a value of the full monoid type (e.g., an array, not a single element). The <code>combine</code> operator
+      must work on full values, not single contributions.</p>
+
+      <p style="margin-bottom:0"><strong>Option B migration</strong> would require splitting each <code>coll()</code> call into a <code>coll()</code> declaration
+      and separate <code>contributes()</code> declarations. More work, but the API is conceptually cleaner for complex cases.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- Section 8: Quiz -->
+<section id="quiz">
+<div class="container">
+  <h2><span class="num">8</span>Test Your Understanding</h2>
+  <p class="section-sub">Click each card to reveal the answer</p>
+
+  <div class="flashcard-deck">
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          In JastAdd, what does the <code>for</code> clause in a <code>contributes</code> declaration do?
+        </div>
+        <div class="flashcard-back">
+          It specifies the <strong>target node</strong> that receives the contribution, resolved via a reference attribute.
+          Without <code>for</code>, contributions go to the survey root. With <code>for</code>, they can target any reachable node
+          in the tree.
+        </div>
+      </div>
+      <span class="flashcard-hint">click to flip</span>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          Why is @ksc/ag's current <code>coll()</code> O(n^2) in the worst case when all nodes access the attribute?
+        </div>
+        <div class="flashcard-back">
+          Each node independently DFS-walks its entire subtree. If every node accesses the attribute,
+          the root walks n nodes, each child walks ~n/k nodes, etc. The total work is
+          O(n + (n-1) + (n-2) + ...) = O(n^2). A monoid approach avoids this because each node's
+          equation only reads its children's cached values &mdash; O(n) total.
+        </div>
+      </div>
+      <span class="flashcard-hint">click to flip</span>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          What is Silver's <code>propagate</code> keyword equivalent to?
+        </div>
+        <div class="flashcard-back">
+          <code>propagate errors on Expr</code> auto-generates equations that combine all children's
+          <code>errors</code> attributes using the monoid's operator. It's like writing
+          <code>e.errors := []; e.errors &lt;- child1.errors; e.errors &lt;- child2.errors; ...</code>
+          for every production of <code>Expr</code>.
+        </div>
+      </div>
+      <span class="flashcard-hint">click to flip</span>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          Why can't a pure runtime library fully replicate JastAdd's two-phase collection system?
+        </div>
+        <div class="flashcard-back">
+          JastAdd knows all <code>contributes</code> clauses at compile time and generates custom survey methods
+          and contributor dispatch code. A runtime library must discover contributions dynamically,
+          requiring either a registration API or a full tree walk. The <code>for</code> clause also
+          requires reference attributes to already be computed, creating ordering constraints that
+          code generation handles statically.
+        </div>
+      </div>
+      <span class="flashcard-hint">click to flip</span>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          What algebraic structure does Silver's <code>monoid attribute</code> declaration encode?
+        </div>
+        <div class="flashcard-back">
+          A <strong>monoid</strong>: a set with an associative binary operation and an identity element.
+          <code>monoid attribute allErrors :: [Message] with [], ++</code> declares:
+          identity = <code>[]</code>, operator = <code>++</code> (list append).
+          Associativity guarantees the combining order doesn't matter.
+        </div>
+      </div>
+      <span class="flashcard-hint">click to flip</span>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          Which option (A/B/C) should @ksc/ag adopt and why?
+        </div>
+        <div class="flashcard-back">
+          <strong>Option A (monoid)</strong> is recommended. It fixes the O(n^2) performance issue, provides cleaner ergonomics,
+          matches Silver's proven semantics, requires minimal new infrastructure, and stays within the
+          "Kiama ceiling" design principle. Remote targeting (Option B) can be added later if needed.
+        </div>
+      </div>
+      <span class="flashcard-hint">click to flip</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<script>
+// Tab switching
+function switchTab(btn, panelId) {
+  const group = btn.closest('.tab-group');
+  group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  group.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+// Collapsible sections
+function toggleCollapsible(header) {
+  header.parentElement.classList.toggle('open');
+}
+
+// Navigation highlight
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.toc-link').forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+      });
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+
+document.querySelectorAll('section[id]').forEach(section => observer.observe(section));
+</script>
+
+</body>
+</html>

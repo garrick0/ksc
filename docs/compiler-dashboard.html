@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KindScript Compiler Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
 <style>
   :root {
     --bg: #0f1117; --bg2: #161b27; --bg3: #1e2435; --bg4: #252e42;
@@ -98,10 +99,12 @@
   .stage-tab.active[data-stage="parse"] { border-bottom-color: var(--parse-color); }
   .stage-tab.active[data-stage="bind"] { border-bottom-color: var(--bind-color); }
   .stage-tab.active[data-stage="check"] { border-bottom-color: var(--check-color); }
+  .stage-tab.active[data-stage="deps"] { border-bottom-color: var(--orange); }
   .stage-tab .tab-dot { width: 8px; height: 8px; border-radius: 50%; }
   .stage-tab[data-stage="parse"] .tab-dot { background: var(--parse-color); }
   .stage-tab[data-stage="bind"] .tab-dot { background: var(--bind-color); }
   .stage-tab[data-stage="check"] .tab-dot { background: var(--check-color); }
+  .stage-tab[data-stage="deps"] .tab-dot { background: var(--orange); }
   .stage-tab .tab-count { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: var(--bg3); color: var(--text2); }
 
   /* ---- Toolbar ---- */
@@ -237,6 +240,22 @@
   .fv-tab:hover { color: var(--text); background: var(--bg3); }
   .fv-tab.active { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
 
+  /* ---- AST mode toggle ---- */
+  .ast-mode-toggle {
+    display: flex; gap: 2px; margin-bottom: 8px;
+  }
+  .ast-mode-btn {
+    background: transparent; border: 1px solid var(--border); padding: 3px 12px; border-radius: 4px;
+    color: var(--text2); cursor: pointer; font-size: 10px; font-weight: 600; transition: all 0.15s;
+    font-family: var(--mono);
+  }
+  .ast-mode-btn:hover { color: var(--text); border-color: var(--accent); }
+  .ast-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .ast-mode-label {
+    padding: 3px 12px; font-size: 10px; font-weight: 600; color: var(--accent);
+    font-family: var(--mono);
+  }
+
   /* ---- AST tree ---- */
   .ast-wrap {
     border: 1px solid var(--border); border-radius: var(--radius);
@@ -258,6 +277,25 @@
   .ast-text { color: var(--text2); font-family: var(--mono); font-size: 10px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
   .ast-children { }
   .ast-children.collapsed { display: none; }
+  .ast-attr-badges { display: flex; flex-wrap: wrap; gap: 3px; margin-left: 4px; }
+  .ast-attr-badge {
+    font-size: 9px; font-family: var(--mono); padding: 0 5px; border-radius: 3px;
+    color: var(--bg); font-weight: 700; line-height: 16px; white-space: nowrap; cursor: default;
+  }
+  .ast-attr-badge.attr-kindDefs { background: var(--cyan); }
+  .ast-attr-badge.attr-kindAnnotations { background: var(--purple); }
+  .ast-attr-badge.attr-valueImports { background: var(--blue); }
+  .ast-attr-badge.attr-localBindings { background: var(--blue); }
+  .ast-attr-badge.attr-importViolation { background: var(--red); }
+  .ast-attr-badge.attr-allViolations { background: var(--red); }
+  .ast-attr-badge.attr-default { background: var(--text2); }
+  .ast-attr-detail {
+    margin-left: 22px; padding: 4px 8px; font-size: 10px; font-family: var(--mono);
+    color: var(--text2); background: rgba(0,0,0,0.2); border-left: 2px solid var(--border);
+    border-radius: 0 3px 3px 0; line-height: 1.5; max-height: 120px; overflow: auto;
+    display: none; margin-top: 1px; margin-bottom: 2px;
+  }
+  .ast-attr-detail.open { display: block; }
 
   /* ---- Status bar ---- */
   #statusbar {
@@ -295,6 +333,53 @@
   .hl-cmt { color: #6a9955; font-style: italic; }
   .hl-fn { color: #dcdcaa; }
   .hl-const { color: #4fc1ff; }
+
+  /* ---- AST Graph modal ---- */
+  #ast-graph-modal {
+    position: fixed; inset: 0; background: rgba(15,17,23,0.96);
+    z-index: 600; display: none; flex-direction: column; backdrop-filter: blur(6px);
+  }
+  #ast-graph-modal.open { display: flex; }
+  #ast-graph-toolbar {
+    height: 44px; background: var(--bg2); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 16px; gap: 8px; flex-shrink: 0;
+  }
+  #ast-graph-toolbar .ag-title { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #ast-graph-toolbar .ag-info { font-size: 11px; color: var(--text2); display: flex; gap: 12px; }
+  #ast-graph-toolbar .ag-info span { display: flex; align-items: center; gap: 4px; }
+  .ag-btn {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 4px 10px; color: var(--text2); cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.15s;
+  }
+  .ag-btn:hover { border-color: var(--accent); color: var(--text); }
+  .ag-btn.active { border-color: var(--accent); color: var(--text); background: rgba(124,106,247,0.15); }
+  .ag-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  #ast-graph-container { flex: 1; overflow: hidden; background: #0a0c12; position: relative; }
+  #ast-graph-container svg { width: 100%; height: 100%; }
+  #ast-graph-legend {
+    position: absolute; bottom: 16px; left: 16px; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 8px; z-index: 10;
+  }
+  .ag-leg-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text2); }
+  .ag-leg-dot { width: 10px; height: 10px; border-radius: 3px; border: 1.5px solid; }
+  #ast-graph-loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--text2); font-size: 14px; z-index: 5;
+  }
+  #ast-graph-loading.hidden { display: none; }
+  #ast-graph-detail {
+    position: absolute; top: 12px; right: 12px; width: 260px; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
+    font-size: 11px; color: var(--text2); z-index: 20; display: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  #ast-graph-detail .agd-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  #ast-graph-detail .agd-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  #ast-graph-detail .agd-key { color: var(--text2); }
+  #ast-graph-detail .agd-val { font-weight: 600; color: var(--text3); font-family: var(--mono); font-size: 10px; text-align: right; }
+  #ast-graph-detail .agd-close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: var(--text2); font-size: 14px; }
+  #ast-graph-detail .agd-close:hover { color: var(--text); }
+  #ast-graph-detail .agd-hint { font-size: 9px; color: var(--text2); opacity: 0.6; margin-top: 6px; text-align: center; }
 </style>
 </head>
 <body>
@@ -331,13 +416,18 @@
       </div>
       <div class="stage-tab" data-stage="bind" onclick="switchStage('bind')">
         <div class="tab-dot"></div>
-        <span>BIND</span>
+        <span>KINDS</span>
         <span class="tab-count" id="bind-count">0</span>
       </div>
       <div class="stage-tab" data-stage="check" onclick="switchStage('check')">
         <div class="tab-dot"></div>
         <span>CHECK</span>
         <span class="tab-count" id="check-count">0</span>
+      </div>
+      <div class="stage-tab" data-stage="deps" onclick="switchStage('deps')">
+        <div class="tab-dot"></div>
+        <span>DEPS</span>
+        <span class="tab-count" id="deps-count">0</span>
       </div>
     </div>
 
@@ -369,7 +459,7 @@
 <!-- Status bar -->
 <div id="statusbar">
   <div class="stat"><div class="sb-dot" style="background:var(--parse-color)"></div><strong id="sb-files">0</strong> source files</div>
-  <div class="stat"><div class="sb-dot" style="background:var(--bind-color)"></div><strong id="sb-symbols">0</strong> symbols</div>
+  <div class="stat"><div class="sb-dot" style="background:var(--bind-color)"></div><strong id="sb-symbols">0</strong> kinds</div>
   <div class="stat"><div class="sb-dot" style="background:var(--green)"></div><strong id="sb-clean">0</strong> clean</div>
   <div class="stat"><div class="sb-dot" style="background:var(--red)"></div><strong id="sb-diags">0</strong> diagnostics</div>
 </div>
@@ -391,6 +481,38 @@
   </div>
 </div>
 
+<!-- AST Graph modal -->
+<div id="ast-graph-modal">
+  <div id="ast-graph-toolbar">
+    <span class="ag-title" id="ast-graph-title">AST Graph</span>
+    <div class="ag-info" id="ast-graph-info"></div>
+    <div class="ag-sep"></div>
+    <button class="ag-btn active" id="ag-dir-lr" onclick="elkSetDirection('RIGHT')">LR</button>
+    <button class="ag-btn" id="ag-dir-td" onclick="elkSetDirection('DOWN')">TD</button>
+    <div class="ag-sep"></div>
+    <button class="ag-btn" onclick="elkExpandAll()">Expand All</button>
+    <button class="ag-btn" onclick="elkCollapseDepth(2)">Depth 2+</button>
+    <button class="ag-btn" onclick="elkSmartCollapse()">Smart</button>
+    <button class="ag-btn" onclick="elkOutlineMode()">Outline</button>
+    <div class="ag-sep"></div>
+    <button class="ag-btn" onclick="elkFitView()">Fit View</button>
+    <button class="ag-btn" onclick="closeASTGraph()" style="color:var(--red);border-color:var(--red)">&times; Close</button>
+  </div>
+  <div id="ast-graph-container">
+    <div id="ast-graph-loading" class="hidden">Computing layout...</div>
+    <div id="ast-graph-detail"></div>
+    <div id="ast-graph-legend">
+      <div class="ag-leg-item"><div class="ag-leg-dot" style="background:rgba(79,142,247,0.2);border-color:var(--blue)"></div>Declaration</div>
+      <div class="ag-leg-item"><div class="ag-leg-dot" style="background:rgba(167,139,250,0.2);border-color:var(--purple)"></div>Statement</div>
+      <div class="ag-leg-item"><div class="ag-leg-dot" style="background:rgba(251,191,36,0.2);border-color:var(--yellow)"></div>Expression</div>
+      <div class="ag-leg-item"><div class="ag-leg-dot" style="background:rgba(251,146,60,0.2);border-color:var(--orange)"></div>Literal</div>
+      <div class="ag-leg-item"><div class="ag-leg-dot" style="background:rgba(34,211,238,0.2);border-color:var(--cyan)"></div>Type</div>
+      <div class="ag-leg-item"><div class="ag-leg-dot" style="background:rgba(138,148,168,0.2);border-color:var(--text2)"></div>Other</div>
+      <div style="margin-left:8px;font-size:9px;color:var(--text2);opacity:0.5">Click=inspect &middot; Dbl-click=collapse</div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // STATE
@@ -407,38 +529,110 @@ let treeNodeIdCounter = 0;
 // ============================================================
 // __DASHBOARD_DATA_START__
 const SAMPLE_DATA = {
-  version: 1,
+  version: 2,
   project: {
     root: '/kindscript-project',
     generatedAt: new Date().toISOString(),
-    rootFiles: ['src/funcs/no-console.ts', 'src/funcs/no-mutation.ts', 'src/domain/handler.ts', 'src/infra/db.ts', 'src/pure/math.ts']
+    rootFiles: ['src/kinds.ts', 'src/funcs/no-console.ts', 'src/funcs/no-mutation.ts', 'src/domain/handler.ts', 'src/infra/db.ts', 'src/pure/math.ts']
   },
   parse: {
     sourceFiles: [
       {
+        fileName: 'src/kinds.ts',
+        lineCount: 10,
+        declarations: [
+          { id: 'p-0a', name: 'PropertySet', kind: 'Interface', pos: 0, end: 60, text: "export interface PropertySet { readonly noConsole?: true; ... }" },
+          { id: 'p-0b', name: 'Kind', kind: 'TypeAlias', pos: 61, end: 120, text: "export type Kind<R extends PropertySet> = { readonly __kind?: R }" },
+          { id: 'p-0c', name: 'NoConsole', kind: 'TypeAlias', pos: 121, end: 170, text: "type NoConsole = Kind<{ noConsole: true }>" },
+          { id: 'p-0d', name: 'NoMutation', kind: 'TypeAlias', pos: 171, end: 220, text: "type NoMutation = Kind<{ noMutation: true }>" },
+          { id: 'p-0e', name: 'NoImports', kind: 'TypeAlias', pos: 221, end: 270, text: "type NoImports = Kind<{ noImports: true }>" }
+        ],
+        source: "import type { Kind, PropertySet } from 'kindscript';\n\ntype NoConsole = Kind<{ noConsole: true }>;\ntype NoMutation = Kind<{ noMutation: true }>;\ntype NoImports = Kind<{ noImports: true }>;\n"
+      },
+      {
         fileName: 'src/funcs/no-console.ts',
         lineCount: 8,
         declarations: [
-          { id: 'p-1', name: 'greet', kind: 'Function', pos: 0, end: 80, text: "export function greet(name: string) { console.log('Hello, ' + name); }" }
+          { id: 'p-1', name: 'greet', kind: 'Const', pos: 0, end: 80, text: "const greet: NoConsole & ((name: string) => void) = (name) => { console.log('Hello, ' + name); }" }
         ],
-        source: "// File with console usage — violates noConsole.\n\nexport function greet(name: string) {\n  console.log('Hello, ' + name);\n}\n"
+        source: "import type { NoConsole } from '../kinds';\n\nconst greet: NoConsole & ((name: string) => void) = (name) => {\n  console.log('Hello, ' + name);\n};\n",
+        ast: {
+          kind: 'SourceFile', pos: 0, end: 80, text: '// File with console usage...', children: [
+            { kind: 'ImportDeclaration', pos: 0, end: 42, text: "import type { NoConsole } from '../kinds'", children: [
+              { kind: 'ImportClause', pos: 7, end: 27, text: 'type { NoConsole }', children: [
+                { kind: 'NamedImports', pos: 14, end: 27, text: '{ NoConsole }', children: [
+                  { kind: 'ImportSpecifier', name: 'NoConsole', pos: 16, end: 25, text: 'NoConsole', children: [] }
+                ]}
+              ]},
+              { kind: 'StringLiteral', pos: 33, end: 42, text: "'../kinds'", children: [] }
+            ]},
+            { kind: 'VariableStatement', pos: 44, end: 80, text: 'const greet: NoConsole & ((name: string) => void) = ...', children: [
+              { kind: 'VariableDeclarationList', pos: 44, end: 79, text: 'const greet: NoConsole & ...', children: [
+                { kind: 'VariableDeclaration', name: 'greet', pos: 50, end: 79, text: 'greet: NoConsole & ...', children: [
+                  { kind: 'Identifier', name: 'greet', pos: 50, end: 55, text: 'greet', children: [] },
+                  { kind: 'IntersectionType', pos: 57, end: 74, text: 'NoConsole & ((name: string) => void)', children: [
+                    { kind: 'TypeReference', name: 'NoConsole', pos: 57, end: 66, text: 'NoConsole', children: [] },
+                    { kind: 'FunctionType', pos: 69, end: 74, text: '(name: string) => void', children: [] }
+                  ]},
+                  { kind: 'ArrowFunction', pos: 77, end: 79, text: '(name) => { ... }', children: [
+                    { kind: 'Parameter', name: 'name', pos: 78, end: 82, text: 'name', children: [] },
+                    { kind: 'Block', pos: 87, end: 79, text: '{ console.log(...) }', children: [
+                      { kind: 'ExpressionStatement', pos: 89, end: 76, text: "console.log('Hello, ' + name);", children: [
+                        { kind: 'CallExpression', pos: 89, end: 75, text: "console.log('Hello, ' + name)", children: [
+                          { kind: 'PropertyAccessExpression', pos: 89, end: 100, text: 'console.log', children: [
+                            { kind: 'Identifier', name: 'console', pos: 89, end: 96, text: 'console', children: [] },
+                            { kind: 'Identifier', name: 'log', pos: 97, end: 100, text: 'log', children: [] }
+                          ]},
+                          { kind: 'BinaryExpression', pos: 101, end: 74, text: "'Hello, ' + name", children: [
+                            { kind: 'StringLiteral', pos: 101, end: 110, text: "'Hello, '", children: [] },
+                            { kind: 'PlusToken', pos: 111, end: 112, text: '+', children: [] },
+                            { kind: 'Identifier', name: 'name', pos: 113, end: 117, text: 'name', children: [] }
+                          ]}
+                        ]}
+                      ]}
+                    ]}
+                  ]}
+                ]}
+              ]}
+            ]}
+          ]
+        }
       },
       {
         fileName: 'src/funcs/no-mutation.ts',
         lineCount: 10,
         declarations: [
-          { id: 'p-2', name: 'mutate', kind: 'Function', pos: 0, end: 120, text: "export function mutate() { let x = 0; x = 1; x++; return x; }" }
+          { id: 'p-2', name: 'mutate', kind: 'Const', pos: 0, end: 120, text: "const mutate: NoMutation & (() => number) = () => { let x = 0; x = 1; x++; return x; }" }
         ],
-        source: "// File with mutation — violates noMutation.\n\nexport function mutate() {\n  let x = 0;\n  x = 1;\n  x++;\n  return x;\n}\n"
+        source: "import type { NoMutation } from '../kinds';\n\nconst mutate: NoMutation & (() => number) = () => {\n  let x = 0;\n  x = 1;\n  x++;\n  return x;\n};\n",
+        ast: {
+          kind: 'SourceFile', pos: 0, end: 120, text: '// File with mutation...', children: [
+            { kind: 'ImportDeclaration', pos: 0, end: 43, text: "import type { NoMutation } from '../kinds'", children: [] },
+            { kind: 'VariableStatement', pos: 45, end: 120, text: 'const mutate: NoMutation & (() => number) = ...', children: [
+              { kind: 'VariableDeclarationList', pos: 45, end: 119, text: 'const mutate: NoMutation & ...', children: [
+                { kind: 'VariableDeclaration', name: 'mutate', pos: 51, end: 119, text: 'mutate: NoMutation & ...', children: [
+                  { kind: 'Identifier', name: 'mutate', pos: 51, end: 57, text: 'mutate', children: [] },
+                  { kind: 'ArrowFunction', pos: 90, end: 119, text: '() => { let x = 0; ... }', children: [
+                    { kind: 'Block', pos: 96, end: 119, text: '{ let x = 0; ... }', children: [
+                      { kind: 'VariableStatement', pos: 98, end: 108, text: 'let x = 0;', children: [] },
+                      { kind: 'ExpressionStatement', pos: 109, end: 115, text: 'x = 1;', children: [] },
+                      { kind: 'ReturnStatement', pos: 116, end: 118, text: 'return x;', children: [] }
+                    ]}
+                  ]}
+                ]}
+              ]}
+            ]}
+          ]
+        }
       },
       {
         fileName: 'src/domain/handler.ts',
         lineCount: 9,
         declarations: [
           { id: 'p-20', name: 'something', kind: 'Import', pos: 0, end: 35, text: "import { something } from './other'" },
-          { id: 'p-21', name: 'handle', kind: 'Function', pos: 36, end: 120, text: "export function handle() { return something(); }" }
+          { id: 'p-21', name: 'handle', kind: 'Const', pos: 36, end: 120, text: "const handle: NoImports & (() => number) = () => { return something(); }" }
         ],
-        source: "// This file is inside the domain directory.\n// It has an import — violating noImports.\n\nimport { something } from './other';\n\nexport function handle() {\n  return something();\n}\n"
+        source: "import type { NoImports } from '../kinds';\nimport { something } from './other';\n\nconst handle: NoImports & (() => number) = () => {\n  return something();\n};\n"
       },
       {
         fileName: 'src/domain/other.ts',
@@ -453,50 +647,101 @@ const SAMPLE_DATA = {
         lineCount: 9,
         declarations: [
           { id: 'p-30', name: 'fs', kind: 'Import', pos: 0, end: 34, text: "import { readFileSync } from 'fs'" },
-          { id: 'p-31', name: 'loadConfig', kind: 'Function', pos: 35, end: 120, text: "export function loadConfig(path: string) { return readFileSync(path, 'utf-8'); }" }
+          { id: 'p-31', name: 'loadConfig', kind: 'Const', pos: 35, end: 120, text: "const loadConfig: NoImports & ((path: string) => string) = (path) => readFileSync(path, 'utf-8')" }
         ],
-        source: "// This file is inside the infra directory.\n// It imports an IO module — violating noIO.\n\nimport { readFileSync } from 'fs';\n\nexport function loadConfig(path: string) {\n  return readFileSync(path, 'utf-8');\n}\n"
+        source: "import type { NoImports } from '../kinds';\nimport { readFileSync } from 'fs';\n\nconst loadConfig: NoImports & ((path: string) => string) = (path) =>\n  readFileSync(path, 'utf-8');\n"
       },
       {
         fileName: 'src/pure/math.ts',
         lineCount: 12,
         declarations: [
           { id: 'p-40', name: 'PI', kind: 'Const', pos: 0, end: 40, text: "export const PI = 3.14159" },
-          { id: 'p-41', name: 'add', kind: 'Function', pos: 41, end: 100, text: "export function add(a: number, b: number): number { return a + b; }" },
-          { id: 'p-42', name: 'multiply', kind: 'Function', pos: 101, end: 170, text: "export function multiply(a: number, b: number): number { return a * b; }" }
+          { id: 'p-41', name: 'add', kind: 'Const', pos: 41, end: 100, text: "const add: NoConsole & ((a: number, b: number) => number) = (a, b) => a + b" },
+          { id: 'p-42', name: 'multiply', kind: 'Const', pos: 101, end: 170, text: "const multiply: NoConsole & ((a: number, b: number) => number) = (a, b) => a * b" }
         ],
-        source: "// A clean file: only const declarations, pure functions, no console.\n\nexport const PI = 3.14159;\n\nexport function add(a: number, b: number): number {\n  return a + b;\n}\n\nexport function multiply(a: number, b: number): number {\n  return a * b;\n}\n"
+        source: "import type { NoConsole } from '../kinds';\n\nexport const PI = 3.14159;\n\nconst add: NoConsole & ((a: number, b: number) => number) = (a, b) => a + b;\n\nconst multiply: NoConsole & ((a: number, b: number) => number) = (a, b) => a * b;\n",
+        ast: {
+          kind: 'SourceFile', pos: 0, end: 170, text: '// A clean file...', children: [
+            { kind: 'ImportDeclaration', pos: 0, end: 42, text: "import type { NoConsole } from '../kinds'", children: [] },
+            { kind: 'VariableStatement', pos: 44, end: 69, text: 'export const PI = 3.14159;', children: [
+              { kind: 'ExportKeyword', pos: 44, end: 50, text: 'export', children: [] },
+              { kind: 'VariableDeclarationList', pos: 51, end: 68, text: 'const PI = 3.14159', children: [
+                { kind: 'VariableDeclaration', name: 'PI', pos: 57, end: 68, text: 'PI = 3.14159', children: [
+                  { kind: 'Identifier', name: 'PI', pos: 57, end: 59, text: 'PI', children: [] },
+                  { kind: 'NumericLiteral', pos: 62, end: 69, text: '3.14159', children: [] }
+                ]}
+              ]}
+            ]},
+            { kind: 'VariableStatement', pos: 71, end: 120, text: 'const add: NoConsole & ... = (a, b) => a + b;', children: [
+              { kind: 'VariableDeclarationList', pos: 71, end: 119, text: 'const add: NoConsole & ...', children: [
+                { kind: 'VariableDeclaration', name: 'add', pos: 77, end: 119, text: 'add: NoConsole & ...', children: [
+                  { kind: 'Identifier', name: 'add', pos: 77, end: 80, text: 'add', children: [] },
+                  { kind: 'ArrowFunction', pos: 110, end: 119, text: '(a, b) => a + b', children: [
+                    { kind: 'Parameter', name: 'a', pos: 111, end: 112, text: 'a', children: [] },
+                    { kind: 'Parameter', name: 'b', pos: 114, end: 115, text: 'b', children: [] },
+                    { kind: 'BinaryExpression', pos: 120, end: 125, text: 'a + b', children: [
+                      { kind: 'Identifier', name: 'a', pos: 120, end: 121, text: 'a', children: [] },
+                      { kind: 'PlusToken', pos: 122, end: 123, text: '+', children: [] },
+                      { kind: 'Identifier', name: 'b', pos: 124, end: 125, text: 'b', children: [] }
+                    ]}
+                  ]}
+                ]}
+              ]}
+            ]},
+            { kind: 'VariableStatement', pos: 122, end: 170, text: 'const multiply: NoConsole & ... = (a, b) => a * b;', children: [
+              { kind: 'VariableDeclarationList', pos: 122, end: 169, text: 'const multiply: NoConsole & ...', children: [
+                { kind: 'VariableDeclaration', name: 'multiply', pos: 128, end: 169, text: 'multiply: NoConsole & ...', children: [
+                  { kind: 'Identifier', name: 'multiply', pos: 128, end: 136, text: 'multiply', children: [] },
+                  { kind: 'ArrowFunction', pos: 165, end: 169, text: '(a, b) => a * b', children: [
+                    { kind: 'Parameter', name: 'a', pos: 166, end: 167, text: 'a', children: [] },
+                    { kind: 'Parameter', name: 'b', pos: 169, end: 170, text: 'b', children: [] },
+                    { kind: 'BinaryExpression', pos: 175, end: 180, text: 'a * b', children: [
+                      { kind: 'Identifier', name: 'a', pos: 175, end: 176, text: 'a', children: [] },
+                      { kind: 'AsteriskToken', pos: 177, end: 178, text: '*', children: [] },
+                      { kind: 'Identifier', name: 'b', pos: 179, end: 180, text: 'b', children: [] }
+                    ]}
+                  ]}
+                ]}
+              ]}
+            ]}
+          ]
+        }
       }
     ]
   },
-  bind: {
-    symbols: [
-      { id: 'sym-0', name: 'noConsoleFile', valueKind: 'file', declaredProperties: { noConsole: true }, path: './src/funcs/no-console.ts', resolvedFiles: ['src/funcs/no-console.ts'] },
-      { id: 'sym-1', name: 'noMutationFile', valueKind: 'file', declaredProperties: { noMutation: true }, path: './src/funcs/no-mutation.ts', resolvedFiles: ['src/funcs/no-mutation.ts'] },
-      { id: 'sym-2', name: 'domain', valueKind: 'directory', declaredProperties: { noImports: true }, path: './src/domain', resolvedFiles: ['src/domain/handler.ts', 'src/domain/other.ts'] },
-      { id: 'sym-3', name: 'infra', valueKind: 'directory', declaredProperties: { noIO: true }, path: './src/infra', resolvedFiles: ['src/infra/db.ts'] },
-      { id: 'sym-4', name: 'pureDir', valueKind: 'directory', declaredProperties: { pure: true, noIO: true, noImports: true }, path: './src/pure', resolvedFiles: ['src/pure/math.ts'] }
+  kinds: {
+    definitions: [
+      { id: 'kdef-0', name: 'NoConsole', properties: { noConsole: true }, sourceFile: 'src/kinds.ts' },
+      { id: 'kdef-1', name: 'NoMutation', properties: { noMutation: true }, sourceFile: 'src/kinds.ts' },
+      { id: 'kdef-2', name: 'NoImports', properties: { noImports: true }, sourceFile: 'src/kinds.ts' }
+    ],
+    annotations: [
+      { id: 'kann-0', kindName: 'NoConsole', name: 'greet', sourceFile: 'src/funcs/no-console.ts' },
+      { id: 'kann-1', kindName: 'NoMutation', name: 'mutate', sourceFile: 'src/funcs/no-mutation.ts' },
+      { id: 'kann-2', kindName: 'NoImports', name: 'handle', sourceFile: 'src/domain/handler.ts' },
+      { id: 'kann-3', kindName: 'NoImports', name: 'loadConfig', sourceFile: 'src/infra/db.ts' },
+      { id: 'kann-4', kindName: 'NoConsole', name: 'add', sourceFile: 'src/pure/math.ts' },
+      { id: 'kann-5', kindName: 'NoConsole', name: 'multiply', sourceFile: 'src/pure/math.ts' }
     ]
   },
   check: {
     diagnostics: [
-      { id: 'c-1', file: 'src/funcs/no-console.ts', code: 70009, property: 'noConsole', message: "Kind property 'noConsole' violated: console usage is not allowed.", start: 90, length: 30, line: 4, column: 3 },
-      { id: 'c-2', file: 'src/funcs/no-mutation.ts', code: 70013, property: 'noMutation', message: "Kind property 'noMutation' violated: mutation is not allowed. Assignment to 'x'.", start: 80, length: 5, line: 5, column: 3 },
-      { id: 'c-3', file: 'src/domain/handler.ts', code: 70008, property: 'noImports', message: "Kind property 'noImports' violated: import declarations are not allowed. Found: import { something } from './other'", start: 0, length: 35, line: 4, column: 1 },
-      { id: 'c-4', file: 'src/infra/db.ts', code: 70007, property: 'noIO', message: "Kind property 'noIO' violated: IO module imports are not allowed. Found: import from 'fs'", start: 0, length: 34, line: 4, column: 1 }
+      { id: 'c-1', file: 'src/funcs/no-console.ts', code: 70200, property: 'noConsole', message: "Kind property 'noConsole' violated: console usage is not allowed.", start: 90, length: 30, line: 4, column: 3 },
+      { id: 'c-2', file: 'src/funcs/no-mutation.ts', code: 70200, property: 'noMutation', message: "Kind property 'noMutation' violated: mutation is not allowed. Assignment to 'x'.", start: 80, length: 5, line: 5, column: 3 },
+      { id: 'c-3', file: 'src/domain/handler.ts', code: 70200, property: 'noImports', message: "Kind property 'noImports' violated: file contains non-type-only import: import { something } from './other'", start: 0, length: 35, line: 2, column: 1 },
+      { id: 'c-4', file: 'src/infra/db.ts', code: 70200, property: 'noImports', message: "Kind property 'noImports' violated: file contains non-type-only import: import { readFileSync } from 'fs'", start: 0, length: 34, line: 2, column: 1 }
     ],
     summary: {
-      totalFiles: 6,
-      totalSymbols: 5,
+      totalFiles: 7,
+      totalDefinitions: 3,
+      totalAnnotations: 6,
       totalDiagnostics: 4,
-      cleanFiles: 4,
+      cleanFiles: 5,
       violatingFiles: 2,
       byProperty: {
-        noConsole: { checked: 1, violations: 1 },
+        noConsole: { checked: 3, violations: 1 },
         noMutation: { checked: 1, violations: 1 },
-        noImports: { checked: 2, violations: 1 },
-        noIO: { checked: 2, violations: 1 },
-        pure: { checked: 1, violations: 0 }
+        noImports: { checked: 2, violations: 2 }
       }
     }
   }
@@ -508,6 +753,9 @@ const SAMPLE_DATA = {
 // ============================================================
 function loadData(d) {
   data = d;
+  // Normalize: ensure check and annotations exist for backward compat
+  if (!data.check) data.check = { diagnostics: [], summary: { totalFiles: 0, totalDefinitions: 0, totalAnnotations: 0, totalDiagnostics: 0, cleanFiles: data.parse ? data.parse.sourceFiles.length : 0, violatingFiles: 0, byProperty: {} } };
+  if (!data.kinds.annotations) data.kinds.annotations = [];
   updateCounts();
   updateStatusBar();
   renderSidebar();
@@ -537,7 +785,8 @@ function switchStage(stage) {
   document.getElementById('check-views').style.display = stage === 'check' ? 'flex' : 'none';
   closeDetail();
   renderSidebar();
-  renderTree();
+  if (stage === 'deps') renderDepGraph();
+  else renderTree();
   updateLegend();
 }
 
@@ -553,20 +802,23 @@ function switchCheckView(view) {
 function updateCounts() {
   if (!data) return;
   document.getElementById('parse-count').textContent = data.parse.sourceFiles.length;
-  document.getElementById('bind-count').textContent = data.bind.symbols.length;
-  document.getElementById('check-count').textContent = data.check.diagnostics.length;
+  document.getElementById('bind-count').textContent = data.kinds.definitions.length;
+  document.getElementById('check-count').textContent = (data.check ? data.check.diagnostics.length : 0);
+  document.getElementById('deps-count').textContent = data.depGraph ? data.depGraph.attributes.length : 0;
 }
 
 function updateStatusBar() {
   if (!data) return;
+  var checkDiags = data.check ? data.check.diagnostics : [];
+  var checkSummary = data.check ? data.check.summary : { cleanFiles: data.parse.sourceFiles.length };
   document.getElementById('sb-files').textContent = data.parse.sourceFiles.length;
-  document.getElementById('sb-symbols').textContent = data.bind.symbols.length;
-  document.getElementById('sb-clean').textContent = data.check.summary.cleanFiles;
-  document.getElementById('sb-diags').textContent = data.check.diagnostics.length;
+  document.getElementById('sb-symbols').textContent = data.kinds.definitions.length;
+  document.getElementById('sb-clean').textContent = checkSummary.cleanFiles;
+  document.getElementById('sb-diags').textContent = checkDiags.length;
   document.getElementById('hdr-stats').innerHTML =
     '<strong>' + data.parse.sourceFiles.length + '</strong> files' +
-    ' &middot; <strong>' + data.bind.symbols.length + '</strong> symbols' +
-    ' &middot; <strong>' + data.check.diagnostics.length + '</strong> diagnostics';
+    ' &middot; <strong>' + data.kinds.definitions.length + '</strong> kinds' +
+    ' &middot; <strong>' + checkDiags.length + '</strong> diagnostics';
 }
 
 function updateLegend() {
@@ -578,8 +830,12 @@ function updateLegend() {
     ].join('');
   } else if (activeStage === 'bind') {
     el.innerHTML = [
-      leg('dir','var(--blue)','Directory'), leg('file','var(--cyan)','File'),
-      leg('cmp','var(--orange)','Composite')
+      leg('D','var(--blue)','Definition'), leg('A','var(--cyan)','Annotation')
+    ].join('');
+  } else if (activeStage === 'deps') {
+    el.innerHTML = [
+      leg('S','var(--blue)','syn'), leg('I','var(--purple)','inh'),
+      leg('C','var(--orange)','collection'), leg('','var(--cyan)','circular')
     ].join('');
   } else {
     el.innerHTML = [
@@ -602,6 +858,7 @@ function renderSidebar() {
 
   if (activeStage === 'parse') renderParseSidebar(el, query);
   else if (activeStage === 'bind') renderBindSidebar(el, query);
+  else if (activeStage === 'deps') renderDepsSidebar(el, query);
   else renderCheckSidebar(el, query);
 }
 
@@ -640,43 +897,70 @@ function renderParseSidebar(el, query) {
 }
 
 function renderBindSidebar(el, query) {
-  const dirs = data.bind.symbols.filter(s => s.valueKind === 'directory');
-  const files = data.bind.symbols.filter(s => s.valueKind === 'file');
-  const composites = data.bind.symbols.filter(s => s.valueKind === 'composite');
+  const defs = data.kinds.definitions;
+  const anns = data.kinds.annotations;
 
-  [{ label: 'Directories', items: dirs, color: 'var(--blue)' },
-   { label: 'Files', items: files, color: 'var(--cyan)' },
-   { label: 'Composites', items: composites, color: 'var(--orange)' }].filter(g => g.items.length > 0).forEach(grp => {
-    const filtered = grp.items.filter(s => !query || s.name.toLowerCase().includes(query));
-    if (filtered.length === 0) return;
+  // Definitions group
+  const filteredDefs = defs.filter(d => !query || d.name.toLowerCase().includes(query) || Object.keys(d.properties).some(k => k.toLowerCase().includes(query)));
+  if (filteredDefs.length > 0) {
     const group = document.createElement('div');
     group.className = 'sb-group';
     const hdr = document.createElement('div');
     hdr.className = 'sb-group-header';
-    hdr.innerHTML = '<span class="chevron">&#9662;</span> ' + grp.label +
-      ' <span style="color:var(--text2);font-size:10px;font-weight:400">(' + filtered.length + ')</span>';
+    hdr.innerHTML = '<span class="chevron">&#9662;</span> Definitions' +
+      ' <span style="color:var(--text2);font-size:10px;font-weight:400">(' + filteredDefs.length + ')</span>';
     hdr.onclick = () => toggleSbGroup(hdr);
     group.appendChild(hdr);
 
     const body = document.createElement('div');
     body.className = 'sb-group-body';
-    filtered.forEach(s => {
+    filteredDefs.forEach(d => {
       const item = document.createElement('div');
       item.className = 'sb-item';
-      item.dataset.id = s.id;
-      item.innerHTML = '<div class="dot" style="background:' + valueKindColor(s) + '"></div>' +
-        '<span class="name">' + escHtml(s.name) + '</span>' +
-        (s.valueKind ? '<span class="count">' + s.valueKind + '</span>' : '') +
-        propsChips(s.declaredProperties);
-      item.onclick = () => { selectSidebarItem(item); showBindDetail(s); highlightTreeNode(s.id); };
+      item.dataset.id = d.id;
+      item.innerHTML = '<div class="dot" style="background:var(--blue)"></div>' +
+        '<span class="badge" style="background:var(--blue);color:#fff">DEF</span>' +
+        '<span class="name">' + escHtml(d.name) + '</span>' +
+        propsChips(d.properties);
+      item.onclick = () => { selectSidebarItem(item); showBindDetail(d, 'definition'); highlightTreeNode(d.id); };
       body.appendChild(item);
     });
     group.appendChild(body);
     el.appendChild(group);
-  });
+  }
+
+  // Annotations group
+  const filteredAnns = anns.filter(a => !query || a.name.toLowerCase().includes(query) || a.kindName.toLowerCase().includes(query));
+  if (filteredAnns.length > 0) {
+    const group = document.createElement('div');
+    group.className = 'sb-group';
+    const hdr = document.createElement('div');
+    hdr.className = 'sb-group-header';
+    hdr.innerHTML = '<span class="chevron">&#9662;</span> Annotations' +
+      ' <span style="color:var(--text2);font-size:10px;font-weight:400">(' + filteredAnns.length + ')</span>';
+    hdr.onclick = () => toggleSbGroup(hdr);
+    group.appendChild(hdr);
+
+    const body = document.createElement('div');
+    body.className = 'sb-group-body';
+    filteredAnns.forEach(a => {
+      const item = document.createElement('div');
+      item.className = 'sb-item';
+      item.dataset.id = a.id;
+      item.innerHTML = '<div class="dot" style="background:var(--cyan)"></div>' +
+        '<span class="badge" style="background:var(--cyan);color:#000">ANN</span>' +
+        '<span class="name">' + escHtml(a.name) + '</span>' +
+        '<span style="font-size:9px;font-weight:700;padding:0 4px;border-radius:3px;background:rgba(79,142,247,0.1);color:var(--blue);margin-left:3px">' + escHtml(a.kindName) + '</span>';
+      item.onclick = () => { selectSidebarItem(item); showBindDetail(a, 'annotation'); highlightTreeNode(a.id); };
+      body.appendChild(item);
+    });
+    group.appendChild(body);
+    el.appendChild(group);
+  }
 }
 
 function renderCheckSidebar(el, query) {
+  if (!data.check) { el.innerHTML = '<div style="padding:16px;color:var(--text2)">No check data available</div>'; return; }
   // Group diagnostics by file
   const byFile = {};
   data.check.diagnostics.forEach(d => {
@@ -789,50 +1073,78 @@ function showParseDetail(sf, decl) {
   openDetail(decl.name, 'PARSE', '#4f8ef7', html);
 }
 
-function showBindDetail(sym) {
-  let html = '<div class="dp-section"><div class="dp-label">Target Kind</div><div class="dp-badge" style="background:' + valueKindColor(sym) + '22;color:' + valueKindColor(sym) + '">' + sym.valueKind + '</div></div>';
+function showBindDetail(item, type) {
+  let html = '';
 
-  // Properties
-  const props = sym.declaredProperties;
-  const propKeys = Object.keys(props).filter(k => props[k]);
-  if (propKeys.length > 0) {
-    html += '<div class="dp-section"><div class="dp-label">Declared Properties</div><div class="dp-props">';
-    propKeys.forEach(p => {
-      html += '<span class="dp-prop-chip" style="border-color:var(--green);color:var(--green);background:rgba(74,222,128,0.08)">' + p + (typeof props[p] === 'number' ? ': ' + props[p] : '') + '</span>';
-    });
-    html += '</div></div>';
-  }
+  if (type === 'definition') {
+    const def = item;
+    html += '<div class="dp-section"><div class="dp-label">Type</div><div class="dp-badge" style="background:var(--blue)22;color:var(--blue)">Definition</div></div>';
 
-  // Path
-  if (sym.path) {
-    html += '<div class="dp-section"><div class="dp-label">Path</div><div class="dp-value" style="font-family:var(--mono);font-size:11px">' + escHtml(sym.path) + '</div></div>';
-  }
+    // Properties
+    const props = def.properties;
+    const propKeys = Object.keys(props).filter(k => props[k]);
+    if (propKeys.length > 0) {
+      html += '<div class="dp-section"><div class="dp-label">Properties</div><div class="dp-props">';
+      propKeys.forEach(p => {
+        html += '<span class="dp-prop-chip" style="border-color:var(--green);color:var(--green);background:rgba(74,222,128,0.08)">' + p + '</span>';
+      });
+      html += '</div></div>';
+    }
 
-  // Resolved files
-  if (sym.resolvedFiles && sym.resolvedFiles.length > 0) {
-    html += '<div class="dp-section"><div class="dp-label">Resolved Files (' + sym.resolvedFiles.length + ')</div><div class="dp-file-list">';
-    sym.resolvedFiles.forEach(f => {
-      const hasDiag = data.check.diagnostics.some(d => d.file === f);
-      html += '<div class="dp-file-item" onclick="showFileViewer(\'' + f.replace(/'/g, "\\'") + '\')"><div class="fi-dot" style="background:' + (hasDiag ? 'var(--red)' : 'var(--green)') + '"></div>' + escHtml(f) + '</div>';
-    });
-    html += '</div></div>';
-  }
+    // Source file
+    html += '<div class="dp-section"><div class="dp-label">Source File</div><div class="dp-value" style="font-family:var(--mono);font-size:11px;cursor:pointer" onclick="showFileViewer(\'' + def.sourceFile.replace(/'/g, "\\'") + '\')">' + escHtml(def.sourceFile) + '</div></div>';
 
-  // Cross-stage: diagnostics for files covered by this symbol
-  const symFiles = new Set(sym.resolvedFiles || []);
-  const diags = data.check.diagnostics.filter(d => symFiles.has(d.file));
-  if (diags.length > 0) {
-    html += '<div class="dp-section"><div class="dp-label">Diagnostics (' + diags.length + ')</div>';
-    diags.forEach(d => {
-      html += '<div class="dp-diag-item"><div class="dp-diag-code">KS' + d.code + ' &mdash; ' + d.property + '</div><div class="dp-diag-msg">' + escHtml(d.message) + '</div><div class="dp-diag-loc">' + escHtml(d.file) + ':' + d.line + '</div></div>';
-    });
-    html += '<button class="dp-nav-btn" onclick="switchStage(\'check\')">Show in Check &#8594;</button>';
-    html += '</div>';
+    // Annotations using this definition
+    const relatedAnns = data.kinds.annotations.filter(a => a.kindName === def.name);
+    if (relatedAnns.length > 0) {
+      html += '<div class="dp-section"><div class="dp-label">Annotations (' + relatedAnns.length + ')</div><div class="dp-file-list">';
+      relatedAnns.forEach(a => {
+        const hasDiag = data.check.diagnostics.some(d => d.file === a.sourceFile);
+        html += '<div class="dp-file-item" onclick="showBindDetail(data.kinds.annotations.find(x=>x.id===\'' + a.id + '\'),\'annotation\')"><div class="fi-dot" style="background:' + (hasDiag ? 'var(--red)' : 'var(--green)') + '"></div>' + escHtml(a.name) + ' <span style="color:var(--text2);font-size:10px">' + escHtml(shortFileName(a.sourceFile)) + '</span></div>';
+      });
+      html += '</div></div>';
+    }
+
+    // Cross-stage: diagnostics for files with annotations of this definition
+    const annFiles = new Set(relatedAnns.map(a => a.sourceFile));
+    const diags = data.check.diagnostics.filter(d => annFiles.has(d.file));
+    if (diags.length > 0) {
+      html += '<div class="dp-section"><div class="dp-label">Diagnostics (' + diags.length + ')</div>';
+      diags.forEach(d => {
+        html += '<div class="dp-diag-item"><div class="dp-diag-code">KS' + d.code + ' &mdash; ' + d.property + '</div><div class="dp-diag-msg">' + escHtml(d.message) + '</div><div class="dp-diag-loc">' + escHtml(d.file) + ':' + d.line + '</div></div>';
+      });
+      html += '<button class="dp-nav-btn" onclick="switchStage(\'check\')">Show in Check &#8594;</button>';
+      html += '</div>';
+    } else {
+      html += '<div class="dp-section" style="color:var(--green);font-weight:600">&#10003; No violations</div>';
+    }
+
+    openDetail(def.name, 'KINDS', '#a78bfa', html);
+
   } else {
-    html += '<div class="dp-section" style="color:var(--green);font-weight:600">&#10003; No violations</div>';
-  }
+    const ann = item;
+    html += '<div class="dp-section"><div class="dp-label">Type</div><div class="dp-badge" style="background:var(--cyan)22;color:var(--cyan)">Annotation</div></div>';
 
-  openDetail(sym.name, 'BIND', '#a78bfa', html);
+    // Kind name
+    html += '<div class="dp-section"><div class="dp-label">Kind</div><span class="dp-prop-chip" style="border-color:var(--blue);color:var(--blue);background:rgba(79,142,247,0.08);cursor:pointer" onclick="navigateToDefinition(\'' + ann.kindName + '\')">' + escHtml(ann.kindName) + '</span></div>';
+
+    // Source file
+    html += '<div class="dp-section"><div class="dp-label">Source File</div><div class="dp-value" style="font-family:var(--mono);font-size:11px;cursor:pointer" onclick="showFileViewer(\'' + ann.sourceFile.replace(/'/g, "\\'") + '\')">' + escHtml(ann.sourceFile) + '</div></div>';
+
+    // Diagnostics for this file
+    const diags = data.check.diagnostics.filter(d => d.file === ann.sourceFile);
+    if (diags.length > 0) {
+      html += '<div class="dp-section"><div class="dp-label">Diagnostics (' + diags.length + ')</div>';
+      diags.forEach(d => {
+        html += '<div class="dp-diag-item"><div class="dp-diag-code">KS' + d.code + ' &mdash; ' + d.property + '</div><div class="dp-diag-msg">' + escHtml(d.message) + '</div><div class="dp-diag-loc">' + escHtml(d.file) + ':' + d.line + '</div></div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="dp-section" style="color:var(--green);font-weight:600">&#10003; No violations</div>';
+    }
+
+    openDetail(ann.name, 'KINDS', '#a78bfa', html);
+  }
 }
 
 function showCheckDetail(diag) {
@@ -869,9 +1181,10 @@ function showFileViewer(fileName) {
   var sf = data.parse.sourceFiles.find(function(f) { return f.fileName === fileName; });
   if (!sf) return;
 
-  var fileDiags = data.check.diagnostics.filter(function(d) { return d.file === fileName; });
+  var checkDiags = data.check ? data.check.diagnostics : [];
+  var fileDiags = checkDiags.filter(function(d) { return d.file === fileName; });
   var violationLines = new Set(fileDiags.map(function(d) { return d.line; }));
-  var symbols = data.bind.symbols.filter(function(s) { return (s.resolvedFiles || []).includes(fileName); });
+  var annotations = (data.kinds.annotations || []).filter(function(a) { return a.sourceFile === fileName; });
 
   var html = '';
 
@@ -886,11 +1199,11 @@ function showFileViewer(fileName) {
   }
   html += '</div>';
 
-  // Governing symbols
-  if (symbols.length > 0) {
-    html += '<div class="dp-section"><div class="dp-label">Governed By</div>';
-    symbols.forEach(function(s) {
-      html += '<span class="dp-prop-chip" style="border-color:' + valueKindColor(s) + ';color:' + valueKindColor(s) + ';background:' + valueKindColor(s) + '12;cursor:pointer;margin-right:4px" onclick="navigateToSymbol(\'' + s.id + '\')">' + escHtml(s.name) + '</span>';
+  // Governing kinds
+  if (annotations.length > 0) {
+    html += '<div class="dp-section"><div class="dp-label">Kind Annotations</div>';
+    annotations.forEach(function(a) {
+      html += '<span class="dp-prop-chip" style="border-color:var(--blue);color:var(--blue);background:rgba(79,142,247,0.08);cursor:pointer;margin-right:4px" onclick="navigateToDefinition(\'' + escHtml(a.kindName) + '\')">' + escHtml(a.name) + ' : ' + escHtml(a.kindName) + '</span>';
     });
     html += '</div>';
   }
@@ -920,13 +1233,23 @@ function showFileViewer(fileName) {
   }
 
   // Tabs: Source / AST
-  var hasAST = sf.ast && sf.ast.children;
+  var hasTsAST = sf.ast && sf.ast.children;
+  var hasKsAST = sf.ksAst && sf.ksAst.children;
+  var hasAST = hasTsAST || hasKsAST;
+  var defaultAST = hasTsAST ? sf.ast : sf.ksAst;
+  if (hasAST) {
+    window._currentAST = defaultAST;
+    window._tsAST = sf.ast || null;
+    window._ksAST = sf.ksAst || null;
+    window._astMode = hasTsAST ? 'ts' : 'ks';
+  }
   if (sf.source || hasAST) {
     html += '<div class="dp-section">';
     html += '<div class="fv-tabs">';
     html += '<button class="fv-tab active" data-fvtab="source" onclick="switchFileViewerTab(\'source\')">Source</button>';
     if (hasAST) {
       html += '<button class="fv-tab" data-fvtab="ast" onclick="switchFileViewerTab(\'ast\')">AST</button>';
+      html += '<button class="fv-tab" data-fvtab="graph" onclick="openASTGraph(window._currentAST,\'' + sf.fileName.replace(/'/g, "\\'") + '\')">Graph</button>';
     }
     html += '</div>';
 
@@ -946,7 +1269,18 @@ function showFileViewer(fileName) {
 
     // AST tab content (rendered after panel opens)
     if (hasAST) {
-      html += '<div id="fv-tab-ast" class="fv-tab-content" style="display:none"><div class="ast-wrap" id="ast-container"></div></div>';
+      html += '<div id="fv-tab-ast" class="fv-tab-content" style="display:none">';
+      // AST mode toggle (TS / KS)
+      if (hasTsAST && hasKsAST) {
+        html += '<div class="ast-mode-toggle">';
+        html += '<button class="ast-mode-btn' + (window._astMode === 'ts' ? ' active' : '') + '" onclick="switchASTMode(\'ts\')">TS AST</button>';
+        html += '<button class="ast-mode-btn' + (window._astMode === 'ks' ? ' active' : '') + '" onclick="switchASTMode(\'ks\')">KS AST</button>';
+        html += '</div>';
+      } else if (hasKsAST) {
+        html += '<div class="ast-mode-toggle"><span class="ast-mode-label">KS AST</span></div>';
+      }
+      html += '<div class="ast-wrap" id="ast-container"></div>';
+      html += '</div>';
     }
 
     html += '</div>';
@@ -958,12 +1292,13 @@ function showFileViewer(fileName) {
   if (hasAST) {
     setTimeout(function() {
       var container = document.getElementById('ast-container');
-      if (container) renderASTTree(sf.ast, container);
+      if (container) renderASTTree(defaultAST, container);
     }, 0);
   }
 }
 
 function showCheckDetailById(id) {
+  if (!data.check) return;
   var d = data.check.diagnostics.find(function(x) { return x.id === id; });
   if (d) showCheckDetail(d);
 }
@@ -988,6 +1323,20 @@ function switchFileViewerTab(tab) {
   if (astEl) astEl.style.display = tab === 'ast' ? '' : 'none';
 }
 
+function switchASTMode(mode) {
+  window._astMode = mode;
+  var ast = mode === 'ts' ? window._tsAST : window._ksAST;
+  if (!ast) return;
+  window._currentAST = ast;
+  // Update toggle buttons
+  document.querySelectorAll('.ast-mode-btn').forEach(function(b) {
+    b.classList.toggle('active', b.textContent.toLowerCase().indexOf(mode) >= 0);
+  });
+  // Re-render AST tree
+  var container = document.getElementById('ast-container');
+  if (container) renderASTTree(ast, container);
+}
+
 // ============================================================
 // AST TREE RENDERING
 // ============================================================
@@ -1009,8 +1358,41 @@ function astKindColor(kind) {
   return 'var(--text2)';
 }
 
+var AG_ATTR_KEYS = ['kindDefs','kindAnnotations','valueImports','localBindings','importViolation','allViolations'];
+
+function getNodeAttributes(node) {
+  var attrs = [];
+  for (var i = 0; i < AG_ATTR_KEYS.length; i++) {
+    var key = AG_ATTR_KEYS[i];
+    if (node[key] !== undefined && node[key] !== null) {
+      var val = node[key];
+      // Skip empty arrays/objects
+      if (Array.isArray(val) && val.length === 0) continue;
+      if (typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0) continue;
+      attrs.push({ key: key, value: val });
+    }
+  }
+  return attrs;
+}
+
+function formatAttrValue(val) {
+  if (Array.isArray(val)) {
+    return val.map(function(item) {
+      if (typeof item === 'object' && item !== null) {
+        if (item.name && item.properties) return item.name + ' {' + Object.keys(item.properties).join(', ') + '}';
+        if (item.name) return item.name;
+        return JSON.stringify(item);
+      }
+      return String(item);
+    }).join(', ');
+  }
+  if (typeof val === 'object' && val !== null) return JSON.stringify(val, null, 1);
+  return String(val);
+}
+
 function renderASTTree(astNode, container) {
   container.innerHTML = '';
+  var isKSMode = window._astMode === 'ks';
 
   function buildNode(node, depth) {
     var el = document.createElement('div');
@@ -1055,7 +1437,36 @@ function renderASTTree(astNode, container) {
       hdr.appendChild(textEl);
     }
 
+    // AG attribute badges (KS AST mode only)
+    var attrs = isKSMode ? getNodeAttributes(node) : [];
+    if (attrs.length > 0) {
+      var badges = document.createElement('span');
+      badges.className = 'ast-attr-badges';
+      attrs.forEach(function(a) {
+        var badge = document.createElement('span');
+        var cls = 'attr-' + a.key;
+        if (AG_ATTR_KEYS.indexOf(a.key) < 0) cls = 'attr-default';
+        badge.className = 'ast-attr-badge ' + cls;
+        var label = a.key;
+        if (Array.isArray(a.value)) label += '(' + a.value.length + ')';
+        badge.textContent = label;
+        badge.title = formatAttrValue(a.value);
+        badges.appendChild(badge);
+      });
+      hdr.appendChild(badges);
+    }
+
     el.appendChild(hdr);
+
+    // Attribute detail panel (togglable)
+    var detailEl = null;
+    if (attrs.length > 0) {
+      detailEl = document.createElement('div');
+      detailEl.className = 'ast-attr-detail';
+      var lines = attrs.map(function(a) { return a.key + ': ' + formatAttrValue(a.value); });
+      detailEl.textContent = lines.join('\n');
+      el.appendChild(detailEl);
+    }
 
     // Children container
     if (hasChildren) {
@@ -1071,9 +1482,20 @@ function renderASTTree(astNode, container) {
       // Click to toggle
       hdr.onclick = function(e) {
         e.stopPropagation();
+        // If clicking on a badge, toggle detail panel instead
+        if (e.target.classList.contains('ast-attr-badge')) {
+          if (detailEl) detailEl.classList.toggle('open');
+          return;
+        }
         var isCollapsed = childrenEl.classList.contains('collapsed');
         childrenEl.classList.toggle('collapsed');
         toggle.textContent = isCollapsed ? '\u25BE' : '\u25B8';
+      };
+    } else if (detailEl) {
+      // Leaf node with attributes — click toggles detail
+      hdr.onclick = function(e) {
+        e.stopPropagation();
+        detailEl.classList.toggle('open');
       };
     }
 
@@ -1083,16 +1505,259 @@ function renderASTTree(astNode, container) {
   container.appendChild(buildNode(astNode, 0));
 }
 
-function navigateToSymbol(symId) {
+function navigateToDefinition(nameOrId) {
   switchStage('bind');
   setTimeout(() => {
-    highlightTreeNode(symId);
-    const sym = data.bind.symbols.find(s => s.id === symId);
-    if (sym) showBindDetail(sym);
-    // Highlight sidebar item
-    const item = document.querySelector('.sb-item[data-id="' + symId + '"]');
-    if (item) { selectSidebarItem(item); item.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    const def = data.kinds.definitions.find(d => d.id === nameOrId || d.name === nameOrId);
+    if (def) {
+      highlightTreeNode(def.id);
+      showBindDetail(def, 'definition');
+      const item = document.querySelector('.sb-item[data-id="' + def.id + '"]');
+      if (item) { selectSidebarItem(item); item.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    }
   }, 50);
+}
+
+// ============================================================
+// DEPS SIDEBAR
+// ============================================================
+function renderDepsSidebar(el, query) {
+  if (!data || !data.depGraph) { el.innerHTML = '<div style="padding:12px;color:var(--text2)">No dependency data available.</div>'; return; }
+  var dg = data.depGraph;
+
+  // Group attributes by spec
+  var specGroups = {};
+  dg.attributes.forEach(function(attr) {
+    var spec = dg.specOwnership[attr] || 'unknown';
+    if (!specGroups[spec]) specGroups[spec] = [];
+    specGroups[spec].push(attr);
+  });
+
+  Object.keys(specGroups).forEach(function(specName) {
+    var attrs = specGroups[specName].filter(function(a) {
+      return !query || a.toLowerCase().includes(query);
+    });
+    if (attrs.length === 0) return;
+
+    var group = document.createElement('div');
+    group.className = 'sb-group';
+    var hdr = document.createElement('div');
+    hdr.className = 'sb-group-header';
+    hdr.innerHTML = '<span class="chevron">&#9662;</span> ' + escHtml(specName) +
+      ' <span style="color:var(--text2);font-size:10px;font-weight:400">(' + attrs.length + ')</span>';
+    hdr.onclick = function() { toggleSbGroup(hdr); };
+    group.appendChild(hdr);
+
+    var body = document.createElement('div');
+    body.className = 'sb-group-body';
+    attrs.forEach(function(attr) {
+      var dir = dg.declarations[attr] ? dg.declarations[attr].direction : '?';
+      var color = dir === 'syn' ? 'var(--blue)' : dir === 'inh' ? 'var(--purple)' : dir === 'collection' ? 'var(--orange)' : 'var(--cyan)';
+      var item = document.createElement('div');
+      item.className = 'sb-item';
+      item.dataset.id = 'dep-' + attr;
+      item.innerHTML = '<div class="dot" style="background:' + color + '"></div>' +
+        '<span class="badge" style="background:' + color + ';color:#fff">' + dir.slice(0,3).toUpperCase() + '</span>' +
+        '<span class="name">' + escHtml(attr) + '</span>';
+      item.onclick = function() { selectSidebarItem(item); showDepDetail(attr); highlightDepNode(attr); };
+      body.appendChild(item);
+    });
+    group.appendChild(body);
+    el.appendChild(group);
+  });
+}
+
+function showDepDetail(attr) {
+  if (!data || !data.depGraph) return;
+  var dg = data.depGraph;
+  var dir = dg.declarations[attr] ? dg.declarations[attr].direction : '?';
+  var spec = dg.specOwnership[attr] || 'unknown';
+  var deps = dg.edges.filter(function(e) { return e[0] === attr; }).map(function(e) { return e[1]; });
+  var dependents = dg.edges.filter(function(e) { return e[1] === attr; }).map(function(e) { return e[0]; });
+  var orderIdx = dg.order.indexOf(attr);
+
+  var body = document.getElementById('dp-body');
+  document.getElementById('dp-title').textContent = attr;
+  document.getElementById('dp-stage-badge').textContent = 'DEPS';
+  document.getElementById('dp-stage-badge').style.background = 'var(--orange)';
+  document.getElementById('detail-panel').style.display = 'block';
+
+  body.innerHTML =
+    '<div style="margin-bottom:12px"><span style="color:var(--text2)">Direction:</span> <strong>' + dir + '</strong></div>' +
+    '<div style="margin-bottom:12px"><span style="color:var(--text2)">Spec:</span> <strong>' + escHtml(spec) + '</strong></div>' +
+    '<div style="margin-bottom:12px"><span style="color:var(--text2)">Eval order:</span> <strong>#' + (orderIdx + 1) + '</strong></div>' +
+    (deps.length > 0
+      ? '<div style="margin-bottom:12px"><span style="color:var(--text2)">Depends on (' + deps.length + '):</span><ul style="margin:4px 0 0 16px;list-style:disc">' + deps.map(function(d) { return '<li style="color:var(--blue);cursor:pointer" onclick="showDepDetail(\'' + d + '\');highlightDepNode(\'' + d + '\')">' + escHtml(d) + '</li>'; }).join('') + '</ul></div>'
+      : '<div style="margin-bottom:12px;color:var(--text2)">No dependencies (leaf attribute)</div>') +
+    (dependents.length > 0
+      ? '<div><span style="color:var(--text2)">Used by (' + dependents.length + '):</span><ul style="margin:4px 0 0 16px;list-style:disc">' + dependents.map(function(d) { return '<li style="color:var(--purple);cursor:pointer" onclick="showDepDetail(\'' + d + '\');highlightDepNode(\'' + d + '\')">' + escHtml(d) + '</li>'; }).join('') + '</ul></div>'
+      : '<div style="color:var(--text2)">No dependents (unused or root-only)</div>');
+}
+
+// ============================================================
+// DEP GRAPH VISUALIZATION (D3 force-directed)
+// ============================================================
+function renderDepGraph() {
+  if (!data || !data.depGraph) return;
+  var panel = document.getElementById('viz-panel');
+  panel.innerHTML = '';
+  var W = panel.clientWidth, H = panel.clientHeight;
+  if (W === 0 || H === 0) return;
+
+  var dg = data.depGraph;
+
+  // Build nodes and links
+  var nodeMap = {};
+  var nodes = dg.attributes.map(function(attr, i) {
+    var dir = dg.declarations[attr] ? dg.declarations[attr].direction : 'syn';
+    var spec = dg.specOwnership[attr] || 'unknown';
+    var n = { id: attr, direction: dir, spec: spec, index: i };
+    nodeMap[attr] = n;
+    return n;
+  });
+
+  var links = dg.edges.map(function(e) {
+    return { source: e[0], target: e[1] };
+  });
+
+  // Color by direction
+  function nodeColor(d) {
+    if (d.direction === 'syn') return '#4f8ef7';
+    if (d.direction === 'inh') return '#a78bfa';
+    if (d.direction === 'collection') return '#fb923c';
+    if (d.direction === 'circular') return '#22d3ee';
+    return '#8a94a8';
+  }
+
+  // Spec color for grouping
+  var specNames = [...new Set(dg.attributes.map(function(a) { return dg.specOwnership[a]; }))];
+  function specBg(spec) {
+    var idx = specNames.indexOf(spec);
+    var colors = ['rgba(79,142,247,0.06)', 'rgba(167,139,250,0.06)', 'rgba(251,146,60,0.06)'];
+    return colors[idx % colors.length];
+  }
+
+  var svg = d3.select(panel).append('svg')
+    .attr('width', W).attr('height', H)
+    .style('background', 'var(--bg)');
+
+  // Arrow marker
+  svg.append('defs').append('marker')
+    .attr('id', 'dep-arrow').attr('viewBox', '0 -5 10 10')
+    .attr('refX', 22).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#3a4560');
+
+  var g = svg.append('g');
+
+  // Zoom
+  var zoom = d3.zoom().scaleExtent([0.2, 4]).on('zoom', function(e) { g.attr('transform', e.transform); });
+  svg.call(zoom);
+
+  // Force simulation
+  var sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(120))
+    .force('charge', d3.forceManyBody().strength(-400))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide(40));
+
+  // Draw links
+  var link = g.append('g').selectAll('line')
+    .data(links).join('line')
+    .attr('stroke', '#3a4560').attr('stroke-width', 1.5)
+    .attr('marker-end', 'url(#dep-arrow)');
+
+  // Draw nodes
+  var node = g.append('g').selectAll('g')
+    .data(nodes).join('g')
+    .attr('class', 'dep-node')
+    .call(d3.drag()
+      .on('start', function(e, d) { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', function(e, d) { d.fx = e.x; d.fy = e.y; })
+      .on('end', function(e, d) { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  node.append('circle')
+    .attr('r', 16)
+    .attr('fill', nodeColor)
+    .attr('stroke', function(d) { return d3.color(nodeColor(d)).brighter(0.5); })
+    .attr('stroke-width', 2)
+    .style('cursor', 'pointer');
+
+  node.append('text')
+    .text(function(d) { return d.id; })
+    .attr('text-anchor', 'middle').attr('dy', 30)
+    .attr('fill', 'var(--text3)').attr('font-size', 11)
+    .attr('font-family', 'var(--mono)')
+    .style('pointer-events', 'none');
+
+  // Direction label inside circle
+  node.append('text')
+    .text(function(d) { return d.direction.slice(0, 1).toUpperCase(); })
+    .attr('text-anchor', 'middle').attr('dy', 5)
+    .attr('fill', '#fff').attr('font-size', 10).attr('font-weight', 700)
+    .style('pointer-events', 'none');
+
+  // Click handler
+  node.on('click', function(e, d) {
+    showDepDetail(d.id);
+    highlightDepNode(d.id);
+  });
+
+  // Hover tooltip
+  node.on('mouseenter', function(e, d) {
+    var deps = dg.edges.filter(function(edge) { return edge[0] === d.id; }).length;
+    showTooltip(e, d.id + ' (' + d.direction + ') — ' + deps + ' deps');
+  }).on('mouseleave', hideTooltip);
+
+  sim.on('tick', function() {
+    link.attr('x1', function(d) { return d.source.x; }).attr('y1', function(d) { return d.source.y; })
+        .attr('x2', function(d) { return d.target.x; }).attr('y2', function(d) { return d.target.y; });
+    node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+  });
+
+  // Store references for highlighting
+  window._depGraphNodes = node;
+  window._depGraphLinks = link;
+  window._depGraphData = dg;
+}
+
+function highlightDepNode(attrName) {
+  if (!window._depGraphNodes) return;
+  var dg = window._depGraphData;
+  var deps = new Set(dg.edges.filter(function(e) { return e[0] === attrName; }).map(function(e) { return e[1]; }));
+  var dependents = new Set(dg.edges.filter(function(e) { return e[1] === attrName; }).map(function(e) { return e[0]; }));
+
+  window._depGraphNodes.select('circle')
+    .attr('opacity', function(d) {
+      if (d.id === attrName) return 1;
+      if (deps.has(d.id) || dependents.has(d.id)) return 0.9;
+      return 0.2;
+    })
+    .attr('r', function(d) { return d.id === attrName ? 20 : 16; });
+
+  window._depGraphNodes.selectAll('text')
+    .attr('opacity', function(d) {
+      if (d.id === attrName) return 1;
+      if (deps.has(d.id) || dependents.has(d.id)) return 0.9;
+      return 0.15;
+    });
+
+  window._depGraphLinks
+    .attr('stroke', function(d) {
+      if (d.source.id === attrName) return '#4f8ef7';
+      if (d.target.id === attrName) return '#a78bfa';
+      return '#3a4560';
+    })
+    .attr('stroke-width', function(d) {
+      if (d.source.id === attrName || d.target.id === attrName) return 2.5;
+      return 1;
+    })
+    .attr('opacity', function(d) {
+      if (d.source.id === attrName || d.target.id === attrName) return 1;
+      return 0.1;
+    });
 }
 
 // ============================================================
@@ -1313,63 +1978,62 @@ function buildParseTree() {
 }
 
 function buildBindTree() {
-  const dirs = data.bind.symbols.filter(s => s.valueKind === 'directory');
-  const files = data.bind.symbols.filter(s => s.valueKind === 'file');
-  const composites = data.bind.symbols.filter(s => s.valueKind === 'composite');
+  const defs = data.kinds.definitions;
+  const anns = data.kinds.annotations;
 
-  const groups = [];
-  if (dirs.length > 0) groups.push({ name: 'Directories', items: dirs, color: 'var(--blue)' });
-  if (files.length > 0) groups.push({ name: 'Files', items: files, color: 'var(--cyan)' });
-  if (composites.length > 0) groups.push({ name: 'Composites', items: composites, color: 'var(--orange)' });
+  // Group annotations by their kindName
+  const annsByKind = {};
+  anns.forEach(a => {
+    if (!annsByKind[a.kindName]) annsByKind[a.kindName] = [];
+    annsByKind[a.kindName].push(a);
+  });
 
   return {
-    name: 'Targets',
+    name: 'Kinds',
     _isGroup: true,
     color: 'var(--bind-color)',
-    tooltip: { title: 'Targets', rows: [['Symbols', data.bind.symbols.length + ''], ['Directories', dirs.length + ''], ['Files', files.length + ''], ['Composites', composites.length + '']] },
-    children: groups.map(g => ({
-      name: g.name,
-      _isGroup: true,
-      color: g.color,
-      countText: '(' + g.items.length + ')',
-      children: g.items.map(s => buildBindNode(s))
-    }))
+    tooltip: { title: 'Kinds', rows: [['Definitions', defs.length + ''], ['Annotations', anns.length + '']] },
+    children: defs.map(def => {
+      const defAnns = annsByKind[def.name] || [];
+      return buildDefinitionNode(def, defAnns);
+    })
   };
 }
 
-function buildBindNode(sym) {
-  const props = sym.declaredProperties;
+function buildDefinitionNode(def, defAnns) {
+  const props = def.properties;
   const propKeys = Object.keys(props).filter(k => props[k]);
-  const symFiles = new Set(sym.resolvedFiles || []);
-  const hasDiags = data.check.diagnostics.some(d => symFiles.has(d.file));
+  const annFiles = new Set(defAnns.map(a => a.sourceFile));
+  const hasDiags = data.check.diagnostics.some(d => annFiles.has(d.file));
   const chips = propKeys.map(p => ({
     label: p, length: p.length,
     color: hasDiags ? '#f87171' : '#4ade80'
   }));
 
-  const rows = [['Kind', sym.valueKind]];
-  if (sym.path) rows.push(['Path', sym.path]);
-  if (sym.resolvedFiles) rows.push(['Resolved Files', sym.resolvedFiles.length + '']);
+  const rows = [['Type', 'Definition'], ['Source', shortFileName(def.sourceFile)]];
   rows.push(['Properties', propKeys.join(', ') || 'none']);
+  rows.push(['Annotations', defAnns.length + '']);
 
   return {
-    id: sym.id,
-    name: sym.name,
-    color: valueKindColor(sym),
+    id: def.id,
+    name: def.name,
+    color: '#4f8ef7',
     strokeColor: hasDiags ? 'var(--red)' : undefined,
-    badge: vkBadge(sym.valueKind),
-    badgeColor: valueKindColor(sym),
+    badge: 'DEF',
+    badgeColor: '#4f8ef7',
     propChips: chips,
-    tooltip: { title: sym.name, rows: rows, props: propKeys },
-    onClick: () => showBindDetail(sym),
-    children: (sym.resolvedFiles || []).map(f => {
-      const fileDiag = data.check.diagnostics.some(d => d.file === f);
+    tooltip: { title: def.name, rows: rows, props: propKeys },
+    onClick: () => showBindDetail(def, 'definition'),
+    children: defAnns.map(a => {
+      const fileDiag = data.check.diagnostics.some(d => d.file === a.sourceFile);
       return {
-        name: shortFileName(f),
-        _isFile: true,
-        color: fileDiag ? 'var(--red)' : 'var(--green)',
-        tooltip: { title: f, rows: [['Status', fileDiag ? 'Has violations' : 'Clean']] },
-        onClick: () => showFileViewer(f),
+        id: a.id,
+        name: a.name,
+        color: fileDiag ? 'var(--red)' : 'var(--cyan)',
+        badge: 'ANN',
+        badgeColor: '#22d3ee',
+        tooltip: { title: a.name, rows: [['Kind', a.kindName], ['File', shortFileName(a.sourceFile)], ['Status', fileDiag ? 'Has violations' : 'Clean']] },
+        onClick: () => showBindDetail(a, 'annotation'),
         children: []
       };
     })
@@ -1459,10 +2123,10 @@ function buildCheckTreeByProperty() {
         countText: isClean ? '\u2713 clean' : '(' + diags.length + ' violations)',
         tooltip: { title: prop, rows: [['Violations', diags.length + '']] },
         children: diags.map(d => {
-          const sym = data.bind.symbols.find(s => (s.resolvedFiles || []).includes(d.file));
+          const ann = data.kinds.annotations.find(a => a.sourceFile === d.file);
           return {
             id: d.id,
-            name: (sym ? sym.name : d.file) + ' — L' + d.line,
+            name: (ann ? ann.name : shortFileName(d.file)) + ' — L' + d.line,
             color: 'var(--red)',
             badge: 'KS' + d.code,
             badgeColor: '#dc2626',
@@ -1564,23 +2228,12 @@ function kindBadge(kind) {
   }
 }
 
-function valueKindColor(sym) {
-  switch (sym.valueKind) {
-    case 'directory': return '#4f8ef7';
-    case 'file': return '#22d3ee';
-    case 'composite': return '#fb923c';
-    default: return '#8a94a8';
-  }
+function kindItemColor(type) {
+  return type === 'definition' ? '#4f8ef7' : '#22d3ee';
 }
 
-function vkBadge(vk) {
-  switch (vk) {
-    case 'function': return '\u03BB';
-    case 'directory': return 'DIR';
-    case 'file': return 'FILE';
-    case 'composite': return 'CMP';
-    default: return '?';
-  }
+function kindItemBadge(type) {
+  return type === 'definition' ? 'DEF' : 'ANN';
 }
 
 function propsChips(props) {
@@ -1608,6 +2261,619 @@ function highlightTS(code) {
   if (lastIndex < code.length) result += escHtml(code.slice(lastIndex));
   return result;
 }
+
+// ============================================================
+// ELK.js AST GRAPH
+// ============================================================
+let elkInstance = null;
+let elkCurrentAST = null;
+let elkCollapsedNodes = new Set();
+let elkZoomBehavior = null;
+let elkCurrentFileName = '';
+let elkSelectedNodeId = null;
+let elkDirection = 'RIGHT';
+let elkSavedTransform = null;
+// Stores previous node positions for animated transitions: { nodeId: {x, y} }
+let elkPrevPositions = {};
+
+function getELK() {
+  if (!elkInstance && typeof ELK !== 'undefined') {
+    elkInstance = new ELK();
+  }
+  return elkInstance;
+}
+
+// Assign stable path-based IDs to AST nodes
+function assignASTIds(node, prefix) {
+  node._elkId = prefix;
+  if (node.children) {
+    node.children.forEach(function(child, i) {
+      assignASTIds(child, prefix + '-' + i);
+    });
+  }
+}
+
+// Count all descendants of a node
+function countDescendants(node) {
+  if (!node.children || node.children.length === 0) return 0;
+  var count = node.children.length;
+  node.children.forEach(function(c) { count += countDescendants(c); });
+  return count;
+}
+
+// Count visible nodes
+function countVisibleNodes(node, collapsedSet) {
+  var count = 1;
+  if (!collapsedSet.has(node._elkId) && node.children) {
+    node.children.forEach(function(c) { count += countVisibleNodes(c, collapsedSet); });
+  }
+  return count;
+}
+
+// Find the nearest visible ancestor position for enter/exit animations
+function findParentPosition(astNode) {
+  // Walk up the ID path: n0-1-2 -> n0-1 -> n0
+  var id = astNode._elkId;
+  var parts = id.split('-');
+  while (parts.length > 1) {
+    parts.pop();
+    var parentId = parts.join('-');
+    if (elkPrevPositions[parentId]) return elkPrevPositions[parentId];
+  }
+  return null;
+}
+
+// Classify AST kind for smart collapse
+function isExpressionKind(kind) {
+  return /Expression|Token|Identifier|Keyword|Literal/.test(kind);
+}
+function isStructuralKind(kind) {
+  return /SourceFile|Declaration|Statement|Block|VariableDeclarationList|ModuleBlock/.test(kind);
+}
+
+// Build ELK graph from AST respecting collapsed state
+function buildELKGraph(node, collapsedSet) {
+  var elkNodes = [];
+  var elkEdges = [];
+
+  function walk(astNode, parentElkId) {
+    var id = astNode._elkId;
+    var label = astNode.name ? astNode.kind + ': ' + astNode.name : astNode.kind;
+    var width = Math.min(Math.max(label.length * 7.2 + 28, 90), 280);
+    var childCount = countDescendants(astNode);
+    var isCollapsed = collapsedSet.has(id);
+
+    elkNodes.push({
+      id: id,
+      width: width,
+      height: 32,
+      labels: [{ text: label }],
+      _astNode: astNode,
+      _color: astKindColor(astNode.kind),
+      _hasChildren: astNode.children && astNode.children.length > 0,
+      _isCollapsed: isCollapsed,
+      _childCount: childCount,
+    });
+
+    if (parentElkId) {
+      elkEdges.push({
+        id: 'e-' + parentElkId + '-' + id,
+        sources: [parentElkId],
+        targets: [id],
+      });
+    }
+
+    if (!isCollapsed && astNode.children) {
+      astNode.children.forEach(function(child) { walk(child, id); });
+    }
+  }
+
+  walk(node, null);
+
+  return {
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm': 'layered',
+      'elk.direction': elkDirection,
+      'elk.spacing.nodeNode': '10',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '50',
+      'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+      'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+    },
+    children: elkNodes,
+    edges: elkEdges,
+  };
+}
+
+function openASTGraph(astNode, fileName) {
+  if (!astNode) return;
+  elkCurrentAST = astNode;
+  elkCurrentFileName = fileName;
+  elkCollapsedNodes.clear();
+  elkSelectedNodeId = null;
+  elkSavedTransform = null;
+  elkPrevPositions = {};
+
+  // Assign stable IDs
+  assignASTIds(elkCurrentAST, 'n0');
+
+  // Smart collapse on open (Expression subtrees + deep structural nodes)
+  elkApplySmartCollapse();
+
+  var modal = document.getElementById('ast-graph-modal');
+  modal.classList.add('open');
+  document.getElementById('ast-graph-title').textContent = 'AST Graph \u2014 ' + shortFileName(fileName);
+  elkHideDetail();
+  hideTooltip();
+
+  // Update direction toggle UI
+  document.getElementById('ag-dir-lr').classList.toggle('active', elkDirection === 'RIGHT');
+  document.getElementById('ag-dir-td').classList.toggle('active', elkDirection === 'DOWN');
+
+  // Small delay so modal is visible before layout computation
+  setTimeout(function() { renderELKGraph(); }, 50);
+}
+
+function closeASTGraph() {
+  document.getElementById('ast-graph-modal').classList.remove('open');
+  elkCurrentAST = null;
+  elkCurrentFileName = '';
+  elkSelectedNodeId = null;
+  elkSavedTransform = null;
+  elkPrevPositions = {};
+  hideTooltip();
+  elkHideDetail();
+  document.getElementById('ast-graph-container').querySelector('svg')?.remove();
+}
+
+// Show the node detail panel (right side)
+function elkShowDetail(node, label) {
+  var panel = document.getElementById('ast-graph-detail');
+  var astN = node._astNode;
+  var html = '<span class="agd-close" onclick="elkHideDetail()">&times;</span>';
+  html += '<div class="agd-title">' + escHtml(label) + '</div>';
+  var rows = [['Kind', astN.kind]];
+  if (astN.name) rows.push(['Name', astN.name]);
+  rows.push(['Pos', astN.pos + ' \u2014 ' + astN.end]);
+  if (astN.children && astN.children.length > 0) rows.push(['Children', '' + astN.children.length]);
+  if (node._isCollapsed) rows.push(['Hidden', node._childCount + ' descendants']);
+  if (astN.text && astN.text.length > 0) rows.push(['Text', astN.text.length > 80 ? astN.text.slice(0, 77) + '...' : astN.text]);
+  rows.forEach(function(r) {
+    html += '<div class="agd-row"><span class="agd-key">' + r[0] + '</span><span class="agd-val">' + escHtml(r[1]) + '</span></div>';
+  });
+  html += '<div class="agd-hint">Double-click to ' + (node._hasChildren ? (node._isCollapsed ? 'expand' : 'collapse') : 'inspect') + '</div>';
+  panel.innerHTML = html;
+  panel.style.display = 'block';
+}
+
+function elkHideDetail() {
+  var panel = document.getElementById('ast-graph-detail');
+  if (panel) panel.style.display = 'none';
+}
+
+async function renderELKGraph() {
+  var elk = getELK();
+  if (!elk || !elkCurrentAST) return;
+
+  var container = document.getElementById('ast-graph-container');
+  var loading = document.getElementById('ast-graph-loading');
+  loading.classList.remove('hidden');
+  hideTooltip();
+
+  // Save current zoom transform before removing old SVG
+  var oldSvg = container.querySelector('svg');
+  if (oldSvg && elkZoomBehavior) {
+    elkSavedTransform = d3.zoomTransform(oldSvg);
+  }
+
+  // Save current node positions for transition
+  if (oldSvg) {
+    elkPrevPositions = {};
+    oldSvg.querySelectorAll('g.elk-nodes > g').forEach(function(g) {
+      var nodeId = g.getAttribute('data-node-id');
+      if (nodeId) {
+        var t = g.getAttribute('transform');
+        var match = t && t.match(/translate\(([\d.]+),([\d.]+)\)/);
+        if (match) {
+          elkPrevPositions[nodeId] = { x: parseFloat(match[1]), y: parseFloat(match[2]) };
+        }
+      }
+    });
+    oldSvg.remove();
+  }
+
+  var graph = buildELKGraph(elkCurrentAST, elkCollapsedNodes);
+
+  // Update info
+  var totalNodes = countDescendants(elkCurrentAST) + 1;
+  var visibleNodes = countVisibleNodes(elkCurrentAST, elkCollapsedNodes);
+  document.getElementById('ast-graph-info').innerHTML =
+    '<span>Visible: <strong style="color:var(--text3)">' + visibleNodes + '</strong></span>' +
+    '<span>Total: <strong style="color:var(--text3)">' + totalNodes + '</strong></span>' +
+    '<span>Collapsed: <strong style="color:var(--text3)">' + elkCollapsedNodes.size + '</strong></span>';
+
+  try {
+    var layout = await elk.layout(graph);
+    loading.classList.add('hidden');
+    renderELKSVG(layout, container);
+  } catch (err) {
+    loading.classList.add('hidden');
+    container.innerHTML += '<div style="padding:20px;color:var(--red)">Layout error: ' + escHtml(err.message) + '</div>';
+  }
+}
+
+function renderELKSVG(layout, container) {
+  var containerW = container.clientWidth;
+  var containerH = container.clientHeight;
+  var padding = 80;
+  var totalW = (layout.width || 800) + padding * 2;
+  var totalH = (layout.height || 600) + padding * 2;
+  var hasOldPositions = Object.keys(elkPrevPositions).length > 0;
+  var ANIM_DUR = 400;
+
+  var svg = d3.select(container).append('svg')
+    .attr('width', containerW)
+    .attr('height', containerH);
+
+  var g = svg.append('g');
+
+  // Zoom & pan
+  elkZoomBehavior = d3.zoom()
+    .scaleExtent([0.05, 5])
+    .on('zoom', function(e) { g.attr('transform', e.transform); });
+  svg.call(elkZoomBehavior);
+
+  // Restore saved transform or fit to view
+  if (elkSavedTransform && hasOldPositions) {
+    svg.call(elkZoomBehavior.transform, elkSavedTransform);
+  } else {
+    var scale = Math.min(containerW / totalW, containerH / totalH, 1) * 0.9;
+    var tx = (containerW - totalW * scale) / 2 + padding * scale;
+    var ty = (containerH - totalH * scale) / 2 + padding * scale;
+    svg.call(elkZoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  }
+
+  // Arrow marker
+  svg.append('defs').append('marker')
+    .attr('id', 'elk-arrow')
+    .attr('viewBox', '0 0 8 6')
+    .attr('refX', 8).attr('refY', 3)
+    .attr('markerWidth', 8).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,0 L8,3 L0,6 Z')
+    .attr('fill', '#3a4560');
+
+  // Build node position lookup for edge animation
+  var nodePositions = {};
+  if (layout.children) {
+    layout.children.forEach(function(n) { nodePositions[n.id] = { x: n.x, y: n.y, w: n.width, h: n.height }; });
+  }
+
+  // Draw edges
+  if (layout.edges) {
+    var edgeGroup = g.append('g').attr('class', 'elk-edges');
+    layout.edges.forEach(function(edge) {
+      if (!edge.sections) return;
+      edge.sections.forEach(function(section) {
+        var pathD = 'M' + section.startPoint.x + ',' + section.startPoint.y;
+        if (section.bendPoints) {
+          section.bendPoints.forEach(function(bp) {
+            pathD += ' L' + bp.x + ',' + bp.y;
+          });
+        }
+        pathD += ' L' + section.endPoint.x + ',' + section.endPoint.y;
+
+        var edgePath = edgeGroup.append('path')
+          .attr('fill', 'none')
+          .attr('stroke', '#2a3347')
+          .attr('stroke-width', 1.5)
+          .attr('marker-end', 'url(#elk-arrow)');
+
+        if (hasOldPositions) {
+          edgePath.attr('d', pathD).attr('opacity', 0)
+            .transition().duration(ANIM_DUR).attr('opacity', 1);
+        } else {
+          edgePath.attr('d', pathD);
+        }
+      });
+    });
+  }
+
+  // Draw nodes
+  if (layout.children) {
+    var nodeGroup = g.append('g').attr('class', 'elk-nodes');
+    layout.children.forEach(function(node) {
+      var ng = nodeGroup.append('g')
+        .attr('data-node-id', node.id)
+        .style('cursor', 'pointer');
+
+      var color = node._color || '#2a3347';
+      var isSelected = node.id === elkSelectedNodeId;
+      var label = node.labels && node.labels[0] ? node.labels[0].text : '';
+
+      // Determine start position for animation
+      var startX = node.x, startY = node.y;
+      var shouldAnimate = hasOldPositions;
+      if (shouldAnimate) {
+        if (elkPrevPositions[node.id]) {
+          // Node existed before — animate from old position
+          startX = elkPrevPositions[node.id].x;
+          startY = elkPrevPositions[node.id].y;
+        } else {
+          // New node — animate from parent position
+          var parentPos = findParentPosition(node._astNode);
+          if (parentPos) {
+            startX = parentPos.x;
+            startY = parentPos.y;
+          }
+        }
+      }
+
+      ng.attr('transform', 'translate(' + startX + ',' + startY + ')');
+      if (shouldAnimate && (startX !== node.x || startY !== node.y)) {
+        ng.transition().duration(ANIM_DUR).ease(d3.easeCubicOut)
+          .attr('transform', 'translate(' + node.x + ',' + node.y + ')');
+      }
+
+      // Fade in new nodes
+      if (shouldAnimate && !elkPrevPositions[node.id]) {
+        ng.attr('opacity', 0).transition().duration(ANIM_DUR).attr('opacity', 1);
+      }
+
+      // Background rect
+      ng.append('rect')
+        .attr('width', node.width)
+        .attr('height', node.height)
+        .attr('rx', 5)
+        .attr('fill', color)
+        .attr('fill-opacity', 0.15)
+        .attr('stroke', isSelected ? '#e4e8f0' : color)
+        .attr('stroke-width', isSelected ? 2.5 : 1.5)
+        .attr('stroke-opacity', isSelected ? 1 : 0.8);
+
+      // Left color accent bar
+      ng.append('rect')
+        .attr('width', 3)
+        .attr('height', node.height)
+        .attr('rx', 1.5)
+        .attr('fill', color)
+        .attr('fill-opacity', 0.6);
+
+      // Label
+      var maxChars = Math.floor((node.width - 16) / 7);
+      var displayLabel = label.length > maxChars ? label.slice(0, maxChars - 2) + '..' : label;
+
+      ng.append('text')
+        .attr('x', 10)
+        .attr('y', node.height / 2)
+        .attr('dy', '0.35em')
+        .attr('fill', '#e4e8f0')
+        .attr('font-size', '11px')
+        .attr('font-family', '-apple-system,BlinkMacSystemFont,sans-serif')
+        .text(displayLabel);
+
+      // Collapse/expand badge
+      if (node._isCollapsed && node._childCount > 0) {
+        var badgeText = '+' + node._childCount;
+        var badgeW = badgeText.length * 6.5 + 8;
+        ng.append('rect')
+          .attr('x', node.width - badgeW - 4)
+          .attr('y', (node.height - 16) / 2)
+          .attr('width', badgeW)
+          .attr('height', 16)
+          .attr('rx', 3)
+          .attr('fill', 'rgba(124,106,247,0.25)')
+          .attr('stroke', '#7c6af7')
+          .attr('stroke-width', 0.5);
+        ng.append('text')
+          .attr('x', node.width - badgeW)
+          .attr('y', node.height / 2)
+          .attr('dy', '0.35em')
+          .attr('fill', '#a78bfa')
+          .attr('font-size', '9px')
+          .attr('font-weight', '700')
+          .attr('font-family', '-apple-system,sans-serif')
+          .text(badgeText);
+      }
+
+      // Expand/collapse indicator arrow for branch nodes
+      if (node._hasChildren && !node._isCollapsed) {
+        ng.append('text')
+          .attr('x', node.width - 14)
+          .attr('y', node.height / 2)
+          .attr('dy', '0.35em')
+          .attr('fill', '#3a4560')
+          .attr('font-size', '10px')
+          .attr('text-anchor', 'middle')
+          .text('\u25BE');
+      }
+
+      // Single click = inspect/select (Option C)
+      ng.on('click', function(e) {
+        e.stopPropagation();
+        elkSelectedNodeId = node.id;
+        elkShowDetail(node, label);
+        // Update selection highlight on all nodes
+        nodeGroup.selectAll('g').each(function() {
+          var g = d3.select(this);
+          var nid = g.attr('data-node-id');
+          var sel = nid === elkSelectedNodeId;
+          g.select('rect').attr('stroke', sel ? '#e4e8f0' : (g.attr('data-color') || '#2a3347'))
+            .attr('stroke-width', sel ? 2.5 : 1.5)
+            .attr('stroke-opacity', sel ? 1 : 0.8);
+        });
+        // Set this node's highlight directly (data-color may not be set yet)
+        d3.select(this).select('rect').attr('stroke', '#e4e8f0').attr('stroke-width', 2.5).attr('stroke-opacity', 1);
+      });
+      ng.attr('data-color', color);
+
+      // Double-click = collapse/expand (Option C)
+      if (node._hasChildren) {
+        ng.on('dblclick', function(e) {
+          e.stopPropagation();
+          e.preventDefault();
+          var id = node.id;
+          if (elkCollapsedNodes.has(id)) {
+            elkCollapsedNodes.delete(id);
+          } else {
+            elkCollapsedNodes.add(id);
+          }
+          renderELKGraph();
+        });
+      }
+
+      // Hover effects (namespaced to avoid overwrite — Option A fix)
+      ng.on('mouseenter.stroke', function() {
+        if (node.id !== elkSelectedNodeId) {
+          d3.select(this).select('rect').attr('stroke-width', 2.5).attr('stroke-opacity', 1);
+        }
+      });
+      ng.on('mouseleave.stroke', function() {
+        if (node.id !== elkSelectedNodeId) {
+          d3.select(this).select('rect').attr('stroke-width', 1.5).attr('stroke-opacity', 0.8);
+        }
+      });
+
+      // Tooltip on hover (namespaced — Option A fix)
+      ng.on('mousemove.tooltip', function(e) {
+        var astN = node._astNode;
+        var rows = [['Kind', astN.kind]];
+        if (astN.name) rows.push(['Name', astN.name]);
+        rows.push(['Pos', astN.pos + ' \u2014 ' + astN.end]);
+        if (astN.children && astN.children.length > 0) rows.push(['Children', astN.children.length + '']);
+        if (node._isCollapsed) rows.push(['Hidden', node._childCount + ' descendants']);
+        showTooltip(e, { title: label, rows: rows });
+      });
+      ng.on('mouseleave.tooltip', function() { hideTooltip(); });
+    });
+  }
+
+  // Click on background = deselect
+  svg.on('click', function() {
+    elkSelectedNodeId = null;
+    elkHideDetail();
+    var nodeGroup = g.select('g.elk-nodes');
+    nodeGroup.selectAll('g').each(function() {
+      var el = d3.select(this);
+      var c = el.attr('data-color') || '#2a3347';
+      el.select('rect').attr('stroke', c).attr('stroke-width', 1.5).attr('stroke-opacity', 0.8);
+    });
+  });
+}
+
+// ---- Toolbar actions ----
+
+function elkExpandAll() {
+  elkCollapsedNodes.clear();
+  renderELKGraph();
+}
+
+function elkCollapseDepth(maxDepth) {
+  if (!elkCurrentAST) return;
+  elkCollapsedNodes.clear();
+  function walk(node, depth) {
+    if (depth >= maxDepth && node.children && node.children.length > 0) {
+      elkCollapsedNodes.add(node._elkId);
+    }
+    if (node.children) {
+      node.children.forEach(function(c) { walk(c, depth + 1); });
+    }
+  }
+  walk(elkCurrentAST, 0);
+  renderELKGraph();
+}
+
+// Option E: Smart collapse — collapse Expression subtrees and large branches
+function elkApplySmartCollapse() {
+  if (!elkCurrentAST) return;
+  elkCollapsedNodes.clear();
+  function walk(node, depth, parentIsStructural) {
+    var hasChildren = node.children && node.children.length > 0;
+    if (!hasChildren) return;
+    var childCount = countDescendants(node);
+    // Collapse expression-heavy subtrees at depth >= 2
+    if (depth >= 2 && isExpressionKind(node.kind) && childCount > 2) {
+      elkCollapsedNodes.add(node._elkId);
+      return; // don't walk deeper
+    }
+    // Collapse structural nodes at depth >= 4
+    if (depth >= 4 && hasChildren) {
+      elkCollapsedNodes.add(node._elkId);
+      return;
+    }
+    // Collapse any subtree with > 8 descendants at depth >= 3
+    if (depth >= 3 && childCount > 8) {
+      elkCollapsedNodes.add(node._elkId);
+      return;
+    }
+    node.children.forEach(function(c) { walk(c, depth + 1, isStructuralKind(node.kind)); });
+  }
+  walk(elkCurrentAST, 0, true);
+}
+
+function elkSmartCollapse() {
+  elkApplySmartCollapse();
+  renderELKGraph();
+}
+
+// Option E: Outline mode — show only structural skeleton
+function elkOutlineMode() {
+  if (!elkCurrentAST) return;
+  elkCollapsedNodes.clear();
+  function walk(node) {
+    if (!node.children || node.children.length === 0) return;
+    // Collapse non-structural nodes that have children
+    if (!isStructuralKind(node.kind)) {
+      elkCollapsedNodes.add(node._elkId);
+      return;
+    }
+    node.children.forEach(function(c) { walk(c); });
+  }
+  walk(elkCurrentAST);
+  renderELKGraph();
+}
+
+// Option D: Layout direction toggle
+function elkSetDirection(dir) {
+  elkDirection = dir;
+  document.getElementById('ag-dir-lr').classList.toggle('active', dir === 'RIGHT');
+  document.getElementById('ag-dir-td').classList.toggle('active', dir === 'DOWN');
+  elkSavedTransform = null; // reset zoom for new direction
+  elkPrevPositions = {}; // don't animate direction change
+  renderELKGraph();
+}
+
+function elkFitView() {
+  var container = document.getElementById('ast-graph-container');
+  var svg = container.querySelector('svg');
+  if (!svg || !elkZoomBehavior) return;
+
+  var svgSel = d3.select(svg);
+  var gNode = svg.querySelector('g');
+  if (!gNode) return;
+
+  var bbox = gNode.getBBox();
+  var containerW = container.clientWidth;
+  var containerH = container.clientHeight;
+  var padding = 80;
+  var totalW = bbox.width + padding * 2;
+  var totalH = bbox.height + padding * 2;
+  var scale = Math.min(containerW / totalW, containerH / totalH, 1) * 0.9;
+  var tx = (containerW - bbox.width * scale) / 2 - bbox.x * scale;
+  var ty = (containerH - bbox.height * scale) / 2 - bbox.y * scale;
+
+  svgSel.transition().duration(500)
+    .call(elkZoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
+// Keyboard shortcut to close graph
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && document.getElementById('ast-graph-modal').classList.contains('open')) {
+    closeASTGraph();
+  }
+});
 
 // ============================================================
 // INIT

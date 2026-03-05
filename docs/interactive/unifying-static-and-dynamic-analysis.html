@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unifying Static &amp; Dynamic Analysis</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3348;
+  --text: #e2e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4ecdc4;
+  --accent3: #ff6b9d;
+  --green: #4ecdc4;
+  --yellow: #ffd93d;
+  --orange: #ff8c42;
+  --red: #ff6b6b;
+  --purple: #a78bfa;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; line-height:1.7; padding:2rem; max-width:1150px; margin:0 auto; }
+h1 { font-size:2.1rem; margin-bottom:.3rem; background:linear-gradient(135deg,var(--accent2),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+h2 { font-size:1.45rem; color:var(--accent); margin:2.5rem 0 1rem; border-bottom:1px solid var(--border); padding-bottom:.5rem; }
+h3 { font-size:1.1rem; color:var(--accent2); margin:1.5rem 0 .5rem; }
+p, li { color:var(--text2); margin-bottom:.7rem; }
+.sub { color:var(--text2); font-size:1.05rem; margin-bottom:2rem; }
+code { background:var(--surface2); padding:.15rem .4rem; border-radius:4px; font-family:'JetBrains Mono','Fira Code',monospace; font-size:.86rem; color:var(--accent); }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem 1.2rem; overflow-x:auto; margin:.8rem 0 1.2rem; line-height:1.5; }
+pre code { background:none; padding:0; color:var(--text); }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.3rem; margin:.8rem 0; transition:all .3s; }
+.card:hover { border-color:var(--accent); transform:translateY(-1px); }
+.card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1rem; margin:1rem 0; }
+.card h4 { color:var(--accent); margin-bottom:.5rem; font-size:1.02rem; }
+.tag { display:inline-block; padding:.15rem .5rem; border-radius:4px; font-size:.73rem; margin-right:.4rem; margin-bottom:.3rem; }
+.tag-green { background:rgba(78,205,196,.15); color:var(--green); }
+.tag-yellow { background:rgba(255,217,61,.15); color:var(--yellow); }
+.tag-red { background:rgba(255,107,107,.15); color:var(--red); }
+.tag-purple { background:rgba(167,139,250,.15); color:var(--purple); }
+.tag-blue { background:rgba(108,140,255,.15); color:var(--accent); }
+.tag-orange { background:rgba(255,140,66,.15); color:var(--orange); }
+.tabs { display:flex; gap:0; margin:1.2rem 0 0; border-bottom:2px solid var(--border); flex-wrap:wrap; }
+.tab { padding:.55rem 1rem; cursor:pointer; color:var(--text2); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .2s; font-size:.86rem; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tab-content { display:none; padding:1.2rem 0; }
+.tab-content.active { display:block; }
+table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.85rem; }
+th, td { padding:.55rem .7rem; text-align:left; border-bottom:1px solid var(--border); }
+th { color:var(--accent); font-weight:600; }
+td { color:var(--text2); }
+tr:hover td { background:var(--surface2); }
+.proof-line { display:flex; gap:.8rem; align-items:flex-start; margin:.35rem 0; font-family:monospace; font-size:.86rem; }
+.proof-line .step { min-width:20px; font-weight:700; }
+.proof-line.pass .step { color:var(--green); }
+.proof-line.fail .step { color:var(--red); }
+.proof-line.info .step { color:var(--accent); }
+.proof-line.warn .step { color:var(--yellow); }
+.proof-line .content { color:var(--text2); }
+
+/* Galois connection diagram */
+.galois { display:flex; align-items:center; justify-content:center; gap:2rem; margin:1.5rem 0; flex-wrap:wrap; }
+.galois-domain { background:var(--surface); border:2px solid var(--border); border-radius:12px; padding:1.2rem 1.5rem; text-align:center; min-width:200px; }
+.galois-arrows { display:flex; flex-direction:column; align-items:center; gap:.3rem; }
+.galois-arrow { font-size:1.5rem; color:var(--accent); }
+.galois-label { font-size:.8rem; color:var(--text2); }
+
+/* Pipeline */
+.pipeline { display:flex; align-items:center; gap:0; margin:1rem 0; flex-wrap:wrap; overflow-x:auto; }
+.pipe-node { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.6rem 1rem; font-size:.82rem; text-align:center; min-width:100px; cursor:pointer; transition:all .3s; }
+.pipe-node:hover { border-color:var(--accent); transform:translateY(-2px); }
+.pipe-node.static { border-color:var(--purple); }
+.pipe-node.dynamic { border-color:var(--orange); }
+.pipe-node.unified { border-color:var(--green); }
+.pipe-arrow { font-size:1.2rem; color:var(--text2); margin:0 .2rem; flex-shrink:0; }
+.pipe-node .label { font-weight:700; font-size:.85rem; }
+.pipe-node .desc { color:var(--text2); font-size:.75rem; margin-top:.2rem; }
+
+/* Interactive abstract interpretation */
+.abs-interp { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin:1rem 0; }
+.abs-row { display:flex; gap:1rem; align-items:stretch; margin:.5rem 0; flex-wrap:wrap; }
+.abs-col { flex:1; min-width:220px; }
+.abs-val { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:.5rem .8rem; font-family:monospace; font-size:.85rem; text-align:center; margin:.3rem 0; transition:all .3s; }
+.abs-val.highlight { border-color:var(--green); background:rgba(78,205,196,.08); }
+
+/* Confidence meter */
+.conf-meter { display:flex; align-items:center; gap:.5rem; margin:.4rem 0; }
+.conf-bar { flex:1; height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+.conf-fill { height:100%; border-radius:4px; transition:width .5s; }
+.conf-label { min-width:60px; font-size:.8rem; color:var(--text2); }
+.conf-value { min-width:40px; font-size:.8rem; font-weight:700; text-align:right; }
+
+/* Architecture diagram */
+.arch { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin:1rem 0; }
+.arch-layer { border:1px solid var(--border); border-radius:8px; padding:.8rem 1rem; margin:.5rem 0; display:flex; align-items:center; gap:1rem; cursor:pointer; transition:all .3s; }
+.arch-layer:hover { border-color:var(--accent); }
+.arch-layer.open { border-color:var(--green); }
+.arch-layer .icon { font-size:1.3rem; min-width:30px; text-align:center; }
+.arch-layer .info { flex:1; }
+.arch-layer .label { font-weight:700; font-size:.92rem; color:var(--text); }
+.arch-layer .desc { font-size:.8rem; color:var(--text2); }
+.arch-detail { display:none; padding:.8rem 1rem .8rem 3rem; }
+.arch-detail.open { display:block; }
+
+/* Quiz */
+.quiz { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin:1.5rem 0; }
+.quiz h4 { color:var(--accent3); margin-bottom:.8rem; }
+.quiz-opt { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:.65rem 1rem; margin:.4rem 0; cursor:pointer; transition:all .2s; font-size:.9rem; }
+.quiz-opt:hover { border-color:var(--accent); }
+.quiz-opt.correct { border-color:var(--green); background:rgba(78,205,196,.1); }
+.quiz-opt.wrong { border-color:var(--red); background:rgba(255,107,107,.1); }
+.quiz-fb { margin-top:.8rem; padding:.8rem; border-radius:8px; display:none; font-size:.88rem; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.anim { animation:fadeIn .4s ease-out; }
+</style>
+</head>
+<body>
+
+<h1>Unifying Static &amp; Dynamic Analysis</h1>
+<p class="sub">Static analysis tells you what <em>might</em> happen. Dynamic analysis tells you what <em>did</em> happen. The magic is in connecting them formally — so each makes the other stronger.</p>
+
+<!-- ============ SECTION 1: THE GALOIS CONNECTION ============ -->
+<h2>Part 1: The Bridge — Abstract Interpretation</h2>
+
+<p>Cousot & Cousot's framework (1977) gives us the mathematical bridge between static and dynamic analysis. The core idea: a <strong>Galois connection</strong> — a pair of functions that formally relate the world of concrete runtime values to the world of abstract static approximations.</p>
+
+<div class="galois">
+  <div class="galois-domain" style="border-color:var(--orange);">
+    <div style="color:var(--orange); font-weight:700; margin-bottom:.3rem;">Concrete Domain</div>
+    <div style="font-size:.85rem; color:var(--text2);">All actual runtime values</div>
+    <div style="font-family:monospace; font-size:.9rem; margin-top:.3rem;">{-7, 0, 3, 42, ...}</div>
+  </div>
+  <div class="galois-arrows">
+    <div>
+      <span class="galois-arrow">→</span>
+      <span class="galois-label">α (abstract)</span>
+    </div>
+    <div>
+      <span class="galois-arrow">←</span>
+      <span class="galois-label">γ (concretize)</span>
+    </div>
+  </div>
+  <div class="galois-domain" style="border-color:var(--purple);">
+    <div style="color:var(--purple); font-weight:700; margin-bottom:.3rem;">Abstract Domain</div>
+    <div style="font-size:.85rem; color:var(--text2);">Simplified static model</div>
+    <div style="font-family:monospace; font-size:.9rem; margin-top:.3rem;">{−, 0, +, ⊤}</div>
+  </div>
+</div>
+
+<p><strong>α</strong> (abstraction) maps concrete values to abstract values: α({3, 42, 7}) = <code>+</code>. <strong>γ</strong> (concretization) maps back: γ(<code>+</code>) = {all positive numbers}. The key property: <code>α(γ(a)) ≤ a</code> and <code>c ≤ γ(α(c))</code> — the abstract domain always <em>over-approximates</em>. If it says "positive," the real value is guaranteed positive. It might say "unknown" when the real value is positive (imprecise), but it never says "positive" when the real value is negative (unsound).</p>
+
+<h3>Interactive: Abstract Interpretation Simulator</h3>
+<p>Step through a program and watch both the concrete and abstract worlds simultaneously:</p>
+
+<div class="abs-interp" id="abs-sim">
+  <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+    <button onclick="runAbsSim(0)" style="padding:.4rem .9rem; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; cursor:pointer; font-size:.85rem;">Sign Analysis</button>
+    <button onclick="runAbsSim(1)" style="padding:.4rem .9rem; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; cursor:pointer; font-size:.85rem;">Interval Analysis</button>
+    <button onclick="runAbsSim(2)" style="padding:.4rem .9rem; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; cursor:pointer; font-size:.85rem;">Nullability Analysis</button>
+  </div>
+  <div class="abs-row">
+    <div class="abs-col">
+      <div style="color:var(--text); font-weight:600; margin-bottom:.5rem; font-size:.9rem;">Program</div>
+      <pre style="margin:0;"><code id="abs-code">// Click an example above</code></pre>
+    </div>
+    <div class="abs-col">
+      <div style="color:var(--orange); font-weight:600; margin-bottom:.5rem; font-size:.9rem;">Concrete (runtime)</div>
+      <div id="abs-concrete"></div>
+    </div>
+    <div class="abs-col">
+      <div style="color:var(--purple); font-weight:600; margin-bottom:.5rem; font-size:.9rem;">Abstract (static)</div>
+      <div id="abs-abstract"></div>
+    </div>
+  </div>
+  <div id="abs-verdict" style="margin-top:1rem;"></div>
+</div>
+
+<script>
+const absSims = [
+  {
+    name: 'Sign Analysis',
+    code: `let x = 5;       // assign
+let y = -3;      // assign
+let z = x + y;   // arithmetic
+let w = x * y;   // arithmetic
+if (z > 0) {     // branch
+  let r = z + w; // ← safe?
+}`,
+    steps: [
+      { line:'x = 5', conc:'x = 5', abs:'x = +' },
+      { line:'y = -3', conc:'y = -3', abs:'y = −' },
+      { line:'z = x + y', conc:'z = 2', abs:'z = ⊤ (+ + − = unknown!)' },
+      { line:'w = x * y', conc:'w = -15', abs:'w = − (+ × − = −)' },
+      { line:'z > 0 branch', conc:'z = 2, so yes', abs:'z refined to + (guard)' },
+      { line:'r = z + w', conc:'r = -13', abs:'r = ⊤ (+ + − = unknown)' },
+    ],
+    verdict: 'Abstract analysis lost precision at z = x + y (couldn\'t prove sign). But it proved w is negative (+ × − = −). A more refined domain (intervals) would keep the exact values and prove more.'
+  },
+  {
+    name: 'Interval Analysis',
+    code: `let x = input(); // [0, 100]
+let y = x + 5;   // arithmetic
+let z = y * 2;   // arithmetic
+arr[z];           // ← safe?
+// arr.length = 256`,
+    steps: [
+      { line:'x = input()', conc:'x = 42 (example)', abs:'x ∈ [0, 100]' },
+      { line:'y = x + 5', conc:'y = 47', abs:'y ∈ [5, 105]' },
+      { line:'z = y * 2', conc:'z = 94', abs:'z ∈ [10, 210]' },
+      { line:'arr[z]', conc:'arr[94] ✓ safe', abs:'z ∈ [10, 210], len = 256' },
+      { line:'bounds check', conc:'94 < 256 ✓', abs:'210 < 256 ✓ PROVEN SAFE' },
+    ],
+    verdict: '✓ Interval analysis PROVES arr[z] is safe for ALL inputs in [0, 100]. The abstract bound [10, 210] is entirely within [0, 256). No runtime check needed — the static analysis covers every possible execution.'
+  },
+  {
+    name: 'Nullability Analysis',
+    code: `let user = getUser(id);
+// might return null!
+if (user !== null) {
+  let name = user.name;
+  let upper = name.toUpperCase();
+  return upper;
+}
+return "anonymous";`,
+    steps: [
+      { line:'user = getUser(id)', conc:'user = {name:"Sam"}', abs:'user: User | null' },
+      { line:'user !== null guard', conc:'true (is User)', abs:'user refined to: User (not null)' },
+      { line:'name = user.name', conc:'name = "Sam"', abs:'name: string (safe — user ≠ null)' },
+      { line:'upper = name.toUpperCase()', conc:'upper = "SAM"', abs:'upper: string (safe — name is string)' },
+      { line:'return upper', conc:'"SAM"', abs:'return: string ✓' },
+    ],
+    verdict: '✓ The null guard refines the abstract type. After the check, the abstract interpreter KNOWS user is not null, so .name access is proven safe. This is exactly what TypeScript\'s narrowing does — it\'s abstract interpretation over a nullability domain.'
+  }
+];
+
+function runAbsSim(idx) {
+  const sim = absSims[idx];
+  document.getElementById('abs-code').textContent = sim.code;
+  const conc = document.getElementById('abs-concrete');
+  const abs = document.getElementById('abs-abstract');
+  conc.innerHTML = '';
+  abs.innerHTML = '';
+  document.getElementById('abs-verdict').innerHTML = '';
+
+  sim.steps.forEach((s, i) => {
+    setTimeout(() => {
+      conc.innerHTML += `<div class="abs-val anim" style="animation-delay:${i*0.05}s;">${s.conc}</div>`;
+      abs.innerHTML += `<div class="abs-val anim highlight" style="animation-delay:${i*0.05}s;">${s.abs}</div>`;
+      if (i === sim.steps.length - 1) {
+        setTimeout(() => {
+          document.getElementById('abs-verdict').innerHTML =
+            `<div class="card" style="border-color:${sim.verdict.startsWith('✓') ? 'var(--green)' : 'var(--yellow)'}"><p>${sim.verdict}</p></div>`;
+        }, 300);
+      }
+    }, i * 400);
+  });
+}
+</script>
+
+
+<!-- ============ SECTION 2: ALL RUNTIME APPROACHES ============ -->
+<h2>Part 2: Every Way to Learn About Programs at Runtime</h2>
+
+<p>There are at least nine distinct approaches to dynamic analysis. Click each to explore:</p>
+
+<div class="tabs" id="dyn-tabs">
+  <div class="tab active" onclick="switchDyn(0)">Runtime Verification</div>
+  <div class="tab" onclick="switchDyn(1)">Contracts</div>
+  <div class="tab" onclick="switchDyn(2)">Concolic / Symbolic</div>
+  <div class="tab" onclick="switchDyn(3)">Fuzzing / PBT</div>
+  <div class="tab" onclick="switchDyn(4)">Taint Analysis</div>
+  <div class="tab" onclick="switchDyn(5)">Invariant Detection</div>
+  <div class="tab" onclick="switchDyn(6)">Gradual Typing</div>
+</div>
+
+<div class="tab-content active" id="dyn-panel-0">
+  <h3>Runtime Verification: Monitors Against Formal Specs</h3>
+  <p>Attach a <em>monitor</em> to a running program that checks every event against a formal specification (usually in temporal logic).</p>
+  <pre><code>// Temporal logic specification (LTL):
+// □(request → ◇response)
+// "Every request is EVENTUALLY followed by a response"
+
+// The monitor watches the execution trace:
+// request, process, response, request, process, response  ← ✓ satisfies
+// request, process, request, process, ...                 ← ✗ violates (no response!)
+
+// JavaScript conceptual equivalent:
+monitor("every .open() is followed by .close()", {
+  on: "open",   goto: "waiting",
+  on: "close",  goto: "satisfied",
+  timeout: 5000, violation: "resource leak detected!"
+});</code></pre>
+  <div class="card-grid">
+    <div class="card">
+      <h4>JavaMOP / RV-Monitor</h4>
+      <p>Monitor 150+ specifications simultaneously. Generate efficient monitoring code from temporal logic specs. Used in real JDK analysis.</p>
+      <span class="tag tag-green">Production-tested</span>
+    </div>
+    <div class="card">
+      <h4>TeSSLa / LOLA</h4>
+      <p>Stream-based runtime verification. Specs process streams of events in real time. Used for embedded systems and IoT.</p>
+      <span class="tag tag-blue">Real-time capable</span>
+    </div>
+  </div>
+  <p><strong>For TypeScript:</strong> No equivalent exists today. A KindScript runtime monitor could watch for property violations (effect escapes, purity breaches, timing anomalies) using a lightweight event-based architecture.</p>
+</div>
+
+<div class="tab-content" id="dyn-panel-1">
+  <h3>Design by Contract: Preconditions, Postconditions, Invariants</h3>
+  <p>Every function declares what it requires (precondition), what it guarantees (postcondition), and what must always be true (invariant). The contract is checked at runtime.</p>
+  <pre><code>// Eiffel-style contracts (the original, Bertrand Meyer 1986):
+class BankAccount {
+  // Invariant: balance >= 0
+
+  withdraw(amount: number) {
+    // Precondition:  amount > 0 && amount <= this.balance
+    // Postcondition: this.balance === old(this.balance) - amount
+  }
+}
+
+// In TypeScript with Zod (approximation):
+const WithdrawInput = z.object({
+  amount: z.number().positive().max(balance)  // precondition
+});
+
+// Racket has the MOST sophisticated contracts:
+// - Higher-order: contracts on functions that return functions
+// - Blame tracking: when a contract fails, who's at fault?
+// - Temporal contracts: sequences of interactions over time</code></pre>
+  <p><strong>Key insight — blame tracking (Findler & Felleisen, 2002):</strong> When a higher-order contract fails, the system identifies <em>which party</em> broke the contract. If <code>f</code> is given to <code>g</code> with a contract, and <code>g</code> calls <code>f</code> with a bad argument, the blame falls on <code>g</code>, not <code>f</code>. This is essential for modular reasoning.</p>
+</div>
+
+<div class="tab-content" id="dyn-panel-2">
+  <h3>Concolic Execution: Concrete + Symbolic</h3>
+  <p>Run the program concretely but simultaneously track symbolic constraints on inputs. At each branch, solve constraints to generate inputs that take the other path.</p>
+  <pre><code>// Concolic execution of:
+function f(x: number, y: number) {
+  if (x > 0) {              // branch 1
+    if (y === x * 2) {       // branch 2
+      throw new Error("bug"); // hard to reach!
+    }
+  }
+}
+
+// Step 1: Run concretely with x=0, y=0
+//   Branch 1: 0 > 0 → false. Constraint: x ≤ 0
+
+// Step 2: Negate constraint → x > 0. Solve → x=1, y=0
+//   Branch 1: true. Branch 2: 0 === 2 → false. Constraint: y ≠ x*2
+
+// Step 3: Negate → y = x*2. Solve → x=1, y=2
+//   Branch 1: true. Branch 2: true → BUG FOUND!
+
+// Three runs to find a bug that random testing might never hit.</code></pre>
+  <div class="card">
+    <h4 style="color:var(--orange);">SAGE (Microsoft) — Found ~1/3 of all Windows 7 security bugs</h4>
+    <p>Systematic concolic testing of file parsers. Started from well-formed files, mutated symbolically to find crashes. Found bugs that blackbox fuzzing and static analysis both missed. Arguably the most impactful automated testing tool ever deployed.</p>
+  </div>
+</div>
+
+<div class="tab-content" id="dyn-panel-3">
+  <h3>Fuzzing &amp; Property-Based Testing</h3>
+  <p>Generate random (or guided) inputs, run the program, check if properties hold.</p>
+  <pre><code>// Property-based testing with fast-check (JS/TS):
+import fc from 'fast-check';
+
+// "reverse of reverse is identity"
+fc.assert(
+  fc.property(fc.array(fc.integer()), (arr) => {
+    const result = arr.slice().reverse().reverse();
+    return JSON.stringify(result) === JSON.stringify(arr);
+  })
+);
+
+// "sort is idempotent"
+fc.assert(
+  fc.property(fc.array(fc.integer()), (arr) => {
+    const once = arr.slice().sort((a,b) => a-b);
+    const twice = once.slice().sort((a,b) => a-b);
+    return JSON.stringify(once) === JSON.stringify(twice);
+  })
+);
+
+// If fast-check finds a counterexample, it SHRINKS it
+// to the minimal failing case — invaluable for debugging.</code></pre>
+  <p><strong>Coverage-guided fuzzing</strong> (AFL++) instruments the program to track which code paths are reached. It then mutates inputs to maximize coverage, systematically exploring deeper and deeper branches. Property-based testing and fuzzing are essentially the same thing at different abstraction levels — PBT generates structured data, fuzzing generates raw bytes.</p>
+</div>
+
+<div class="tab-content" id="dyn-panel-4">
+  <h3>Dynamic Taint Analysis: Tracking Information Flow</h3>
+  <p>Mark certain inputs as "tainted" (e.g., user input) and track how taint propagates through the program. Alert if tainted data reaches a sensitive sink (e.g., SQL query) without sanitization.</p>
+  <pre><code>// Conceptual taint tracking:
+let userInput = taint(req.query.name);  // mark as tainted
+let greeting = "Hello, " + userInput;    // taint propagates
+db.query(`SELECT * WHERE name='${greeting}'`); // ✗ TAINTED DATA IN SQL!
+
+// After sanitization:
+let safe = sanitize(userInput);          // taint removed
+db.query(`SELECT * WHERE name='${safe}'`); // ✓ safe</code></pre>
+  <p><strong>Tools:</strong> TaintDroid (Android), Phosphor (JVM — 3 orders of magnitude faster than predecessors), NodeProf (JavaScript). <strong>For TypeScript:</strong> No production taint tracker exists, but taint analysis is exactly what a KindScript runtime component could provide — track effect propagation through function calls.</p>
+</div>
+
+<div class="tab-content" id="dyn-panel-5">
+  <h3>Dynamic Invariant Detection (Daikon)</h3>
+  <p>Run the program on many inputs, observe the values at each program point, and <em>propose likely invariants</em>.</p>
+  <pre><code>// Run sort() on 1000 random arrays. Daikon observes:
+// At function entry:  arr.length >= 0
+// At function exit:   result.length === arr.length
+//                     result is sorted (∀i. result[i] ≤ result[i+1])
+//                     result is a permutation of arr
+
+// These are HYPOTHESES, not proofs!
+// But they can be fed to a static verifier:
+// "Hey LiquidHaskell, can you prove result.length === arr.length?"
+// If yes → dynamic observation promoted to static proof.
+// If no → maybe the invariant is wrong, or the prover isn't strong enough.</code></pre>
+  <p><strong>Daikon</strong> supports 40+ invariant templates (bounds, equality, ordering, containment, linear relationships) across C, C++, Java, and more. The invariants it discovers bridge the dynamic→static gap: observations become proof obligations.</p>
+</div>
+
+<div class="tab-content" id="dyn-panel-6">
+  <h3>Gradual Typing: Contracts at the Boundary</h3>
+  <p>In Typed Racket, when typed code calls untyped code (or vice versa), the system automatically inserts <em>contracts</em> at the boundary:</p>
+  <pre><code>;; Typed module:
+(: add-positive (-> Positive-Integer Positive-Integer Positive-Integer))
+(define (add-positive x y) (+ x y))
+
+;; Untyped module calls add-positive:
+(add-positive 5 -3)  ; ← RUNTIME CONTRACT ERROR!
+; blame: the untyped module (it provided -3 for Positive-Integer)
+
+;; The type annotation compiles to a runtime contract:
+;; (-> positive? positive? positive?)
+;; Checked at every cross-boundary call.</code></pre>
+  <p>This is the closest existing system to a true static+dynamic bridge: the type system generates the runtime checks, and blame tracking identifies the faulty module. TypeScript erases types at runtime and provides no such bridge — this is a major gap that KindScript could fill.</p>
+</div>
+
+<script>
+function switchDyn(idx) {
+  document.querySelectorAll('#dyn-tabs .tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  for(let i=0;i<7;i++) document.getElementById('dyn-panel-'+i).classList.toggle('active', i===idx);
+}
+</script>
+
+
+<!-- ============ SECTION 3: SYSTEMS THAT UNIFY ============ -->
+<h2>Part 3: Systems That Unify Both Sides</h2>
+
+<p>Several systems have actually built the bridge between static and dynamic. Here's how:</p>
+
+<div class="card" style="overflow-x:auto;">
+<table>
+<thead>
+<tr><th>System</th><th>Static Side</th><th>Dynamic Side</th><th>Bridge Mechanism</th><th>Status</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Dafny</strong></td>
+  <td>Hoare logic + Z3</td>
+  <td>Runtime assertions</td>
+  <td>Same spec: static when provable, runtime when not</td>
+  <td><span class="tag tag-green">Active (Microsoft)</span></td>
+</tr>
+<tr>
+  <td><strong>Typed Racket</strong></td>
+  <td>Type checking</td>
+  <td>Higher-order contracts</td>
+  <td>Types compile to contracts at boundaries</td>
+  <td><span class="tag tag-green">Production</span></td>
+</tr>
+<tr>
+  <td><strong>JML + OpenJML</strong></td>
+  <td>ESC/Java static checker</td>
+  <td>JML-RAC runtime checks</td>
+  <td>Same annotation: @requires, @ensures</td>
+  <td><span class="tag tag-yellow">Active</span></td>
+</tr>
+<tr>
+  <td><strong>SLAM/SDV</strong></td>
+  <td>Boolean abstraction</td>
+  <td>CEGAR counterexamples</td>
+  <td>Dynamic counterexamples refine static abstraction</td>
+  <td><span class="tag tag-green">Ships in Windows SDK</span></td>
+</tr>
+<tr>
+  <td><strong>Meta Infer</strong></td>
+  <td>Separation logic</td>
+  <td>CI/CD integration</td>
+  <td>Diff-based: only analyze changed code</td>
+  <td><span class="tag tag-green">Production (Meta)</span></td>
+</tr>
+<tr>
+  <td><strong>Daikon → ESC/Java</strong></td>
+  <td>ESC/Java prover</td>
+  <td>Daikon invariant detection</td>
+  <td>Dynamic invariants become static proof obligations</td>
+  <td><span class="tag tag-yellow">Research</span></td>
+</tr>
+<tr>
+  <td><strong>LiquidHaskell</strong></td>
+  <td>Refinement types + Z3</td>
+  <td>QuickCheck counterexamples</td>
+  <td>QuickCheck finds bugs, LH proves absence</td>
+  <td><span class="tag tag-green">Mature</span></td>
+</tr>
+<tr>
+  <td><strong>Gradual Verification</strong></td>
+  <td>Static verification</td>
+  <td>Runtime checks for unverified parts</td>
+  <td>Imprecise specs → dynamic; precise → static</td>
+  <td><span class="tag tag-yellow">Research (2018+)</span></td>
+</tr>
+<tr>
+  <td><strong>CodeContracts (.NET)</strong></td>
+  <td>Clousot static checker</td>
+  <td>Runtime rewriter</td>
+  <td>Same Contract.Requires(), dual mode</td>
+  <td><span class="tag tag-red">Archived 2023</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h3>The CEGAR Loop: The Most Powerful Unification Pattern</h3>
+
+<p><strong>Counterexample-Guided Abstraction Refinement</strong> is the pattern behind SLAM, BLAST, and many modern verifiers. It's a feedback loop between static and dynamic:</p>
+
+<div class="abs-interp" id="cegar-sim">
+  <div style="display:flex; gap:.3rem; margin-bottom:1rem;">
+    <button onclick="runCegar()" style="padding:.4rem .9rem; background:var(--accent); border:none; color:white; border-radius:6px; cursor:pointer; font-size:.85rem; font-weight:600;">Run CEGAR Loop</button>
+    <button onclick="document.getElementById('cegar-steps').innerHTML=''" style="padding:.4rem .9rem; background:var(--surface2); border:1px solid var(--border); color:var(--text2); border-radius:6px; cursor:pointer; font-size:.85rem;">Reset</button>
+  </div>
+  <div id="cegar-steps"></div>
+</div>
+
+<script>
+const cegarSteps = [
+  { status:'info', icon:'1', text:'<strong>Abstract:</strong> Start with coarse abstraction (e.g., track signs: +/−/0)' },
+  { status:'info', icon:'2', text:'<strong>Verify:</strong> Model-check the abstraction for the target property' },
+  { status:'fail', icon:'✗', text:'<strong>Counterexample found!</strong> Abstract model says property might be violated' },
+  { status:'warn', icon:'3', text:'<strong>Check:</strong> Is the counterexample REAL? Simulate it concretely on the actual program' },
+  { status:'pass', icon:'→', text:'<strong>Spurious!</strong> Concrete simulation shows the bug is impossible — the abstraction was too coarse' },
+  { status:'info', icon:'4', text:'<strong>Refine:</strong> Make abstraction more precise (e.g., track intervals instead of just signs)' },
+  { status:'info', icon:'5', text:'<strong>Re-verify:</strong> Model-check the refined abstraction' },
+  { status:'pass', icon:'✓', text:'<strong>Verified!</strong> No more counterexamples — property holds for ALL executions' },
+  { status:'pass', icon:'★', text:'<strong>Result:</strong> Static proof informed by dynamic counterexample checking. Neither alone was enough.' },
+];
+
+function runCegar() {
+  const container = document.getElementById('cegar-steps');
+  container.innerHTML = '';
+  cegarSteps.forEach((s, i) => {
+    setTimeout(() => {
+      const div = document.createElement('div');
+      div.className = `proof-line ${s.status} anim`;
+      div.innerHTML = `<span class="step">${s.icon}</span><span class="content">${s.text}</span>`;
+      container.appendChild(div);
+    }, i * 600);
+  });
+}
+</script>
+
+<p>SLAM used this exact loop to verify Windows device drivers. It found, on average, 1 real bug per driver across 30 sample drivers. It's now standard in the Windows Driver Kit — every driver submitted to Microsoft goes through SLAM/SDV.</p>
+
+
+<!-- ============ SECTION 4: THE ARCHITECTURE FOR KINDSCRIPT ============ -->
+<h2>Part 4: Designing a Unified System — KindScript as Example</h2>
+
+<p>Here's what a system that unifies static and dynamic analysis could look like, concretely, for a TypeScript analyzer:</p>
+
+<h3>The Architecture</h3>
+
+<div class="arch" id="arch-diagram">
+  <div class="arch-layer" onclick="toggleArch(0)" style="border-color:var(--purple);">
+    <div class="icon">📝</div>
+    <div class="info">
+      <div class="label" style="color:var(--purple);">Layer 1: Static Analysis Engine</div>
+      <div class="desc">Parse → Type-check → Abstract interpret → Report</div>
+    </div>
+    <div style="color:var(--text2);">▼</div>
+  </div>
+  <div class="arch-detail" id="arch-detail-0">
+    <p>The static engine analyzes TypeScript source without executing it:</p>
+    <pre><code>// KindScript static analysis pipeline:
+
+// 1. Parse TS to AST (use TypeScript compiler API)
+const program = ts.createProgram(files, options);
+const checker = program.getTypeChecker();
+
+// 2. Type-level analysis (what TS already does)
+//    - Type narrowing in branches
+//    - Generic inference
+//    - Strict null checks
+
+// 3. Abstract interpretation (what KindScript adds)
+//    - Effect tracking: does this function do I/O?
+//    - Purity analysis: does it mutate anything?
+//    - Termination estimation: likely to halt?
+//    - Refinement inference: what value ranges flow here?
+
+// 4. Output: property map per function
+interface StaticReport {
+  effects: Set&lt;'io' | 'mutation' | 'exception' | 'async'&gt;;
+  purity: 'pure' | 'readonly' | 'impure';
+  termination: 'proven' | 'likely' | 'unknown';
+  refinements: Map&lt;string, Refinement&gt;;  // variable → value range
+  confidence: number;  // 0.0 to 1.0
+}</code></pre>
+    <p><span class="tag tag-purple">Over-approximates</span> — never says "pure" when it isn't. May say "impure" when function is actually pure (false positive). This is <strong>sound</strong>.</p>
+  </div>
+
+  <div class="arch-layer" onclick="toggleArch(1)" style="border-color:var(--orange);">
+    <div class="icon">▶️</div>
+    <div class="info">
+      <div class="label" style="color:var(--orange);">Layer 2: Dynamic Analysis Engine</div>
+      <div class="desc">Instrument → Execute → Observe → Record</div>
+    </div>
+    <div style="color:var(--text2);">▼</div>
+  </div>
+  <div class="arch-detail" id="arch-detail-1">
+    <p>The dynamic engine instruments and runs the code:</p>
+    <pre><code>// KindScript dynamic analysis modes:
+
+// MODE A: Contract insertion
+// Generate runtime checks from static analysis results
+function withdraw(amount: number) {
+  // KindScript inserts: (from static refinement inference)
+  __ksc_assert(amount > 0, "precondition: amount > 0");
+  __ksc_assert(amount <= this.balance, "precondition: amount <= balance");
+  // ... original code ...
+  __ksc_assert(this.balance >= 0, "invariant: balance non-negative");
+}
+
+// MODE B: Property-based testing
+// Generate tests that target unproven properties
+fc.assert(fc.property(
+  fc.integer({ min: 0, max: 1000 }),
+  fc.integer({ min: 0, max: 1000 }),
+  (balance, amount) => {
+    // Test the property static analysis couldn't prove
+    const result = withdraw.call({ balance }, amount);
+    return result.balance >= 0;
+  }
+));
+
+// MODE C: Runtime monitoring
+// Watch for effect violations in running code
+__ksc_monitor({
+  target: myPureFunction,
+  disallowed: ['console.log', 'fetch', 'fs.*', 'Math.random'],
+  onViolation: (effect) => report(`Purity violation: ${effect}`)
+});
+
+// MODE D: Invariant detection (Daikon-style)
+// Run on many inputs, detect patterns
+__ksc_observe('sort', {
+  precondition: (arr) => ({ length: arr.length }),
+  postcondition: (arr, result) => ({
+    length: result.length,
+    sorted: isSorted(result),
+    permutation: isPermutation(arr, result)
+  })
+});
+// After 10,000 calls: "Likely invariant: result.length === arr.length"</code></pre>
+    <p><span class="tag tag-orange">Under-approximates</span> — only observes executions that actually happen. Can't find bugs in untested paths. But what it finds is <strong>ground truth</strong>.</p>
+  </div>
+
+  <div class="arch-layer" onclick="toggleArch(2)" style="border-color:var(--green);">
+    <div class="icon">🔗</div>
+    <div class="info">
+      <div class="label" style="color:var(--green);">Layer 3: The Bridge — Unification Engine</div>
+      <div class="desc">Combine static over-approximation + dynamic under-approximation</div>
+    </div>
+    <div style="color:var(--text2);">▼</div>
+  </div>
+  <div class="arch-detail" id="arch-detail-2">
+    <p>This is where the magic happens — the bridge combines both sides:</p>
+    <pre><code>// The unification engine has FIVE strategies:
+
+// STRATEGY 1: Dynamic confirms static
+// Static says: "function f is pure" (confidence: high)
+// Dynamic says: "ran f 10,000 times, no effects observed"
+// Unified: "f is pure" (confidence: very high)
+
+// STRATEGY 2: Dynamic refutes static
+// Static says: "function g might be impure" (conservative)
+// Dynamic says: "ran g 10,000 times, no effects observed"
+// Unified: "g is LIKELY pure" — promote from 'unknown' to 'likely pure'
+
+// STRATEGY 3: Dynamic finds what static missed
+// Static says: "h is pure" (missed a code path)
+// Dynamic says: "h called console.log on input X!"
+// Unified: "h is IMPURE" — dynamic caught unsoundness in static
+
+// STRATEGY 4: CEGAR refinement
+// Static abstraction too coarse → false positive
+// Dynamic counterexample shows it's spurious
+// Refine static abstraction → re-analyze → try again
+
+// STRATEGY 5: Gradual promotion
+// Start: all properties are "unverified" (runtime checked)
+// Phase 1: Dynamic testing builds evidence
+// Phase 2: Static analysis proves some properties
+// Phase 3: Proven properties drop runtime checks
+// Phase 4: Remaining properties keep runtime guards
+
+interface UnifiedReport {
+  property: string;
+  staticResult: 'proven' | 'likely' | 'unknown' | 'disproven';
+  dynamicResult: 'confirmed' | 'no_violation' | 'violated';
+  unified: 'verified' | 'high_confidence' | 'needs_review' | 'violated';
+  runtimeCheckNeeded: boolean;  // false if statically proven
+}</code></pre>
+  </div>
+
+  <div class="arch-layer" onclick="toggleArch(3)" style="border-color:var(--accent);">
+    <div class="icon">📊</div>
+    <div class="info">
+      <div class="label" style="color:var(--accent);">Layer 4: The Confidence Dashboard</div>
+      <div class="desc">Report what's proven, what's likely, and what's unknown</div>
+    </div>
+    <div style="color:var(--text2);">▼</div>
+  </div>
+  <div class="arch-detail" id="arch-detail-3">
+    <p>The output isn't binary (safe/unsafe) — it's a confidence spectrum:</p>
+    <div id="conf-dashboard">
+      <div class="conf-meter"><span class="conf-label">Purity</span><div class="conf-bar"><div class="conf-fill" style="width:95%; background:var(--green);"></div></div><span class="conf-value" style="color:var(--green);">95%</span></div>
+      <div class="conf-meter"><span class="conf-label">Termination</span><div class="conf-bar"><div class="conf-fill" style="width:78%; background:var(--yellow);"></div></div><span class="conf-value" style="color:var(--yellow);">78%</span></div>
+      <div class="conf-meter"><span class="conf-label">Null safety</span><div class="conf-bar"><div class="conf-fill" style="width:100%; background:var(--green);"></div></div><span class="conf-value" style="color:var(--green);">100%</span></div>
+      <div class="conf-meter"><span class="conf-label">Bounds safe</span><div class="conf-bar"><div class="conf-fill" style="width:87%; background:var(--green);"></div></div><span class="conf-value" style="color:var(--green);">87%</span></div>
+      <div class="conf-meter"><span class="conf-label">No side effects</span><div class="conf-bar"><div class="conf-fill" style="width:62%; background:var(--orange);"></div></div><span class="conf-value" style="color:var(--orange);">62%</span></div>
+      <div class="conf-meter"><span class="conf-label">Type safety</span><div class="conf-bar"><div class="conf-fill" style="width:91%; background:var(--green);"></div></div><span class="conf-value" style="color:var(--green);">91%</span></div>
+    </div>
+    <pre><code>// Dashboard breakdown for "Purity: 95%":
+//
+// 127 functions analyzed
+//  ├─ 108 statically proven pure           (85%)  → no runtime check needed
+//  ├─  13 dynamically confirmed pure       (10%)  → runtime monitor active
+//  ├─   4 unknown (insufficient evidence)  ( 3%)  → runtime check inserted
+//  └─   2 proven impure                    ( 2%)  → marked as effectful</code></pre>
+  </div>
+</div>
+
+<script>
+function toggleArch(idx) {
+  const detail = document.getElementById('arch-detail-' + idx);
+  const layer = detail.previousElementSibling;
+  const isOpen = detail.classList.contains('open');
+  detail.classList.toggle('open');
+  layer.classList.toggle('open');
+}
+</script>
+
+<h3>The Gradual Verification Path</h3>
+
+<p>The most practical approach for KindScript: <strong>start dynamic, graduate to static</strong>. This mirrors how TypeScript itself evolved — start with JavaScript (all dynamic), gradually add types (static).</p>
+
+<div class="pipeline">
+  <div class="pipe-node dynamic"><div class="label">Phase 0</div><div class="desc">Runtime only</div></div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-node dynamic"><div class="label">Phase 1</div><div class="desc">Runtime + observe</div></div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-node unified"><div class="label">Phase 2</div><div class="desc">Infer + runtime</div></div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-node unified"><div class="label">Phase 3</div><div class="desc">Prove + fallback</div></div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-node static"><div class="label">Phase 4</div><div class="desc">Mostly static</div></div>
+</div>
+
+<div class="tabs" id="phase-tabs">
+  <div class="tab active" onclick="switchPhase(0)">Phase 0</div>
+  <div class="tab" onclick="switchPhase(1)">Phase 1</div>
+  <div class="tab" onclick="switchPhase(2)">Phase 2</div>
+  <div class="tab" onclick="switchPhase(3)">Phase 3</div>
+  <div class="tab" onclick="switchPhase(4)">Phase 4</div>
+</div>
+
+<div class="tab-content active" id="phase-panel-0">
+  <h4 style="color:var(--orange);">Phase 0: Runtime Only</h4>
+  <pre><code>// Just add runtime contracts (Zod-style validation)
+// No static analysis yet — build the contract vocabulary
+
+/** @ksc pure */
+function add(a: number, b: number): number {
+  return a + b;
+}
+// KindScript runtime: wraps `add` with a monitor
+// that checks it doesn't perform effects.
+// Violation? → report & log.</code></pre>
+  <p>Start here. No complex infrastructure. Just runtime monitoring and contract checking. Build user trust and collect data about how programs actually behave.</p>
+</div>
+
+<div class="tab-content" id="phase-panel-1">
+  <h4 style="color:var(--orange);">Phase 1: Runtime + Observe (Daikon-style)</h4>
+  <pre><code>// Run the test suite with instrumentation ON
+// Observe patterns, propose invariants
+
+// After 10,000 test runs, KindScript observes:
+// add: ∀ inputs → no effects, always returns, output = a + b
+// sort: ∀ inputs → output.length === input.length, output is sorted
+// fetchUser: calls fetch(), throws on 404
+
+// Generate report:
+// "Likely invariants discovered: 47
+//  Functions likely pure: 108 of 127
+//  Functions that always terminate: 125 of 127"</code></pre>
+  <p>Now you have <em>evidence</em>. Not proofs, but strong empirical evidence. Users see which functions are probably pure, probably terminate, etc.</p>
+</div>
+
+<div class="tab-content" id="phase-panel-2">
+  <h4 style="color:var(--green);">Phase 2: Infer + Runtime Fallback</h4>
+  <pre><code>// Static analysis infers properties from code structure
+// Where it can't prove → keep runtime checks
+
+function processOrder(order: Order): Receipt {
+  // Static: infers no I/O, no mutation → PURE ✓ (proven)
+  // Static: infers terminates (no loops/recursion) → HALTS ✓ (proven)
+  // → No runtime checks needed!
+
+  const tax = order.total * 0.08;
+  return { ...order, tax, finalTotal: order.total + tax };
+}
+
+function complexCalc(data: Data[]): Result {
+  // Static: can't prove termination (has while loop)
+  // Dynamic: never seen to loop > 1000 iterations
+  // → Runtime guard inserted:
+  __ksc_guard_iterations(1000, "complexCalc loop");
+  // → Property: "likely terminates" (confidence: 82%)
+}</code></pre>
+  <p>The hybrid: static proves what it can, dynamic guards the rest. Gradually, as the static engine improves, more properties get promoted from "runtime-checked" to "statically proven."</p>
+</div>
+
+<div class="tab-content" id="phase-panel-3">
+  <h4 style="color:var(--green);">Phase 3: Prove + Fallback</h4>
+  <pre><code>// CEGAR-style refinement loop active
+// Static analysis tries to prove properties
+// When it produces false positives:
+//   1. Dynamic testing shows the alarm is spurious
+//   2. Abstraction is refined (more precise domain)
+//   3. Re-analyze with refined abstraction
+
+// Result: most properties are now statically proven
+// Remaining unknowns have runtime guards
+
+// Dashboard: Purity 95% proven, Termination 78% proven
+// The 5% and 22% still have runtime monitors</code></pre>
+</div>
+
+<div class="tab-content" id="phase-panel-4">
+  <h4 style="color:var(--purple);">Phase 4: Mostly Static</h4>
+  <pre><code>// With refinement types + effect types + termination analysis:
+// Most properties are statically verified
+// Runtime checks only at system boundaries (external input, FFI)
+
+// The dream:
+// "127 functions analyzed
+//  121 fully verified statically (95%)
+//    4 verified with runtime evidence (3%)
+//    2 require runtime guards (2%)
+//
+//  All array accesses: proven safe
+//  All divisions: proven safe (non-zero divisors)
+//  All functions: proven pure or effects documented
+//  Termination: 125/127 proven (2 require timeout guards)"</code></pre>
+</div>
+
+<script>
+function switchPhase(idx) {
+  document.querySelectorAll('#phase-tabs .tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  for(let i=0;i<5;i++) document.getElementById('phase-panel-'+i).classList.toggle('active', i===idx);
+}
+</script>
+
+
+<!-- ============ SECTION 5: CONCRETE OPTIONS ============ -->
+<h2>Part 5: Concrete Implementation Options for KindScript</h2>
+
+<p>What can you actually build today?</p>
+
+<div class="card-grid">
+  <div class="card" style="border-color:var(--purple);">
+    <h4 style="color:var(--purple);">Static: TypeScript Compiler API</h4>
+    <p>Use <code>ts.createProgram()</code> to parse and type-check. Walk the AST, track effects through the call graph, infer refinements from guards and narrowing. This is your abstract interpreter.</p>
+    <span class="tag tag-green">Available now</span> <span class="tag tag-purple">Core of KindScript</span>
+  </div>
+  <div class="card" style="border-color:var(--purple);">
+    <h4 style="color:var(--purple);">Static: z3-solver (npm)</h4>
+    <p>Z3 compiled to WASM, usable from Node.js. Send verification conditions from your abstract interpreter to Z3 for SMT solving. Enables refinement type checking.</p>
+    <span class="tag tag-green">Available now</span> <span class="tag tag-yellow">Complex integration</span>
+  </div>
+  <div class="card" style="border-color:var(--orange);">
+    <h4 style="color:var(--orange);">Dynamic: fast-check</h4>
+    <p>Property-based testing for JS/TS. Generate random inputs, test invariants. Use KindScript's static analysis to <em>generate</em> the properties to test.</p>
+    <span class="tag tag-green">Production-ready</span> <span class="tag tag-green">13k+ downloads/week</span>
+  </div>
+  <div class="card" style="border-color:var(--orange);">
+    <h4 style="color:var(--orange);">Dynamic: Proxy-based effect monitoring</h4>
+    <p>Wrap functions in ES Proxies that intercept all property access, function calls, and mutations. Detect impurity, effect leakage, and contract violations at runtime.</p>
+    <span class="tag tag-green">Available now</span> <span class="tag tag-yellow">Performance overhead</span>
+  </div>
+  <div class="card" style="border-color:var(--green);">
+    <h4 style="color:var(--green);">Bridge: Zod as contract language</h4>
+    <p>Use Zod schemas as the shared specification language. Static side: infer Zod schemas from code. Dynamic side: enforce Zod schemas at boundaries. Same spec, dual enforcement — like CodeContracts for TypeScript.</p>
+    <span class="tag tag-green">Available now</span> <span class="tag tag-green">Ecosystem fit</span>
+  </div>
+  <div class="card" style="border-color:var(--green);">
+    <h4 style="color:var(--green);">Bridge: Effect-TS as effect system</h4>
+    <p>Effect-TS already tracks effects in the type system (<code>Effect&lt;A, E, R&gt;</code>). KindScript could analyze Effect-TS code with much higher precision — the effect types ARE the specification.</p>
+    <span class="tag tag-green">Available now</span> <span class="tag tag-blue">Natural fit</span>
+  </div>
+</div>
+
+
+<!-- ============ SECTION 6: COMPARISON TABLE ============ -->
+<h2>Comparative Landscape</h2>
+
+<div class="card" style="overflow-x:auto;">
+<table>
+<thead>
+<tr><th>Approach</th><th>Sound?</th><th>Complete?</th><th>Effort</th><th>What it catches</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>TypeScript compiler</strong></td>
+  <td><span class="tag tag-red">No</span></td>
+  <td>N/A</td>
+  <td>Zero</td>
+  <td>Type errors (with escape hatches)</td>
+</tr>
+<tr>
+  <td><strong>ESLint rules</strong></td>
+  <td><span class="tag tag-red">No</span></td>
+  <td><span class="tag tag-red">No</span></td>
+  <td>Low</td>
+  <td>Pattern-based issues (single file)</td>
+</tr>
+<tr>
+  <td><strong>Zod validation</strong></td>
+  <td><span class="tag tag-green">At boundary</span></td>
+  <td><span class="tag tag-red">No</span></td>
+  <td>Medium</td>
+  <td>Invalid data at edges</td>
+</tr>
+<tr>
+  <td><strong>fast-check PBT</strong></td>
+  <td><span class="tag tag-red">No</span></td>
+  <td><span class="tag tag-red">No</span></td>
+  <td>Medium</td>
+  <td>Counterexamples to properties</td>
+</tr>
+<tr>
+  <td><strong>Abstract interpretation</strong></td>
+  <td><span class="tag tag-green">Yes</span></td>
+  <td><span class="tag tag-yellow">Approx</span></td>
+  <td>High</td>
+  <td>All violations of abstracted property</td>
+</tr>
+<tr>
+  <td><strong>Refinement types + SMT</strong></td>
+  <td><span class="tag tag-green">Yes</span></td>
+  <td><span class="tag tag-yellow">Decidable fragment</span></td>
+  <td>High</td>
+  <td>Arithmetic/bounds/null/division violations</td>
+</tr>
+<tr>
+  <td><strong>KindScript (unified)</strong></td>
+  <td><span class="tag tag-green">Static part</span></td>
+  <td><span class="tag tag-green">Dynamic fills gaps</span></td>
+  <td>Graduated</td>
+  <td>Effects, purity, termination, bounds, types</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ QUIZ ============ -->
+<h2>Check Your Understanding</h2>
+
+<div class="quiz" id="q1">
+  <h4>Q1: What does the Galois connection in abstract interpretation guarantee?</h4>
+  <div class="quiz-opt" onclick="checkQ('q1',this,false)">That the static analysis finds all bugs</div>
+  <div class="quiz-opt" onclick="checkQ('q1',this,true)">That if the abstraction says "safe," every concrete execution is safe (soundness)</div>
+  <div class="quiz-opt" onclick="checkQ('q1',this,false)">That the concrete and abstract domains have the same number of elements</div>
+  <div class="quiz-opt" onclick="checkQ('q1',this,false)">That the analysis runs in polynomial time</div>
+  <div class="quiz-fb" id="q1-fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <h4>Q2: What does the CEGAR loop do when it finds a spurious counterexample?</h4>
+  <div class="quiz-opt" onclick="checkQ('q2',this,false)">Reports it as a bug anyway (conservative)</div>
+  <div class="quiz-opt" onclick="checkQ('q2',this,false)">Gives up and says "unknown"</div>
+  <div class="quiz-opt" onclick="checkQ('q2',this,true)">Refines the abstraction to be more precise, then re-verifies</div>
+  <div class="quiz-opt" onclick="checkQ('q2',this,false)">Switches to dynamic analysis exclusively</div>
+  <div class="quiz-fb" id="q2-fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <h4>Q3: Why is "gradual verification" a good model for KindScript?</h4>
+  <div class="quiz-opt" onclick="checkQ('q3',this,false)">Because TypeScript is already gradually typed</div>
+  <div class="quiz-opt" onclick="checkQ('q3',this,false)">Because it's faster than static analysis</div>
+  <div class="quiz-opt" onclick="checkQ('q3',this,true)">Because you can start with runtime checks everywhere and progressively replace them with static proofs, without requiring everything upfront</div>
+  <div class="quiz-opt" onclick="checkQ('q3',this,false)">Because it doesn't require any static analysis</div>
+  <div class="quiz-fb" id="q3-fb"></div>
+</div>
+
+<script>
+const qAns = {
+  q1: 'The Galois connection guarantees soundness: α(γ(a)) ≤ a, meaning the abstraction never under-approximates. If the abstract interpreter says "this value is always positive," then in every concrete execution, it truly is. It may produce false positives (saying "unknown" when the value IS positive), but never false negatives (saying "positive" when it isn\'t).',
+  q2: 'CEGAR uses the spurious counterexample to identify WHERE the abstraction was too coarse. It refines the abstraction (e.g., switching from sign analysis to interval analysis in the relevant region), then re-runs the model checker. This loop continues until either a real bug is found or the property is verified. It\'s the most powerful pattern for combining static and dynamic analysis.',
+  q3: 'Gradual verification mirrors TypeScript\'s own adoption strategy: start with everything "unverified" (runtime-checked), then incrementally add static guarantees as the tool matures and the user adds annotations. Properties that are statically proven can drop their runtime checks. Properties that can\'t be proven yet keep their runtime guards. You never need to verify everything at once — the system is useful from day one.'
+};
+
+function checkQ(qid, el, correct) {
+  document.getElementById(qid).querySelectorAll('.quiz-opt').forEach(o => o.style.pointerEvents = 'none');
+  el.classList.add(correct ? 'correct' : 'wrong');
+  const fb = document.getElementById(qid + '-fb');
+  fb.style.display = 'block';
+  fb.style.background = correct ? 'rgba(78,205,196,.1)' : 'rgba(255,107,107,.1)';
+  fb.style.color = correct ? 'var(--green)' : 'var(--text2)';
+  fb.textContent = (correct ? '✓ ' : '✗ Not quite. ') + qAns[qid];
+}
+</script>
+
+
+<!-- ============ FOOTER ============ -->
+<div style="margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border); color:var(--text2); font-size:.85rem;">
+  <p><strong>Key references:</strong> Cousot & Cousot, <em>Abstract Interpretation: A Unified Lattice Model</em> (POPL 1977) — the foundation. Findler & Felleisen, <em>Contracts for Higher-Order Functions</em> (ICFP 2002) — blame tracking. Ball & Rajamani, <em>The SLAM Project</em> (2002) — CEGAR for real software. Godefroid et al., <em>SAGE</em> (2008) — concolic testing at scale. Bader et al., <em>Gradual Program Verification</em> (VMCAI 2018) — the gradual approach. Ernst et al., <em>Daikon</em> — dynamic invariant detection.</p>
+  <p style="margin-top:.5rem;">Part of the <a href="./interactive-complete-property-space.html" style="color:var(--accent);">KindScript Property Space</a> documentation series.</p>
+</div>
+
+</body>
+</html>

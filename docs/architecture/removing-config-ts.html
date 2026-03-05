@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Removing config.ts — Options Analysis</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --purple: #bc8cff;
+    --orange: #f0883e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  h1 { color: var(--accent); margin-bottom: 0.5rem; font-size: 1.8rem; }
+  h2 { color: var(--purple); margin: 2rem 0 0.75rem; font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { color: var(--text); margin: 1.2rem 0 0.5rem; font-size: 1.05rem; }
+  .subtitle { color: var(--text-dim); margin-bottom: 2rem; font-size: 0.95rem; }
+  p, li { color: var(--text); margin-bottom: 0.5rem; }
+  ul { padding-left: 1.5rem; }
+
+  .problem-box {
+    background: var(--surface);
+    border-left: 3px solid var(--red);
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+  .problem-box h3 { color: var(--red); margin-top: 0; }
+
+  pre {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 0.75rem 0;
+  }
+  code { font-family: 'SF Mono', 'Fira Code', monospace; }
+  .inline-code {
+    background: var(--surface2);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+
+  .option-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin: 1rem 0;
+    position: relative;
+  }
+  .option-card.recommended {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px var(--green);
+  }
+  .option-card h3 { margin-top: 0; }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15em 0.5em;
+    border-radius: 3px;
+    text-transform: uppercase;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+  }
+  .badge-rec { background: var(--green); color: #000; }
+  .badge-ts { background: var(--accent); color: #000; }
+  .badge-alt { background: var(--orange); color: #000; }
+  .badge-no { background: var(--red); color: #fff; }
+
+  .pro-con { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0.75rem 0; }
+  .pro-con > div { font-size: 0.9rem; }
+  .pro-con .label { font-weight: 600; margin-bottom: 0.25rem; }
+  .pro-con .pros .label { color: var(--green); }
+  .pro-con .cons .label { color: var(--red); }
+
+  .diff { margin: 0.75rem 0; }
+  .diff-header { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.25rem; }
+  .diff-del { color: var(--red); }
+  .diff-add { color: var(--green); }
+
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+  .comparison-table th, .comparison-table td {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+  .comparison-table th {
+    background: var(--surface2);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .comparison-table td { background: var(--surface); }
+
+  .summary-box {
+    background: var(--surface);
+    border: 2px solid var(--green);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin: 2rem 0;
+  }
+  .summary-box h3 { color: var(--green); margin-top: 0; }
+
+  .file-tree {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: var(--text-dim);
+  }
+  .file-tree .deleted { color: var(--red); text-decoration: line-through; }
+  .file-tree .modified { color: var(--yellow); }
+  .file-tree .unchanged { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<h1>Removing config.ts</h1>
+<p class="subtitle">Options for eliminating the config module and simplifying the type pipeline</p>
+
+<!-- ── THE PROBLEM ───────────────────────────────────────────── -->
+
+<h2>The Problem</h2>
+
+<div class="problem-box">
+<h3>1. RuleSet and PropertySpec are duplicates</h3>
+<p><code class="inline-code">config.ts:RuleSet</code> and <code class="inline-code">types.ts:PropertySpec</code> define the exact same fields. The binder bridges them with an unsafe cast:</p>
+<pre><code>declaredProperties: (entry.rules ?? {}) as PropertySpec</code></pre>
+<p>If you add a rule to one and forget the other, there's no compiler error — just a silent mismatch.</p>
+</div>
+
+<div class="problem-box">
+<h3>2. defineConfig is a no-op</h3>
+<pre><code>export function defineConfig(config: KindScriptConfig): KindScriptConfig {
+  return config;  // literally identity
+}</code></pre>
+<p>It only exists for IDE autocompletion. TypeScript's <code class="inline-code">satisfies</code> operator (TS 4.9+) does this without a function.</p>
+</div>
+
+<div class="problem-box">
+<h3>3. Unnecessary module boundary</h3>
+<p><code class="inline-code">config.ts</code> is 72 lines. 5 files import from it. The types are core to the compiler — they belong with the other compiler types in <code class="inline-code">types.ts</code>.</p>
+</div>
+
+<!-- ── HOW TYPESCRIPT DOES IT ────────────────────────────────── -->
+
+<h2>How TypeScript Does It</h2>
+
+<table class="comparison-table">
+<tr>
+  <th>Aspect</th>
+  <th>TypeScript Compiler</th>
+  <th>KindScript (current)</th>
+</tr>
+<tr>
+  <td>Config format</td>
+  <td>JSON (<code class="inline-code">tsconfig.json</code>)</td>
+  <td>TypeScript code (<code class="inline-code">kindscript.config.ts</code>)</td>
+</tr>
+<tr>
+  <td>Config types location</td>
+  <td>In main <code class="inline-code">types.ts</code> alongside all other types</td>
+  <td>Separate <code class="inline-code">config.ts</code> module</td>
+</tr>
+<tr>
+  <td>Duplicate types?</td>
+  <td>No — <code class="inline-code">CompilerOptions</code> is used everywhere</td>
+  <td>Yes — <code class="inline-code">RuleSet</code> + <code class="inline-code">PropertySpec</code></td>
+</tr>
+<tr>
+  <td>Config helper</td>
+  <td>None needed (JSON)</td>
+  <td><code class="inline-code">defineConfig()</code> identity function</td>
+</tr>
+<tr>
+  <td>Type guard</td>
+  <td>Inline checks or <code class="inline-code">utilities.ts</code></td>
+  <td><code class="inline-code">isCompositeEntry()</code> in config.ts</td>
+</tr>
+</table>
+
+<p style="margin-top: 1rem;">Key insight: TypeScript keeps <strong>one</strong> <code class="inline-code">CompilerOptions</code> interface that flows from <code class="inline-code">tsconfig.json</code> parsing all the way through to the checker. There is no "config CompilerOptions" vs "internal CompilerOptions".</p>
+
+<!-- ── THE OPTIONS ───────────────────────────────────────────── -->
+
+<h2>The Options</h2>
+
+<!-- Option A -->
+<div class="option-card recommended">
+<h3>Option A: Merge into types.ts, delete config.ts <span class="badge badge-rec">Recommended</span></h3>
+
+<p>Kill <code class="inline-code">RuleSet</code>, keep <code class="inline-code">PropertySpec</code> as the single source of truth. Move <code class="inline-code">TargetEntry</code>, <code class="inline-code">CompositeEntry</code>, <code class="inline-code">KindScriptConfig</code> into <code class="inline-code">types.ts</code>. Move <code class="inline-code">isCompositeEntry</code> into <code class="inline-code">binder.ts</code> (its only consumer). Drop <code class="inline-code">defineConfig</code>.</p>
+
+<div class="diff">
+<div class="diff-header">types.ts changes:</div>
+<pre><code><span class="diff-add">// Config entry types (moved from config.ts)
+export interface TargetEntry {
+  readonly path: string;
+  readonly rules?: PropertySpec;     // was RuleSet — same type, no cast needed
+}
+
+export interface CompositeEntry {
+  readonly members: Record&lt;string, TargetEntry&gt;;
+  readonly rules?: PropertySpec;
+}
+
+export type ConfigEntry = TargetEntry | CompositeEntry;
+export type KindScriptConfig = Record&lt;string, ConfigEntry&gt;;</span></code></pre>
+</div>
+
+<div class="diff">
+<div class="diff-header">binder.ts changes:</div>
+<pre><code><span class="diff-del">- import type { KindScriptConfig } from './config.js';
+- import { isCompositeEntry } from './config.js';
+- declaredProperties: (entry.rules ?? {}) as PropertySpec,</span>
+<span class="diff-add">+ import type { KindScriptConfig, ConfigEntry, CompositeEntry } from './types.js';
++ function isCompositeEntry(e: ConfigEntry): e is CompositeEntry { return 'members' in e; }
++ declaredProperties: entry.rules ?? {},</span></code></pre>
+</div>
+
+<div class="diff">
+<div class="diff-header">User config files:</div>
+<pre><code><span class="diff-del">- import { defineConfig } from 'kindscript';
+- export default defineConfig({ ... });</span>
+<span class="diff-add">+ import type { KindScriptConfig } from 'kindscript';
++ export default { ... } satisfies KindScriptConfig;</span></code></pre>
+</div>
+
+<div class="pro-con">
+<div class="pros">
+  <div class="label">Pros</div>
+  <ul>
+    <li>Eliminates the RuleSet/PropertySpec duplication entirely</li>
+    <li>Removes the unsafe <code class="inline-code">as PropertySpec</code> cast</li>
+    <li>One fewer file in src/</li>
+    <li>Follows TypeScript's own pattern</li>
+    <li><code class="inline-code">satisfies</code> is standard TS — no custom helper</li>
+  </ul>
+</div>
+<div class="cons">
+  <div class="label">Cons</div>
+  <ul>
+    <li>types.ts grows ~20 lines</li>
+    <li>Requires TS 4.9+ for <code class="inline-code">satisfies</code> (already required by the project)</li>
+    <li>Breaking change for users importing <code class="inline-code">defineConfig</code></li>
+  </ul>
+</div>
+</div>
+
+<div class="file-tree">
+  <div>src/</div>
+  <div>&nbsp;&nbsp;<span class="deleted">config.ts</span></div>
+  <div>&nbsp;&nbsp;<span class="modified">types.ts</span> ← gains config types</div>
+  <div>&nbsp;&nbsp;<span class="modified">binder.ts</span> ← imports from types, gets isCompositeEntry</div>
+  <div>&nbsp;&nbsp;<span class="modified">index.ts</span> ← re-exports from types instead of config</div>
+  <div>&nbsp;&nbsp;<span class="unchanged">checker.ts, linker.ts, program.ts</span> ← untouched</div>
+</div>
+</div>
+
+<!-- Option B -->
+<div class="option-card">
+<h3>Option B: JSON config like TypeScript <span class="badge badge-ts">TS Pattern</span></h3>
+
+<p>Switch to <code class="inline-code">kindscript.json</code> (or a <code class="inline-code">"kindscript"</code> key in <code class="inline-code">tsconfig.json</code>). Parse it in the CLI like TypeScript parses <code class="inline-code">tsconfig.json</code>.</p>
+
+<pre><code>// kindscript.json
+{
+  "domain": { "path": "./src/domain", "rules": { "pure": true, "noIO": true } },
+  "app": {
+    "members": {
+      "domain": { "path": "./src/domain" },
+      "infra":  { "path": "./src/infra" }
+    },
+    "rules": { "noDependency": [["domain", "infra"]] }
+  }
+}</code></pre>
+
+<div class="pro-con">
+<div class="pros">
+  <div class="label">Pros</div>
+  <ul>
+    <li>Closest to TypeScript's actual pattern</li>
+    <li>No dynamic import / tsx/ts-node dependency for config loading</li>
+    <li>JSON Schema gives IDE autocompletion without any helper function</li>
+    <li>Can be embedded in <code class="inline-code">tsconfig.json</code> (like Jest, ESLint flat configs started in JSON)</li>
+  </ul>
+</div>
+<div class="cons">
+  <div class="label">Cons</div>
+  <ul>
+    <li>Loses programmatic config (computed paths, env-based rules)</li>
+    <li>No comments in JSON (JSONC would help)</li>
+    <li>Need to write/maintain a JSON Schema for autocompletion</li>
+    <li>Bigger migration — changes the entire config surface</li>
+  </ul>
+</div>
+</div>
+</div>
+
+<!-- Option C -->
+<div class="option-card">
+<h3>Option C: Merge types + keep defineConfig as re-export <span class="badge badge-alt">Conservative</span></h3>
+
+<p>Same as Option A but keep <code class="inline-code">defineConfig</code> as a one-liner in <code class="inline-code">index.ts</code> for backwards compatibility. Deprecate it.</p>
+
+<pre><code>// index.ts
+/** @deprecated Use `satisfies KindScriptConfig` instead. */
+export const defineConfig = (c: KindScriptConfig): KindScriptConfig => c;</code></pre>
+
+<div class="pro-con">
+<div class="pros">
+  <div class="label">Pros</div>
+  <ul>
+    <li>Non-breaking — existing configs keep working</li>
+    <li>Still eliminates the duplicate types and config.ts file</li>
+    <li>Gradual migration path</li>
+  </ul>
+</div>
+<div class="cons">
+  <div class="label">Cons</div>
+  <ul>
+    <li>Keeps dead code around (the identity function)</li>
+    <li>Users won't migrate unless forced</li>
+  </ul>
+</div>
+</div>
+</div>
+
+<!-- Option D -->
+<div class="option-card">
+<h3>Option D: tsconfig.json plugin field <span class="badge badge-alt">Ambitious</span></h3>
+
+<p>Piggyback on <code class="inline-code">tsconfig.json</code>'s <code class="inline-code">plugins</code> array, like <code class="inline-code">typescript-eslint</code> and <code class="inline-code">ts-sql-plugin</code> do:</p>
+
+<pre><code>// tsconfig.json
+{
+  "compilerOptions": {
+    "plugins": [{
+      "name": "kindscript",
+      "targets": {
+        "domain": { "path": "./src/domain", "rules": { "pure": true } }
+      }
+    }]
+  }
+}</code></pre>
+
+<div class="pro-con">
+<div class="pros">
+  <div class="label">Pros</div>
+  <ul>
+    <li>Zero extra config files — lives in tsconfig.json</li>
+    <li>Enables Language Service Plugin for real-time IDE feedback</li>
+    <li>Established TypeScript pattern</li>
+  </ul>
+</div>
+<div class="cons">
+  <div class="label">Cons</div>
+  <ul>
+    <li>Plugin field is typed as <code class="inline-code">any</code> — no autocompletion without a schema</li>
+    <li>Mixes concerns (TS compiler options + KS architectural rules)</li>
+    <li>Requires building a TS Language Service Plugin (significant work)</li>
+    <li>Locks you into TypeScript's config parsing</li>
+  </ul>
+</div>
+</div>
+</div>
+
+<!-- ── COMPARISON ────────────────────────────────────────────── -->
+
+<h2>Comparison Matrix</h2>
+
+<table class="comparison-table">
+<tr>
+  <th></th>
+  <th>A: Merge</th>
+  <th>B: JSON</th>
+  <th>C: Deprecate</th>
+  <th>D: Plugin</th>
+</tr>
+<tr>
+  <td>Removes config.ts</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+</tr>
+<tr>
+  <td>Removes type duplication</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+</tr>
+<tr>
+  <td>Removes unsafe cast</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--green)">Yes</td>
+</tr>
+<tr>
+  <td>Non-breaking</td>
+  <td style="color:var(--red)">No</td>
+  <td style="color:var(--red)">No</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--red)">No</td>
+</tr>
+<tr>
+  <td>Effort</td>
+  <td style="color:var(--green)">~30 min</td>
+  <td style="color:var(--yellow)">~2 hrs</td>
+  <td style="color:var(--green)">~30 min</td>
+  <td style="color:var(--red)">Days</td>
+</tr>
+<tr>
+  <td>IDE autocompletion</td>
+  <td><code class="inline-code">satisfies</code></td>
+  <td>JSON Schema</td>
+  <td>Both</td>
+  <td>Plugin API</td>
+</tr>
+<tr>
+  <td>Programmatic config</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--red)">No</td>
+  <td style="color:var(--green)">Yes</td>
+  <td style="color:var(--red)">No</td>
+</tr>
+</table>
+
+<!-- ── RECOMMENDATION ────────────────────────────────────────── -->
+
+<div class="summary-box">
+<h3>Recommendation: Option A (or C if you want a soft landing)</h3>
+<p><strong>Option A</strong> is the right call. It's the smallest change that fixes all three problems. It follows TypeScript's own pattern of keeping one canonical type that flows through the whole pipeline. The <code class="inline-code">as PropertySpec</code> cast disappears because <code class="inline-code">rules</code> is already typed as <code class="inline-code">PropertySpec</code>.</p>
+
+<p style="margin-top: 0.75rem;"><code class="inline-code">defineConfig</code> can go — <code class="inline-code">satisfies</code> is the modern TS way to get type-safe object literals. If backwards compat matters right now, Option C keeps it as a deprecated re-export.</p>
+
+<p style="margin-top: 0.75rem;">Option B (JSON) is worth considering later if you want to support Language Service Plugin integration or eliminate the tsx/ts-node runtime dependency. But it's orthogonal to the type duplication problem.</p>
+</div>
+
+</body>
+</html>

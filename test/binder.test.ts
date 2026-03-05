@@ -1,192 +1,190 @@
 import { describe, it, expect } from 'vitest';
-import { ksBind } from '../src/binder.js';
-import { defineConfig } from '../src/config.js';
+import * as path from 'node:path';
+import ts from 'typescript';
+import { buildKSTree } from '../src/pipeline/convert.js';
+import { createBinderSpec } from '../src/pipeline/binder.js';
+import { createGrammar } from '../libs/ag/src/grammar.js';
+import { createSemantics } from '../libs/ag/src/semantics.js';
+import { interpret } from '../libs/ag/src/interpret.js';
+import { getChildren } from '../src/pipeline/ast.js';
+import type { KSCompilationUnit } from '../src/pipeline/ast.js';
+
+const FIXTURES = path.resolve(__dirname, 'fixtures');
+
+function createKSTree(fixtureDir: string) {
+  const files = ts.sys.readDirectory(
+    path.join(FIXTURES, fixtureDir, 'src'),
+    ['.ts'],
+  );
+  const tsProgram = ts.createProgram(files, {
+    strict: true,
+    noEmit: true,
+    rootDir: path.join(FIXTURES, fixtureDir),
+  });
+  const ksTree = buildKSTree(tsProgram);
+  const grammar = createGrammar(getChildren);
+  const semantics = createSemantics(grammar, [createBinderSpec()]);
+  interpret(semantics, ksTree.root);
+  return ksTree;
+}
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('binder — simple targets', () => {
-  it('creates symbols from config entries', () => {
-    const config = defineConfig({
-      domain: { path: './src/domain', rules: { pure: true, noIO: true } },
-      infrastructure: { path: './src/infrastructure' },
-    });
-    const result = ksBind(config);
+describe('binder attributes — kindDefs', () => {
+  it('finds Kind<...> type aliases', () => {
+    const ksTree = createKSTree('kind-basic');
 
-    expect(result.symbols).toHaveLength(2);
-    expect(result.targets).toHaveLength(2);
+    const allDefs = ksTree.root.compilationUnits.flatMap(cu => (cu as any).kindDefs);
+    const names = allDefs.map((d: any) => d.name);
+    expect(names).toContain('NoImports');
   });
 
-  it('extracts name and rules', () => {
-    const config = defineConfig({
-      domain: { path: './src/domain', rules: { pure: true, noIO: true } },
-    });
-    const result = ksBind(config);
-    const sym = result.symbols[0];
+  it('extracts properties from Kind type argument', () => {
+    const ksTree = createKSTree('kind-basic');
 
-    expect(sym.name).toBe('domain');
-    expect(sym.declaredProperties).toEqual({ pure: true, noIO: true });
+    const allDefs = ksTree.root.compilationUnits.flatMap(cu => (cu as any).kindDefs);
+    const noImports = allDefs.find((d: any) => d.name === 'NoImports');
+    expect(noImports).toBeDefined();
+    expect(noImports!.properties.noImports).toBe(true);
   });
 
-  it('handles entries with no rules', () => {
-    const config = defineConfig({
-      infra: { path: './src/infrastructure' },
-    });
-    const result = ksBind(config);
-    const sym = result.symbols[0];
+  it('assigns unique IDs to definitions', () => {
+    const ksTree = createKSTree('kind-basic');
 
-    expect(sym.name).toBe('infra');
-    expect(sym.declaredProperties).toEqual({});
+    const allDefs = ksTree.root.compilationUnits.flatMap(cu => (cu as any).kindDefs);
+    const ids = allDefs.map((d: any) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('extracts path from entries', () => {
-    const config = defineConfig({
-      domain: { path: './src/domain' },
-    });
-    const result = ksBind(config);
-    expect(result.symbols[0].path).toBe('./src/domain');
-  });
+  it('does not pick up non-Kind type aliases', () => {
+    const ksTree = createKSTree('kind-basic');
 
-  it('detects directory targets (no file extension)', () => {
-    const config = defineConfig({
-      domain: { path: './src/domain' },
-    });
-    const result = ksBind(config);
-    expect(result.symbols[0].valueKind).toBe('directory');
-  });
-
-  it('detects file targets (has file extension)', () => {
-    const config = defineConfig({
-      utils: { path: './src/utils.ts' },
-    });
-    const result = ksBind(config);
-    expect(result.symbols[0].valueKind).toBe('file');
-  });
-
-  it('assigns unique IDs', () => {
-    const config = defineConfig({
-      a: { path: './a' },
-      b: { path: './b' },
-      c: { path: './c' },
-    });
-    const result = ksBind(config);
-    const ids = result.symbols.map(s => s.id);
-    expect(new Set(ids).size).toBe(3);
-  });
-
-  it('handles numeric properties (maxFanOut)', () => {
-    const config = defineConfig({
-      controllers: { path: './src/controllers', rules: { maxFanOut: 5 } },
-    });
-    const result = ksBind(config);
-    expect(result.symbols[0].declaredProperties.maxFanOut).toBe(5);
-  });
-
-  it('handles string properties (scope)', () => {
-    const config = defineConfig({
-      modules: { path: './src/modules', rules: { scope: 'folder' } },
-    });
-    const result = ksBind(config);
-    expect(result.symbols[0].declaredProperties.scope).toBe('folder');
+    const allDefs = ksTree.root.compilationUnits.flatMap(cu => (cu as any).kindDefs);
+    const names = allDefs.map((d: any) => d.name);
+    expect(names).not.toContain('PropertySet');
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('binder — composite targets', () => {
-  const config = defineConfig({
-    app: {
-      members: {
-        domain: { path: './src/domain', rules: { pure: true, noIO: true } },
-        infrastructure: { path: './src/infrastructure' },
-        application: { path: './src/application', rules: { noConsole: true } },
-      },
-      rules: {
-        noDependency: [['domain', 'infrastructure'], ['domain', 'application']],
-        noCycles: ['domain', 'infrastructure', 'application'],
-      },
-    },
+describe('binder attributes — kindDefs per file', () => {
+  it('returns definitions for a compilation unit', () => {
+    const ksTree = createKSTree('kind-basic');
+
+    const kindsFile = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('kinds.ts'),
+    );
+    expect(kindsFile).toBeDefined();
+
+    const defs = (kindsFile as any).kindDefs;
+    expect(defs.length).toBeGreaterThan(0);
+    expect(defs[0].name).toBe('NoImports');
   });
 
-  it('creates member symbols and composite symbol', () => {
-    const result = ksBind(config);
-    // 3 members + 1 composite
-    expect(result.symbols).toHaveLength(4);
-    // Only 1 top-level target (the composite)
-    expect(result.targets).toHaveLength(1);
-  });
+  it('returns empty array for files with no kind definitions', () => {
+    const ksTree = createKSTree('kind-basic');
 
-  it('composite symbol has correct name and valueKind', () => {
-    const result = ksBind(config);
-    const composite = result.targets[0];
-    expect(composite.name).toBe('app');
-    expect(composite.valueKind).toBe('composite');
-  });
+    const mathFile = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('math.ts'),
+    );
+    expect(mathFile).toBeDefined();
 
-  it('extracts relational properties: noDependency', () => {
-    const result = ksBind(config);
-    const composite = result.targets[0];
-    expect(composite.declaredProperties.noDependency).toEqual([
-      ['domain', 'infrastructure'],
-      ['domain', 'application'],
-    ]);
-  });
-
-  it('extracts relational properties: noCycles', () => {
-    const result = ksBind(config);
-    const composite = result.targets[0];
-    expect(composite.declaredProperties.noCycles).toEqual([
-      'domain',
-      'infrastructure',
-      'application',
-    ]);
-  });
-
-  it('resolves composite members', () => {
-    const result = ksBind(config);
-    const composite = result.targets[0];
-    expect(composite.members).toBeDefined();
-    expect(composite.members!.size).toBe(3);
-
-    const memberNames = [...composite.members!.keys()];
-    expect(memberNames).toContain('domain');
-    expect(memberNames).toContain('infrastructure');
-    expect(memberNames).toContain('application');
-  });
-
-  it('members carry their declared rules', () => {
-    const result = ksBind(config);
-    const composite = result.targets[0];
-
-    const domain = composite.members!.get('domain')!;
-    expect(domain.declaredProperties).toEqual({ pure: true, noIO: true });
-
-    const infra = composite.members!.get('infrastructure')!;
-    expect(infra.declaredProperties).toEqual({});
-
-    const app = composite.members!.get('application')!;
-    expect(app.declaredProperties).toEqual({ noConsole: true });
-  });
-
-  it('members have paths and valueKind', () => {
-    const result = ksBind(config);
-    const composite = result.targets[0];
-
-    const domain = composite.members!.get('domain')!;
-    expect(domain.path).toBe('./src/domain');
-    expect(domain.valueKind).toBe('directory');
-
-    const infra = composite.members!.get('infrastructure')!;
-    expect(infra.path).toBe('./src/infrastructure');
-    expect(infra.valueKind).toBe('directory');
+    const defs = (mathFile as any).kindDefs;
+    expect(defs).toEqual([]);
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('binder — empty config', () => {
-  it('produces empty results for empty config', () => {
-    const result = ksBind({});
-    expect(result.symbols).toEqual([]);
-    expect(result.targets).toEqual([]);
+describe('binder attributes — defLookup', () => {
+  it('any node can resolve a kind name', () => {
+    const ksTree = createKSTree('kind-basic');
+
+    const mathFile = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('math.ts'),
+    )!;
+    const resolver = (mathFile as any).defLookup;
+    expect(resolver('NoImports')).toBeDefined();
+    expect(resolver('NoImports')!.name).toBe('NoImports');
+    expect(resolver('NoImports')!.properties.noImports).toBe(true);
+  });
+
+  it('returns undefined for unknown names', () => {
+    const ksTree = createKSTree('kind-basic');
+
+    const cu = ksTree.root.compilationUnits[0];
+    const resolver = (cu as any).defLookup;
+    expect(resolver('NonExistent')).toBeUndefined();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+
+describe('binder attributes — caching', () => {
+  it('kindDefs returns the same array on repeated access', () => {
+    const ksTree = createKSTree('kind-basic');
+
+    const kindsFile = ksTree.root.compilationUnits.find(
+      cu => cu.fileName.includes('kinds.ts'),
+    )!;
+
+    const defs1 = (kindsFile as any).kindDefs;
+    const defs2 = (kindsFile as any).kindDefs;
+    expect(defs1).toBe(defs2);
+  });
+
+  it('defLookup returns the same function on repeated access', () => {
+    const ksTree = createKSTree('kind-basic');
+
+    const cu = ksTree.root.compilationUnits[0];
+    const lookup1 = (cu as any).defLookup;
+    const lookup2 = (cu as any).defLookup;
+    expect(lookup1).toBe(lookup2);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+
+describe('binder attributes — empty input', () => {
+  it('returns empty results for files with no kinds', () => {
+    const file = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
+    const tsProgram = ts.createProgram([file], { strict: true, noEmit: true });
+    const ksTree = buildKSTree(tsProgram);
+    const grammar = createGrammar(getChildren);
+    const semantics = createSemantics(grammar, [createBinderSpec()]);
+    interpret(semantics, ksTree.root);
+
+    const allDefs = ksTree.root.compilationUnits.flatMap(cu => (cu as any).kindDefs);
+    expect(allDefs.length).toBe(0);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+
+describe('binder spec — SpecInput contract', () => {
+  it('createBinderSpec returns a valid SpecInput', () => {
+    const spec = createBinderSpec();
+    expect(spec.name).toBe('ksc-binder');
+    expect(typeof spec.project).toBe('function');
+    expect(spec.declarations).toHaveProperty('kindDefs');
+    expect(spec.declarations).toHaveProperty('defLookup');
+  });
+
+  it('project extracts all kind definitions', () => {
+    const files = ts.sys.readDirectory(
+      path.join(FIXTURES, 'kind-basic', 'src'),
+      ['.ts'],
+    );
+    const tsProgram = ts.createProgram(files, { strict: true, noEmit: true });
+    const ksTree = buildKSTree(tsProgram);
+    const grammar = createGrammar(getChildren);
+    const semantics = createSemantics(grammar, [createBinderSpec()]);
+    const results = interpret(semantics, ksTree.root);
+    const result = results.get('ksc-binder');
+
+    expect(result).toBeDefined();
+    expect(Array.isArray(result)).toBe(true);
+    const names = (result as any[]).map((d: any) => d.name);
+    expect(names).toContain('NoImports');
   });
 });

@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMT Solvers, Proof Assistants & ArkType</title>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a2e;
+  --surface3: #222240;
+  --border: #2a2a4a;
+  --text: #e0e0f0;
+  --text-dim: #8888aa;
+  --accent: #7c6ff7;
+  --accent2: #00d4aa;
+  --accent3: #ff6b9d;
+  --accent4: #ffa64d;
+  --accent5: #4dc3ff;
+  --error: #ff4466;
+  --success: #44ff88;
+  --warning: #ffcc44;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+h1 { font-size: 1.8em; margin: 40px 0 10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.4em; margin: 35px 0 15px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { font-size: 1.15em; margin: 20px 0 10px; color: var(--accent2); }
+p { margin: 10px 0; color: var(--text-dim); }
+
+.hero { text-align: center; padding: 50px 20px 30px; }
+.hero h1 { font-size: 2.2em; margin-bottom: 15px; }
+.hero p { font-size: 1.05em; max-width: 750px; margin: 0 auto; }
+.subtitle { color: var(--accent3); font-size: 0.85em; margin-top: 10px; letter-spacing: 2px; text-transform: uppercase; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 15px 0; }
+.card-accent { border-left: 3px solid var(--accent); }
+.card-green { border-left: 3px solid var(--accent2); }
+.card-pink { border-left: 3px solid var(--accent3); }
+.card-orange { border-left: 3px solid var(--accent4); }
+.card-blue { border-left: 3px solid var(--accent5); }
+
+pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 0.85em; margin: 10px 0; line-height: 1.5; }
+code { font-family: inherit; }
+.kw { color: var(--accent3); }
+.tp { color: var(--accent); }
+.fn { color: var(--accent2); }
+.str { color: var(--accent4); }
+.cm { color: var(--text-dim); font-style: italic; }
+.err { color: var(--error); }
+.ok { color: var(--success); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 15px 0 0; }
+.tab-btn { padding: 8px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px 8px 0 0; cursor: pointer; color: var(--text-dim); font-size: 0.8em; font-family: inherit; transition: all 0.2s; }
+.tab-btn:hover { color: var(--text); background: var(--surface3); }
+.tab-btn.active { color: var(--accent); background: var(--surface3); border-bottom-color: var(--surface3); }
+.tab-content { display: none; background: var(--surface3); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 20px; }
+.tab-content.active { display: block; }
+
+.step-container { display: flex; flex-direction: column; gap: 8px; margin: 15px 0; }
+.step { padding: 12px 16px; background: var(--surface2); border-left: 3px solid var(--border); border-radius: 0 8px 8px 0; cursor: pointer; transition: all 0.3s; }
+.step:hover { background: var(--surface3); }
+.step.active { border-left-color: var(--accent); background: var(--surface3); }
+.step-num { color: var(--accent); font-weight: bold; margin-right: 8px; }
+.step-detail { display: none; margin-top: 8px; padding: 10px; background: var(--surface); border-radius: 6px; color: var(--text-dim); font-size: 0.9em; }
+.step.active .step-detail { display: block; }
+
+table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.85em; }
+th, td { padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+th { background: var(--surface3); color: var(--accent); }
+td { background: var(--surface); color: var(--text-dim); }
+
+.pipeline { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
+.pipe-stage { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; text-align: center; flex: 1; min-width: 90px; cursor: pointer; transition: all 0.3s; }
+.pipe-stage:hover, .pipe-stage.active { border-color: var(--accent); background: var(--surface3); }
+.pipe-stage .label { font-size: 0.7em; color: var(--text-dim); }
+.pipe-stage .name { color: var(--accent2); font-weight: bold; font-size: 0.85em; }
+.pipe-arrow { color: var(--text-dim); font-size: 1.3em; }
+.pipe-detail { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 10px 0; display: none; }
+.pipe-detail.active { display: block; }
+
+.quiz { margin: 20px 0; }
+.quiz-q { font-weight: bold; color: var(--text); margin-bottom: 10px; }
+.quiz-opts label { display: block; padding: 8px 14px; margin: 4px 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.9em; }
+.quiz-opts label:hover { background: var(--surface3); }
+.quiz-opts input { margin-right: 8px; }
+.quiz-result { margin-top: 10px; padding: 10px 14px; border-radius: 6px; display: none; font-size: 0.9em; }
+.quiz-result.correct { display: block; background: rgba(68,255,136,0.1); border: 1px solid var(--success); color: var(--success); }
+.quiz-result.wrong { display: block; background: rgba(255,68,102,0.1); border: 1px solid var(--error); color: var(--error); }
+
+.callout { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-size: 0.9em; }
+.callout-key { color: var(--accent4); font-weight: bold; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; font-weight: bold; }
+.badge-ok { background: rgba(68,255,136,0.15); color: var(--success); }
+.badge-warn { background: rgba(255,204,68,0.15); color: var(--warning); }
+.badge-no { background: rgba(255,68,102,0.15); color: var(--error); }
+.badge-info { background: rgba(124,111,247,0.15); color: var(--accent); }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+@media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.meter-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.meter-label { min-width: 140px; font-size: 0.85em; color: var(--text-dim); }
+.meter-track { flex: 1; height: 14px; background: var(--surface2); border-radius: 7px; overflow: hidden; border: 1px solid var(--border); }
+.meter-fill { height: 100%; border-radius: 7px; transition: width 0.6s; }
+.meter-val { font-size: 0.8em; color: var(--text-dim); min-width: 35px; text-align: right; }
+
+details { margin: 10px 0; }
+summary { cursor: pointer; color: var(--accent); font-size: 0.95em; padding: 8px 0; }
+summary:hover { color: var(--accent2); }
+
+/* Interactive diagram */
+.diagram-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 15px 0; position: relative; }
+.diagram-node { display: inline-block; background: var(--surface2); border: 2px solid var(--border); border-radius: 8px; padding: 8px 16px; margin: 4px; cursor: pointer; transition: all 0.3s; font-size: 0.85em; }
+.diagram-node:hover, .diagram-node.active { border-color: var(--accent); background: var(--surface3); color: var(--accent2); }
+.diagram-arrow { color: var(--text-dim); margin: 0 4px; }
+.diagram-explain { margin-top: 12px; padding: 12px; background: var(--surface2); border-radius: 6px; color: var(--text-dim); font-size: 0.9em; min-height: 60px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <div class="subtitle">Part 16 &mdash; KindScript Research Series</div>
+  <h1>SMT Solvers, Proof Assistants & ArkType</h1>
+  <p>What SMT solvers actually are and how they work, how dependent types and proof assistants are the same thing, and how ArkType brings TypeScript syntax to runtime validation.</p>
+</div>
+
+<!-- ======================= PART 1: SMT SOLVERS ======================= -->
+<h1 id="part1">Part 1: What Is an SMT Solver?</h1>
+
+<div class="card card-accent">
+<p><strong>Short answer:</strong> An SMT solver is a program that automatically proves mathematical statements. You give it a formula like "is there an x where x &gt; 5 and x &lt; 3?" and it says "no" (unsatisfiable) or gives you a value. Refinement type systems like LiquidHaskell use this to automatically verify program properties &mdash; they extract logical formulas from your code and ask Z3 to prove them.</p>
+</div>
+
+<h2>1.1 From SAT to SMT</h2>
+
+<div class="step-container" id="sat-steps">
+  <div class="step active" onclick="toggleStep(this)">
+    <span class="step-num">SAT</span> Boolean Satisfiability &mdash; the foundation
+    <div class="step-detail">
+      <p>Given a Boolean formula, is there an assignment that makes it true?</p>
+      <pre><span class="cm">// SAT problem:</span>
+(A ∨ ¬B) ∧ (¬A ∨ C) ∧ (B ∨ ¬C)
+
+<span class="cm">// Question: Can we assign true/false to A, B, C</span>
+<span class="cm">// so the whole formula is true?</span>
+
+<span class="cm">// Answer: A=true, B=true, C=true → YES (satisfiable)</span></pre>
+      <p>SAT was the first problem proven NP-complete (Cook-Levin, 1971). Despite worst-case exponential time, modern SAT solvers handle formulas with <em>millions</em> of variables in practice. They form the backbone of all SMT solvers.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">CDCL</span> Conflict-Driven Clause Learning &mdash; modern SAT solving
+    <div class="step-detail">
+      <p>The breakthrough that made SAT practical. Three key ideas:</p>
+      <pre><span class="cm">// 1. UNIT PROPAGATION</span>
+<span class="cm">// If a clause has one unassigned literal, force it true.</span>
+(A ∨ ¬B) and B=true → must set A=true
+
+<span class="cm">// 2. CONFLICT ANALYSIS</span>
+<span class="cm">// When we hit a dead end, figure out WHY.</span>
+<span class="cm">// "Setting A=false and C=true always fails"</span>
+
+<span class="cm">// 3. CLAUSE LEARNING</span>
+<span class="cm">// Add a new clause to prevent this conflict pattern.</span>
+<span class="cm">// (¬A ∨ ¬C) — "never set both A=false and C=true"</span>
+
+<span class="cm">// 4. NON-CHRONOLOGICAL BACKJUMP</span>
+<span class="cm">// Don't undo decisions one by one.</span>
+<span class="cm">// Jump back to the earliest relevant decision.</span></pre>
+      <p>CDCL lets the solver <em>learn from mistakes</em>. Each conflict teaches it something about the problem structure, dramatically pruning the search space.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">SMT</span> Satisfiability Modulo Theories &mdash; adding meaning
+    <div class="step-detail">
+      <p>SAT only understands true/false. SMT adds <strong>theories</strong> &mdash; mathematical domains with real meaning:</p>
+      <pre><span class="cm">// SAT sees: (P₁ ∧ P₂) ∨ P₃</span>
+<span class="cm">// (just Boolean variables)</span>
+
+<span class="cm">// SMT sees: (x > 5 ∧ y < 10) ∨ (z = x + y)</span>
+<span class="cm">// (actual arithmetic with meaning!)</span>
+
+<span class="cm">// The CDCL solver handles the Boolean structure.</span>
+<span class="cm">// Theory solvers handle the arithmetic.</span>
+<span class="cm">// They communicate via DPLL(T) framework:</span>
+
+<span class="cm">// CDCL: "I'm trying x > 5 = true, y < 10 = true"</span>
+<span class="cm">// Arithmetic solver: "That's consistent, carry on"</span>
+
+<span class="cm">// CDCL: "Now also x + y = 3"</span>
+<span class="cm">// Arithmetic solver: "CONFLICT! If x > 5 and x+y = 3</span>
+<span class="cm">//                    then y < -2, but you said y < 10</span>
+<span class="cm">//                    — wait, that's fine. But let me</span>
+<span class="cm">//                    check if other constraints break..."</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">T</span> The Theories &mdash; what the "T" provides
+    <div class="step-detail">
+      <table>
+        <tr><th>Theory</th><th>What It Reasons About</th><th>Example</th></tr>
+        <tr><td style="color:var(--accent2)">QF-LIA</td><td>Linear integer arithmetic (no multiplication of variables)</td><td><code>2x + 3y ≤ 10</code></td></tr>
+        <tr><td style="color:var(--accent2)">QF-LRA</td><td>Linear real arithmetic</td><td><code>x/2 + y/3 = 1.0</code></td></tr>
+        <tr><td style="color:var(--accent)">QF-EUF</td><td>Equality + uninterpreted functions</td><td><code>f(a) = f(b) → a = b</code></td></tr>
+        <tr><td style="color:var(--accent3)">QF-BV</td><td>Fixed-width bitvectors (32-bit, 64-bit)</td><td><code>x &amp; 0xFF = x % 256</code></td></tr>
+        <tr><td style="color:var(--accent4)">Arrays</td><td>Read/write to arrays</td><td><code>store(a, i, v)[i] = v</code></td></tr>
+        <tr><td style="color:var(--accent5)">Strings</td><td>String operations, regex</td><td><code>len(concat(s,t)) = len(s)+len(t)</code></td></tr>
+      </table>
+      <p style="margin-top:10px"><strong>QF</strong> = Quantifier-Free. This is critical &mdash; restricting to quantifier-free formulas keeps things decidable. The solver is <em>guaranteed</em> to give you an answer.</p>
+    </div>
+  </div>
+</div>
+
+<h2>1.2 The DPLL(T) Architecture</h2>
+
+<p>Click each component to see how it works:</p>
+
+<div class="diagram-box" id="dpll-diagram">
+  <div style="text-align:center">
+    <div class="diagram-node active" onclick="showDiagramExplain('dpll', 0, this)">CDCL SAT Core</div>
+    <span class="diagram-arrow">⇅</span>
+    <div class="diagram-node" onclick="showDiagramExplain('dpll', 1, this)">Theory Interface</div>
+    <span class="diagram-arrow">⇅</span>
+    <div style="display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <div class="diagram-node" onclick="showDiagramExplain('dpll', 2, this)">Arithmetic</div>
+      <div class="diagram-node" onclick="showDiagramExplain('dpll', 3, this)">EUF</div>
+      <div class="diagram-node" onclick="showDiagramExplain('dpll', 4, this)">Arrays</div>
+      <div class="diagram-node" onclick="showDiagramExplain('dpll', 5, this)">Bitvectors</div>
+    </div>
+  </div>
+  <div class="diagram-explain" id="dpll-explain">
+    <strong>CDCL SAT Core:</strong> The Boolean reasoning engine. Treats theory atoms (like <code>x &gt; 5</code>) as opaque Boolean variables. Handles the propositional structure: AND, OR, NOT, implications. Uses conflict-driven clause learning to search efficiently.
+  </div>
+</div>
+
+<h2>1.3 How Refinement Types Use SMT</h2>
+
+<p>This is the pipeline that LiquidHaskell, F*, Flux, and Stainless all follow:</p>
+
+<div class="pipeline" id="refine-pipeline">
+  <div class="pipe-stage active" onclick="showPipeDetail('refine-pipe', 0)">
+    <div class="label">1</div>
+    <div class="name">Annotate</div>
+  </div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-stage" onclick="showPipeDetail('refine-pipe', 1)">
+    <div class="label">2</div>
+    <div class="name">Extract VC</div>
+  </div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-stage" onclick="showPipeDetail('refine-pipe', 2)">
+    <div class="label">3</div>
+    <div class="name">SMT-LIB</div>
+  </div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-stage" onclick="showPipeDetail('refine-pipe', 3)">
+    <div class="label">4</div>
+    <div class="name">Z3 Solves</div>
+  </div>
+  <span class="pipe-arrow">→</span>
+  <div class="pipe-stage" onclick="showPipeDetail('refine-pipe', 4)">
+    <div class="label">5</div>
+    <div class="name">Result</div>
+  </div>
+</div>
+
+<div class="pipe-detail active" data-group="refine-pipe">
+  <h3>Step 1: Annotate your code with predicates</h3>
+  <pre><span class="cm">-- LiquidHaskell example:</span>
+{-@ <span class="kw">type</span> <span class="tp">Pos</span> = { v:<span class="tp">Int</span> | v > 0 } @-}
+{-@ <span class="kw">type</span> <span class="tp">NonZero</span> = { v:<span class="tp">Int</span> | v /= 0 } @-}
+
+{-@ <span class="fn">safeDiv</span> :: <span class="tp">Int</span> -> <span class="tp">NonZero</span> -> <span class="tp">Int</span> @-}
+<span class="fn">safeDiv</span> x y = x `div` y
+
+{-@ <span class="fn">abs</span> :: <span class="tp">Int</span> -> <span class="tp">Pos</span> @-}
+<span class="fn">abs</span> x = <span class="kw">if</span> x >= 0 <span class="kw">then</span> x <span class="kw">else</span> (-x)</pre>
+  <p>You add logical predicates to types using special annotation comments. The base Haskell code compiles normally &mdash; these annotations are only for verification.</p>
+</div>
+<div class="pipe-detail" data-group="refine-pipe">
+  <h3>Step 2: Extract Verification Conditions (VCs)</h3>
+  <pre><span class="cm">-- For abs :: Int → Pos, LiquidHaskell generates:</span>
+
+<span class="cm">-- Branch 1: x >= 0</span>
+<span class="cm">-- Return value: x</span>
+<span class="cm">-- Must prove: x > 0   ← but wait, x could be 0!</span>
+
+<span class="cm">-- Actually the VC is:</span>
+<span class="cm">-- ∀x. (x ≥ 0 → x > 0) ∧ (x < 0 → -x > 0)</span>
+
+<span class="cm">-- Hmm, x ≥ 0 → x > 0 fails when x = 0!</span>
+<span class="cm">-- LiquidHaskell would flag this.</span>
+
+<span class="cm">-- Fixed version:</span>
+{-@ <span class="kw">type</span> <span class="tp">Nat</span> = { v:<span class="tp">Int</span> | v >= 0 } @-}
+{-@ <span class="fn">abs</span> :: <span class="tp">Int</span> -> <span class="tp">Nat</span> @-}
+<span class="cm">-- VC: ∀x. (x ≥ 0 → x ≥ 0) ∧ (x < 0 → -x ≥ 0)  ✓</span></pre>
+  <p>The system walks the GHC Core IL (Haskell's intermediate language) and generates a logical formula for each function. Each branch produces a constraint that must hold.</p>
+</div>
+<div class="pipe-detail" data-group="refine-pipe">
+  <h3>Step 3: Encode as SMT-LIB</h3>
+  <pre><span class="cm">; The VC becomes this SMT-LIB query:</span>
+(<span class="kw">declare-const</span> x <span class="tp">Int</span>)
+
+<span class="cm">; Check branch 1: if x >= 0, result is x, and x >= 0</span>
+(<span class="kw">assert</span> (<span class="kw">not</span> (<span class="kw">=></span> (<span class="kw">>=</span> x 0) (<span class="kw">>=</span> x 0))))
+(<span class="fn">check-sat</span>)
+<span class="cm">; → unsat (good! the negation is impossible, so the VC holds)</span>
+
+<span class="cm">; Check branch 2: if x < 0, result is -x, and -x >= 0</span>
+(<span class="kw">assert</span> (<span class="kw">not</span> (<span class="kw">=></span> (<span class="kw"><</span> x 0) (<span class="kw">>=</span> (<span class="kw">-</span> x) 0))))
+(<span class="fn">check-sat</span>)
+<span class="cm">; → unsat (good! this VC holds too)</span></pre>
+  <p>VCs are negated before sending to Z3. If the negation is unsatisfiable, the original formula is valid (always true). This is the standard technique &mdash; you prove P by showing ¬P is impossible.</p>
+</div>
+<div class="pipe-detail" data-group="refine-pipe">
+  <h3>Step 4: Z3 Solves</h3>
+  <pre><span class="cm">// Z3 applies DPLL(T):</span>
+<span class="cm">// 1. CDCL assigns Boolean structure</span>
+<span class="cm">// 2. Linear arithmetic solver checks: can x ≥ 0 and x < 0?</span>
+<span class="cm">//    No — contradiction. Learn clause.</span>
+<span class="cm">// 3. Try: x < 0 and -x < 0?</span>
+<span class="cm">//    No — if x < 0 then -x > 0. Contradiction.</span>
+<span class="cm">// 4. All branches lead to contradiction.</span>
+<span class="cm">// → UNSAT (the negated VC is impossible)</span>
+<span class="cm">// → Original VC is VALID ✓</span></pre>
+  <p>Z3 typically solves these in <strong>milliseconds</strong>. The decidable fragment (quantifier-free linear arithmetic) guarantees termination &mdash; Z3 will always give you an answer.</p>
+</div>
+<div class="pipe-detail" data-group="refine-pipe">
+  <h3>Step 5: Result</h3>
+  <pre><span class="cm">-- If Z3 says UNSAT → your code is VERIFIED ✓</span>
+<span class="cm">-- If Z3 says SAT   → your code has a BUG ✗</span>
+<span class="cm">--                     Z3 gives a counterexample:</span>
+<span class="cm">--                     "x = 0 violates v > 0"</span>
+
+<span class="cm">-- LiquidHaskell reports:</span>
+<span class="err">Error: Liquid Type Mismatch</span>
+<span class="err">  The inferred type: { v:Int | v >= 0 }</span>
+<span class="err">  is not a subtype of: { v:Int | v > 0 }</span>
+<span class="err">  Counterexample: v = 0</span></pre>
+  <p>The error traces back to your source code location with a concrete counterexample. You know exactly what input violates the refinement.</p>
+</div>
+
+<h2>1.4 The Refinement Type Tools</h2>
+
+<div class="tabs" id="refine-tools-tabs">
+  <button class="tab-btn active" onclick="switchTab('refine-tools', 0)">LiquidHaskell</button>
+  <button class="tab-btn" onclick="switchTab('refine-tools', 1)">F*</button>
+  <button class="tab-btn" onclick="switchTab('refine-tools', 2)">Flux (Rust)</button>
+  <button class="tab-btn" onclick="switchTab('refine-tools', 3)">Stainless (Scala)</button>
+</div>
+<div class="tab-content active" data-group="refine-tools">
+  <h3>LiquidHaskell</h3>
+  <pre><span class="cm">-- Refine types with predicates over values</span>
+{-@ <span class="kw">type</span> <span class="tp">Btwn</span> Lo Hi = { v:<span class="tp">Int</span> | Lo <= v && v < Hi } @-}
+
+{-@ <span class="fn">safeIndex</span> :: ls:[a] -> <span class="tp">Btwn</span> 0 (<span class="fn">len</span> ls) -> a @-}
+<span class="fn">safeIndex</span> ls i = ls !! i
+<span class="cm">-- Z3 verifies: at every call site, 0 ≤ i < length(ls)</span>
+
+<span class="cm">-- Measures (functions usable in refinements):</span>
+{-@ <span class="kw">measure</span> <span class="fn">len</span> :: [a] -> <span class="tp">Nat</span> @-}
+{-@ <span class="fn">len</span> [] = 0 @-}
+{-@ <span class="fn">len</span> (x:xs) = 1 + <span class="fn">len</span> xs @-}</pre>
+  <p>Hooks into GHC's compilation pipeline. Predicates restricted to decidable theories. Z3 as backend. Automated &mdash; no manual proofs needed for decidable fragments.</p>
+</div>
+<div class="tab-content" data-group="refine-tools">
+  <h3>F* &mdash; SMT-Backed Dependent Types</h3>
+  <pre><span class="cm">// F* combines dependent types WITH SMT automation:</span>
+<span class="kw">val</span> <span class="fn">factorial</span> : n:<span class="tp">nat</span> -> <span class="tp">Tot</span> (x:<span class="tp">nat</span>{x >= 1})
+<span class="kw">let</span> <span class="kw">rec</span> <span class="fn">factorial</span> n =
+  <span class="kw">if</span> n = 0 <span class="kw">then</span> 1
+  <span class="kw">else</span> n * <span class="fn">factorial</span> (n - 1)
+
+<span class="cm">// F* generates: n ≥ 0 ∧ n = 0 → 1 ≥ 1   (trivial)</span>
+<span class="cm">//              n ≥ 0 ∧ n ≠ 0 ∧ f(n-1) ≥ 1 → n*f(n-1) ≥ 1</span>
+<span class="cm">// Z3 solves automatically ✓</span>
+
+<span class="cm">// When Z3 can't solve, use tactics:</span>
+<span class="kw">let</span> <span class="fn">hard_lemma</span> () : <span class="tp">Lemma</span> (forall x. x * x >= 0) =
+  <span class="fn">Classical.forall_intro</span> (<span class="kw">fun</span> x ->
+    <span class="fn">assert</span> (x * x >= 0) <span class="kw">by</span> (<span class="fn">smt</span>())  <span class="cm">// hint Z3</span>
+  )</pre>
+  <p>F* sits between full dependent types (Idris/Lean) and refinement types (LiquidHaskell). It can express richer properties than LiquidHaskell but automates more than Lean/Coq. Used to verify real cryptographic code (Project Everest, HACL*).</p>
+</div>
+<div class="tab-content" data-group="refine-tools">
+  <h3>Flux &mdash; Refinement Types for Rust</h3>
+  <pre><span class="cm">// Integrates with Rust's ownership system:</span>
+#[<span class="fn">flux::sig</span>(<span class="kw">fn</span>(v: &<span class="kw">mut</span> <span class="tp">Vec</span>&lt;<span class="tp">i32</span>&gt;, i: {<span class="tp">usize</span> | i < <span class="fn">len</span>(v)}) )]
+<span class="kw">fn</span> <span class="fn">increment</span>(v: &<span class="kw">mut</span> <span class="tp">Vec</span>&lt;<span class="tp">i32</span>&gt;, i: <span class="tp">usize</span>) {
+    v[i] += 1;  <span class="cm">// proven safe: i < len(v)</span>
+}
+
+<span class="cm">// Rust's ownership guarantees no aliasing → Flux can</span>
+<span class="cm">// do STRONG UPDATES: after mutation, the refined type</span>
+<span class="cm">// tracks the new value precisely.</span></pre>
+  <p>Key innovation: Rust's borrow checker already prevents aliasing. Flux leverages this to verify mutable code without full separation logic. ~10x faster than alternatives, near-zero annotation overhead.</p>
+</div>
+<div class="tab-content" data-group="refine-tools">
+  <h3>Stainless &mdash; Verification for Scala</h3>
+  <pre><span class="cm">// Scala with formal specifications:</span>
+<span class="kw">def</span> <span class="fn">factorial</span>(n: <span class="tp">BigInt</span>): <span class="tp">BigInt</span> = {
+  <span class="fn">require</span>(n >= 0)            <span class="cm">// precondition</span>
+  <span class="kw">if</span> (n == 0) <span class="tp">BigInt</span>(1)
+  <span class="kw">else</span> n * <span class="fn">factorial</span>(n - 1)
+} <span class="fn">ensuring</span>(res => res > 0)   <span class="cm">// postcondition</span>
+
+<span class="cm">// Stainless sends to Z3 and cvc5 in parallel (portfolio mode).</span>
+<span class="cm">// If EITHER solver proves it, verification succeeds.</span></pre>
+  <p>Stainless extracts a pure functional subset of Scala and verifies it. Uses portfolio solving &mdash; multiple SMT solvers in parallel, first one to finish wins.</p>
+</div>
+
+<div class="callout">
+  <span class="callout-key">The key insight for refinement types:</span> By restricting predicates to decidable logic fragments (quantifier-free linear arithmetic, uninterpreted functions), verification is <strong>fully automatic</strong>. You write annotations; Z3 does the proving. No manual proofs, no tactics, no proof scripts. The trade-off: you can only express properties that fit in these fragments.
+</div>
+
+<!-- ======================= PART 2: DEPENDENT TYPES & PROOF ASSISTANTS ======================= -->
+<h1 id="part2">Part 2: Dependent Types & Proof Assistants</h1>
+
+<div class="card card-green">
+<p><strong>They're the same thing.</strong> This surprises people because "proof assistant" sounds like a math tool and "dependently typed language" sounds like a programming tool. But the Curry-Howard correspondence tells us: types ARE propositions, programs ARE proofs. A "proof assistant" and a "dependently typed language" are just different marketing for the same underlying mechanism.</p>
+</div>
+
+<h2>2.1 The Curry-Howard Correspondence</h2>
+
+<p>This is the fundamental bridge. Click each row to see the connection:</p>
+
+<div class="step-container" id="curry-howard">
+  <div class="step active" onclick="toggleStep(this)">
+    <span class="step-num">→</span> Function type <code>A → B</code> = Implication <code>A ⊃ B</code>
+    <div class="step-detail">
+      <pre><span class="cm">// A function from A to B is a PROOF that A implies B.</span>
+<span class="cm">// If you can write a total function f : A → B,</span>
+<span class="cm">// you've proven: "given A, I can construct B."</span>
+
+<span class="cm">// In logic: A ⊃ B ("if A then B")</span>
+<span class="cm">// In types: A → B ("function from A to B")</span>
+<span class="cm">// SAME THING.</span>
+
+<span class="fn">modus_ponens</span> : (A → B) → A → B
+<span class="fn">modus_ponens</span> f a = f a
+<span class="cm">-- This program IS the proof of modus ponens!</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">×</span> Product type <code>(A, B)</code> = Conjunction <code>A ∧ B</code>
+    <div class="step-detail">
+      <pre><span class="cm">// A pair (A, B) is proof that BOTH A and B hold.</span>
+<span class="cm">// To construct a pair, you need evidence for both.</span>
+
+<span class="fn">and_intro</span> : A → B → (A, B)
+<span class="fn">and_intro</span> a b = (a, b)
+<span class="cm">-- "If I have proof of A and proof of B,</span>
+<span class="cm">//  I have proof of A ∧ B"</span>
+
+<span class="fn">and_elim_left</span> : (A, B) → A
+<span class="fn">and_elim_left</span> (a, _) = a
+<span class="cm">-- "From proof of A ∧ B, I can extract proof of A"</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">+</span> Sum type <code>Either A B</code> = Disjunction <code>A ∨ B</code>
+    <div class="step-detail">
+      <pre><span class="cm">// Either A B is proof that at LEAST ONE of A, B holds.</span>
+
+<span class="fn">or_intro_left</span> : A → <span class="tp">Either</span> A B
+<span class="fn">or_intro_left</span> a = <span class="tp">Left</span> a
+<span class="cm">-- "Proof of A gives proof of A ∨ B"</span>
+
+<span class="fn">or_elim</span> : <span class="tp">Either</span> A B → (A → C) → (B → C) → C
+<span class="fn">or_elim</span> (<span class="tp">Left</span> a)  f _ = f a
+<span class="fn">or_elim</span> (<span class="tp">Right</span> b) _ g = g b
+<span class="cm">-- "If A→C and B→C, and I know A∨B, I can get C"</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">⊥</span> Empty type <code>Void</code> = Falsehood <code>⊥</code>
+    <div class="step-detail">
+      <pre><span class="cm">// A type with NO constructors represents falsity.</span>
+<span class="cm">// You can't build a value of type Void,</span>
+<span class="cm">// just like you can't prove False.</span>
+
+<span class="kw">data</span> <span class="tp">Void</span>  <span class="cm">-- no constructors</span>
+
+<span class="fn">absurd</span> : <span class="tp">Void</span> → A
+<span class="fn">absurd</span> v = <span class="kw">case</span> v <span class="kw">of</span> {}   <span class="cm">-- no cases needed!</span>
+<span class="cm">-- "From falsehood, anything follows" (ex falso quodlibet)</span>
+
+<span class="cm">// Negation: ¬A = A → Void</span>
+<span class="cm">// "A is false" means "assuming A leads to contradiction"</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">∀</span> Dependent function <code>(x : A) → B(x)</code> = Universal quantification <code>∀x:A. B(x)</code>
+    <div class="step-detail">
+      <pre><span class="cm">// THIS is where dependent types enter.</span>
+<span class="cm">// A function where the RETURN TYPE depends on the INPUT VALUE.</span>
+
+<span class="cm">// In logic: ∀n:Nat. n+0 = n</span>
+<span class="cm">// "For ALL natural numbers n, n+0 equals n"</span>
+
+<span class="cm">// In types:</span>
+<span class="fn">plusZero</span> : (n : <span class="tp">Nat</span>) → n + 0 = n
+<span class="cm">-- A function that takes a Nat and returns a PROOF</span>
+<span class="cm">-- that n+0 = n (for that specific n).</span>
+
+<span class="cm">// If you can write this total function,</span>
+<span class="cm">// you've proven the universal statement!</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">∃</span> Dependent pair <code>(x : A, B(x))</code> = Existential quantification <code>∃x:A. B(x)</code>
+    <div class="step-detail">
+      <pre><span class="cm">// A pair where the second component's TYPE depends on</span>
+<span class="cm">// the first component's VALUE.</span>
+
+<span class="cm">// In logic: ∃n:Nat. n > 5</span>
+<span class="cm">// "There EXISTS a natural number greater than 5"</span>
+
+<span class="cm">// In types:</span>
+<span class="fn">example</span> : (n : <span class="tp">Nat</span> ** n > 5)
+<span class="fn">example</span> = (6 ** <span class="tp">Refl</span>)
+<span class="cm">-- The witness is 6, and the proof is that 6 > 5 = Refl</span>
+
+<span class="cm">// To prove ∃x.P(x), you give a SPECIFIC x and prove P(x).</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="callout-key">The punchline:</span> Type checking IS proof checking. When the compiler accepts your program, it has verified your proofs. When it rejects your program, your proof is wrong. "Proof assistant" = "type checker for dependent types" = "compiler that verifies mathematical theorems."
+</div>
+
+<h2>2.2 The Spectrum: Not "Different Things"</h2>
+
+<p>These tools exist on a continuous spectrum from proof-focused to programming-focused. They all use dependent types; they just prioritize differently:</p>
+
+<div class="card">
+  <div style="text-align:center; margin: 15px 0;">
+    <div style="display:flex;justify-content:space-between;font-size:0.75em;color:var(--text-dim);margin-bottom:5px">
+      <span>← Proof-focused</span>
+      <span>Programming-focused →</span>
+    </div>
+    <div style="height:32px;background:linear-gradient(90deg, var(--accent), var(--accent2));border-radius:16px;position:relative;margin:5px 0;">
+      <div style="position:absolute;top:-2px;left:10%;width:36px;height:36px;background:var(--surface);border:2px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6em;font-weight:bold">Coq</div>
+      <div style="position:absolute;top:-2px;left:35%;width:36px;height:36px;background:var(--surface);border:2px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6em;font-weight:bold">Lean</div>
+      <div style="position:absolute;top:-2px;left:55%;width:36px;height:36px;background:var(--surface);border:2px solid var(--accent2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6em;font-weight:bold">Agda</div>
+      <div style="position:absolute;top:-2px;left:80%;width:36px;height:36px;background:var(--surface);border:2px solid var(--accent2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.55em;font-weight:bold">Idris</div>
+    </div>
+  </div>
+
+  <table>
+    <tr>
+      <th></th>
+      <th>Coq/Rocq</th>
+      <th>Lean 4</th>
+      <th>Agda</th>
+      <th>Idris 2</th>
+    </tr>
+    <tr>
+      <td>Foundation</td>
+      <td>CIC</td>
+      <td>CIC variant</td>
+      <td>Martin-Löf ITT</td>
+      <td>CIC + QTT</td>
+    </tr>
+    <tr>
+      <td>Proof style</td>
+      <td>Tactics (Ltac)</td>
+      <td>Tactics (TacticM)</td>
+      <td>Terms only</td>
+      <td>Terms + some tactics</td>
+    </tr>
+    <tr>
+      <td>Compiles to</td>
+      <td>Extract to OCaml/Haskell</td>
+      <td>C (native)</td>
+      <td>Haskell (interpreter focus)</td>
+      <td>Scheme/JS/C</td>
+    </tr>
+    <tr>
+      <td>IO support</td>
+      <td>No native IO</td>
+      <td>Full IO monad</td>
+      <td>IO monad</td>
+      <td>Full IO monad</td>
+    </tr>
+    <tr>
+      <td>Math library</td>
+      <td>Good</td>
+      <td>Massive (mathlib: 1.9M lines)</td>
+      <td>Limited</td>
+      <td>Limited</td>
+    </tr>
+    <tr>
+      <td>Best for</td>
+      <td>Verified software</td>
+      <td>Math formalization</td>
+      <td>Type theory research</td>
+      <td>Practical programs</td>
+    </tr>
+    <tr>
+      <td>Stars</td>
+      <td>★5k</td>
+      <td>★6.9k</td>
+      <td>★2.7k</td>
+      <td>★2.8k</td>
+    </tr>
+  </table>
+</div>
+
+<h2>2.3 How Each System Works</h2>
+
+<div class="tabs" id="systems-tabs">
+  <button class="tab-btn active" onclick="switchTab('systems', 0)">Coq/Rocq</button>
+  <button class="tab-btn" onclick="switchTab('systems', 1)">Lean 4</button>
+  <button class="tab-btn" onclick="switchTab('systems', 2)">Agda</button>
+  <button class="tab-btn" onclick="switchTab('systems', 3)">Key Differences</button>
+</div>
+<div class="tab-content active" data-group="systems">
+  <h3>Coq/Rocq &mdash; Tactics-Based Proving</h3>
+  <pre><span class="cm">(* Two languages: Gallina (terms) and Ltac (tactics) *)</span>
+
+<span class="cm">(* Gallina: define data and functions *)</span>
+<span class="kw">Fixpoint</span> <span class="fn">plus</span> (n m : <span class="tp">nat</span>) : <span class="tp">nat</span> :=
+  <span class="kw">match</span> n <span class="kw">with</span>
+  | O => m
+  | S k => S (<span class="fn">plus</span> k m)
+  <span class="kw">end</span>.
+
+<span class="cm">(* Ltac: prove theorems interactively *)</span>
+<span class="kw">Theorem</span> <span class="fn">plus_0_r</span> : forall n, <span class="fn">plus</span> n 0 = n.
+<span class="kw">Proof</span>.
+  <span class="fn">intro</span> n.              <span class="cm">(* assume n *)</span>
+  <span class="fn">induction</span> n.          <span class="cm">(* split into base + inductive *)</span>
+  - <span class="fn">reflexivity</span>.        <span class="cm">(* base: plus 0 0 = 0 ✓ *)</span>
+  - <span class="fn">simpl</span>. <span class="fn">rewrite</span> IHn. <span class="fn">reflexivity</span>.  <span class="cm">(* inductive step *)</span>
+<span class="kw">Qed</span>.
+
+<span class="cm">(* Extract to OCaml for execution: *)</span>
+<span class="kw">Extraction</span> <span class="fn">plus</span>.
+<span class="cm">(* → let rec plus n m = match n with O → m | S k → S (plus k m) *)</span></pre>
+  <p>You write proofs as <em>scripts</em> &mdash; sequences of tactic commands that transform a goal step by step. Under the hood, tactics build Gallina proof terms. The separation means you think procedurally ("first do induction, then simplify") rather than constructively.</p>
+  <p style="margin-top:10px"><strong>Real-world:</strong> CompCert (verified C compiler), seL4 helpers, CertiKOS (verified OS kernel).</p>
+</div>
+<div class="tab-content" data-group="systems">
+  <h3>Lean 4 &mdash; Unified Prover + Language</h3>
+  <pre><span class="cm">-- Lean 4 compilation: Source → Macros → Elaboration → C</span>
+
+<span class="cm">-- Define and prove in the same language:</span>
+<span class="kw">def</span> <span class="fn">append</span> : <span class="tp">List</span> α → <span class="tp">List</span> α → <span class="tp">List</span> α
+  | [],    ys => ys
+  | x::xs, ys => x :: <span class="fn">append</span> xs ys
+
+<span class="cm">-- Prove properties with tactics (by keyword):</span>
+<span class="kw">theorem</span> <span class="fn">append_nil</span> : ∀ (xs : <span class="tp">List</span> α), <span class="fn">append</span> xs [] = xs := <span class="kw">by</span>
+  <span class="fn">intro</span> xs
+  <span class="fn">induction</span> xs <span class="kw">with</span>
+  | nil => <span class="fn">rfl</span>
+  | cons x xs ih => <span class="fn">simp</span> [<span class="fn">append</span>, ih]
+
+<span class="cm">-- Or prove with terms (no tactics):</span>
+<span class="kw">theorem</span> <span class="fn">append_nil'</span> : ∀ (xs : <span class="tp">List</span> α), <span class="fn">append</span> xs [] = xs
+  | [] => <span class="fn">rfl</span>
+  | x::xs => <span class="fn">congrArg</span> (x :: ·) (<span class="fn">append_nil'</span> xs)
+
+<span class="cm">-- Compiles directly to C (no extraction step)</span></pre>
+  <p>Lean 4 deliberately includes classical axioms (propositional extensionality, function extensionality, choice). This makes it easier to formalize classical mathematics but breaks some type-theoretic properties. The trade-off: more practical math, slightly less pure theory.</p>
+  <p style="margin-top:10px"><strong>Real-world:</strong> mathlib (1.9M lines of formalized mathematics), the largest coherent mathematical library ever created.</p>
+</div>
+<div class="tab-content" data-group="systems">
+  <h3>Agda &mdash; Everything Is a Term</h3>
+  <pre><span class="cm">-- No tactics. Proofs are written directly as programs.</span>
+<span class="cm">-- Interactive refinement in Emacs: type ? for holes.</span>
+
+<span class="kw">data</span> <span class="tp">_≡_</span> {A : <span class="tp">Set</span>} (x : A) : A → <span class="tp">Set</span> <span class="kw">where</span>
+  <span class="tp">refl</span> : x ≡ x
+
+<span class="cm">-- Prove: n + 0 ≡ n (by pattern matching and recursion)</span>
+<span class="fn">+-identity</span> : (n : <span class="tp">ℕ</span>) → n + 0 ≡ n
+<span class="fn">+-identity</span> zero    = <span class="tp">refl</span>
+<span class="fn">+-identity</span> (suc n) = <span class="fn">cong</span> suc (<span class="fn">+-identity</span> n)
+
+<span class="cm">-- The proof IS the program.</span>
+<span class="cm">-- cong suc wraps the recursive proof in a successor.</span>
+<span class="cm">-- This is a complete, verified proof of n+0=n.</span>
+
+<span class="cm">-- Workflow in Emacs:</span>
+<span class="cm">-- 1. Write: +-identity (suc n) = ?</span>
+<span class="cm">-- 2. Agda shows: Goal: suc (n + 0) ≡ suc n</span>
+<span class="cm">-- 3. You refine: cong suc (?)</span>
+<span class="cm">-- 4. Agda shows: Goal: n + 0 ≡ n</span>
+<span class="cm">-- 5. You write: +-identity n</span></pre>
+  <p>Agda's philosophy: the proof is the program, literally. No separate tactic language. Interactive development via holes (?). The cleanest expression of Curry-Howard, but requires you to think constructively about every proof step.</p>
+</div>
+<div class="tab-content" data-group="systems">
+  <h3>Key Differences</h3>
+  <div class="grid-2">
+    <div class="card card-accent">
+      <h3>Tactics vs Terms</h3>
+      <p><strong>Coq/Lean:</strong> Proof scripts &mdash; "intro n. induction n. simpl."<br>
+      Procedural thinking: "what steps do I take?"</p>
+      <p><strong>Agda:</strong> Direct construction &mdash; pattern match and recurse.<br>
+      Constructive thinking: "what term has this type?"</p>
+      <p>Both produce the same thing (a proof term). Tactics are a UI for building terms.</p>
+    </div>
+    <div class="card card-green">
+      <h3>Extraction vs Compilation</h3>
+      <p><strong>Coq:</strong> "Extract" proof terms to OCaml/Haskell. Separate compiler runs that code.</p>
+      <p><strong>Lean 4:</strong> Compiles directly to C. No extraction step.</p>
+      <p><strong>Idris 2:</strong> Compiles to Chez Scheme/JS/C. Full erasure of proofs via QTT.</p>
+      <p><strong>Agda:</strong> Primarily an interpreter. Can compile to Haskell.</p>
+    </div>
+  </div>
+  <div class="card card-pink">
+    <h3>What They Share</h3>
+    <p>All four are built on the same foundational idea: the Calculus of Inductive Constructions (or close variant). All use dependent types where types can contain values. All exploit Curry-Howard to verify mathematical properties. The differences are in user interface (tactics vs terms), practical features (IO, compilation targets), and design philosophy (math-first vs programming-first).</p>
+  </div>
+</div>
+
+<h2>2.4 Real-World Impact</h2>
+
+<div class="step-container" id="real-world">
+  <div class="step active" onclick="toggleStep(this)">
+    <span class="step-num">1</span> <strong>CompCert</strong> &mdash; Verified C Compiler (Coq)
+    <div class="step-detail">
+      <p>A C compiler with a machine-checked proof that the generated assembly is semantically equivalent to the source C. Every optimization pass is proven correct. Eliminates entire classes of compiler bugs. Used in aerospace and nuclear industries. ~100,000 lines of Coq proofs.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">2</span> <strong>mathlib</strong> &mdash; Formalized Mathematics (Lean 4)
+    <div class="step-detail">
+      <p>1.9 million lines of formalized mathematics. Covers algebra, analysis, topology, number theory, category theory. The largest coherent math library ever created. Monolithic design allows large-scale refactoring of fundamental definitions.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">3</span> <strong>seL4</strong> &mdash; Verified OS Microkernel (Isabelle/HOL)
+    <div class="step-detail">
+      <p>8,700 lines of C with a complete formal verification proof. Every execution path is guaranteed to match the formal specification. The first general-purpose OS kernel with end-to-end formal verification. Eliminates buffer overflows, null pointer dereferences, etc. by mathematical proof.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">4</span> <strong>Project Everest</strong> &mdash; Verified Cryptography (F*)
+    <div class="step-detail">
+      <p>Formally verified implementations of TLS 1.3 and cryptographic algorithms. The HACL* library provides verified C code for crypto primitives. Used in Firefox (NSS) and Linux kernel (WireGuard). Proves both functional correctness and side-channel resistance.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= PART 3: ARKTYPE ======================= -->
+<h1 id="part3">Part 3: ArkType</h1>
+
+<div class="card card-blue">
+<p><strong>ArkType</strong> is a TypeScript runtime validation library that uses TypeScript-like syntax for type definitions. It's not a type system or static analyzer &mdash; it's a runtime validator that generates optimized checking functions from string-based type expressions. Think Zod but with native TypeScript syntax and 20-100x better performance.</p>
+</div>
+
+<h2>3.1 How It Works</h2>
+
+<div class="tabs" id="ark-tabs">
+  <button class="tab-btn active" onclick="switchTab('ark', 0)">Core API</button>
+  <button class="tab-btn" onclick="switchTab('ark', 1)">How It Parses</button>
+  <button class="tab-btn" onclick="switchTab('ark', 2)">Code Generation</button>
+  <button class="tab-btn" onclick="switchTab('ark', 3)">vs Zod</button>
+</div>
+<div class="tab-content active" data-group="ark">
+  <h3>Core API &mdash; TypeScript Syntax as Strings</h3>
+  <pre><span class="kw">import</span> { type } <span class="kw">from</span> <span class="str">"arktype"</span>
+
+<span class="cm">// Looks like TypeScript, but it's a runtime validator:</span>
+<span class="kw">const</span> user = <span class="fn">type</span>({
+  name: <span class="str">"string"</span>,
+  age: <span class="str">"number"</span>,
+  email: <span class="str">"string.email"</span>,        <span class="cm">// built-in email validation</span>
+  role: <span class="str">"'admin' | 'user'"</span>,     <span class="cm">// literal union</span>
+  scores: <span class="str">"number[]"</span>,            <span class="cm">// array type</span>
+})
+
+<span class="cm">// Validate at runtime:</span>
+<span class="kw">const</span> result = user({ name: <span class="str">"Alice"</span>, age: 30, ... })
+
+<span class="cm">// TypeScript infers the static type automatically:</span>
+<span class="cm">// typeof user.infer = {</span>
+<span class="cm">//   name: string;</span>
+<span class="cm">//   age: number;</span>
+<span class="cm">//   email: string;</span>
+<span class="cm">//   role: "admin" | "user";</span>
+<span class="cm">//   scores: number[];</span>
+<span class="cm">// }</span></pre>
+  <p>One definition serves double duty: runtime validation AND compile-time TypeScript type. No separate schema + type definition.</p>
+</div>
+<div class="tab-content" data-group="ark">
+  <h3>How It Parses Type Expressions</h3>
+  <pre><span class="cm">// ArkType parses string type expressions at RUNTIME:</span>
+
+<span class="str">"string | number"</span>
+<span class="cm">// → Parser tokenizes: ["string", "|", "number"]</span>
+<span class="cm">// → Builds AST: Union(StringType, NumberType)</span>
+
+<span class="str">"string.email"</span>
+<span class="cm">// → Parser tokenizes: ["string", ".", "email"]</span>
+<span class="cm">// → Builds AST: Constrained(StringType, EmailValidator)</span>
+
+<span class="str">"number > 0"</span>
+<span class="cm">// → Parser tokenizes: ["number", ">", "0"]</span>
+<span class="cm">// → Builds AST: Refined(NumberType, GreaterThan(0))</span>
+
+<span class="str">"string.numeric.parse |> number % 2"</span>
+<span class="cm">// → Pipe: first parse string to number, then check even</span>
+<span class="cm">// → Builds AST: Pipe(Parse(String→Number), Modulo(2))</span>
+
+<span class="cm">// The parser is a shift-reduce parser optimized</span>
+<span class="cm">// for this specific grammar. NOT using TypeScript's</span>
+<span class="cm">// template literal types (those would be too slow).</span></pre>
+  <p>The type strings are parsed by ArkType's own runtime parser, not by TypeScript. TypeScript's type system is used separately to infer static types from the same definitions (via complex generic types and overloads).</p>
+</div>
+<div class="tab-content" data-group="ark">
+  <h3>Dynamic Code Generation</h3>
+  <pre><span class="cm">// ArkType's performance secret: it GENERATES validation code</span>
+
+<span class="cm">// When you write:</span>
+<span class="kw">const</span> check = <span class="fn">type</span>({ name: <span class="str">"string"</span>, age: <span class="str">"number > 0"</span> })
+
+<span class="cm">// ArkType generates something like:</span>
+<span class="kw">function</span> <span class="fn">validate</span>(data) {
+  <span class="kw">if</span> (<span class="kw">typeof</span> data !== <span class="str">"object"</span> || data === <span class="kw">null</span>) <span class="kw">return</span> err;
+  <span class="kw">if</span> (<span class="kw">typeof</span> data.name !== <span class="str">"string"</span>) <span class="kw">return</span> err;
+  <span class="kw">if</span> (<span class="kw">typeof</span> data.age !== <span class="str">"number"</span> || data.age <= 0) <span class="kw">return</span> err;
+  <span class="kw">return</span> data;
+}
+
+<span class="cm">// This is a FLAT, optimized function.</span>
+<span class="cm">// No recursion. No method dispatch. No schema traversal.</span>
+<span class="cm">// Just straight-line checks.</span>
+<span class="cm">// This is why it's 20-100x faster than Zod.</span></pre>
+  <p>Zod builds a tree of schema objects and traverses them at runtime. ArkType pre-compiles schemas into flat validation functions using <code>new Function()</code>. The validation itself is as fast as hand-written code.</p>
+</div>
+<div class="tab-content" data-group="ark">
+  <h3>ArkType vs Zod</h3>
+  <div class="grid-2">
+    <div>
+      <pre><span class="cm">// Zod (builder pattern):</span>
+<span class="kw">const</span> UserZ = z.<span class="fn">object</span>({
+  name: z.<span class="fn">string</span>(),
+  age: z.<span class="fn">number</span>().<span class="fn">positive</span>(),
+  email: z.<span class="fn">string</span>().<span class="fn">email</span>(),
+  role: z.<span class="fn">enum</span>([<span class="str">"admin"</span>, <span class="str">"user"</span>]),
+})
+
+<span class="cm">// Must derive type separately:</span>
+<span class="kw">type</span> <span class="tp">User</span> = z.infer&lt;<span class="kw">typeof</span> UserZ&gt;</pre>
+    </div>
+    <div>
+      <pre><span class="cm">// ArkType (TS-like syntax):</span>
+<span class="kw">const</span> UserA = <span class="fn">type</span>({
+  name: <span class="str">"string"</span>,
+  age: <span class="str">"number > 0"</span>,
+  email: <span class="str">"string.email"</span>,
+  role: <span class="str">"'admin' | 'user'"</span>,
+})
+
+<span class="cm">// Type inferred automatically</span>
+<span class="cm">// (type and validator are one thing)</span></pre>
+    </div>
+  </div>
+  <table>
+    <tr><th>Dimension</th><th>Zod</th><th>ArkType</th></tr>
+    <tr><td>Syntax</td><td>Builder methods (z.string())</td><td>TypeScript strings ("string")</td></tr>
+    <tr><td>Performance</td><td>Baseline</td><td>20-100x faster</td></tr>
+    <tr><td>Bundle size</td><td>~12KB min+gzip</td><td>~40-50KB</td></tr>
+    <tr><td>Ecosystem</td><td>★45k+, dominant</td><td>★7.5k, growing</td></tr>
+    <tr><td>Validation approach</td><td>Schema traversal (recursive)</td><td>Code generation (flat)</td></tr>
+    <tr><td>Learning curve</td><td>New API to learn</td><td>Already know TypeScript syntax</td></tr>
+  </table>
+</div>
+
+<h2>3.2 Where ArkType Sits in the Landscape</h2>
+
+<div class="callout">
+  <span class="callout-key">Important distinction:</span> ArkType is NOT a static analyzer, NOT a type system extension, NOT a refinement type system. It's a <strong>runtime validator</strong> that generates efficient checking code from type-like syntax. It makes runtime validation feel like writing TypeScript types, but the actual checking happens at runtime.
+</div>
+
+<div class="card">
+  <h3>The Validation Landscape</h3>
+  <div class="meter-row">
+    <span class="meter-label">Zod (builder API)</span>
+    <div class="meter-track"><div class="meter-fill" style="width:60%;background:var(--accent4)"></div></div>
+    <span class="meter-val">★45k</span>
+  </div>
+  <div class="meter-row">
+    <span class="meter-label">ArkType (TS syntax)</span>
+    <div class="meter-track"><div class="meter-fill" style="width:30%;background:var(--accent5)"></div></div>
+    <span class="meter-val">★7.5k</span>
+  </div>
+  <div class="meter-row">
+    <span class="meter-label">io-ts (FP approach)</span>
+    <div class="meter-track"><div class="meter-fill" style="width:25%;background:var(--accent)"></div></div>
+    <span class="meter-val">★6k</span>
+  </div>
+  <div class="meter-row">
+    <span class="meter-label">Valibot (lightweight)</span>
+    <div class="meter-track"><div class="meter-fill" style="width:22%;background:var(--accent2)"></div></div>
+    <span class="meter-val">★6k</span>
+  </div>
+  <div class="meter-row">
+    <span class="meter-label">Effect Schema</span>
+    <div class="meter-track"><div class="meter-fill" style="width:20%;background:var(--accent3)"></div></div>
+    <span class="meter-val">part of Effect</span>
+  </div>
+  <p style="font-size:0.8em;margin-top:8px"><em>GitHub stars (approximate)</em></p>
+</div>
+
+<!-- ======================= PART 4: BIG PICTURE ======================= -->
+<h1 id="part4">Part 4: The Verification Landscape</h1>
+
+<h2>4.1 How Everything Connects</h2>
+
+<p>All these tools address the same question: <em>"how do I know my program is correct?"</em> They just operate at different levels:</p>
+
+<table>
+  <tr>
+    <th>Level</th>
+    <th>Tool</th>
+    <th>What It Proves</th>
+    <th>How</th>
+    <th>Automation</th>
+  </tr>
+  <tr>
+    <td style="color:var(--accent5)">Runtime</td>
+    <td>ArkType, Zod</td>
+    <td>Input matches expected shape</td>
+    <td>Generated validation code</td>
+    <td><span class="badge badge-ok">Full</span></td>
+  </tr>
+  <tr>
+    <td style="color:var(--accent4)">Lint</td>
+    <td>eslint-plugin-functional</td>
+    <td>Code follows syntactic patterns</td>
+    <td>AST pattern matching</td>
+    <td><span class="badge badge-ok">Full</span></td>
+  </tr>
+  <tr>
+    <td style="color:var(--accent3)">Types</td>
+    <td>TypeScript, Effect-TS</td>
+    <td>Types align across operations</td>
+    <td>Bidirectional type checking</td>
+    <td><span class="badge badge-ok">Full</span></td>
+  </tr>
+  <tr>
+    <td style="color:var(--accent)">Static Analysis</td>
+    <td>KindScript</td>
+    <td>Semantic properties hold (purity, immutability)</td>
+    <td>AST walking + property checks</td>
+    <td><span class="badge badge-ok">Full</span></td>
+  </tr>
+  <tr>
+    <td style="color:var(--accent2)">Refinement</td>
+    <td>LiquidHaskell, Flux, F*</td>
+    <td>Logical predicates hold (x &gt; 0, len &lt; n)</td>
+    <td>VC extraction + SMT solver</td>
+    <td><span class="badge badge-ok">Full</span></td>
+  </tr>
+  <tr>
+    <td style="color:var(--success)">Dependent</td>
+    <td>Idris, Lean, Coq, Agda</td>
+    <td>Arbitrary mathematical theorems</td>
+    <td>Dependent type checking + proofs</td>
+    <td><span class="badge badge-warn">Partial</span></td>
+  </tr>
+</table>
+
+<div class="callout">
+  <span class="callout-key">The trade-off pattern:</span> As you go down this table, you can prove stronger properties but require more effort. Runtime validation is effortless but only checks shapes. Dependent types can prove anything but may require manual proofs. Refinement types hit a sweet spot: strong properties with full automation, restricted to decidable fragments.
+</div>
+
+<h2>4.2 Where Does KindScript Go From Here?</h2>
+
+<div class="card card-accent">
+  <p>KindScript currently sits at the "static analysis" level. The research in this series suggests several evolution paths:</p>
+  <p style="margin-top:10px">
+    <strong>Short term:</strong> Add transitive property analysis (call graph walking) to catch impurity propagation. This closes the biggest gap vs Effect-TS.<br><br>
+    <strong>Medium term:</strong> Add refinement-type-style predicates for numeric bounds, array lengths, non-null guarantees. Use Z3 as a backend solver.<br><br>
+    <strong>Long term:</strong> Move toward dependent-type-style property proofs for complex invariants. Though full dependent types may be overkill for a TypeScript analysis tool &mdash; the refinement type level (SMT-backed) is likely the sweet spot.
+  </p>
+</div>
+
+<!-- ======================= QUIZZES ======================= -->
+<h2>4.3 Test Your Understanding</h2>
+
+<div class="quiz card">
+  <div class="quiz-q">Q1: What does an SMT solver add over a SAT solver?</div>
+  <div class="quiz-opts" id="q1">
+    <label onclick="checkQuiz('q1',this,false)"><input type="radio" name="q1"> Faster Boolean solving</label>
+    <label onclick="checkQuiz('q1',this,true)"><input type="radio" name="q1"> Domain-specific theories (arithmetic, arrays, etc.) that give meaning to atoms</label>
+    <label onclick="checkQuiz('q1',this,false)"><input type="radio" name="q1"> Support for floating-point only</label>
+    <label onclick="checkQuiz('q1',this,false)"><input type="radio" name="q1"> Interactive proof mode</label>
+  </div>
+  <div class="quiz-result" id="q1-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q2: How does LiquidHaskell verify a refinement type?</div>
+  <div class="quiz-opts" id="q2">
+    <label onclick="checkQuiz('q2',this,false)"><input type="radio" name="q2"> Runs the function with random inputs</label>
+    <label onclick="checkQuiz('q2',this,true)"><input type="radio" name="q2"> Extracts verification conditions, negates them, sends to Z3 — UNSAT means valid</label>
+    <label onclick="checkQuiz('q2',this,false)"><input type="radio" name="q2"> Compiles predicates to runtime assertions</label>
+    <label onclick="checkQuiz('q2',this,false)"><input type="radio" name="q2"> Uses TypeScript's type checker</label>
+  </div>
+  <div class="quiz-result" id="q2-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q3: What is the Curry-Howard correspondence?</div>
+  <div class="quiz-opts" id="q3">
+    <label onclick="checkQuiz('q3',this,false)"><input type="radio" name="q3"> A way to convert Haskell to Curry syntax</label>
+    <label onclick="checkQuiz('q3',this,false)"><input type="radio" name="q3"> A network protocol for proof assistants</label>
+    <label onclick="checkQuiz('q3',this,true)"><input type="radio" name="q3"> Types = propositions, programs = proofs — logic and computation are dual</label>
+    <label onclick="checkQuiz('q3',this,false)"><input type="radio" name="q3"> A compiler optimization technique</label>
+  </div>
+  <div class="quiz-result" id="q3-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q4: Why is ArkType faster than Zod?</div>
+  <div class="quiz-opts" id="q4">
+    <label onclick="checkQuiz('q4',this,false)"><input type="radio" name="q4"> It uses WebAssembly under the hood</label>
+    <label onclick="checkQuiz('q4',this,false)"><input type="radio" name="q4"> It validates at compile time, not runtime</label>
+    <label onclick="checkQuiz('q4',this,true)"><input type="radio" name="q4"> It pre-compiles schemas into flat, optimized validation functions via code generation</label>
+    <label onclick="checkQuiz('q4',this,false)"><input type="radio" name="q4"> It skips most validation checks</label>
+  </div>
+  <div class="quiz-result" id="q4-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q5: What's the fundamental difference between Coq/Lean and Idris?</div>
+  <div class="quiz-opts" id="q5">
+    <label onclick="checkQuiz('q5',this,false)"><input type="radio" name="q5"> Coq uses dependent types; Idris doesn't</label>
+    <label onclick="checkQuiz('q5',this,false)"><input type="radio" name="q5"> They use completely different type theories</label>
+    <label onclick="checkQuiz('q5',this,true)"><input type="radio" name="q5"> They're on a spectrum: Coq is proof-focused, Idris is programming-focused, all use dependent types</label>
+    <label onclick="checkQuiz('q5',this,false)"><input type="radio" name="q5"> Idris doesn't check proofs</label>
+  </div>
+  <div class="quiz-result" id="q5-result"></div>
+</div>
+
+<div style="text-align:center;padding:40px 0 20px;color:var(--text-dim);font-size:0.85em;">
+  Part 16 of the KindScript Research Series
+</div>
+
+</div><!-- /container -->
+
+<script>
+function switchTab(group, index) {
+  const btns = document.querySelectorAll(`#${group}-tabs .tab-btn`);
+  const contents = document.querySelectorAll(`.tab-content[data-group="${group}"]`);
+  btns.forEach((b, i) => b.classList.toggle('active', i === index));
+  contents.forEach((c, i) => c.classList.toggle('active', i === index));
+}
+
+function toggleStep(el) {
+  const wasActive = el.classList.contains('active');
+  el.parentElement.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  if (!wasActive) el.classList.add('active');
+}
+
+function showPipeDetail(group, index) {
+  const stages = document.querySelectorAll(`.pipeline .pipe-stage`);
+  const details = document.querySelectorAll(`.pipe-detail[data-group="${group}"]`);
+  stages.forEach((s, i) => s.classList.toggle('active', i === index));
+  details.forEach((d, i) => d.classList.toggle('active', i === index));
+}
+
+const dpllExplains = [
+  `<strong>CDCL SAT Core:</strong> The Boolean reasoning engine. Treats theory atoms (like <code>x &gt; 5</code>) as opaque Boolean variables. Handles the propositional structure: AND, OR, NOT, implications. Uses conflict-driven clause learning to search efficiently.`,
+  `<strong>Theory Interface (DPLL(T)):</strong> The bridge between SAT and theories. Two operations: <strong>T-Propagate</strong> (theory infers new facts from current assignments) and <strong>T-Conflict</strong> (theory reports that current assignments are inconsistent). The SAT core sends candidate assignments down; theory solvers send conflicts and implications up.`,
+  `<strong>Arithmetic Solver:</strong> Handles linear integer/real arithmetic. Uses the Simplex algorithm to check satisfiability of linear constraints. Example: checks whether <code>2x + 3y ≤ 10</code> and <code>x ≥ 4</code> and <code>y ≥ 1</code> can all hold simultaneously (no: 2(4)+3(1)=11 > 10).`,
+  `<strong>EUF (Equality + Uninterpreted Functions):</strong> Handles equalities and function applications. Uses the <em>congruence closure</em> algorithm: if <code>a = b</code> then <code>f(a) = f(b)</code>. Doesn't know what <code>f</code> does, but knows equal inputs produce equal outputs.`,
+  `<strong>Array Solver:</strong> Handles <code>select</code> (read) and <code>store</code> (write). Key axioms: <code>select(store(a,i,v), i) = v</code> (read what you wrote) and <code>i ≠ j → select(store(a,i,v), j) = select(a, j)</code> (other indices unchanged).`,
+  `<strong>Bitvector Solver:</strong> Handles fixed-width integers (32-bit, 64-bit). Uses "bit-blasting": converts each bitvector variable to N Boolean variables, then encodes operations (add, shift, AND) as Boolean circuits and hands them to the SAT core.`
+];
+
+function showDiagramExplain(id, index, el) {
+  document.getElementById(id + '-explain').innerHTML = dpllExplains[index];
+  document.querySelectorAll(`#${id}-diagram .diagram-node`).forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function checkQuiz(qId, label, correct) {
+  const result = document.getElementById(qId + '-result');
+  if (correct) {
+    result.className = 'quiz-result correct';
+    result.textContent = '✓ Correct!';
+  } else {
+    result.className = 'quiz-result wrong';
+    result.textContent = '✗ Not quite — try again.';
+  }
+  label.style.borderColor = correct ? 'var(--success)' : 'var(--error)';
+}
+</script>
+</body>
+</html>

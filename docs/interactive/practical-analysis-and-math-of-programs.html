@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Practical Analysis &amp; the Mathematics of Programs</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#0e1117;--surface:#161b22;--s2:#1c2129;--border:#30363d;--text:#e6edf3;--muted:#8b949e;
+    --blue:#58a6ff;--purple:#bc8cff;--green:#3fb950;--orange:#f0883e;--pink:#f778ba;--red:#f85149;--cyan:#39d4e0;--yellow:#e3b341}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .container{max-width:740px;margin:0 auto;padding:2.5rem 1.5rem 5rem}
+  h1{font-size:1.85rem;font-weight:700;background:linear-gradient(135deg,var(--orange),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.3rem}
+  .subtitle{color:var(--muted);margin-bottom:2.5rem}
+  h2{font-size:1.25rem;margin:2.8rem 0 .6rem;color:var(--blue);display:flex;align-items:center;gap:.5rem}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--blue);color:var(--bg);font-size:.8rem;font-weight:700;flex-shrink:0}
+  p{margin-bottom:1rem}
+  code{background:rgba(88,166,255,.1);padding:.1rem .4rem;border-radius:4px;font-size:.86em;font-family:'SF Mono','Fira Code',monospace}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;margin:1rem 0}
+  .card.accent{border-left:3px solid var(--purple)}
+  .card.green{border-left:3px solid var(--green)}
+  .card.orange{border-left:3px solid var(--orange)}
+  .card.red{border-left:3px solid var(--red)}
+  .card.cyan{border-left:3px solid var(--cyan)}
+  .key{color:var(--muted);font-style:italic;border-left:3px solid var(--purple);padding-left:1rem;margin:1.25rem 0}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;margin:.75rem 0 0;flex-wrap:wrap}
+  .tab{padding:.4rem .85rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);
+    color:var(--muted);cursor:pointer;font-size:.8rem;font-weight:600;transition:all .2s}
+  .tab:hover{border-color:var(--blue);color:var(--text)}
+  .tab.active{border-color:var(--purple);background:rgba(188,140,255,.1);color:var(--purple)}
+  .tab-body{min-height:3rem;margin:.5rem 0;font-size:.88rem}
+
+  /* Pipeline viz */
+  .pipe{display:flex;align-items:stretch;gap:0;margin:1.25rem 0;overflow-x:auto;padding-bottom:.5rem}
+  .pipe-stage{flex:1;min-width:140px;padding:.75rem .65rem;text-align:center;cursor:pointer;transition:all .2s;border:1px solid var(--border);position:relative}
+  .pipe-stage:first-child{border-radius:10px 0 0 10px}
+  .pipe-stage:last-child{border-radius:0 10px 10px 0}
+  .pipe-stage:not(:last-child){border-right:none}
+  .pipe-stage:hover{background:var(--s2)}
+  .pipe-stage.active{background:var(--s2);border-color:var(--purple)}
+  .pipe-stage .ps-label{font-weight:700;font-size:.82rem;margin-bottom:.15rem}
+  .pipe-stage .ps-sub{font-size:.7rem;color:var(--muted)}
+  .pipe-stage::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;z-index:1}
+  .pipe-stage:last-child::after{display:none}
+  .pipe-detail{min-height:2.5rem;margin:.5rem 0;font-size:.88rem;color:var(--muted)}
+
+  /* Math object cards */
+  .mo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:1rem 0}
+  @media(max-width:600px){.mo-grid{grid-template-columns:1fr}}
+  .mo{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;cursor:pointer;transition:all .2s}
+  .mo:hover{border-color:var(--blue)}
+  .mo.active{border-color:var(--cyan);background:var(--s2)}
+  .mo h4{font-size:.9rem;margin-bottom:.15rem}
+  .mo p{font-size:.78rem;color:var(--muted);margin:0}
+  .mo .formal{font-family:'SF Mono','Fira Code',monospace;font-size:.75rem;color:var(--cyan);margin-top:.35rem}
+  .mo-detail{min-height:2rem;font-size:.88rem;margin:.75rem 0;color:var(--muted)}
+
+  /* Confidence meter */
+  .conf-wrap{margin:1rem 0}
+  .conf-bar{display:flex;height:32px;border-radius:8px;overflow:hidden;margin:.5rem 0;font-size:.72rem;font-weight:700}
+  .conf-bar > div{display:flex;align-items:center;justify-content:center;transition:width .5s ease}
+  .conf-label{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:.25rem}
+
+  /* Patterns table */
+  .ptable{width:100%;border-collapse:collapse;font-size:.83rem;margin:1rem 0}
+  .ptable th,.ptable td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+  .ptable th{color:var(--blue);font-size:.73rem;text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+
+  /* Interactive "run" sim */
+  .sim{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin:1rem 0}
+  .sim-code{font-family:'SF Mono','Fira Code',monospace;font-size:.82rem;background:var(--bg);padding:.75rem 1rem;border-radius:8px;margin:.5rem 0;line-height:1.5;white-space:pre;overflow-x:auto}
+  .sim-controls{display:flex;gap:8px;margin:.75rem 0;flex-wrap:wrap}
+  .sim-btn{padding:.4rem .9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);
+    color:var(--text);cursor:pointer;font-size:.82rem;font-weight:600;transition:all .2s}
+  .sim-btn:hover{border-color:var(--green);background:rgba(63,185,80,.08)}
+  .sim-btn:disabled{opacity:.35;cursor:default}
+  .sim-output{font-family:'SF Mono','Fira Code',monospace;font-size:.78rem;background:var(--bg);padding:.5rem .75rem;border-radius:6px;margin:.5rem 0;min-height:2rem;max-height:160px;overflow-y:auto;color:var(--green);line-height:1.5}
+  .sim-infer{margin-top:.5rem;font-size:.84rem;color:var(--muted)}
+  .sim-infer strong{color:var(--text)}
+
+  .qopt{display:block;width:100%;text-align:left;padding:.55rem 1rem;margin:.3rem 0;border:1px solid var(--border);
+    border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font-size:.86rem;transition:border-color .2s}
+  .qopt:hover{border-color:var(--blue)}
+  .qopt.correct{border-color:var(--green);background:rgba(63,185,80,.08)}
+  .qopt.wrong{border-color:var(--red);background:rgba(248,81,73,.06)}
+  .qfb{margin-top:.4rem;font-size:.84rem;min-height:1rem}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Practical Analysis &amp; the Mathematics of Programs</h1>
+<p class="subtitle">What you can actually learn — by reading code, running code, and combining both.</p>
+
+<!-- ============================================ -->
+<!-- PART 1: PRACTICAL TERMINATION -->
+<!-- ============================================ -->
+<h2><span class="n">1</span> Can you just… check for the obvious non-termination?</h2>
+
+<p>Yes! And this is exactly what real tools do. The undecidability of termination means you can't build a <em>perfect</em> checker — but you can build an <em>extremely good</em> one.</p>
+
+<div class="card green">
+  <strong>The pragmatist's approach:</strong> Instead of asking "does this program halt?" (undecidable), ask "does this program contain any of the known <em>patterns</em> that cause non-termination?" That question is decidable — it's a syntactic check.
+</div>
+
+<p>Here are the patterns that cause non-termination in TypeScript. If a function avoids all of them, it <em>almost certainly</em> terminates:</p>
+
+<table class="ptable">
+  <tr><th>Pattern</th><th>Why it's dangerous</th><th>Decidable to detect?</th></tr>
+  <tr>
+    <td><code>while (true)</code></td>
+    <td>Infinite loop with no guaranteed exit</td>
+    <td style="color:var(--green)">Yes — literal pattern match</td>
+  </tr>
+  <tr>
+    <td><code>while (condition)</code> where condition isn't provably shrinking</td>
+    <td>Loop may never exit</td>
+    <td style="color:var(--orange)">Partially — heuristics work well</td>
+  </tr>
+  <tr>
+    <td>Unbounded recursion: <code>f() { f(); }</code></td>
+    <td>Call stack grows forever</td>
+    <td style="color:var(--orange)">Partially — call graph + no base case detection</td>
+  </tr>
+  <tr>
+    <td>Mutual recursion: <code>f→g→f→g→…</code></td>
+    <td>Cycle in call graph</td>
+    <td style="color:var(--green)">Yes — cycle detection on call graph</td>
+  </tr>
+  <tr>
+    <td><code>for (;;)</code> or <code>do {} while (true)</code></td>
+    <td>Same as while(true)</td>
+    <td style="color:var(--green)">Yes — syntax</td>
+  </tr>
+  <tr>
+    <td>Generator that yields forever</td>
+    <td><code>function* () { while(true) yield; }</code></td>
+    <td style="color:var(--green)">Yes — yield inside unbounded loop</td>
+  </tr>
+  <tr>
+    <td>Event loop hangs: unresolved Promise</td>
+    <td><code>new Promise(() => {})</code></td>
+    <td style="color:var(--orange)">Partially — specific pattern matching</td>
+  </tr>
+</table>
+
+<div class="card accent">
+  <p><strong>The key insight:</strong> Rice's theorem says you can't be <em>perfect</em>. But "not perfect" ≠ "useless." In practice, you can catch 95%+ of non-termination bugs with pattern matching and heuristics. The remaining edge cases are pathological — programs that terminate for some <a href="https://en.wikipedia.org/wiki/Collatz_conjecture" style="color:var(--blue);text-decoration:none">deeply number-theoretic reason</a> no one can prove.</p>
+  <p style="margin:0">This is the difference between <strong>theory</strong> (impossible to be perfect) and <strong>practice</strong> (easy to be good enough). Most static analysis lives in this gap.</p>
+</div>
+
+<div class="key">
+  The practical strategy: <strong>assume termination, flag the known dangerous patterns, and verify with testing.</strong> This is sound engineering even if it's not mathematically complete.
+</div>
+
+<!-- ============================================ -->
+<!-- PART 2: RUNNING THE PROGRAM -->
+<!-- ============================================ -->
+<h2><span class="n">2</span> What running a program tells you</h2>
+
+<p>When you <em>execute</em> a program, you get a <strong>trace</strong> — a concrete record of everything that happened. Each trace is a finite window into the computation. The question is: what can you infer from these windows?</p>
+
+<p>Try it. Here's a function — run it on different inputs and watch what we can infer:</p>
+
+<div class="sim" id="sim1">
+  <div class="sim-code" id="simCode"><span style="color:#c792ea">function</span> <span style="color:#82aaff">mystery</span>(n: number): number {
+  <span style="color:#c792ea">if</span> (n <= 0) <span style="color:#c792ea">return</span> 0;
+  <span style="color:#c792ea">if</span> (n === 1) <span style="color:#c792ea">return</span> 1;
+  <span style="color:#c792ea">return</span> mystery(n - 1) + mystery(n - 2);
+}</div>
+  <div class="sim-controls">
+    <button class="sim-btn" onclick="runSim(0)">Run n=0</button>
+    <button class="sim-btn" onclick="runSim(1)">Run n=1</button>
+    <button class="sim-btn" onclick="runSim(5)">Run n=5</button>
+    <button class="sim-btn" onclick="runSim(10)">Run n=10</button>
+    <button class="sim-btn" onclick="runSim(20)">Run n=20</button>
+    <button class="sim-btn" onclick="runSim(-3)">Run n=−3</button>
+    <button class="sim-btn" style="border-color:var(--red);color:var(--red)" onclick="runSim(45)">Run n=45 (slow!)</button>
+  </div>
+  <div class="sim-output" id="simOut">Click a button to run...</div>
+  <div class="sim-infer" id="simInfer"></div>
+</div>
+
+<p>Each run gives us more evidence. After a few runs, we've built up a picture:</p>
+
+<div id="evidenceBoard" class="card" style="font-size:.88rem">
+  <strong>Evidence so far:</strong> <span id="evidenceText" style="color:var(--muted)">No runs yet — try running the function above.</span>
+</div>
+
+<p>Notice what's happening: no single run <em>proves</em> anything about all inputs. But together they build <strong>statistical confidence</strong>. This is the basis of testing, fuzzing, and property-based testing.</p>
+
+<!-- ============================================ -->
+<!-- PART 3: STATIC + DYNAMIC = POWERFUL -->
+<!-- ============================================ -->
+<h2><span class="n">3</span> Two views, one program</h2>
+
+<p>Here's the deep point: <strong>static analysis</strong> (reading the code) and <strong>dynamic analysis</strong> (running the code) give you complementary information. Each sees things the other misses.</p>
+
+<div class="pipe" id="pipeline"></div>
+<div class="pipe-detail" id="pipeDetail">Click a stage to see what it reveals.</div>
+
+<div class="card accent">
+  <strong>How they feed each other:</strong>
+  <p style="margin:.5rem 0 0">Static analysis tells you <em>what might happen</em> — all possible paths, all reachable code. But it over-approximates: it warns about paths that may never actually execute.</p>
+  <p>Dynamic analysis tells you <em>what does happen</em> — concrete, actual behavior. But it under-approximates: it only sees the inputs you tested.</p>
+  <p style="margin:0"><strong>Together:</strong> Static narrows the search space, dynamic confirms or refutes within that space. Static says "this function <em>might</em> throw." Dynamic says "in 10,000 runs it <em>never</em> threw." Neither is proof, but together they give high confidence.</p>
+</div>
+
+<p>The confidence you can achieve for different properties:</p>
+
+<div class="conf-wrap">
+  <div style="font-size:.85rem;font-weight:600;margin-bottom:.3rem">Purity (no side effects)</div>
+  <div class="conf-bar">
+    <div style="width:80%;background:var(--green);color:#0e1117">Static alone: 80%</div>
+    <div style="width:15%;background:var(--blue);color:#0e1117">+Dynamic: 95%</div>
+    <div style="width:5%;background:var(--border);color:var(--muted)">?</div>
+  </div>
+  <div class="conf-label"><span>Can scan for I/O + mutation primitives</span><span>Edge: eval, dynamic imports</span></div>
+</div>
+
+<div class="conf-wrap">
+  <div style="font-size:.85rem;font-weight:600;margin-bottom:.3rem">Termination</div>
+  <div class="conf-bar">
+    <div style="width:40%;background:var(--green);color:#0e1117">Static: 40%</div>
+    <div style="width:45%;background:var(--blue);color:#0e1117">+Dynamic: 85%</div>
+    <div style="width:15%;background:var(--border);color:var(--muted)">?</div>
+  </div>
+  <div class="conf-label"><span>Pattern match loops + recursion</span><span>Edge: input-dependent termination</span></div>
+</div>
+
+<div class="conf-wrap">
+  <div style="font-size:.85rem;font-weight:600;margin-bottom:.3rem">Type safety</div>
+  <div class="conf-bar">
+    <div style="width:92%;background:var(--green);color:#0e1117">Static (TS compiler): 92%</div>
+    <div style="width:6%;background:var(--blue);color:#0e1117">+Dyn: 98%</div>
+    <div style="width:2%;background:var(--border);color:var(--muted)"></div>
+  </div>
+  <div class="conf-label"><span>Type system catches most</span><span>Edge: any, as, unsound generics</span></div>
+</div>
+
+<div class="conf-wrap">
+  <div style="font-size:.85rem;font-weight:600;margin-bottom:.3rem">Equivalence (do two programs do the same thing?)</div>
+  <div class="conf-bar">
+    <div style="width:5%;background:var(--green);color:#0e1117">~</div>
+    <div style="width:40%;background:var(--blue);color:#0e1117">Dynamic: 40%</div>
+    <div style="width:55%;background:var(--border);color:var(--muted)">Fundamentally hard: 55% unknown</div>
+  </div>
+  <div class="conf-label"><span>Test on many inputs and compare</span><span>Can never fully prove for infinite domains</span></div>
+</div>
+
+<!-- ============================================ -->
+<!-- PART 4: MATH OBJECTS -->
+<!-- ============================================ -->
+<h2><span class="n">4</span> Programs as mathematical objects</h2>
+
+<p>Mathematicians have developed several precise ways to think about "what a program <em>is</em>." Each representation reveals different properties. Click to explore:</p>
+
+<div class="mo-grid" id="progMath"></div>
+<div class="mo-detail" id="progMathDetail">Click a representation to learn more.</div>
+
+<h2><span class="n">5</span> Computations as mathematical objects</h2>
+
+<p>A <strong>computation</strong> is what happens when you run a program. While a program is a static, finite object, a computation can be infinite. Click to explore:</p>
+
+<div class="mo-grid" id="compMath"></div>
+<div class="mo-detail" id="compMathDetail">Click a representation to learn more.</div>
+
+<div class="card accent">
+  <strong>The program → computation relationship:</strong>
+  <p style="margin:.5rem 0">A program is a <strong>finite description</strong>. A computation is the <strong>(possibly infinite) behavior</strong> it generates. The relationship between them is:</p>
+  <p style="font-family:'SF Mono',monospace;font-size:.9rem;text-align:center;color:var(--cyan);margin:.75rem 0">program + input → computation</p>
+  <p style="margin:0">Or mathematically: a program is a <strong>function from inputs to computations</strong>. This is why program properties (finite, syntactic, decidable) and computation properties (possibly infinite, semantic, often undecidable) are so different — you're analyzing the <em>description</em> vs. analyzing the <em>behavior it produces</em>.</p>
+</div>
+
+<!-- ============================================ -->
+<!-- PART 5: HOW THEY CONNECT -->
+<!-- ============================================ -->
+<h2><span class="n">6</span> How knowing one tells you about the other</h2>
+
+<p>This is the payoff. The static (program) and dynamic (computation) views aren't separate — they're two projections of the same thing, and each constrains the other.</p>
+
+<div class="tabs" id="bridgeTabs"></div>
+<div class="tab-body" id="bridgeBody"></div>
+
+<div class="card green" style="margin-top:1.5rem">
+  <strong>The practical upshot:</strong>
+  <p style="margin:.5rem 0">You don't have to choose between static and dynamic. The most powerful analysis tools combine both:</p>
+  <p style="margin:0;font-size:.88rem">
+    <strong>1. Static pass:</strong> Scan the AST for primitives used, build the call graph, flag dangerous patterns. This gives you the <em>upper bound</em> on what the program can do.<br>
+    <strong>2. Dynamic pass:</strong> Run the program on many inputs, observe actual traces, measure actual timing. This gives you <em>concrete evidence</em> about what it actually does.<br>
+    <strong>3. Cross-reference:</strong> If static says "might throw" but 10,000 runs never throw → high confidence it's safe (though not proof). If dynamic reveals a crash that static missed → improve the static model.
+  </p>
+</div>
+
+<!-- ====== 7 ====== -->
+<h2><span class="n">7</span> Quick check</h2>
+
+<div class="card" id="quiz1">
+  <p><strong>A function contains no loops, no recursion, and no calls to other functions. What can you conclude?</strong></p>
+  <button class="qopt" onclick="qz(this,true,1)">It definitely terminates — there's no mechanism for non-termination</button>
+  <button class="qopt" onclick="qz(this,false,1)">You still can't know — Rice's theorem says it's undecidable</button>
+  <button class="qopt" onclick="qz(this,false,1)">You need to run it on every input to be sure</button>
+  <div class="qfb" id="qfb1"></div>
+</div>
+
+<div class="card" id="quiz2">
+  <p><strong>You run a function on 1 million random inputs and it always returns within 10ms. What have you learned?</strong></p>
+  <button class="qopt" onclick="qz(this,false,2)">The function terminates on all inputs</button>
+  <button class="qopt" onclick="qz(this,true,2)">Strong statistical evidence it terminates quickly, but no mathematical proof for all inputs</button>
+  <button class="qopt" onclick="qz(this,false,2)">Nothing — dynamic analysis can't tell you anything about termination</button>
+  <div class="qfb" id="qfb2"></div>
+</div>
+
+<div class="card" id="quiz3">
+  <p><strong>What is the relationship between a "program" and a "computation"?</strong></p>
+  <button class="qopt" onclick="qz(this,false,3)">They're the same thing described differently</button>
+  <button class="qopt" onclick="qz(this,true,3)">A program is a finite description; a computation is the (possibly infinite) behavior it generates on a given input</button>
+  <button class="qopt" onclick="qz(this,false,3)">A computation is always a subset of the program</button>
+  <div class="qfb" id="qfb3"></div>
+</div>
+
+</div><!-- /.container -->
+
+<script>
+// ====== SIMULATION ======
+const fibResults = {};
+let evidence = { runs: 0, allTerminated: true, allPure: true, maxTime: 0, outputs: [], negTested: false };
+
+function fib(n) {
+  if (n <= 0) return 0;
+  if (n === 1) return 1;
+  if (fibResults[n]) return fibResults[n];
+  const r = fib(n-1) + fib(n-2);
+  fibResults[n] = r;
+  return r;
+}
+
+function runSim(n) {
+  const out = document.getElementById('simOut');
+  const infer = document.getElementById('simInfer');
+  const t0 = performance.now();
+
+  let result, steps;
+  if (n >= 0) {
+    result = fib(n);
+    steps = n <= 1 ? 1 : Math.round(1.618 ** n); // approximate call count
+  } else {
+    result = 0;
+    steps = 1;
+  }
+
+  const dt = performance.now() - t0;
+  const displayTime = n >= 40 ? `~${(1.618 ** n / 1e9).toFixed(1)}s (simulated — actual naive fib is exponential)` : `${dt.toFixed(2)}ms`;
+
+  evidence.runs++;
+  evidence.maxTime = Math.max(evidence.maxTime, dt);
+  evidence.outputs.push({ n, result });
+  if (n < 0) evidence.negTested = true;
+
+  out.innerHTML = `<span style="color:var(--muted)">mystery(${n})</span> → <strong>${result}</strong>\n` +
+    `<span style="color:var(--muted)">~${steps.toLocaleString()} recursive calls, ${displayTime}</span>`;
+
+  // Build inference
+  const inferences = [];
+  inferences.push(`<strong>Runs completed:</strong> ${evidence.runs}`);
+  inferences.push(`<strong>All terminated:</strong> <span style="color:var(--green)">Yes</span> (for tested inputs)`);
+  inferences.push(`<strong>Appears pure:</strong> <span style="color:var(--green)">Yes</span> — same input always gives same output`);
+  if (evidence.runs >= 2) {
+    inferences.push(`<strong>Pattern detected:</strong> Looks like the Fibonacci sequence`);
+  }
+  if (evidence.runs >= 3) {
+    inferences.push(`<strong>Complexity:</strong> Time grows exponentially with n (naive recursion)`);
+  }
+  if (n >= 40) {
+    inferences.push(`<strong>⚠ Warning:</strong> n=45 takes billions of calls — termination is guaranteed but impractical`);
+  }
+  if (evidence.negTested) {
+    inferences.push(`<strong>Negative inputs:</strong> Returns 0 immediately (base case handles it)`);
+  }
+
+  infer.innerHTML = inferences.join('<br>');
+
+  // Update evidence board
+  const board = document.getElementById('evidenceText');
+  const summary = [];
+  summary.push(`${evidence.runs} run(s)`);
+  summary.push(`all terminated`);
+  summary.push(`appears deterministic (pure)`);
+  if (evidence.runs >= 2) summary.push(`matches Fibonacci pattern`);
+  if (evidence.runs >= 3) summary.push(`exponential time complexity detected`);
+  board.innerHTML = summary.join(' · ');
+  board.style.color = 'var(--green)';
+}
+
+// ====== PIPELINE ======
+const pipeStages = [
+  { label: "Read source", sub: "AST / syntax", color: "var(--green)",
+    detail: "<strong>Static — Syntax level.</strong> Parse the code into an Abstract Syntax Tree. At this level you can see: which language constructs are used (loops, recursion, await, try/catch), the structure of the call graph, which variables are mutated, which modules are imported. All of this is <em>decidable</em> — it's just reading a tree. This is where KindScript and linters operate." },
+  { label: "Type check", sub: "Types / contracts", color: "var(--blue)",
+    detail: "<strong>Static — Type level.</strong> The TypeScript compiler infers types for every expression and checks them for consistency. This catches type errors, null safety issues, and some control flow problems. It's an <em>abstract interpretation</em> — reasoning about the program without running it, using types as approximations of values. Sound for what it checks, but TypeScript's type system has intentional unsoundness (any, as casts)." },
+  { label: "Abstract interp.", sub: "Data flow approx.", color: "var(--purple)",
+    detail: "<strong>Static — Semantic approximation.</strong> Tools like abstract interpretation track an <em>approximation</em> of values through the program: 'this variable is positive,' 'this pointer is non-null,' 'this data came from user input.' This is more powerful than types but more expensive. It can detect security vulnerabilities (taint analysis), prove array bounds, or verify resource usage. Always over-approximates — it may warn about things that can't actually happen." },
+  { label: "Run tests", sub: "Concrete traces", color: "var(--orange)",
+    detail: "<strong>Dynamic — Concrete execution.</strong> Run the program on specific inputs and observe what happens. Each run gives you a <em>trace</em> — a sequence of states, values, and effects. You learn: does it terminate on this input? What does it return? How long does it take? What I/O does it perform? This is <em>ground truth</em> for the inputs tested, but tells you nothing about untested inputs." },
+  { label: "Fuzz / PBT", sub: "Many random inputs", color: "var(--pink)",
+    detail: "<strong>Dynamic — Statistical coverage.</strong> Property-based testing (QuickCheck-style) and fuzzing generate thousands or millions of random inputs. This massively increases your confidence: if a function works for 1 million random inputs, it <em>probably</em> works for all inputs. Fuzzing is especially powerful for finding crashes, edge cases, and security bugs. Tools: fast-check, jest-fuzz, AFL." },
+  { label: "Cross-ref", sub: "Combine both", color: "var(--cyan)",
+    detail: "<strong>The synthesis.</strong> Compare static predictions with dynamic observations. Static said 'might throw on line 42' — did any test trigger it? Dynamic found a slow path — does the call graph explain why? This is where tools like coverage-guided testing shine: use static analysis to guide test generation toward unexplored paths, then use test results to refine static models." },
+];
+
+const pipeEl = document.getElementById('pipeline');
+let activePipe = -1;
+
+pipeStages.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.className = 'pipe-stage';
+  div.style.background = `${s.color}11`;
+  div.style.borderColor = `${s.color}44`;
+  div.innerHTML = `<div class="ps-label" style="color:${s.color}">${s.label}</div><div class="ps-sub">${s.sub}</div>`;
+  div.onclick = () => {
+    pipeEl.querySelectorAll('.pipe-stage').forEach(d => d.classList.remove('active'));
+    div.classList.add('active'); activePipe = i;
+    document.getElementById('pipeDetail').innerHTML = s.detail;
+  };
+  pipeEl.appendChild(div);
+});
+
+// ====== PROGRAM MATH OBJECTS ======
+const progMathData = [
+  { title: "Syntax tree (AST)", formal: "Tree T = (Nodes, Edges, Labels)",
+    desc: "The finite structure",
+    detail: "The most direct representation. A program IS a finite, labeled tree — each node is a language construct (function, if-statement, expression), each edge is containment. <strong>Operations:</strong> tree traversal, pattern matching, transformation. <strong>Properties you can check:</strong> everything structural — depth, fan-out, which constructs appear, call graph shape. This is what compilers, linters, and KindScript work with." },
+  { title: "String / Gödel number", formal: "n ∈ ℕ (via encoding)",
+    desc: "A program as a number",
+    detail: "Every program is a finite string of characters, and every finite string can be encoded as a natural number (Gödel numbering). This is how computability theory works — 'the set of all programs' IS a subset of ℕ. <strong>Operations:</strong> all operations on natural numbers. <strong>Why it matters:</strong> this encoding is what lets us ask questions like 'does program #n halt?' and prove things like Rice's theorem. The halting set {n : program n halts} is a specific subset of ℕ." },
+  { title: "Lambda term", formal: "e ::= x | λx.e | e e",
+    desc: "The functional core",
+    detail: "In the lambda calculus, every program is a <em>term</em> built from just three constructs: variables (x), abstraction (λx.e = 'function taking x'), and application (e₁ e₂ = 'call'). That's it — three rules generate all possible programs. <strong>Operations:</strong> β-reduction (function application), α-conversion (renaming). TypeScript can be modeled as lambda calculus + primitives (mutation, I/O, etc.). Every language feature is 'syntactic sugar' over this core." },
+  { title: "Partial function", formal: "f : ℕ ⇀ ℕ (partial)",
+    desc: "What it computes",
+    detail: "The <em>denotational</em> view: a program denotes the (partial) function it computes. 'Partial' because the program might not halt on some inputs — those inputs have no output. <strong>Two different programs can denote the same partial function</strong> (they compute the same thing differently). This is the <em>extensional</em> view — it ignores how the program works and only cares about the input-output relationship. Rice's theorem applies here: every non-trivial property of partial functions is undecidable." },
+  { title: "Term in a type theory", formal: "Γ ⊢ e : τ",
+    desc: "A proof of its type",
+    detail: "In the Curry-Howard correspondence, a program IS a proof and its type IS a theorem. <code>function id(x: A): A { return x; }</code> is a proof that 'given A, we can produce A.' TypeScript's type system is a (loose, unsound) version of this. Languages like Agda take it seriously — programs ARE mathematical proofs, and the type checker IS a proof verifier." },
+  { title: "Morphism in a category", formal: "f : A → B in 𝒞",
+    desc: "An arrow between types",
+    detail: "Category theory views programs as <strong>morphisms</strong> (arrows) between objects (types). Composition of programs = composition of morphisms. The category <strong>Hask</strong> has types as objects and functions as arrows. <strong>Why it matters:</strong> functors, monads, and natural transformations — the abstract patterns behind map, flatMap, and async — are all categorical concepts. This is the most abstract view: it captures the <em>compositional structure</em> of programs." },
+];
+
+const compMathData = [
+  { title: "Trace", formal: "σ = s₀ →ᵃ¹ s₁ →ᵃ² s₂ → ⋯",
+    desc: "The step-by-step record",
+    detail: "A trace is a (possibly infinite) sequence of states and actions. State 0 transitions to state 1 via action a₁, and so on. <strong>A terminating computation is a finite trace. A diverging computation is an infinite trace.</strong> Most verification works with traces: 'does every trace eventually reach an accept state?' (liveness), 'does no trace ever reach an error state?' (safety). When you run a test, you get one concrete trace." },
+  { title: "Transition system", formal: "(S, →, s₀) where → ⊆ S × S",
+    desc: "All possible traces at once",
+    detail: "A labeled transition system (LTS) represents ALL possible behaviors of a program — every possible state, every possible transition. If the program is nondeterministic (e.g., reads user input), the LTS branches. <strong>A trace is a single path through the LTS. The LTS is the full tree of all possible paths.</strong> Model checking explores this tree exhaustively (when it's finite). This is the object that the Wadge hierarchy classifies." },
+  { title: "Element of a domain", formal: "d ∈ D (a dcpo / Scott domain)",
+    desc: "A point in a continuous space",
+    detail: "In denotational semantics, a computation is a <em>point</em> in a mathematical space called a domain (technically, a directed-complete partial order). Finite approximations of the computation form a chain: ⊥ ⊑ d₁ ⊑ d₂ ⊑ ⋯ where ⊥ means 'no information yet' and each dᵢ is a better approximation. <strong>The computation is the limit of these approximations.</strong> This is what Abramsky's Stone duality is about — the topology on this domain gives you all observable properties." },
+  { title: "Coinductive structure", formal: "ν F — the greatest fixpoint",
+    desc: "An object observed over time",
+    detail: "A computation that runs forever (a server, a stream, an interactive process) is naturally a <strong>coinductive</strong> object — defined not by how it's constructed, but by how it can be <em>observed</em>. A stream isn't 'a list built up from elements' (inductive); it's 'a thing you can observe the head of and get a tail' (coinductive). <strong>The final coalgebra</strong> (Rutten) is the space of ALL such observations — this is 'the space of all possible behaviors' from your property-space document." },
+  { title: "Tree (branching)", formal: "t ∈ Tree(A) = A × (Input → Tree(A))",
+    desc: "The full decision tree",
+    detail: "For interactive or nondeterministic programs, a computation is a <strong>tree</strong>: at each step, the environment (user, OS, network) provides an input, and the program responds with an output + a continuation. Different inputs produce different branches. <strong>Trace properties</strong> see individual paths through this tree. <strong>Branching-time properties</strong> see the tree structure itself — whether a choice point exists, whether all branches succeed, etc. This is van Glabbeek's spectrum." },
+  { title: "Distribution", formal: "μ ∈ Dist(S) — probability over states",
+    desc: "Probabilistic outcome",
+    detail: "For programs with randomness or uncertainty, a computation produces not a single result but a <strong>probability distribution</strong> over possible results. 'This program returns 42 with probability 0.7 and crashes with probability 0.3.' <strong>Properties become quantitative:</strong> not 'does it halt?' but 'what's the probability it halts?' This is the domain for probabilistic model checking (PRISM) and Bayesian program analysis." },
+];
+
+function renderMOGrid(data, gridId, detailId) {
+  const grid = document.getElementById(gridId);
+  const detail = document.getElementById(detailId);
+  let active = -1;
+  data.forEach((m, i) => {
+    const div = document.createElement('div');
+    div.className = 'mo';
+    div.innerHTML = `<h4>${m.title}</h4><p>${m.desc}</p><div class="formal">${m.formal}</div>`;
+    div.onclick = () => {
+      if (active === i) { active = -1; div.classList.remove('active'); detail.innerHTML = ''; return; }
+      grid.querySelectorAll('.mo').forEach(d => d.classList.remove('active'));
+      div.classList.add('active'); active = i;
+      detail.innerHTML = m.detail;
+    };
+    grid.appendChild(div);
+  });
+}
+
+renderMOGrid(progMathData, 'progMath', 'progMathDetail');
+renderMOGrid(compMathData, 'compMath', 'compMathDetail');
+
+// ====== BRIDGE TABS ======
+const bridges = [
+  { name: "Static → Dynamic", detail: "<strong>What the code tells you about the behavior:</strong><br><br>If a function has no loops, no recursion, and no calls → it <em>must</em> terminate (for all inputs, guaranteed). If it uses no I/O primitives → it <em>must</em> be pure. If the TypeScript compiler says the types are consistent → no type errors at runtime (modulo unsoundness). <br><br>These are <strong>sound</strong> inferences: truths about the static text that logically imply truths about all possible executions. They're the crown jewels of static analysis — properties you can <em>prove</em> without running the code." },
+  { name: "Dynamic → Static", detail: "<strong>What observed behavior tells you about the code:</strong><br><br>If a function crashes on input x → the code has a bug reachable via x. If timing grows exponentially as input grows → the algorithm is (at least) exponential. If the same input always gives the same output → strong evidence for purity (but not proof — it could use a mutable cache that happens to be deterministic).<br><br>These are <strong>inductive</strong> inferences: observations that suggest (but don't prove) properties of the code. More observations → more confidence. Property-based testing (fast-check) systematizes this: define the property you expect, generate random inputs, check if it holds." },
+  { name: "Types ↔ Behavior", detail: "<strong>The type is a contract between code and computation:</strong><br><br><code>(n: number) → number</code> says: 'give me a number, and the computation will produce a number.' The type constrains which computations are <em>legal</em>. A richer type constrains more: <code>(n: PositiveInt) → NonEmptyArray&lt;number&gt;</code> says the input must be positive and the output can't be empty.<br><br>In the Curry-Howard view, the type IS the theorem and the program IS the proof. TypeScript's type system is a lightweight version of this — every type annotation is a (soft) specification of the computation's behavior." },
+  { name: "Invariants ↔ Traces", detail: "<strong>The deepest bridge — loop invariants:</strong><br><br>A loop invariant is a property that's true before and after every iteration. It's a <em>static</em> property of the code (you can write it as an annotation) that guarantees a <em>dynamic</em> property (it holds at every point in the trace). <br><br>Finding invariants automatically is the holy grail of program analysis. If you can find the right invariant, you can prove termination, correctness, and resource bounds — all from the static code. Tools like Dafny and F* let you write invariants and machine-check them." },
+  { name: "Abstraction bridge", detail: "<strong>Abstract interpretation — the formal bridge:</strong><br><br>Cousot & Cousot's framework gives you a mathematically precise way to connect static and dynamic: define an <em>abstraction</em> (a simplified model of runtime values) and prove it's <strong>sound</strong> (the abstraction covers all possible real executions). <br><br>Example: instead of tracking exact numbers, track their <em>sign</em> (+, −, 0). If your abstract interpreter says 'this value is always positive,' then in every real execution, it truly is. You've proven a dynamic property using only static analysis. The abstraction is the bridge." },
+];
+
+const btabs = document.getElementById('bridgeTabs');
+const bbody = document.getElementById('bridgeBody');
+let activeBridge = -1;
+
+bridges.forEach((b, i) => {
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.textContent = b.name;
+  tab.onclick = () => {
+    if (activeBridge === i) { activeBridge = -1; tab.classList.remove('active'); bbody.innerHTML = ''; return; }
+    btabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active'); activeBridge = i;
+    bbody.innerHTML = b.detail;
+  };
+  btabs.appendChild(tab);
+});
+
+// ====== QUIZ ======
+const qAnswers = {
+  1: { correct: "Exactly right. No loops + no recursion + no calls = only straight-line code, which always terminates. This is a case where static analysis gives you a <strong>proof</strong>, not just evidence. Rice's theorem doesn't apply here because you're checking a <em>syntactic</em> (intensional) property, not a property of the computed function.",
+       wrong: "Not quite. Rice's theorem applies to <em>extensional</em> properties (about the function computed). 'Contains no loops or recursion' is a <em>syntactic</em> property you can check directly — and it logically implies termination." },
+  2: { correct: "Right. A million successful runs gives strong <em>statistical</em> evidence but not a mathematical proof. There could be one input in a trillion that causes divergence. This is the fundamental difference between testing (evidence) and verification (proof).",
+       wrong: "Not quite. A million runs gives strong evidence but not certainty. There could be rare inputs that diverge. But 'nothing' is too strong the other way — a million consistent observations IS meaningful evidence." },
+  3: { correct: "Exactly. The program is the recipe (finite text). The computation is the cooking (the process that unfolds when you execute it). One recipe can produce very different meals depending on the ingredients (inputs).",
+       wrong: "Not quite. They're fundamentally different kinds of objects — a program is a finite, static text; a computation is the (possibly infinite) dynamic behavior that text produces when executed with a specific input." },
+};
+
+function qz(btn, correct, n) {
+  const card = btn.closest('.card');
+  card.querySelectorAll('.qopt').forEach(b => { b.disabled = true; b.classList.remove('correct','wrong'); });
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) {
+    const opts = card.querySelectorAll('.qopt');
+    const idx = n === 1 ? 0 : n === 2 ? 1 : 1;
+    opts[idx].classList.add('correct');
+  }
+  document.getElementById('qfb'+n).innerHTML = `<span style="color:var(--${correct?'green':'red'})">${correct ? qAnswers[n].correct : qAnswers[n].wrong}</span>`;
+}
+</script>
+</body>
+</html>

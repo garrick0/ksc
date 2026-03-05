@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Is a Monad — A Visual Explanation</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3348;
+  --text: #e2e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4ecdc4;
+  --green: #4ecdc4;
+  --yellow: #ffd93d;
+  --orange: #ff8c42;
+  --red: #ff6b6b;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --pink: #ff6b9d;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;line-height:1.7;padding:2rem;max-width:1100px;margin:0 auto}
+h1{font-size:2rem;margin-bottom:.3rem;background:linear-gradient(135deg,var(--purple),var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.4rem;color:var(--accent);margin:2.8rem 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+h3{font-size:1.08rem;color:var(--accent2);margin:1.4rem 0 .5rem}
+p,li{color:var(--text2);margin-bottom:.7rem}
+.sub{color:var(--text2);font-size:1.02rem;margin-bottom:2rem}
+code{background:var(--surface2);padding:.15rem .4rem;border-radius:4px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85rem;color:var(--accent)}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;overflow-x:auto;margin:.8rem 0 1.2rem;line-height:1.5}
+pre code{background:none;padding:0;color:var(--text)}
+.kw{color:var(--purple)}.str{color:var(--green)}.num{color:var(--orange)}.cmt{color:#555b70;font-style:italic}.typ{color:var(--cyan)}.fn{color:var(--yellow)}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin:.8rem 0;transition:all .3s}
+.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}
+.card h4{margin-bottom:.4rem;font-size:1rem}
+
+/* Tabs */
+.tabs{display:flex;gap:0;margin:1.2rem 0 0;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.tab{padding:.55rem 1rem;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;font-size:.85rem}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none;padding:1.2rem;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:1rem}
+.tab-content.active{display:block}
+
+/* Visual boxes */
+.vis{margin:1.5rem 0;user-select:none}
+.vis-row{display:flex;align-items:center;gap:.6rem;margin:.6rem 0;flex-wrap:wrap}
+.box{display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.5rem .9rem;transition:all .3s;cursor:default}
+.box-val{background:rgba(78,205,196,.12);border:2px solid var(--green);color:var(--green)}
+.box-wrap{background:rgba(167,139,250,.1);border:2px solid var(--purple);color:var(--purple);padding:.5rem .7rem;border-radius:12px;display:inline-flex;align-items:center;gap:.4rem}
+.box-fn{background:rgba(255,217,61,.1);border:2px solid var(--yellow);color:var(--yellow);border-radius:20px;padding:.4rem .9rem}
+.box-err{background:rgba(255,107,107,.1);border:2px solid var(--red);color:var(--red)}
+.box-none{background:rgba(255,107,107,.08);border:2px dashed var(--red);color:var(--red);opacity:.6}
+.arrow{color:var(--text2);font-size:1.2rem;padding:0 .2rem}
+.arrow-big{font-size:1.6rem;color:var(--accent);padding:0 .3rem}
+.label{font-size:.75rem;color:var(--text2);margin-top:.2rem;text-align:center}
+
+/* Interactive pipeline */
+.pipeline{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.2rem 0}
+.pipeline h4{color:var(--accent);margin-bottom:1rem}
+.pipe-controls{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem}
+.pipe-btn{padding:.45rem .9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:.82rem;font-family:inherit;transition:all .2s}
+.pipe-btn:hover{border-color:var(--accent);background:rgba(108,140,255,.1)}
+.pipe-btn.active{border-color:var(--accent);background:rgba(108,140,255,.15);color:var(--accent)}
+.pipe-display{min-height:200px;padding:1rem;background:var(--surface2);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.85rem;line-height:1.8}
+.pipe-step{padding:.5rem .8rem;margin:.3rem 0;border-radius:6px;border-left:3px solid var(--border);transition:all .4s;opacity:.4}
+.pipe-step.active{opacity:1;background:rgba(108,140,255,.05);border-left-color:var(--accent)}
+.pipe-step.done{opacity:1;border-left-color:var(--green)}
+.pipe-step.fail{opacity:1;border-left-color:var(--red);background:rgba(255,107,107,.05)}
+
+/* Animated flow */
+.flow-anim{position:relative;height:80px;margin:1rem 0;overflow:hidden}
+.flow-node{position:absolute;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.8rem;padding:.4rem .7rem;transition:all .6s ease}
+.flow-arrow-anim{position:absolute;top:50%;transform:translateY(-50%);color:var(--text2);font-size:1.1rem;transition:all .6s ease}
+
+/* Comparison visual */
+.compare-box{display:grid;grid-template-columns:1fr 40px 1fr;gap:0;margin:1rem 0;align-items:start}
+.compare-side{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem}
+.compare-mid{text-align:center;padding-top:2rem;font-size:1.4rem;color:var(--text2);font-weight:700}
+
+/* Expandable */
+.expand{cursor:pointer;user-select:none}
+.expand-header{display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:var(--surface2);border-radius:6px;margin:.4rem 0;transition:background .2s}
+.expand-header:hover{background:rgba(108,140,255,.08)}
+.expand-arrow{transition:transform .2s;font-size:.7rem;color:var(--text2)}
+.expand-arrow.open{transform:rotate(90deg)}
+.expand-body{display:none;padding:.6rem .8rem .8rem 1.8rem;font-size:.9rem}
+.expand-body.open{display:block}
+
+/* Quiz */
+.quiz{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.5rem 0}
+.quiz h4{color:var(--yellow);margin-bottom:1rem}
+.quiz-option{display:block;width:100%;text-align:left;padding:.65rem 1rem;margin:.3rem 0;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .2s}
+.quiz-option:hover{border-color:var(--accent)}
+.quiz-feedback{margin-top:.8rem;padding:.8rem;border-radius:6px;display:none;font-size:.9rem}
+.quiz-feedback.correct{display:block;background:rgba(78,205,196,.1);border:1px solid rgba(78,205,196,.3);color:var(--green)}
+.quiz-feedback.wrong{display:block;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);color:var(--red)}
+
+/* Canvas */
+canvas{border-radius:8px;display:block;margin:.8rem 0}
+</style>
+</head>
+<body>
+
+<h1>What Is a Monad</h1>
+<p class="sub">A visual, interactive explanation — from the problem it solves, through the mechanics, to real examples in Haskell and TypeScript.</p>
+
+<!-- ============================= -->
+<h2>1. The Problem</h2>
+<!-- ============================= -->
+
+<p>You have functions that return <strong>wrapped values</strong>. A function doesn't just return a number — it returns a number that <em>might be missing</em>, or a number <em>plus some log output</em>, or a number <em>that required IO</em>. The wrapper carries extra context.</p>
+
+<div class="vis">
+  <p style="color:var(--text);font-size:.9rem;margin-bottom:.8rem">Three functions, each producing a wrapped value:</p>
+  <div class="vis-row">
+    <div class="box box-fn">lookupUser</div>
+    <div class="arrow">:</div>
+    <div class="box box-val">UserId</div>
+    <div class="arrow">→</div>
+    <div class="box box-wrap">Maybe <div class="box box-val" style="margin:0;padding:.2rem .5rem;font-size:.78rem">User</div></div>
+  </div>
+  <div class="vis-row">
+    <div class="box box-fn">getAddress</div>
+    <div class="arrow">:</div>
+    <div class="box box-val">User</div>
+    <div class="arrow">→</div>
+    <div class="box box-wrap">Maybe <div class="box box-val" style="margin:0;padding:.2rem .5rem;font-size:.78rem">Address</div></div>
+  </div>
+  <div class="vis-row">
+    <div class="box box-fn">getPostcode</div>
+    <div class="arrow">:</div>
+    <div class="box box-val">Address</div>
+    <div class="arrow">→</div>
+    <div class="box box-wrap">Maybe <div class="box box-val" style="margin:0;padding:.2rem .5rem;font-size:.78rem">String</div></div>
+  </div>
+</div>
+
+<p>The problem: <code>lookupUser</code> returns <code>Maybe User</code>, but <code>getAddress</code> expects a plain <code>User</code>. You can't plug one into the other directly. There's a <strong>type mismatch</strong> — the wrapper is in the way.</p>
+
+<div class="vis" style="text-align:center;padding:1rem">
+  <div style="display:inline-flex;align-items:center;gap:.5rem">
+    <div class="box box-wrap">Maybe <div class="box box-val" style="margin:0;padding:.2rem .5rem;font-size:.78rem">User</div></div>
+    <div class="arrow-big" style="color:var(--red)">✗→</div>
+    <div class="box box-fn">getAddress</div>
+    <span style="font-size:.8rem;color:var(--red);margin-left:.5rem">expects plain User, not Maybe User</span>
+  </div>
+</div>
+
+<p>Without monads, you'd manually unwrap at every step:</p>
+<pre><code><span class="kw">case</span> lookupUser uid <span class="kw">of</span>
+  Nothing  -> Nothing                   <span class="cmt">-- propagate failure</span>
+  Just user -> <span class="kw">case</span> getAddress user <span class="kw">of</span>
+    Nothing   -> Nothing                <span class="cmt">-- propagate failure again</span>
+    Just addr -> getPostcode addr       <span class="cmt">-- finally</span></code></pre>
+
+<p>Every step: check for Nothing, unwrap, pass to next function, re-wrap. This is tedious and repetitive. <strong>A monad automates this plumbing.</strong></p>
+
+<!-- ============================= -->
+<h2>2. The Solution: Bind</h2>
+<!-- ============================= -->
+
+<p>A monad gives you one operation that solves the problem: <strong>bind</strong> (written <code>>>=</code> in Haskell).</p>
+
+<div class="vis" style="text-align:center;padding:1.2rem">
+  <div style="display:inline-flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:center">
+    <div class="box box-wrap">Maybe <div class="box box-val" style="margin:0;padding:.2rem .5rem;font-size:.78rem">User</div></div>
+    <div class="arrow-big">>>=</div>
+    <div class="box box-fn">getAddress</div>
+    <div class="arrow-big">=</div>
+    <div class="box box-wrap">Maybe <div class="box box-val" style="margin:0;padding:.2rem .5rem;font-size:.78rem">Address</div></div>
+  </div>
+  <div class="label" style="margin-top:.8rem">Bind takes a wrapped value and a function that expects an unwrapped value.<br>It handles the unwrapping, applies the function, and gives back a wrapped result.</div>
+</div>
+
+<p>Now you can chain all three:</p>
+<pre><code>lookupUser uid <span class="kw">>>=</span> getAddress <span class="kw">>>=</span> getPostcode</code></pre>
+
+<p>Each <code>>>=</code> handles the plumbing. If any step returns <code>Nothing</code>, the whole chain short-circuits. If every step succeeds, the values flow through.</p>
+
+<!-- ============================= -->
+<h2>3. Interactive: Watch Bind Work</h2>
+<!-- ============================= -->
+
+<div class="pipeline">
+  <h4>Choose a scenario and step through the bind chain:</h4>
+  <div class="pipe-controls">
+    <button class="pipe-btn active" onclick="selectScenario(0)">All succeed</button>
+    <button class="pipe-btn" onclick="selectScenario(1)">User not found</button>
+    <button class="pipe-btn" onclick="selectScenario(2)">No address</button>
+    <button class="pipe-btn" onclick="selectScenario(3)">No postcode</button>
+  </div>
+  <div id="pipeline-display" class="pipe-display"></div>
+  <div style="margin-top:.8rem;display:flex;gap:.5rem">
+    <button class="pipe-btn" onclick="pipeStep(-1)">← Back</button>
+    <button class="pipe-btn" onclick="pipeStep(1)" style="border-color:var(--accent);color:var(--accent)">Step →</button>
+    <button class="pipe-btn" onclick="pipeReset()">Reset</button>
+  </div>
+</div>
+
+<!-- ============================= -->
+<h2>4. The Two Operations</h2>
+<!-- ============================= -->
+
+<p>A monad is any type <code>m</code> that implements exactly two operations:</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4 style="color:var(--cyan)">return (aka pure / unit)</h4>
+    <pre><code><span class="kw">return</span> :: a -> m a</code></pre>
+    <p>Takes a plain value and wraps it. Put a value into the container. For Maybe: <code>return 5</code> gives <code>Just 5</code>. For List: <code>return 5</code> gives <code>[5]</code>.</p>
+    <div class="vis-row" style="justify-content:center;margin-top:.5rem">
+      <div class="box box-val">5</div>
+      <div class="arrow-big">→</div>
+      <div class="box box-wrap">Just <div class="box box-val" style="margin:0;padding:.2rem .5rem;font-size:.78rem">5</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--yellow)">bind (>>= )</h4>
+    <pre><code>(<span class="kw">>>=</span>) :: m a -> (a -> m b) -> m b</code></pre>
+    <p>Takes a wrapped value and a function that produces a wrapped value. Unwraps, applies, returns the new wrapped result. The <em>how</em> of unwrapping depends on the specific monad.</p>
+    <div class="vis-row" style="justify-content:center;margin-top:.5rem">
+      <div class="box box-wrap">m <div class="box box-val" style="margin:0;padding:.2rem .4rem;font-size:.75rem">a</div></div>
+      <div class="arrow-big">>>=</div>
+      <div class="box box-fn">a → m b</div>
+      <div class="arrow-big">=</div>
+      <div class="box box-wrap">m <div class="box box-val" style="margin:0;padding:.2rem .4rem;font-size:.75rem">b</div></div>
+    </div>
+  </div>
+</div>
+
+<p>That's the entire interface. Everything else — <code>do</code> notation, monad transformers, all the patterns — is built on these two operations.</p>
+
+<!-- ============================= -->
+<h2>5. What Bind Does for Each Monad</h2>
+<!-- ============================= -->
+
+<p>The magic is that <strong>different monads define different plumbing</strong> in their bind. Same interface, different behavior between the steps:</p>
+
+<div class="tabs" id="monad-tabs">
+  <div class="tab active" onclick="switchTab('monad-tabs','monad-content',0)">Maybe</div>
+  <div class="tab" onclick="switchTab('monad-tabs','monad-content',1)">List</div>
+  <div class="tab" onclick="switchTab('monad-tabs','monad-content',2)">Either</div>
+  <div class="tab" onclick="switchTab('monad-tabs','monad-content',3)">IO</div>
+  <div class="tab" onclick="switchTab('monad-tabs','monad-content',4)">State</div>
+  <div class="tab" onclick="switchTab('monad-tabs','monad-content',5)">Writer</div>
+</div>
+
+<div id="monad-content">
+  <!-- Maybe -->
+  <div class="tab-content active">
+    <h3>Maybe — short-circuit on failure</h3>
+    <p>Bind checks if the left side is <code>Nothing</code>. If so, skip the function and return <code>Nothing</code>. If it's <code>Just x</code>, unwrap <code>x</code> and pass it to the function.</p>
+    <pre><code><span class="cmt">-- Bind implementation for Maybe:</span>
+Nothing  <span class="kw">>>=</span> f = Nothing        <span class="cmt">-- short-circuit</span>
+(Just x) <span class="kw">>>=</span> f = f x            <span class="cmt">-- unwrap, apply</span></code></pre>
+    <div class="vis" style="margin:1rem 0">
+      <canvas id="canvas-maybe" width="700" height="200"></canvas>
+    </div>
+    <p><strong>Plumbing:</strong> "If anything fails, stop immediately and propagate the failure."</p>
+  </div>
+
+  <!-- List -->
+  <div class="tab-content">
+    <h3>List — try all combinations</h3>
+    <p>Bind applies the function to <strong>every element</strong> and concatenates all the results. This is just flatMap.</p>
+    <pre><code><span class="cmt">-- Bind implementation for List:</span>
+xs <span class="kw">>>=</span> f = concat (map f xs)
+<span class="cmt">-- or equivalently: concatMap f xs</span>
+
+<span class="cmt">-- Example:</span>
+[<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>] <span class="kw">>>=</span> \x -> [x, x*<span class="num">10</span>]
+<span class="cmt">-- = concat [[1,10], [2,20], [3,30]]</span>
+<span class="cmt">-- = [1, 10, 2, 20, 3, 30]</span></code></pre>
+    <div class="vis" style="margin:1rem 0">
+      <canvas id="canvas-list" width="700" height="220"></canvas>
+    </div>
+    <p><strong>Plumbing:</strong> "Explore every possibility. Nondeterminism."</p>
+  </div>
+
+  <!-- Either -->
+  <div class="tab-content">
+    <h3>Either — failure with a reason</h3>
+    <p>Like Maybe, but <code>Left</code> carries an error value instead of just being empty. Bind propagates the error without running the next function.</p>
+    <pre><code><span class="cmt">-- Bind implementation for Either:</span>
+(Left err) <span class="kw">>>=</span> f = Left err     <span class="cmt">-- propagate error</span>
+(Right x)  <span class="kw">>>=</span> f = f x          <span class="cmt">-- unwrap, apply</span>
+
+<span class="cmt">-- Example:</span>
+parseAge <span class="str">"abc"</span> <span class="kw">>>=</span> validateRange
+<span class="cmt">-- parseAge returns Left "not a number"</span>
+<span class="cmt">-- bind short-circuits: Left "not a number"</span>
+<span class="cmt">-- validateRange never runs</span></code></pre>
+    <div class="vis-row" style="justify-content:center">
+      <div class="box box-err">Left "not a number"</div>
+      <div class="arrow-big">>>=</div>
+      <div class="box box-fn" style="opacity:.4;text-decoration:line-through">validateRange</div>
+      <div class="arrow-big">=</div>
+      <div class="box box-err">Left "not a number"</div>
+    </div>
+    <p><strong>Plumbing:</strong> "If anything fails, stop and carry the error message through."</p>
+  </div>
+
+  <!-- IO -->
+  <div class="tab-content">
+    <h3>IO — sequence side effects</h3>
+    <p>An <code>IO a</code> is a description of an action that produces an <code>a</code>. Bind sequences these descriptions: "do this action, take the result, feed it to the next action."</p>
+    <pre><code><span class="cmt">-- IO bind sequences real-world actions:</span>
+getLine <span class="kw">>>=</span> \name -> putStrLn (<span class="str">"Hello, "</span> ++ name)
+
+<span class="cmt">-- Step 1: perform getLine (read from stdin)</span>
+<span class="cmt">-- Step 2: take the string, pass to the lambda</span>
+<span class="cmt">-- Step 3: perform putStrLn (print to stdout)</span></code></pre>
+    <div class="vis-row" style="justify-content:center">
+      <div class="box" style="background:rgba(255,107,155,.1);border:2px solid var(--pink);color:var(--pink)">IO "Sam"</div>
+      <div class="arrow-big">>>=</div>
+      <div class="box box-fn">greet</div>
+      <div class="arrow-big">=</div>
+      <div class="box" style="background:rgba(255,107,155,.1);border:2px solid var(--pink);color:var(--pink)">IO "Hello, Sam"</div>
+    </div>
+    <p><strong>Plumbing:</strong> "Execute this effect, take the result, feed it to the next effect. Enforce sequencing."</p>
+    <p style="font-size:.88rem">This is Haskell's entire approach to side effects. All IO lives in the <code>IO</code> monad. You can't extract values from it — you can only compose IO actions together. The runtime executes the final composed action.</p>
+  </div>
+
+  <!-- State -->
+  <div class="tab-content">
+    <h3>State — thread a value through</h3>
+    <p>A <code>State s a</code> is a function <code>s → (a, s)</code> — takes a state in, returns a result and a new state. Bind threads the state from one step to the next.</p>
+    <pre><code><span class="cmt">-- State s a  is really just:  s -> (a, s)</span>
+<span class="cmt">-- Bind implementation:</span>
+m <span class="kw">>>=</span> f = \s0 ->
+  <span class="kw">let</span> (a, s1) = m s0       <span class="cmt">-- run first, get result + new state</span>
+      (b, s2) = (f a) s1   <span class="cmt">-- run second with new state</span>
+  <span class="kw">in</span> (b, s2)                <span class="cmt">-- return final result + final state</span></code></pre>
+    <div class="vis" style="margin:1rem 0">
+      <canvas id="canvas-state" width="700" height="160"></canvas>
+    </div>
+    <p><strong>Plumbing:</strong> "Carry a state value forward through each step, updating it along the way."</p>
+  </div>
+
+  <!-- Writer -->
+  <div class="tab-content">
+    <h3>Writer — accumulate a log</h3>
+    <p>A <code>Writer w a</code> is a pair <code>(a, w)</code> — a value plus accumulated output. Bind runs the function and <strong>concatenates</strong> the logs.</p>
+    <pre><code><span class="cmt">-- Writer w a  is really just:  (a, w)</span>
+<span class="cmt">-- Bind implementation:</span>
+(a, w1) <span class="kw">>>=</span> f =
+  <span class="kw">let</span> (b, w2) = f a       <span class="cmt">-- apply function to value</span>
+  <span class="kw">in</span> (b, w1 <> w2)          <span class="cmt">-- combine logs with (<>)</span>
+
+<span class="cmt">-- Example:</span>
+addTax price   = (price * <span class="num">1.2</span>, [<span class="str">"Added 20% tax"</span>])
+roundUp amount = (ceiling amount, [<span class="str">"Rounded up"</span>])
+
+(<span class="num">100</span>, [<span class="str">"Base price"</span>]) <span class="kw">>>=</span> addTax <span class="kw">>>=</span> roundUp
+<span class="cmt">-- = (120, ["Base price", "Added 20% tax", "Rounded up"])</span></code></pre>
+    <p><strong>Plumbing:</strong> "Run the computation, combine the log outputs from each step."</p>
+  </div>
+</div>
+
+<!-- ============================= -->
+<h2>6. Do Notation — Syntactic Sugar</h2>
+<!-- ============================= -->
+
+<p>Haskell provides <code>do</code> notation which makes monadic code look imperative. It's purely syntactic sugar over <code>>>=</code>:</p>
+
+<div class="compare-box">
+  <div class="compare-side">
+    <h4 style="color:var(--yellow);margin-bottom:.8rem">With bind (>>=)</h4>
+    <pre><code>lookupUser uid <span class="kw">>>=</span> \user ->
+getAddress user <span class="kw">>>=</span> \addr ->
+getPostcode addr <span class="kw">>>=</span> \code ->
+return (user, code)</code></pre>
+  </div>
+  <div class="compare-mid">=</div>
+  <div class="compare-side">
+    <h4 style="color:var(--cyan);margin-bottom:.8rem">With do notation</h4>
+    <pre><code><span class="kw">do</span>
+  user <- lookupUser uid
+  addr <- getAddress user
+  code <- getPostcode addr
+  return (user, code)</code></pre>
+  </div>
+</div>
+
+<p>Every <code>x &lt;-</code> desugars into a <code>>>= \x -></code>. The <code>do</code> block looks like sequential statements with variable assignment, but it's actually a chain of bind calls. The monad's bind decides what happens between lines — short-circuit for Maybe, explore all paths for List, sequence effects for IO.</p>
+
+<!-- ============================= -->
+<h2>7. The Three Laws</h2>
+<!-- ============================= -->
+
+<p>For <code>return</code> and <code>>>=</code> to form a valid monad, three laws must hold. These aren't checked by the compiler — they're a contract the implementor promises:</p>
+
+<div class="card">
+  <h4 style="color:var(--cyan)">Left Identity</h4>
+  <pre><code><span class="kw">return</span> a <span class="kw">>>=</span> f  ≡  f a</code></pre>
+  <p>Wrapping a value and immediately binding it into a function is the same as just calling the function. <code>return</code> doesn't add any extra context — it's a neutral wrapper.</p>
+  <div class="vis-row" style="justify-content:center;margin-top:.5rem">
+    <div class="box box-wrap">Just <span class="box box-val" style="margin:0;padding:.1rem .4rem;font-size:.75rem">5</span></div>
+    <span class="arrow-big">>>=</span>
+    <span class="box box-fn">f</span>
+    <span style="color:var(--text);padding:0 .5rem;font-size:1.1rem">≡</span>
+    <span class="box box-fn">f</span>
+    <span class="box box-val">5</span>
+  </div>
+</div>
+
+<div class="card">
+  <h4 style="color:var(--cyan)">Right Identity</h4>
+  <pre><code>m <span class="kw">>>=</span> <span class="kw">return</span>  ≡  m</code></pre>
+  <p>Binding a wrapped value into <code>return</code> gives you back the same wrapped value. Unwrapping and re-wrapping is a no-op.</p>
+  <div class="vis-row" style="justify-content:center;margin-top:.5rem">
+    <div class="box box-wrap">Just <span class="box box-val" style="margin:0;padding:.1rem .4rem;font-size:.75rem">5</span></div>
+    <span class="arrow-big">>>=</span>
+    <span class="box box-fn">return</span>
+    <span style="color:var(--text);padding:0 .5rem;font-size:1.1rem">≡</span>
+    <div class="box box-wrap">Just <span class="box box-val" style="margin:0;padding:.1rem .4rem;font-size:.75rem">5</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h4 style="color:var(--cyan)">Associativity</h4>
+  <pre><code>(m <span class="kw">>>=</span> f) <span class="kw">>>=</span> g  ≡  m <span class="kw">>>=</span> (\x -> f x <span class="kw">>>=</span> g)</code></pre>
+  <p>Chaining binds in different groupings gives the same result. It doesn't matter whether you group left or right — the chain is the chain.</p>
+</div>
+
+<p>These correspond exactly to the identity and associativity laws for morphism composition in a <strong>Kleisli category</strong> — the category theory structure underlying monads.</p>
+
+<!-- ============================= -->
+<h2>8. Visual: How Bind Differs per Monad</h2>
+<!-- ============================= -->
+
+<p>Click a monad to see what bind does <strong>between</strong> two steps — this is where each monad's personality lives:</p>
+
+<div class="pipeline">
+  <div class="pipe-controls">
+    <button class="pipe-btn active" onclick="showBindVisual(0)">Maybe</button>
+    <button class="pipe-btn" onclick="showBindVisual(1)">List</button>
+    <button class="pipe-btn" onclick="showBindVisual(2)">Either</button>
+    <button class="pipe-btn" onclick="showBindVisual(3)">State</button>
+    <button class="pipe-btn" onclick="showBindVisual(4)">Writer</button>
+    <button class="pipe-btn" onclick="showBindVisual(5)">IO</button>
+  </div>
+  <canvas id="canvas-bind" width="700" height="260"></canvas>
+</div>
+
+<!-- ============================= -->
+<h2>9. In TypeScript Terms</h2>
+<!-- ============================= -->
+
+<p>You've already used monads in TypeScript — you just didn't call them that:</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4 style="color:var(--purple)">Promise</h4>
+    <p><code>Promise&lt;A&gt;</code> is a monad. <code>.then()</code> is bind. It unwraps the resolved value, passes it to your callback, and returns a new Promise.</p>
+    <pre><code>fetch(<span class="str">"/api"</span>)
+  .then(res => res.json())
+  .then(data => process(data))</code></pre>
+    <p style="font-size:.82rem;color:var(--text2)">Plumbing: sequence async operations, propagate rejections.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--purple)">Array</h4>
+    <p><code>Array&lt;A&gt;</code> is a monad. <code>.flatMap()</code> is bind. It applies the function to every element and flattens the result.</p>
+    <pre><code>[<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>].flatMap(x => [x, x*<span class="num">10</span>])
+<span class="cmt">// [1, 10, 2, 20, 3, 30]</span></code></pre>
+    <p style="font-size:.82rem;color:var(--text2)">Plumbing: try every element, collect all results.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--purple)">Optional chaining</h4>
+    <p><code>user?.address?.postcode</code> is Maybe-monad bind in disguise. Each <code>?.</code> checks for null/undefined and short-circuits if missing.</p>
+    <pre><code><span class="kw">const</span> code = user?.address?.postcode
+<span class="cmt">// If user is null → undefined</span>
+<span class="cmt">// If address is null → undefined</span>
+<span class="cmt">// Otherwise → postcode value</span></code></pre>
+    <p style="font-size:.82rem;color:var(--text2)">Plumbing: short-circuit on null/undefined.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--purple)">Effect-TS</h4>
+    <p><code>Effect&lt;R,E,A&gt;</code> is explicitly a monad. <code>Effect.flatMap()</code> is bind. It threads requirements, accumulates errors, and sequences effects.</p>
+    <pre><code>pipe(
+  getUser(id),
+  Effect.flatMap(getAddress),
+  Effect.flatMap(getPostcode),
+)</code></pre>
+    <p style="font-size:.82rem;color:var(--text2)">Plumbing: track deps (R), propagate errors (E), sequence effects.</p>
+  </div>
+</div>
+
+<!-- ============================= -->
+<h2>10. The Big Picture</h2>
+<!-- ============================= -->
+
+<canvas id="canvas-bigpicture" width="700" height="320"></canvas>
+
+<p>A monad is a pattern for composing functions that produce wrapped values. <code>return</code> wraps. <code>bind</code> unwraps-and-rewraps with custom plumbing in between. Different monads, different plumbing, same interface. That's it.</p>
+
+<div class="expand" onclick="toggleExpand(this)">
+  <div class="expand-header"><span class="expand-arrow">▶</span> <strong>The category theory view (optional)</strong></div>
+  <div class="expand-body">
+    <p>A monad is an endofunctor <code>T : C → C</code> equipped with two natural transformations: <code>η : Id → T</code> (unit, aka return) and <code>μ : T∘T → T</code> (join, aka flatten). These satisfy the associativity and identity laws. In programming terms: <code>T</code> is the type constructor (Maybe, List, IO), <code>η</code> is <code>return</code>, and <code>μ</code> is flattening nested wrappers (<code>Maybe (Maybe a) → Maybe a</code>). Bind is derived: <code>m >>= f = join (fmap f m)</code>. The Kleisli category has the same objects as C but morphisms <code>a → T b</code>, with bind as composition.</p>
+  </div>
+</div>
+
+<!-- ============================= -->
+<h2>11. Check Your Understanding</h2>
+<!-- ============================= -->
+
+<div class="quiz" id="q1">
+  <h4>Q1: What does bind (>>=) do?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q1',false)">Wraps a plain value in a monad</button>
+  <button class="quiz-option" onclick="checkQuiz('q1',true)">Takes a wrapped value and a function expecting an unwrapped value, handles the unwrapping/rewrapping</button>
+  <button class="quiz-option" onclick="checkQuiz('q1',false)">Removes the wrapper from a monadic value</button>
+  <div class="quiz-feedback" id="q1-feedback"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <h4>Q2: Why can't you just compose <code>f: A → Maybe B</code> and <code>g: B → Maybe C</code> directly?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q2',true)">f returns Maybe B but g expects plain B — the wrapper is in the way</button>
+  <button class="quiz-option" onclick="checkQuiz('q2',false)">Haskell doesn't allow function composition</button>
+  <button class="quiz-option" onclick="checkQuiz('q2',false)">Maybe doesn't support the >>= operator</button>
+  <div class="quiz-feedback" id="q2-feedback"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <h4>Q3: What's the difference between Maybe's bind and List's bind?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q3',false)">Maybe's bind works on single values, List's bind doesn't</button>
+  <button class="quiz-option" onclick="checkQuiz('q3',false)">They're the same — both unwrap and rewrap</button>
+  <button class="quiz-option" onclick="checkQuiz('q3',true)">Maybe's bind short-circuits on Nothing; List's bind applies the function to every element and concatenates</button>
+  <div class="quiz-feedback" id="q3-feedback"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <h4>Q4: What is <code>.then()</code> on a Promise?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q4',false)">A way to add callbacks for error handling</button>
+  <button class="quiz-option" onclick="checkQuiz('q4',true)">Monadic bind — it unwraps the resolved value, applies your function, and returns a new Promise</button>
+  <button class="quiz-option" onclick="checkQuiz('q4',false)">A method for creating new Promises from scratch</button>
+  <div class="quiz-feedback" id="q4-feedback"></div>
+</div>
+
+<script>
+// ========================
+// Tab switching
+// ========================
+function switchTab(tabsId, contentId, index) {
+  const tabs = document.getElementById(tabsId).children;
+  const contents = document.getElementById(contentId).children;
+  for (let i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', i === index);
+    contents[i].classList.toggle('active', i === index);
+  }
+  // Redraw canvases when tabs switch
+  if (contentId === 'monad-content') {
+    setTimeout(() => {
+      if (index === 0) drawMaybeCanvas();
+      if (index === 1) drawListCanvas();
+      if (index === 4) drawStateCanvas();
+    }, 50);
+  }
+}
+
+// ========================
+// Expandable
+// ========================
+function toggleExpand(el) {
+  const arrow = el.querySelector('.expand-arrow');
+  const body = el.querySelector('.expand-body');
+  arrow.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// ========================
+// Pipeline stepper
+// ========================
+const scenarios = [
+  {
+    name: 'All succeed',
+    steps: [
+      { text: 'lookupUser "u123"', result: 'Just (User "Sam")', status: 'done', detail: 'Database lookup succeeds → Just User' },
+      { text: '>>= unwrap: extract User "Sam" from Just', result: 'User "Sam"', status: 'done', detail: 'Bind sees Just → unwraps the value' },
+      { text: 'getAddress (User "Sam")', result: 'Just (Address "123 Main St")', status: 'done', detail: 'Address found → Just Address' },
+      { text: '>>= unwrap: extract Address from Just', result: 'Address "123 Main St"', status: 'done', detail: 'Bind sees Just → unwraps the value' },
+      { text: 'getPostcode (Address "123 Main St")', result: 'Just "90210"', status: 'done', detail: 'Postcode found → Just String' },
+      { text: 'Final result: Just "90210"', result: '✓ Just "90210"', status: 'done', detail: 'All three steps succeeded → value flows through' },
+    ]
+  },
+  {
+    name: 'User not found',
+    steps: [
+      { text: 'lookupUser "u999"', result: 'Nothing', status: 'fail', detail: 'User not in database → Nothing' },
+      { text: '>>= sees Nothing → SHORT-CIRCUIT', result: 'Nothing', status: 'fail', detail: 'Bind sees Nothing → skips getAddress entirely' },
+      { text: 'getAddress — SKIPPED', result: '—', status: 'fail', detail: 'Never called. Bind propagated Nothing.' },
+      { text: 'getPostcode — SKIPPED', result: '—', status: 'fail', detail: 'Never called. Bind propagated Nothing.' },
+      { text: 'Final result: Nothing', result: '✗ Nothing', status: 'fail', detail: 'One failure → whole chain returns Nothing' },
+    ]
+  },
+  {
+    name: 'No address',
+    steps: [
+      { text: 'lookupUser "u123"', result: 'Just (User "Sam")', status: 'done', detail: 'User found' },
+      { text: '>>= unwrap: extract User "Sam"', result: 'User "Sam"', status: 'done', detail: 'Bind unwraps' },
+      { text: 'getAddress (User "Sam")', result: 'Nothing', status: 'fail', detail: 'No address on file → Nothing' },
+      { text: '>>= sees Nothing → SHORT-CIRCUIT', result: 'Nothing', status: 'fail', detail: 'Bind sees Nothing → skips getPostcode' },
+      { text: 'getPostcode — SKIPPED', result: '—', status: 'fail', detail: 'Never called.' },
+      { text: 'Final result: Nothing', result: '✗ Nothing', status: 'fail', detail: 'Failure at step 2 → chain stops' },
+    ]
+  },
+  {
+    name: 'No postcode',
+    steps: [
+      { text: 'lookupUser "u123"', result: 'Just (User "Sam")', status: 'done', detail: 'User found' },
+      { text: '>>= unwrap: extract User "Sam"', result: 'User "Sam"', status: 'done', detail: 'Bind unwraps' },
+      { text: 'getAddress (User "Sam")', result: 'Just (Address "123 Main St")', status: 'done', detail: 'Address found' },
+      { text: '>>= unwrap: extract Address', result: 'Address "123 Main St"', status: 'done', detail: 'Bind unwraps' },
+      { text: 'getPostcode (Address "123 Main St")', result: 'Nothing', status: 'fail', detail: 'No postcode → Nothing' },
+      { text: 'Final result: Nothing', result: '✗ Nothing', status: 'fail', detail: 'Last step fails → Nothing' },
+    ]
+  },
+];
+
+let currentScenario = 0;
+let currentStep = -1;
+
+function selectScenario(i) {
+  currentScenario = i;
+  currentStep = -1;
+  const btns = document.querySelectorAll('.pipe-controls .pipe-btn');
+  btns.forEach((b,j) => b.classList.toggle('active', i===j));
+  renderPipeline();
+}
+
+function renderPipeline() {
+  const s = scenarios[currentScenario];
+  let html = '';
+  s.steps.forEach((step, i) => {
+    const cls = i <= currentStep ? (step.status === 'fail' ? 'active fail' : 'active done') : '';
+    const resultColor = step.status === 'fail' ? 'var(--red)' : 'var(--green)';
+    html += `<div class="pipe-step ${cls}">`;
+    html += `<span style="color:var(--text)">${step.text}</span>`;
+    if (i <= currentStep) {
+      html += `<span style="float:right;color:${resultColor}">${step.result}</span>`;
+      html += `<div style="font-size:.78rem;color:var(--text2);margin-top:.2rem">${step.detail}</div>`;
+    }
+    html += `</div>`;
+  });
+  document.getElementById('pipeline-display').innerHTML = html;
+}
+
+function pipeStep(dir) {
+  const maxStep = scenarios[currentScenario].steps.length - 1;
+  currentStep = Math.max(-1, Math.min(maxStep, currentStep + dir));
+  renderPipeline();
+}
+
+function pipeReset() {
+  currentStep = -1;
+  renderPipeline();
+}
+
+// ========================
+// Canvas drawings
+// ========================
+function drawMaybeCanvas() {
+  const c = document.getElementById('canvas-maybe');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Success path
+  ctx.font = '13px JetBrains Mono, monospace';
+  drawBox(ctx, 30, 30, 'Just 5', '#a78bfa', 'rgba(167,139,250,.1)');
+  drawArrow(ctx, 120, 50, 170, 50);
+  ctx.fillStyle = '#ffd93d';
+  ctx.fillText('>>= f', 130, 45);
+  drawBox(ctx, 180, 30, 'unwrap → 5', '#4ecdc4', 'rgba(78,205,196,.1)');
+  drawArrow(ctx, 310, 50, 350, 50);
+  drawBox(ctx, 360, 30, 'f 5', '#ffd93d', 'rgba(255,217,61,.1)');
+  drawArrow(ctx, 420, 50, 460, 50);
+  drawBox(ctx, 470, 30, 'Just 10', '#a78bfa', 'rgba(167,139,250,.1)');
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('✓ Success path: unwrap, apply f, get new wrapped value', 30, 100);
+
+  // Failure path
+  drawBox(ctx, 30, 120, 'Nothing', '#ff6b6b', 'rgba(255,107,107,.1)');
+  drawArrow(ctx, 130, 140, 170, 140);
+  ctx.fillStyle = '#ffd93d';
+  ctx.font = '13px JetBrains Mono, monospace';
+  ctx.fillText('>>= f', 130, 135);
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillStyle = '#ff6b6b';
+  ctx.fillText('SKIP f', 210, 135);
+  drawArrow(ctx, 260, 140, 360, 140);
+  drawBox(ctx, 370, 120, 'Nothing', '#ff6b6b', 'rgba(255,107,107,.1)');
+  ctx.fillStyle = '#ff6b6b';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('✗ Failure path: skip the function, propagate Nothing', 30, 190);
+}
+
+function drawListCanvas() {
+  const c = document.getElementById('canvas-list');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.font = '13px JetBrains Mono, monospace';
+  drawBox(ctx, 20, 20, '[1, 2, 3]', '#a78bfa', 'rgba(167,139,250,.1)');
+  drawArrow(ctx, 130, 40, 170, 40);
+  ctx.fillStyle = '#ffd93d';
+  ctx.fillText('>>= f', 133, 35);
+
+  // Branch out
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '12px JetBrains Mono, monospace';
+  drawBox(ctx, 200, 5, 'f 1 → [1, 10]', '#4ecdc4', 'rgba(78,205,196,.08)');
+  drawBox(ctx, 200, 45, 'f 2 → [2, 20]', '#4ecdc4', 'rgba(78,205,196,.08)');
+  drawBox(ctx, 200, 85, 'f 3 → [3, 30]', '#4ecdc4', 'rgba(78,205,196,.08)');
+
+  // Merge
+  drawArrow(ctx, 380, 15, 430, 60);
+  drawArrow(ctx, 380, 55, 430, 60);
+  drawArrow(ctx, 380, 95, 430, 60);
+  ctx.fillStyle = '#ffd93d';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.fillText('concat', 415, 45);
+
+  drawBox(ctx, 440, 45, '[1,10,2,20,3,30]', '#a78bfa', 'rgba(167,139,250,.1)');
+
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('Bind applies f to EVERY element, then concatenates all results', 20, 150);
+  ctx.fillText('This is flatMap — the same thing as Array.prototype.flatMap in JS', 20, 170);
+}
+
+function drawStateCanvas() {
+  const c = document.getElementById('canvas-state');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.font = '12px JetBrains Mono, monospace';
+
+  // State in
+  drawBox(ctx, 10, 55, 's₀ = 0', '#6c8cff', 'rgba(108,140,255,.1)');
+  drawArrow(ctx, 90, 72, 130, 72);
+
+  // Step 1
+  drawBox(ctx, 135, 45, 'step₁', '#ffd93d', 'rgba(255,217,61,.1)');
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillText('(a, s₁)', 138, 95);
+
+  drawArrow(ctx, 210, 65, 250, 55);
+  drawArrow(ctx, 210, 80, 250, 80);
+
+  // Result a
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.fillText('a', 230, 48);
+  ctx.fillText('s₁=1', 227, 92);
+
+  // Step 2
+  drawBox(ctx, 280, 45, 'step₂', '#ffd93d', 'rgba(255,217,61,.1)');
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillText('(b, s₂)', 283, 95);
+
+  drawArrow(ctx, 355, 65, 395, 55);
+  drawArrow(ctx, 355, 80, 395, 80);
+
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.fillText('b', 375, 48);
+  ctx.fillText('s₂=2', 372, 92);
+
+  // Step 3
+  drawBox(ctx, 425, 45, 'step₃', '#ffd93d', 'rgba(255,217,61,.1)');
+
+  drawArrow(ctx, 500, 72, 540, 72);
+  drawBox(ctx, 545, 55, '(c, s₃=3)', '#a78bfa', 'rgba(167,139,250,.1)');
+
+  ctx.fillStyle = '#9ba1b5';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('State threads through: each step receives the previous state and returns a new one', 10, 140);
+}
+
+function drawBox(ctx, x, y, text, color, bg) {
+  ctx.font = '13px JetBrains Mono, monospace';
+  const w = ctx.measureText(text).width + 20;
+  const h = 30;
+  ctx.fillStyle = bg;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fillText(text, x + 10, y + 20);
+}
+
+function drawArrow(ctx, x1, y1, x2, y2) {
+  ctx.strokeStyle = '#555b70';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  // arrowhead
+  const angle = Math.atan2(y2-y1, x2-x1);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8*Math.cos(angle-0.4), y2 - 8*Math.sin(angle-0.4));
+  ctx.lineTo(x2 - 8*Math.cos(angle+0.4), y2 - 8*Math.sin(angle+0.4));
+  ctx.closePath();
+  ctx.fillStyle = '#555b70';
+  ctx.fill();
+}
+
+// ========================
+// Bind visual (section 8)
+// ========================
+const bindVisuals = [
+  { // Maybe
+    name: 'Maybe',
+    draw: function(ctx, W, H) {
+      ctx.clearRect(0,0,W,H);
+      const cx = W/2;
+      // Title
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillStyle = '#a78bfa';
+      ctx.textAlign = 'center';
+      ctx.fillText('Maybe: bind checks for Nothing between each step', cx, 25);
+
+      ctx.textAlign = 'left';
+      ctx.font = '13px JetBrains Mono, monospace';
+
+      // Step 1
+      drawBox(ctx, 40, 60, 'step₁', '#ffd93d', 'rgba(255,217,61,.1)');
+      drawArrow(ctx, 115, 75, 155, 75);
+
+      // Decision diamond
+      ctx.fillStyle = 'rgba(108,140,255,.1)';
+      ctx.strokeStyle = '#6c8cff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(200, 50); ctx.lineTo(245, 75); ctx.lineTo(200, 100); ctx.lineTo(155, 75); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#6c8cff';
+      ctx.font = '11px JetBrains Mono, monospace';
+      ctx.fillText('Just?', 175, 80);
+
+      // Yes path
+      drawArrow(ctx, 245, 75, 300, 75);
+      ctx.fillStyle = '#4ecdc4';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('Yes: unwrap', 250, 65);
+
+      drawBox(ctx, 305, 60, 'step₂', '#ffd93d', 'rgba(255,217,61,.1)');
+      drawArrow(ctx, 375, 75, 415, 75);
+
+      ctx.fillStyle = 'rgba(108,140,255,.1)';
+      ctx.strokeStyle = '#6c8cff';
+      ctx.beginPath();
+      ctx.moveTo(460, 50); ctx.lineTo(505, 75); ctx.lineTo(460, 100); ctx.lineTo(415, 75); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#6c8cff';
+      ctx.font = '11px JetBrains Mono, monospace';
+      ctx.fillText('Just?', 435, 80);
+
+      drawArrow(ctx, 505, 75, 550, 75);
+      ctx.fillStyle = '#4ecdc4';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('Yes', 510, 65);
+      drawBox(ctx, 555, 60, 'step₃', '#ffd93d', 'rgba(255,217,61,.1)');
+
+      // No paths
+      drawArrow(ctx, 200, 100, 200, 140);
+      ctx.fillStyle = '#ff6b6b';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('No', 205, 120);
+      drawBox(ctx, 150, 145, 'Nothing', '#ff6b6b', 'rgba(255,107,107,.1)');
+
+      drawArrow(ctx, 460, 100, 460, 140);
+      ctx.fillStyle = '#ff6b6b';
+      ctx.fillText('No', 465, 120);
+      drawBox(ctx, 410, 145, 'Nothing', '#ff6b6b', 'rgba(255,107,107,.1)');
+
+      // Caption
+      ctx.fillStyle = '#9ba1b5';
+      ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Each >>= is a gate: Just passes through, Nothing short-circuits', cx, 200);
+      ctx.textAlign = 'left';
+    }
+  },
+  { // List
+    name: 'List',
+    draw: function(ctx, W, H) {
+      ctx.clearRect(0,0,W,H);
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillStyle = '#a78bfa';
+      ctx.textAlign = 'center';
+      ctx.fillText('List: bind fans out to every element, then flattens', W/2, 25);
+      ctx.textAlign = 'left';
+      ctx.font = '12px JetBrains Mono, monospace';
+
+      drawBox(ctx, 20, 80, '[a,b,c]', '#a78bfa', 'rgba(167,139,250,.1)');
+      // Fan out
+      drawArrow(ctx, 115, 85, 180, 55);
+      drawArrow(ctx, 115, 95, 180, 95);
+      drawArrow(ctx, 115, 105, 180, 135);
+
+      drawBox(ctx, 185, 40, 'f a → [x,y]', '#4ecdc4', 'rgba(78,205,196,.08)');
+      drawBox(ctx, 185, 80, 'f b → [z]', '#4ecdc4', 'rgba(78,205,196,.08)');
+      drawBox(ctx, 185, 120, 'f c → [w,v]', '#4ecdc4', 'rgba(78,205,196,.08)');
+
+      // Merge
+      drawArrow(ctx, 350, 55, 420, 90);
+      drawArrow(ctx, 330, 95, 420, 95);
+      drawArrow(ctx, 350, 135, 420, 100);
+
+      ctx.fillStyle = '#ffd93d';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('concat', 390, 78);
+
+      drawBox(ctx, 425, 80, '[x,y,z,w,v]', '#a78bfa', 'rgba(167,139,250,.1)');
+
+      ctx.fillStyle = '#9ba1b5';
+      ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Each >>= multiplies possibilities — this is nondeterminism', W/2, 200);
+      ctx.textAlign = 'left';
+    }
+  },
+  { // Either
+    name: 'Either',
+    draw: function(ctx, W, H) {
+      ctx.clearRect(0,0,W,H);
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillStyle = '#a78bfa';
+      ctx.textAlign = 'center';
+      ctx.fillText('Either: like Maybe but failures carry an error message', W/2, 25);
+      ctx.textAlign = 'left';
+      ctx.font = '12px JetBrains Mono, monospace';
+
+      // Success
+      drawBox(ctx, 30, 55, 'Right 5', '#4ecdc4', 'rgba(78,205,196,.1)');
+      drawArrow(ctx, 130, 70, 170, 70);
+      ctx.fillStyle = '#ffd93d'; ctx.fillText('>>= f', 133, 60);
+      drawBox(ctx, 180, 55, 'unwrap → f 5', '#ffd93d', 'rgba(255,217,61,.1)');
+      drawArrow(ctx, 330, 70, 370, 70);
+      drawBox(ctx, 380, 55, 'Right 10', '#4ecdc4', 'rgba(78,205,196,.1)');
+
+      // Failure
+      drawBox(ctx, 30, 130, 'Left "oops"', '#ff6b6b', 'rgba(255,107,107,.1)');
+      drawArrow(ctx, 160, 145, 200, 145);
+      ctx.fillStyle = '#ffd93d'; ctx.font = '12px JetBrains Mono, monospace'; ctx.fillText('>>= f', 160, 135);
+      ctx.fillStyle = '#ff6b6b'; ctx.font = '11px Inter, sans-serif'; ctx.fillText('SKIP', 240, 135);
+      drawArrow(ctx, 270, 145, 370, 145);
+      drawBox(ctx, 380, 130, 'Left "oops"', '#ff6b6b', 'rgba(255,107,107,.1)');
+
+      ctx.fillStyle = '#9ba1b5'; ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Error propagates untouched — you know WHY it failed, not just that it did', W/2, 210);
+      ctx.textAlign = 'left';
+    }
+  },
+  { // State
+    name: 'State',
+    draw: function(ctx, W, H) {
+      ctx.clearRect(0,0,W,H);
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillStyle = '#a78bfa';
+      ctx.textAlign = 'center';
+      ctx.fillText('State: bind threads a state value through each step', W/2, 25);
+      ctx.textAlign = 'left';
+      ctx.font = '12px JetBrains Mono, monospace';
+
+      // State flowing through
+      drawBox(ctx, 20, 70, 's₀', '#6c8cff', 'rgba(108,140,255,.1)');
+      drawArrow(ctx, 60, 85, 100, 85);
+      drawBox(ctx, 105, 60, 'step₁(s₀)', '#ffd93d', 'rgba(255,217,61,.1)');
+
+      // Output a and s1
+      drawArrow(ctx, 210, 70, 250, 55);
+      drawArrow(ctx, 210, 85, 250, 105);
+      ctx.fillStyle = '#4ecdc4'; ctx.font = '11px JetBrains Mono, monospace';
+      ctx.fillText('a₁', 255, 55);
+      drawBox(ctx, 250, 95, 's₁', '#6c8cff', 'rgba(108,140,255,.1)');
+
+      drawArrow(ctx, 290, 108, 330, 108);
+      drawBox(ctx, 335, 95, 'step₂(s₁)', '#ffd93d', 'rgba(255,217,61,.1)');
+
+      drawArrow(ctx, 445, 100, 490, 85);
+      drawArrow(ctx, 445, 115, 490, 135);
+      ctx.fillStyle = '#4ecdc4';
+      ctx.fillText('a₂', 495, 85);
+      drawBox(ctx, 490, 125, 's₂', '#6c8cff', 'rgba(108,140,255,.1)');
+
+      drawArrow(ctx, 530, 140, 570, 140);
+      drawBox(ctx, 575, 125, '→ (a₂, s₂)', '#a78bfa', 'rgba(167,139,250,.1)');
+
+      ctx.fillStyle = '#9ba1b5'; ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Each step gets state in, returns result + new state. Bind connects the pipeline.', W/2, 200);
+      ctx.textAlign = 'left';
+    }
+  },
+  { // Writer
+    name: 'Writer',
+    draw: function(ctx, W, H) {
+      ctx.clearRect(0,0,W,H);
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillStyle = '#a78bfa';
+      ctx.textAlign = 'center';
+      ctx.fillText('Writer: bind runs the function and concatenates the logs', W/2, 25);
+      ctx.textAlign = 'left';
+      ctx.font = '12px JetBrains Mono, monospace';
+
+      drawBox(ctx, 20, 65, '(5, ["start"])', '#a78bfa', 'rgba(167,139,250,.1)');
+      drawArrow(ctx, 185, 80, 225, 80);
+      ctx.fillStyle = '#ffd93d'; ctx.fillText('>>= f', 188, 70);
+
+      drawBox(ctx, 230, 55, 'f 5', '#ffd93d', 'rgba(255,217,61,.1)');
+      drawArrow(ctx, 290, 70, 310, 70);
+      drawBox(ctx, 315, 55, '(10, ["doubled"])', '#4ecdc4', 'rgba(78,205,196,.1)');
+
+      // Log merge
+      drawArrow(ctx, 120, 90, 120, 140);
+      drawArrow(ctx, 400, 80, 400, 140);
+      ctx.fillStyle = '#ffd93d'; ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('logs combine', 200, 135);
+
+      drawBox(ctx, 100, 150, '(10, ["start", "doubled"])', '#a78bfa', 'rgba(167,139,250,.1)');
+
+      ctx.fillStyle = '#9ba1b5'; ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Each step can append to the log. Bind merges logs automatically via (<>).', W/2, 220);
+      ctx.textAlign = 'left';
+    }
+  },
+  { // IO
+    name: 'IO',
+    draw: function(ctx, W, H) {
+      ctx.clearRect(0,0,W,H);
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillStyle = '#a78bfa';
+      ctx.textAlign = 'center';
+      ctx.fillText('IO: bind sequences side effects and threads results', W/2, 25);
+      ctx.textAlign = 'left';
+      ctx.font = '12px JetBrains Mono, monospace';
+
+      // Real world
+      ctx.fillStyle = 'rgba(255,107,155,.08)';
+      ctx.strokeStyle = 'rgba(255,107,155,.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(15, 45, 670, 80, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ff6b9d'; ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('REAL WORLD (side effects happen here)', 260, 60);
+
+      ctx.font = '12px JetBrains Mono, monospace';
+      drawBox(ctx, 30, 75, 'getLine', '#ff6b9d', 'rgba(255,107,155,.1)');
+      ctx.fillStyle = '#4ecdc4'; ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('→ "Sam"', 110, 92);
+
+      drawArrow(ctx, 165, 90, 205, 90);
+      ctx.fillStyle = '#ffd93d'; ctx.font = '11px JetBrains Mono, monospace'; ctx.fillText('>>=', 175, 82);
+
+      drawBox(ctx, 210, 75, 'greet', '#ffd93d', 'rgba(255,217,61,.1)');
+      drawArrow(ctx, 275, 90, 310, 90);
+
+      drawBox(ctx, 315, 75, 'putStrLn', '#ff6b9d', 'rgba(255,107,155,.1)');
+      ctx.fillStyle = '#4ecdc4'; ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('→ prints "Hello, Sam"', 420, 92);
+
+      // Description level
+      ctx.fillStyle = 'rgba(108,140,255,.08)';
+      ctx.strokeStyle = 'rgba(108,140,255,.3)';
+      ctx.beginPath(); ctx.roundRect(15, 145, 670, 55, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#6c8cff'; ctx.font = '10px Inter, sans-serif';
+      ctx.fillText('DESCRIPTION LEVEL (this is what your code builds)', 230, 160);
+      ctx.font = '12px JetBrains Mono, monospace';
+      ctx.fillStyle = '#6c8cff';
+      ctx.fillText('getLine >>= (\\name -> putStrLn ("Hello, " ++ name))', 50, 185);
+
+      ctx.fillStyle = '#9ba1b5'; ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Your code builds a description. The runtime executes it. Bind enforces ordering.', W/2, 235);
+      ctx.textAlign = 'left';
+    }
+  }
+];
+
+function showBindVisual(i) {
+  const btns = document.querySelectorAll('#canvas-bind').closest('.pipeline').querySelectorAll('.pipe-btn');
+  btns.forEach((b,j) => b.classList.toggle('active', i===j));
+  const c = document.getElementById('canvas-bind');
+  const ctx = c.getContext('2d');
+  bindVisuals[i].draw(ctx, c.width, c.height);
+}
+
+// ========================
+// Big picture canvas
+// ========================
+function drawBigPicture() {
+  const c = document.getElementById('canvas-bigpicture');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Title
+  ctx.font = 'bold 16px Inter, sans-serif';
+  ctx.fillStyle = '#6c8cff';
+  ctx.textAlign = 'center';
+  ctx.fillText('A Monad = A Type + return + bind (>>=)', W/2, 30);
+  ctx.textAlign = 'left';
+
+  // The core diagram
+  const centerX = W/2, centerY = 160;
+  const radius = 100;
+
+  // Central circle
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 45, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(108,140,255,.1)';
+  ctx.strokeStyle = '#6c8cff';
+  ctx.lineWidth = 2;
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#6c8cff';
+  ctx.font = 'bold 14px JetBrains Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('>>=', centerX, centerY + 5);
+  ctx.font = '10px Inter, sans-serif';
+  ctx.fillText('(bind)', centerX, centerY + 20);
+
+  // Monads around it
+  const monads = [
+    { name: 'Maybe', desc: 'short-circuit', color: '#a78bfa', angle: -Math.PI/2 },
+    { name: 'List', desc: 'fan out', color: '#4ecdc4', angle: -Math.PI/6 },
+    { name: 'Either', desc: 'error msg', color: '#ff6b6b', angle: Math.PI/6 },
+    { name: 'IO', desc: 'sequence', color: '#ff6b9d', angle: Math.PI/2 },
+    { name: 'State', desc: 'thread state', color: '#ffd93d', angle: Math.PI * 5/6 },
+    { name: 'Writer', desc: 'accumulate', color: '#22d3ee', angle: -Math.PI * 5/6 },
+  ];
+
+  monads.forEach(m => {
+    const x = centerX + Math.cos(m.angle) * radius;
+    const y = centerY + Math.sin(m.angle) * radius;
+
+    // Line to center
+    ctx.strokeStyle = m.color + '40';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(centerX + Math.cos(m.angle)*48, centerY + Math.sin(m.angle)*48);
+    ctx.lineTo(x - Math.cos(m.angle)*25, y - Math.sin(m.angle)*25); ctx.stroke();
+
+    // Circle
+    ctx.beginPath(); ctx.arc(x, y, 30, 0, Math.PI*2);
+    ctx.fillStyle = m.color + '18'; ctx.strokeStyle = m.color; ctx.lineWidth = 1.5;
+    ctx.fill(); ctx.stroke();
+
+    // Text
+    ctx.fillStyle = m.color;
+    ctx.font = 'bold 11px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(m.name, x, y + 2);
+    ctx.font = '9px Inter, sans-serif';
+    ctx.fillStyle = m.color + 'bb';
+    ctx.fillText(m.desc, x, y + 15);
+  });
+
+  // Bottom text
+  ctx.fillStyle = '#9ba1b5';
+  ctx.font = '13px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Same interface (>>=), different plumbing between steps.', W/2, H - 20);
+  ctx.textAlign = 'left';
+}
+
+// ========================
+// Quiz
+// ========================
+function checkQuiz(id, correct) {
+  const fb = document.getElementById(id + '-feedback');
+  if (correct) {
+    fb.className = 'quiz-feedback correct';
+    const answers = {
+      q1: 'Correct! Bind takes a wrapped value and a function that produces a wrapped value. It handles the unwrapping, applies the function, and returns a new wrapped result. The specific monad decides what "handling" means.',
+      q2: 'Correct! f outputs Maybe B (wrapped), but g expects plain B (unwrapped). Bind bridges this gap by unwrapping before passing to the next function.',
+      q3: "Correct! That's exactly the difference. Same interface (>>=), completely different behavior between steps. Maybe checks for Nothing; List applies to all elements and concatenates.",
+      q4: "Correct! Promise.then() is monadic bind. It unwraps the resolved value, applies your function, and if your function returns a Promise, it flattens it (no nested Promises). That's exactly what >>= does."
+    };
+    fb.textContent = answers[id];
+  } else {
+    fb.className = 'quiz-feedback wrong';
+    const hints = {
+      q1: "Not quite. Bind doesn't just wrap (that's return) or just unwrap. It takes a wrapped value + a function, handles unwrapping, applies the function, and returns the new wrapped result.",
+      q2: "Not quite. The issue is about types: f returns Maybe B but g needs plain B. The wrapper prevents direct composition.",
+      q3: "Not quite. The key difference is what happens between steps: Maybe short-circuits on Nothing, List fans out to every element. Same interface, different plumbing.",
+      q4: "Not quite. .then() is bind — it unwraps the resolved value from the Promise, applies your callback, and returns a new Promise."
+    };
+    fb.textContent = hints[id];
+  }
+}
+
+// ========================
+// Init
+// ========================
+renderPipeline();
+drawMaybeCanvas();
+showBindVisual(0);
+drawBigPicture();
+</script>
+
+</body>
+</html>

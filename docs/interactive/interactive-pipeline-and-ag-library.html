@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KindScript Pipeline & AG Weak Interpreter — Interactive Guide</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Hero ── */
+.hero {
+  text-align: center; padding: 80px 24px 60px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 3rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.15rem; color: var(--text-dim); max-width: 640px; margin: 0 auto 24px; }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.ts { border-color: #3178c6; color: #3178c6; }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+
+/* ── Navigation ── */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+/* ── Sections ── */
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+h2 .num {
+  display: inline-block; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  text-align: center; line-height: 38px; margin-right: 12px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 12px; }
+
+p { margin-bottom: 16px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.84em;
+  line-height: 1.6; margin: 16px 0 20px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+/* Syntax highlighting */
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.number-lit { color: var(--orange); }
+.fn-name { color: var(--yellow); }
+.param { color: var(--pink); }
+.prop { color: var(--text); }
+
+/* ── Insight ── */
+.insight {
+  background: rgba(108,140,255,0.06); border-left: 3px solid var(--accent);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { background: rgba(251,146,60,0.06); border-left-color: var(--orange); }
+.insight.green { background: rgba(74,222,128,0.06); border-left-color: var(--green); }
+.insight strong { color: var(--text); }
+
+/* ── Tables ── */
+table {
+  width: 100%; border-collapse: collapse; margin: 16px 0 24px;
+  font-size: 0.88rem;
+}
+th {
+  text-align: left; padding: 10px 14px; background: var(--surface);
+  border-bottom: 2px solid var(--border); font-weight: 700; color: var(--accent);
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.4px;
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+td:first-child { color: var(--text); font-weight: 600; }
+tr:hover td { background: var(--surface); }
+
+/* ── Pipeline stepper ── */
+.pipeline-stepper {
+  display: flex; gap: 2px; margin-bottom: 4px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.step-btn {
+  flex: 1; padding: 12px 8px; border: none; background: var(--surface);
+  color: var(--text-dim); font-weight: 700; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  letter-spacing: 0.5px; font-family: var(--mono);
+}
+.step-btn:hover { background: var(--surface2); color: var(--text); }
+.step-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+}
+.step-content { display: none; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+.step-content.active { display: block; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; margin-bottom: 0; }
+.tab {
+  padding: 10px 20px; background: var(--surface); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim); font-weight: 600; font-size: 0.82rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { box-shadow: inset 0 2px 0 var(--accent); color: var(--text); background: var(--surface2); }
+.tab-content { display: none; padding: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); }
+.tab-content.active { display: block; }
+
+/* ── Collapsible stages ── */
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 4px; overflow: hidden;
+  cursor: pointer; transition: all 0.2s;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+}
+.df-stage-title { font-weight: 700; font-size: 0.95rem; }
+.df-num {
+  display: inline-flex; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.78rem;
+  align-items: center; justify-content: center; font-weight: 800;
+  margin-right: 10px;
+}
+.df-expand { color: var(--text-dim); transition: transform 0.3s; font-size: 0.8rem; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  display: none; padding: 0 20px 20px; font-size: 0.9rem; color: var(--text-dim);
+  line-height: 1.7;
+}
+.df-stage.active .df-detail { display: block; }
+.df-connector {
+  width: 2px; height: 16px; background: var(--border); margin: 0 auto;
+}
+
+/* ── Cards ── */
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px; margin: 20px 0;
+}
+.prim-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; cursor: pointer;
+  transition: all 0.2s;
+}
+.prim-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.prim-card.selected { border-color: var(--accent); background: var(--surface2); }
+.prim-card .cc-name {
+  font-family: var(--mono); font-weight: 700; font-size: 0.95rem;
+  color: var(--cyan); margin-bottom: 4px;
+}
+.prim-card .cc-scope {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--accent2); font-weight: 700; margin-bottom: 8px;
+}
+.prim-card .cc-desc { font-size: 0.85rem; color: var(--text-dim); }
+
+.card-detail {
+  display: none; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px; margin-top: 12px;
+}
+.card-detail.active { display: block; }
+
+/* ── Flow diagram (ASCII-style) ── */
+.flow-box {
+  display: inline-block; padding: 10px 20px; border: 2px solid var(--border);
+  border-radius: var(--radius); font-family: var(--mono); font-size: 0.85rem;
+  font-weight: 700; text-align: center; background: var(--surface);
+}
+.flow-box.highlight { border-color: var(--accent); color: var(--accent); }
+.flow-box.lib { border-color: var(--cyan); color: var(--cyan); }
+.flow-box.output { border-color: var(--green); color: var(--green); }
+.flow-arrow {
+  display: inline-block; padding: 0 12px; color: var(--text-dim);
+  font-size: 1.2rem; vertical-align: middle;
+}
+.flow-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; margin: 16px 0; flex-wrap: wrap;
+}
+.flow-label {
+  font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.5px; margin-top: 4px; text-align: center;
+}
+
+/* ── Flashcards ── */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .card-grid { grid-template-columns: 1fr; }
+  .flow-row { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+  .pipeline-stepper { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <h1>Pipeline & AG Library</h1>
+  <p class="subtitle">How KindScript converts TypeScript ASTs, defines attribute grammars as specs, and evaluates them as weak interpreters over the tree.</p>
+  <div class="badge-row">
+    <span class="badge ts">TypeScript AST</span>
+    <span class="badge purple">Attribute Grammar</span>
+    <span class="badge cyan">Weak Interpreter</span>
+    <span class="badge green">On-Node Stamps</span>
+    <span class="badge orange">Cousot Phase 1+2</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- NAVIGATION -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#overview">Overview</a>
+    <a class="toc-link" href="#conversion">AST Conversion</a>
+    <a class="toc-link" href="#agspec">The AGSpec</a>
+    <a class="toc-link" href="#evaluator">The Evaluator</a>
+    <a class="toc-link" href="#primitives">Attribute Primitives</a>
+    <a class="toc-link" href="#stamping">Property Stamping</a>
+    <a class="toc-link" href="#walkthrough">Binder Walkthrough</a>
+    <a class="toc-link" href="#calls">Library Calls</a>
+    <a class="toc-link" href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 01 PIPELINE OVERVIEW -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="overview">
+<div class="container">
+  <h2><span class="num">01</span>Pipeline Overview</h2>
+  <p class="section-sub">Three steps: convert, specify, evaluate. The AG library owns all orchestration.</p>
+
+  <div class="flow-row">
+    <div>
+      <div class="flow-box">ts.Program</div>
+      <div class="flow-label">TypeScript</div>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div>
+      <div class="flow-box highlight">buildKSTree()</div>
+      <div class="flow-label">Convert</div>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div>
+      <div class="flow-box">KSProgram</div>
+      <div class="flow-label">Raw AST</div>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div>
+      <div class="flow-box lib">evaluate(spec, root)</div>
+      <div class="flow-label">AG Library</div>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div>
+      <div class="flow-box output">KindDefinition[]</div>
+      <div class="flow-label">Result</div>
+    </div>
+  </div>
+
+  <p>The entire pipeline lives in <code>src/program.ts</code> and fits in a few lines:</p>
+
+  <pre><code><span class="keyword">export function</span> <span class="fn-name">createProgramFromTSProgram</span>(
+  <span class="param">tsProgram</span>: <span class="type-name">ts.Program</span>,
+  <span class="param">config</span>?: <span class="type-name">KindScriptConfig</span>,
+): <span class="type-name">KSProgramInterface</span> {
+  <span class="comment">// 1. Convert TS AST &rarr; KSC AST (raw tree, no navigation)</span>
+  <span class="keyword">const</span> ksTree = <span class="fn-name">buildKSTree</span>(tsProgram);
+
+  <span class="comment">// 2. Evaluate the binder spec &mdash; stamps tree + installs attributes + projects</span>
+  <span class="keyword">const</span> allDefs = <span class="fn-name">evaluate</span>(<span class="fn-name">createBinderSpec</span>(), ksTree.root) ?? [];
+
+  <span class="keyword">return</span> {
+    <span class="fn-name">getTSProgram</span>: () => tsProgram,
+    <span class="fn-name">getKindDefinitions</span>: () => allDefs,
+    <span class="fn-name">getKSTree</span>: () => ksTree,
+    <span class="comment">// ... other accessors</span>
+  };
+}</code></pre>
+
+  <div class="insight">
+    <strong>Key insight:</strong> The consumer (KSC) defines <em>what</em> to compute via an <code>AGSpec</code>. The AG library handles <em>how</em> &mdash; tree stamping, attribute installation, orchestration, caching. The consumer never calls <code>stampTree</code> or <code>applyAttributes</code> directly.
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 02 AST CONVERSION -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="conversion">
+<div class="container">
+  <h2><span class="num">02</span>TS &rarr; KSC AST Conversion</h2>
+  <p class="section-sub"><code>buildKSTree()</code> mirrors the entire TypeScript AST into typed KSC nodes.</p>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> buildKSTree(tsProgram)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Entry point in <code>src/pipeline/convert.ts</code>. Iterates over all source files in the TypeScript program, converts each one to a <code>KSCompilationUnit</code>, wraps them in a synthetic <code>KSProgram</code> root node.</p>
+        <pre><code><span class="keyword">const</span> root: <span class="type-name">KSProgram</span> = {
+  kind: <span class="string-lit">'Program'</span>,
+  compilationUnits,   <span class="comment">// KSCompilationUnit[]</span>
+  children: compilationUnits,
+  pos: <span class="number-lit">0</span>, end: <span class="number-lit">0</span>, text: <span class="string-lit">''</span>,
+};
+<span class="keyword">return</span> { root };</code></pre>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> convertSourceFile(sf)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Converts a single <code>ts.SourceFile</code> into a <code>KSCompilationUnit</code>. Calls <code>convertNode()</code> on each top-level statement to build the children array. Stores <code>fileName</code>, <code>sourceText</code>, and <code>lineStarts</code>.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> convertNode(node, sf) &rarr; dispatch</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Central recursive dispatch. For each TS node:</p>
+        <ol style="margin: 8px 0 12px 20px; color: var(--text-dim);">
+          <li>Collect child nodes via <code>ts.forEachChild()</code>, recursively converting each</li>
+          <li>Look up <code>specificConverters[node.kind]</code> to find the typed converter function</li>
+          <li>Call the converter, which returns a strongly-typed <code>KSNode</code></li>
+        </ol>
+        <p>Every <code>ts.SyntaxKind</code> has a specific converter &mdash; no generic fallback. The converter registry has ~350 entries covering all declarations, statements, expressions, type nodes, tokens, and keywords.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> KSNode output shape</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Every node in the KSC AST has this common shape (defined by <code>KSNodeBase</code>):</p>
+        <pre><code>{
+  <span class="prop">kind</span>: <span class="string-lit">'TypeAliasDeclaration'</span>,  <span class="comment">// string discriminant</span>
+  <span class="prop">pos</span>:  <span class="number-lit">42</span>,                       <span class="comment">// source position</span>
+  <span class="prop">end</span>:  <span class="number-lit">108</span>,                      <span class="comment">// source end</span>
+  <span class="prop">text</span>: <span class="string-lit">'type NoImports = ...'</span>,   <span class="comment">// source text</span>
+  <span class="prop">children</span>: [...],               <span class="comment">// child KSNodes</span>
+  <span class="prop">tsNode</span>: &lt;ts.Node&gt;,             <span class="comment">// back-reference</span>
+  <span class="comment">// + typed accessors per node kind</span>
+  <span class="prop">name</span>: { kind: <span class="string-lit">'Identifier'</span>, escapedText: <span class="string-lit">'NoImports'</span> },
+  <span class="prop">type</span>: { kind: <span class="string-lit">'TypeReference'</span>, ... },
+}</code></pre>
+        <p>The <code>getChildren(node)</code> function from <code>ast.ts</code> simply returns <code>node.children</code>. This is passed to the AG library as the tree structure accessor.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight green">
+    <strong>Output:</strong> <code>buildKSTree()</code> returns <code>{ root: KSProgram }</code> &mdash; a raw tree with no navigation properties and no attributes. That's the AG library's job.
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 03 THE AGSPEC -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="agspec">
+<div class="container">
+  <h2><span class="num">03</span>The AGSpec — Cousot Phase 1</h2>
+  <p class="section-sub">A complete attribute grammar is a single <code>AGSpec</code> object. The binder defines one via <code>createBinderSpec()</code>.</p>
+
+  <h3>AGSpec Interface</h3>
+  <pre><code><span class="keyword">interface</span> <span class="type-name">AGSpec</span>&lt;<span class="type-name">N</span> <span class="keyword">extends</span> <span class="type-name">object</span>, <span class="type-name">R</span> = <span class="type-name">unknown</span>&gt; {
+  <span class="prop">name</span>: <span class="type-name">string</span>;                      <span class="comment">// Unique identifier ('ksc-binder')</span>
+  <span class="prop">domain</span>: <span class="type-name">AGDomain</span>&lt;<span class="type-name">N</span>, <span class="type-name">R</span>&gt;;           <span class="comment">// Abstract domain + result extraction</span>
+  <span class="prop">children</span>: (<span class="param">node</span>: <span class="type-name">N</span>) =&gt; <span class="type-name">N</span>[];     <span class="comment">// Tree structure accessor</span>
+  <span class="prop">attributes</span>: <span class="type-name">AttributeMap</span>&lt;<span class="type-name">N</span>&gt;;     <span class="comment">// Named attribute definitions (equations)</span>
+  <span class="prop">deps</span>?: <span class="type-name">string</span>[];                  <span class="comment">// Dependencies on other specs</span>
+}</code></pre>
+
+  <h3>AGDomain Interface</h3>
+  <pre><code><span class="keyword">interface</span> <span class="type-name">AGDomain</span>&lt;<span class="type-name">N</span> <span class="keyword">extends</span> <span class="type-name">object</span>, <span class="type-name">R</span> = <span class="type-name">unknown</span>&gt; {
+  <span class="prop">name</span>: <span class="type-name">string</span>;                      <span class="comment">// Human-readable name</span>
+  <span class="fn-name">project</span>?: (<span class="param">root</span>: <span class="type-name">N</span>) =&gt; <span class="type-name">R</span>;       <span class="comment">// Extract results from attributed tree</span>
+}</code></pre>
+
+  <h3>The Binder's Spec</h3>
+  <p>Here is the complete <code>createBinderSpec()</code> showing how the binder defines its analysis as an <code>AGSpec</code>:</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('binder-tabs','binder-spec')">Spec Structure</button>
+    <button class="tab" onclick="switchTab('binder-tabs','binder-kindDefs')">kindDefs Attribute</button>
+    <button class="tab" onclick="switchTab('binder-tabs','binder-defLookup')">defLookup Attribute</button>
+    <button class="tab" onclick="switchTab('binder-tabs','binder-domain')">domain.project</button>
+  </div>
+  <div id="binder-tabs">
+    <div class="tab-content active" id="binder-spec">
+      <pre><code><span class="keyword">export function</span> <span class="fn-name">createBinderSpec</span>(): <span class="type-name">AGSpec</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">KindDefinition</span>[]&gt; {
+  <span class="keyword">let</span> nextDefId = <span class="number-lit">0</span>;
+
+  <span class="keyword">const</span> kindDefs = <span class="fn-name">match</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">KindDefinition</span>[]&gt;(<span class="string-lit">'kind'</span>, { ... });
+  <span class="keyword">const</span> defLookup = <span class="fn-name">lookup</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">string</span>, <span class="type-name">KindDefinition</span>&gt;((<span class="param">node</span>) => { ... });
+
+  <span class="keyword">return</span> {
+    name: <span class="string-lit">'ksc-binder'</span>,
+    domain: { name: <span class="string-lit">'Kind Definitions'</span>, project: ... },
+    children: <span class="fn-name">getChildren</span>,        <span class="comment">// from ast.ts: (node) => node.children</span>
+    attributes: { kindDefs, defLookup },
+  };
+}</code></pre>
+      <p style="margin-top:12px">The spec packages everything: tree structure, attribute equations, domain, and result extraction. The AG library handles the rest.</p>
+    </div>
+    <div class="tab-content" id="binder-kindDefs">
+      <pre><code><span class="keyword">const</span> kindDefs = <span class="fn-name">match</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">KindDefinition</span>[]&gt;(<span class="string-lit">'kind'</span>, {
+  <span class="comment">// For CompilationUnit nodes: scan children for Kind&lt;...&gt; type aliases</span>
+  <span class="prop">CompilationUnit</span>: (<span class="param">cu</span>) => {
+    <span class="keyword">const</span> defs: <span class="type-name">KindDefinition</span>[] = [];
+    <span class="keyword">for</span> (<span class="keyword">const</span> stmt <span class="keyword">of</span> cu.children) {
+      <span class="keyword">if</span> (stmt.kind !== <span class="string-lit">'TypeAliasDeclaration'</span>) <span class="keyword">continue</span>;
+      <span class="keyword">const</span> def = <span class="fn-name">tryExtractKindDef</span>(stmt, () => <span class="string-lit">`kdef-${nextDefId++}`</span>);
+      <span class="keyword">if</span> (def) defs.push(def);
+    }
+    <span class="keyword">return</span> defs;
+  },
+  <span class="comment">// For all other node kinds: empty array</span>
+  <span class="prop">_</span>: () => [],
+});</code></pre>
+      <p style="margin-top:12px"><code>match</code> dispatches on <code>node.kind</code>. CompilationUnit nodes scan their children for <code>type X = Kind&lt;{ ... }&gt;</code> declarations. All other nodes get an empty array.</p>
+    </div>
+    <div class="tab-content" id="binder-defLookup">
+      <pre><code><span class="keyword">const</span> defLookup = <span class="fn-name">lookup</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">string</span>, <span class="type-name">KindDefinition</span>&gt;((<span class="param">node</span>) => {
+  <span class="keyword">if</span> (node.kind !== <span class="string-lit">'CompilationUnit'</span>) <span class="keyword">return</span> [];
+  <span class="comment">// Accesses kindDefs attribute &mdash; triggers lazy computation</span>
+  <span class="keyword">const</span> defs: <span class="type-name">KindDefinition</span>[] = (node <span class="keyword">as any</span>).kindDefs;
+  <span class="keyword">return</span> defs.map(d => [d.name, d]);
+});</code></pre>
+      <p style="margin-top:12px"><code>lookup</code> walks the entire tree once (from root), collecting <code>[name, definition]</code> pairs from CompilationUnit nodes into a <code>Map</code>. Every node then gets a lookup function: <code>(name: string) => KindDefinition | undefined</code>.</p>
+      <div class="insight">
+        <strong>Cross-attribute dependency:</strong> <code>defLookup</code> accesses <code>node.kindDefs</code> inside its collect function. Since both are lazy getters, this triggers the <code>kindDefs</code> computation on demand. No explicit ordering needed.
+      </div>
+    </div>
+    <div class="tab-content" id="binder-domain">
+      <pre><code><span class="prop">domain</span>: {
+  name: <span class="string-lit">'Kind Definitions'</span>,
+  <span class="fn-name">project</span>: (<span class="param">root</span>) => {
+    <span class="keyword">const</span> allDefs: <span class="type-name">KindDefinition</span>[] = [];
+    <span class="keyword">for</span> (<span class="keyword">const</span> cu <span class="keyword">of</span> (root <span class="keyword">as any</span>).compilationUnits
+                       ?? (root <span class="keyword">as any</span>).$children ?? []) {
+      allDefs.push(...((cu <span class="keyword">as any</span>).kindDefs ?? []));
+    }
+    <span class="keyword">return</span> allDefs;
+  },
+},</code></pre>
+      <p style="margin-top:12px"><code>domain.project(root)</code> is called after all attributes are installed. It walks the CompilationUnits, accessing <code>.kindDefs</code> on each &mdash; which triggers the lazy computation. Returns the aggregated <code>KindDefinition[]</code> as the final analysis result.</p>
+    </div>
+  </div>
+
+  <div class="insight warn">
+    <strong>Separation of concerns:</strong> The binder never calls <code>stampTree</code>, <code>applyAttributes</code>, or any orchestration function. It only defines equations and a projection. The AG library's <code>evaluate()</code> handles everything else.
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 04 THE EVALUATOR -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="evaluator">
+<div class="container">
+  <h2><span class="num">04</span>The Evaluator — Cousot Phase 2</h2>
+  <p class="section-sub"><code>evaluate(spec, root)</code> is the weak interpreter. It takes a specification and executes it over the AST.</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('eval-s1')">1. stampTree</button>
+    <button class="step-btn" onclick="showStep('eval-s2')">2. applyAttributes</button>
+    <button class="step-btn" onclick="showStep('eval-s3')">3. domain.project</button>
+  </div>
+  <div class="step-content active" id="eval-s1">
+    <h3>stampTree(root, spec.children)</h3>
+    <p>BFS traversal of the tree. On every node, stamps six navigation properties via <code>Object.defineProperty</code>:</p>
+    <table>
+      <tr><th>Property</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>$parent</code></td><td><code>N | undefined</code></td><td>Parent node (undefined for root)</td></tr>
+      <tr><td><code>$children</code></td><td><code>N[]</code></td><td>Child nodes array</td></tr>
+      <tr><td><code>$index</code></td><td><code>number</code></td><td>Position in parent's children (-1 for root)</td></tr>
+      <tr><td><code>$root</code></td><td><code>boolean</code></td><td>true only for the root node</td></tr>
+      <tr><td><code>$prev</code></td><td><code>N | undefined</code></td><td>Previous sibling</td></tr>
+      <tr><td><code>$next</code></td><td><code>N | undefined</code></td><td>Next sibling</td></tr>
+    </table>
+    <p>These are <strong>non-enumerable data properties</strong> &mdash; they don't show up in <code>JSON.stringify</code> or <code>for...in</code> but are directly accessible. The <code>spec.children</code> function (which is <code>getChildren</code> from <code>ast.ts</code>) tells the stamper how to find children of each node.</p>
+  </div>
+  <div class="step-content" id="eval-s2">
+    <h3>applyAttributes(root, spec.attributes)</h3>
+    <p>DFS post-order traversal using <code>$children</code>. For every node and every attribute:</p>
+    <pre><code><span class="keyword">for</span> (<span class="keyword">const</span> [name, def] <span class="keyword">of</span> entries) {
+  def.<span class="fn-name">install</span>(node, name);  <span class="comment">// installs a lazy getter as node[name]</span>
+}</code></pre>
+    <p>After this walk, every node in the tree has lazy getters for <code>kindDefs</code> and <code>defLookup</code>. <strong>No computation has happened yet.</strong> Values are computed on-demand when the property is first accessed.</p>
+    <p>For a tree with 500 nodes and 2 attributes, this installs 1,000 lazy getters &mdash; all via <code>Object.defineProperty</code>.</p>
+  </div>
+  <div class="step-content" id="eval-s3">
+    <h3>spec.domain.project(root)</h3>
+    <p>The final step: extract results from the attributed tree. The projection function accesses attributes on nodes, which triggers lazy computation and caching.</p>
+    <p>For the binder, <code>project</code> accesses <code>.kindDefs</code> on each CompilationUnit. This triggers the <code>match</code> dispatch, which scans children for <code>Kind&lt;...&gt;</code> type aliases. The results are cached as data properties &mdash; subsequent accesses are free.</p>
+    <p>The return type <code>R</code> of <code>AGSpec&lt;N, R&gt;</code> determines the projection return type. For the binder, <code>R = KindDefinition[]</code>.</p>
+  </div>
+
+  <h3>evaluate() implementation</h3>
+  <pre><code><span class="keyword">export function</span> <span class="fn-name">evaluate</span>&lt;<span class="type-name">N</span>, <span class="type-name">R</span>&gt;(
+  <span class="param">spec</span>: <span class="type-name">AGSpec</span>&lt;<span class="type-name">N</span>, <span class="type-name">R</span>&gt;,
+  <span class="param">root</span>: <span class="type-name">N</span>,
+): <span class="type-name">R</span> | <span class="type-name">undefined</span> {
+  <span class="fn-name">stampTree</span>(root, spec.children);      <span class="comment">// 1. Navigation properties</span>
+  <span class="fn-name">applyAttributes</span>(root, spec.attributes); <span class="comment">// 2. Lazy getters</span>
+
+  <span class="keyword">if</span> (spec.domain.project) {
+    <span class="keyword">return</span> spec.domain.<span class="fn-name">project</span>(root);   <span class="comment">// 3. Extract results</span>
+  }
+  <span class="keyword">return</span> <span class="keyword">undefined</span>;
+}</code></pre>
+
+  <h3>evaluateAll() — Multi-Spec Composition</h3>
+  <p>For multiple analyses over the same tree, <code>evaluateAll(specs, root)</code> topologically sorts specs by their <code>deps</code> field, stamps the tree once, then applies each spec's attributes in order:</p>
+  <pre><code><span class="keyword">export function</span> <span class="fn-name">evaluateAll</span>&lt;<span class="type-name">N</span>&gt;(
+  <span class="param">specs</span>: <span class="type-name">AGSpec</span>&lt;<span class="type-name">N</span>, <span class="type-name">any</span>&gt;[],
+  <span class="param">root</span>: <span class="type-name">N</span>,
+): <span class="type-name">Map</span>&lt;<span class="type-name">string</span>, <span class="type-name">unknown</span>&gt; {
+  <span class="keyword">const</span> sorted = <span class="fn-name">topoSort</span>(specs);    <span class="comment">// order by deps</span>
+  <span class="keyword">const</span> results = <span class="keyword">new</span> <span class="type-name">Map</span>();
+  <span class="keyword">let</span> treeStamped = <span class="keyword">false</span>;
+
+  <span class="keyword">for</span> (<span class="keyword">const</span> spec <span class="keyword">of</span> sorted) {
+    <span class="keyword">if</span> (!treeStamped) {
+      <span class="fn-name">stampTree</span>(root, spec.children);
+      treeStamped = <span class="keyword">true</span>;
+    }
+    <span class="fn-name">applyAttributes</span>(root, spec.attributes);
+    <span class="keyword">if</span> (spec.domain.project)
+      results.set(spec.name, spec.domain.<span class="fn-name">project</span>(root));
+  }
+  <span class="keyword">return</span> results;
+}</code></pre>
+
+  <div class="insight">
+    <strong>Demand-driven evaluation:</strong> <code>applyAttributes</code> only installs getters &mdash; no values are computed until accessed. The <code>project</code> call triggers the cascade: accessing one attribute may trigger others via cross-attribute dependencies, all resolved lazily.
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 05 ATTRIBUTE PRIMITIVES -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="primitives">
+<div class="container">
+  <h2><span class="num">05</span>Attribute Primitives</h2>
+  <p class="section-sub">The AG library provides factories that return <code>AttributeDef</code> objects. Each has an <code>install(node, key)</code> method.</p>
+
+  <div class="card-grid">
+    <div class="prim-card" onclick="selectPrim(this, 'detail-syn')">
+      <div class="cc-name">syn(compute)</div>
+      <div class="cc-scope">Synthesized</div>
+      <div class="cc-desc">Cached lazy getter. Computes once, replaces with data property.</div>
+    </div>
+    <div class="prim-card" onclick="selectPrim(this, 'detail-match')">
+      <div class="cc-name">match(discrim, eqs)</div>
+      <div class="cc-scope">Per-Production</div>
+      <div class="cc-desc">Dispatches on a discriminant field. JastAdd-style per-production equations.</div>
+    </div>
+    <div class="prim-card" onclick="selectPrim(this, 'detail-down')">
+      <div class="cc-name">inh(rootVal, eq?)</div>
+      <div class="cc-scope">Inherited</div>
+      <div class="cc-desc">Parent-defined. eq(parent, child, index) provides value; undefined auto-propagates.</div>
+    </div>
+    <div class="prim-card" onclick="selectPrim(this, 'detail-coll')">
+      <div class="cc-name">coll(init, combine, fn)</div>
+      <div class="cc-scope">Collection</div>
+      <div class="cc-desc">DFS subtree walk. Fold contributions from descendants.</div>
+    </div>
+    <div class="prim-card" onclick="selectPrim(this, 'detail-lookup')">
+      <div class="cc-name">lookup(collect)</div>
+      <div class="cc-scope">Reference</div>
+      <div class="cc-desc">Full-tree scan to build Map. Returns lookup function shared by all nodes.</div>
+    </div>
+    <div class="prim-card" onclick="selectPrim(this, 'detail-others')">
+      <div class="cc-name">uncached &middot; paramSyn &middot; circular &middot; chain</div>
+      <div class="cc-scope">Advanced</div>
+      <div class="cc-desc">Recomputing, parameterized, fixed-point, and L-attributed flow.</div>
+    </div>
+  </div>
+
+  <div class="card-detail" id="detail-syn">
+    <h3>syn(compute) &rarr; AttributeDef</h3>
+    <pre><code><span class="keyword">export function</span> <span class="fn-name">syn</span>&lt;<span class="type-name">N</span>, <span class="type-name">V</span>&gt;(<span class="param">compute</span>: (<span class="param">node</span>: <span class="type-name">N</span>) =&gt; <span class="type-name">V</span>): <span class="type-name">AttributeDef</span>&lt;<span class="type-name">N</span>, <span class="type-name">V</span>&gt; {
+  <span class="keyword">return</span> {
+    <span class="fn-name">install</span>(<span class="param">node</span>: <span class="type-name">N</span>, <span class="param">key</span>: <span class="type-name">string</span>): <span class="keyword">void</span> {
+      <span class="fn-name">installLazy</span>(node, key, compute);
+    },
+  };
+}</code></pre>
+    <p>The fundamental building block. All other primitives ultimately call <code>syn</code> internally. The <code>compute</code> function receives the node and returns the attribute value. It runs exactly once per node &mdash; subsequent accesses read the cached data property.</p>
+  </div>
+
+  <div class="card-detail" id="detail-match">
+    <h3>match(discriminant, equations) &rarr; AttributeDef</h3>
+    <pre><code><span class="fn-name">match</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">KindDefinition</span>[]&gt;(<span class="string-lit">'kind'</span>, {
+  <span class="prop">CompilationUnit</span>: (<span class="param">cu</span>) =&gt; <span class="comment">/* scan for Kind&lt;&gt; types */</span>,
+  <span class="prop">TypeAliasDeclaration</span>: (<span class="param">ta</span>) =&gt; <span class="comment">/* extract definition */</span>,
+  <span class="prop">_</span>: () =&gt; [],  <span class="comment">// default fallback</span>
+})</code></pre>
+    <p>Dispatches on <code>node[discriminant]</code> to select the right equation. The <code>_</code> key provides a default. Under the hood, wraps <code>syn</code> with a dispatch layer. This is the JastAdd pattern of per-production attribute equations.</p>
+  </div>
+
+  <div class="card-detail" id="detail-down">
+    <h3>inh(rootValue, eq?) &rarr; AttributeDef</h3>
+    <pre><code><span class="comment">// Inherited attribute: parent-defined (JastAdd/Silver-style)</span>
+<span class="fn-name">inh</span>(
+  <span class="keyword">new</span> Set(),                           <span class="comment">// value at root</span>
+  (<span class="param">parent</span>, <span class="param">child</span>, <span class="param">childIndex</span>) =&gt; {  <span class="comment">// parent equation</span>
+    <span class="keyword">if</span> (parent.kind === <span class="string-lit">'Module'</span>)
+      <span class="keyword">return</span> parent.localScope;
+    <span class="keyword">return</span> <span class="keyword">undefined</span>;                  <span class="comment">// auto-propagate</span>
+  },
+)</code></pre>
+    <p>Parent-defined inherited attribute. Root gets <code>rootValue</code> (or <code>rootValue(root)</code> if a function). Non-root: <code>eq(parent, child, childIndex)</code> returns the value, or <code>undefined</code> to auto-propagate (use parent's own value).</p>
+    <p>If <code>eq</code> is omitted entirely, the root value propagates unchanged to all descendants (broadcast).</p>
+  </div>
+
+  <div class="card-detail" id="detail-coll">
+    <h3>coll(init, combine, contribute) &rarr; AttributeDef</h3>
+    <pre><code><span class="fn-name">coll</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">string</span>[]&gt;(
+  () =&gt; [],                                   <span class="comment">// init accumulator</span>
+  (<span class="param">acc</span>, <span class="param">names</span>) =&gt; [...acc, ...names],          <span class="comment">// combine</span>
+  (<span class="param">node</span>) =&gt; {                                 <span class="comment">// contribute</span>
+    <span class="keyword">if</span> (node.kind === <span class="string-lit">'ImportDeclaration'</span>)
+      <span class="keyword">return</span> [node.moduleSpecifier.text];
+    <span class="keyword">return</span> <span class="keyword">undefined</span>;                          <span class="comment">// skip</span>
+  },
+)</code></pre>
+    <p>DFS walks the subtree rooted at the evaluation node. For each descendant, calls <code>contribute</code>. Non-undefined results are folded via <code>combine</code>. Approximation of JastAdd's <code>coll</code>/<code>contributes</code> pattern.</p>
+  </div>
+
+  <div class="card-detail" id="detail-lookup">
+    <h3>lookup(collect) &rarr; AttributeDef</h3>
+    <pre><code><span class="fn-name">lookup</span>&lt;<span class="type-name">KSNode</span>, <span class="type-name">string</span>, <span class="type-name">KindDefinition</span>&gt;((<span class="param">node</span>) =&gt; {
+  <span class="keyword">if</span> (node.kind !== <span class="string-lit">'CompilationUnit'</span>) <span class="keyword">return</span> [];
+  <span class="keyword">const</span> defs = (node <span class="keyword">as any</span>).kindDefs;  <span class="comment">// triggers kindDefs computation</span>
+  <span class="keyword">return</span> defs.map(<span class="param">d</span> =&gt; [d.name, d]);
+})</code></pre>
+    <p>On first access from any node: walks <code>$parent</code> to find root, DFS walks the full tree via <code>$children</code>, calls <code>collect</code> on every node, builds a <code>Map&lt;K,V&gt;</code>. Returns a lookup function. The map is built once and shared across all nodes.</p>
+  </div>
+
+  <div class="card-detail" id="detail-others">
+    <h3>Other Primitives</h3>
+    <table>
+      <tr><th>Primitive</th><th>Behavior</th></tr>
+      <tr><td><code>uncached(compute)</code></td><td>Like <code>syn</code> but the getter never replaces itself. Recomputes on every access.</td></tr>
+      <tr><td><code>paramSyn(compute)</code></td><td>Installs a function <code>(param: P) =&gt; V</code>. Results cached by (node, param) pair in an internal Map.</td></tr>
+      <tr><td><code>circular(init, compute)</code></td><td>Fixed-point iteration. Uses Symbol-keyed properties on nodes for state. Iterates until values converge.</td></tr>
+      <tr><td><code>chain(init, update)</code></td><td>L-attributed flow. Left-to-right sibling propagation via <code>$prev</code>/<code>$next</code>. Returns <code>{ inAttr, outAttr }</code> pair.</td></tr>
+    </table>
+  </div>
+
+  <div class="insight">
+    <strong>Common contract:</strong> Every primitive returns an <code>AttributeDef&lt;N, V&gt;</code> with a single method: <code>install(node, key)</code>. This is the only interface between the primitives and the evaluator. The evaluator doesn't know or care whether an attribute is synthesized, inherited, or a collection.
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 06 PROPERTY STAMPING -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="stamping">
+<div class="container">
+  <h2><span class="num">06</span>The Property-Stamp Mechanism</h2>
+  <p class="section-sub">How <code>installLazy</code> implements JastAdd's <code>_computed/_value</code> pattern in pure JavaScript.</p>
+
+  <h3>installLazy() Implementation</h3>
+  <pre><code><span class="keyword">export function</span> <span class="fn-name">installLazy</span>&lt;<span class="type-name">N</span>, <span class="type-name">V</span>&gt;(
+  <span class="param">node</span>: <span class="type-name">N</span>, <span class="param">key</span>: <span class="type-name">string</span>, <span class="param">compute</span>: (<span class="param">node</span>: <span class="type-name">N</span>) =&gt; <span class="type-name">V</span>,
+): <span class="keyword">void</span> {
+  Object.<span class="fn-name">defineProperty</span>(node, key, {
+    configurable: <span class="keyword">true</span>,   <span class="comment">// allows replacement</span>
+    enumerable: <span class="keyword">true</span>,
+    <span class="fn-name">get</span>() {
+      <span class="keyword">const</span> value = <span class="fn-name">compute</span>(node);
+      <span class="comment">// Replace getter with plain data property</span>
+      Object.<span class="fn-name">defineProperty</span>(node, key, {
+        value,
+        writable: <span class="keyword">false</span>,      <span class="comment">// immutable after computation</span>
+        configurable: <span class="keyword">false</span>,   <span class="comment">// can't be replaced again</span>
+        enumerable: <span class="keyword">true</span>,
+      });
+      <span class="keyword">return</span> value;
+    },
+  });
+}</code></pre>
+
+  <h3>Before &amp; After Property Access</h3>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('stamp-tabs','stamp-before')">Before Access</button>
+    <button class="tab" onclick="switchTab('stamp-tabs','stamp-after')">After Access</button>
+    <button class="tab" onclick="switchTab('stamp-tabs','stamp-jastadd')">JastAdd Equivalent</button>
+  </div>
+  <div id="stamp-tabs">
+    <div class="tab-content active" id="stamp-before">
+      <pre><code><span class="comment">// node.kindDefs is a getter (configurable: true)</span>
+Object.<span class="fn-name">getOwnPropertyDescriptor</span>(node, <span class="string-lit">'kindDefs'</span>)
+<span class="comment">// &rarr; { get: [Function], configurable: true, enumerable: true }</span>
+
+<span class="comment">// Property is a getter &mdash; no value stored yet</span></code></pre>
+    </div>
+    <div class="tab-content" id="stamp-after">
+      <pre><code><span class="comment">// First access triggers the getter:</span>
+<span class="keyword">const</span> defs = node.kindDefs;  <span class="comment">// computes + caches</span>
+
+Object.<span class="fn-name">getOwnPropertyDescriptor</span>(node, <span class="string-lit">'kindDefs'</span>)
+<span class="comment">// &rarr; { value: [...], writable: false, configurable: false, enumerable: true }</span>
+
+<span class="comment">// Property is now a plain data property &mdash; zero-cost reads forever</span>
+node.kindDefs === defs;  <span class="comment">// true, same reference, no computation</span></code></pre>
+    </div>
+    <div class="tab-content" id="stamp-jastadd">
+      <pre><code><span class="comment">// JastAdd generates this Java pattern:</span>
+<span class="keyword">private boolean</span> kindDefs_computed = <span class="keyword">false</span>;
+<span class="keyword">private</span> <span class="type-name">List</span>&lt;<span class="type-name">KindDef</span>&gt; kindDefs_value;
+
+<span class="keyword">public</span> <span class="type-name">List</span>&lt;<span class="type-name">KindDef</span>&gt; <span class="fn-name">kindDefs</span>() {
+  <span class="keyword">if</span> (kindDefs_computed) <span class="keyword">return</span> kindDefs_value;
+  kindDefs_computed = <span class="keyword">true</span>;
+  kindDefs_value = <span class="fn-name">equation</span>();
+  <span class="keyword">return</span> kindDefs_value;
+}
+
+<span class="comment">// installLazy does the same thing, but using</span>
+<span class="comment">// Object.defineProperty to swap getter → data property.</span>
+<span class="comment">// Subsequent accesses are plain property reads (V8 optimized).</span></code></pre>
+    </div>
+  </div>
+
+  <div class="insight green">
+    <strong>Performance:</strong> After first access, attribute reads are direct property lookups &mdash; the same cost as reading <code>node.kind</code> or <code>node.pos</code>. No function call overhead, no Map lookup, no WeakMap dereference. V8 treats data properties as inline slots.
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 07 CONCRETE WALKTHROUGH -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="walkthrough">
+<div class="container">
+  <h2><span class="num">07</span>Concrete Walkthrough</h2>
+  <p class="section-sub">Follow a <code>type NoImports = Kind&lt;{ noImports: true }&gt;</code> declaration through the entire pipeline.</p>
+
+  <div class="data-flow">
+    <div class="df-stage active" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> TypeScript parses source</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>TypeScript's parser produces a <code>ts.TypeAliasDeclaration</code> node with <code>SyntaxKind.TypeAliasDeclaration</code>. The type is a <code>ts.TypeReferenceNode</code> pointing to <code>Kind</code> with one type argument: a <code>ts.TypeLiteralNode</code> containing a property signature <code>noImports: true</code>.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> convertNode produces KSTypeAliasDeclaration</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The typed converter for <code>TypeAliasDeclaration</code> creates a KSC node with structured accessors:</p>
+        <pre><code>{
+  kind: <span class="string-lit">'TypeAliasDeclaration'</span>,
+  name: { kind: <span class="string-lit">'Identifier'</span>, escapedText: <span class="string-lit">'NoImports'</span> },
+  type: {
+    kind: <span class="string-lit">'TypeReference'</span>,
+    typeName: { kind: <span class="string-lit">'Identifier'</span>, escapedText: <span class="string-lit">'Kind'</span> },
+    typeArguments: [{
+      kind: <span class="string-lit">'TypeLiteral'</span>,
+      members: [{ kind: <span class="string-lit">'PropertySignature'</span>, name: ..., type: ... }]
+    }]
+  },
+  children: [...], pos, end, text, tsNode,
+}</code></pre>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> evaluate() stamps tree + installs getters</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><code>evaluate(createBinderSpec(), root)</code> runs. <code>stampTree</code> installs <code>$parent</code>, <code>$children</code>, etc. on every node. <code>applyAttributes</code> installs lazy getters for <code>kindDefs</code> and <code>defLookup</code> on every node. No computation happens yet.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> domain.project triggers computation</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><code>domain.project(root)</code> accesses <code>cu.kindDefs</code> on each CompilationUnit. This triggers the <code>match</code> dispatch: <code>node.kind === 'CompilationUnit'</code> selects the CompilationUnit equation.</p>
+        <p>That equation iterates <code>cu.children</code>, finds the TypeAliasDeclaration, calls <code>tryExtractKindDef()</code>:</p>
+        <ul style="margin: 8px 0 12px 20px; color: var(--text-dim);">
+          <li>Checks <code>node.type.kind === 'TypeReference'</code> &#10004;</li>
+          <li>Checks <code>typeRef.typeName.escapedText === 'Kind'</code> &#10004;</li>
+          <li>Checks <code>typeArguments.length === 1</code> &#10004;</li>
+          <li>Checks <code>typeArguments[0].kind === 'TypeLiteral'</code> &#10004;</li>
+          <li>Extracts properties: <code>{ noImports: true }</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">5</span> Result returned</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><code>evaluate()</code> returns the projection result:</p>
+        <pre><code>[{
+  id: <span class="string-lit">'kdef-0'</span>,
+  name: <span class="string-lit">'NoImports'</span>,
+  properties: { noImports: <span class="keyword">true</span> },
+  node: &lt;<span class="type-name">KSTypeAliasDeclaration</span>&gt;,
+}]</code></pre>
+        <p>The <code>kindDefs</code> value is now cached as a data property on the CompilationUnit node. The <code>defLookup</code> function is installed but hasn't been triggered yet &mdash; it will compute lazily when first accessed (e.g., by a future checker spec).</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 08 LIBRARY CALLS SUMMARY -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="calls">
+<div class="container">
+  <h2><span class="num">08</span>Library Calls Summary</h2>
+  <p class="section-sub">Every call from KSC code into the AG library, with inputs and outputs.</p>
+
+  <table>
+    <tr><th>Caller</th><th>AG Library Call</th><th>Input</th><th>Output</th></tr>
+    <tr>
+      <td><code>binder.ts</code></td>
+      <td><code>match('kind', eqs)</code></td>
+      <td>discriminant string + equation map</td>
+      <td><code>AttributeDef&lt;KSNode, KindDefinition[]&gt;</code></td>
+    </tr>
+    <tr>
+      <td><code>binder.ts</code></td>
+      <td><code>lookup(collect)</code></td>
+      <td>collect function returning <code>[string, KindDef]</code> pairs</td>
+      <td><code>AttributeDef&lt;KSNode, (key) =&gt; KindDef | undefined&gt;</code></td>
+    </tr>
+    <tr>
+      <td><code>program.ts</code></td>
+      <td><code>evaluate(spec, root)</code></td>
+      <td><code>AGSpec&lt;KSNode, KindDefinition[]&gt;</code> + <code>KSProgram</code> root</td>
+      <td><code>KindDefinition[]</code> (via <code>domain.project</code>)</td>
+    </tr>
+  </table>
+
+  <h3>What happens inside evaluate()</h3>
+  <table>
+    <tr><th>Internal Call</th><th>Input</th><th>Effect</th></tr>
+    <tr>
+      <td><code>stampTree(root, spec.children)</code></td>
+      <td>root node + <code>getChildren</code></td>
+      <td>Stamps <code>$parent</code>, <code>$children</code>, <code>$index</code>, <code>$root</code>, <code>$prev</code>, <code>$next</code> on every node</td>
+    </tr>
+    <tr>
+      <td><code>applyAttributes(root, spec.attributes)</code></td>
+      <td>root node + <code>{ kindDefs, defLookup }</code></td>
+      <td>DFS walk, calls <code>def.install(node, key)</code> on every node for every attribute</td>
+    </tr>
+    <tr>
+      <td><code>spec.domain.project(root)</code></td>
+      <td>root node (now attributed)</td>
+      <td>Accesses <code>.kindDefs</code> on CompilationUnits, triggers lazy computation, returns <code>KindDefinition[]</code></td>
+    </tr>
+  </table>
+
+  <h3>Data Flow Diagram</h3>
+  <pre><code><span class="comment">  KSC Code                    AG Library                    AST Nodes</span>
+  ─────────                   ──────────                    ─────────
+  createBinderSpec()
+    ├─ match(...)  ──────────&rarr; returns AttributeDef ──────&rarr; (stored in spec)
+    └─ lookup(...) ──────────&rarr; returns AttributeDef ──────&rarr; (stored in spec)
+
+  evaluate(spec, root) ──────&rarr; stampTree(root, children) ──&rarr; node.$parent = ...
+                                                             node.$children = ...
+                       ──────&rarr; applyAttributes(root, attrs) &rarr; node.kindDefs = lazy getter
+                                                             node.defLookup = lazy getter
+                       ──────&rarr; domain.project(root) ────────&rarr; node.kindDefs  <span class="comment">(triggers compute)</span>
+                                                             &rarr; KindDefinition[]
+                       &larr;────── returns KindDefinition[]</code></pre>
+
+  <div class="insight">
+    <strong>Three touchpoints:</strong> KSC only touches the AG library in three places: (1) <code>match()</code> and <code>lookup()</code> to define attributes, (2) packaging them into an <code>AGSpec</code>, and (3) calling <code>evaluate(spec, root)</code>. Everything else is internal to the library.
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- 09 KNOWLEDGE CHECK -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">09</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <!-- Card 1 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What are the three steps that <code>evaluate(spec, root)</code> performs internally?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>1. <code>stampTree(root, spec.children)</code> &mdash; installs <code>$parent</code>, <code>$children</code>, <code>$index</code>, <code>$root</code>, <code>$prev</code>, <code>$next</code> on every node.<br>
+          2. <code>applyAttributes(root, spec.attributes)</code> &mdash; DFS walk installing lazy getters.<br>
+          3. <code>spec.domain.project(root)</code> &mdash; extracts final results from the attributed tree.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is an <code>AGSpec</code> and what five fields does it contain?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A complete attribute grammar specification (Cousot Phase 1). Fields: <code>name</code> (unique identifier), <code>domain</code> (AGDomain with name and optional <code>project</code> function), <code>children</code> (tree structure accessor), <code>attributes</code> (named AttributeDef map), and optional <code>deps</code> (names of prerequisite specs).</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does <code>installLazy(node, key, compute)</code> do, and why is it efficient?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>It installs a getter via <code>Object.defineProperty</code> that, on first access, calls <code>compute(node)</code>, then replaces itself with a plain data property holding the result. Subsequent reads are direct property lookups with zero function-call overhead &mdash; V8 treats them as inline slots. This is JastAdd's <code>_computed/_value</code> pattern.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is <code>domain.project</code> for and when does it get called?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>domain.project(root)</code> extracts the final analysis results from the attributed tree. It's called as the last step of <code>evaluate()</code>, after tree stamping and attribute installation. For the binder, it walks CompilationUnits and accesses <code>.kindDefs</code> on each, which triggers the lazy computation cascade and returns the aggregated <code>KindDefinition[]</code>.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does <code>match('kind', equations)</code> work, and what is the <code>_</code> key?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>match</code> creates a per-production dispatched attribute. It reads <code>node[discriminant]</code> (e.g., <code>node.kind</code>), looks up the matching equation in the map, and calls it. The <code>_</code> key is the default fallback when no specific equation matches. Under the hood it wraps <code>syn()</code> with dispatch logic, so results are cached per node.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 6 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does the binder's <code>defLookup</code> attribute depend on <code>kindDefs</code>, and how is this dependency resolved?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>defLookup</code> uses <code>lookup()</code> which, inside its collect function, accesses <code>(node as any).kindDefs</code>. Since both are lazy getters installed on the same nodes, accessing <code>.kindDefs</code> inside <code>defLookup</code>'s computation triggers its lazy getter, computing the kind definitions on demand. No explicit ordering is needed &mdash; demand-driven evaluation handles it naturally.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 7 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the common interface that all attribute primitives (<code>syn</code>, <code>match</code>, <code>down</code>, <code>coll</code>, <code>lookup</code>) share?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>They all return an <code>AttributeDef&lt;N, V&gt;</code> which has a single method: <code>install(node: N, key: string): void</code>. This is the only interface the evaluator needs &mdash; it calls <code>def.install(node, name)</code> for every node and every attribute during <code>applyAttributes()</code>. The evaluator doesn't know whether an attribute is synthesized, inherited, or a collection.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 8 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does <code>evaluateAll()</code> do differently from <code>evaluate()</code>, and when would you use it?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>evaluateAll(specs, root)</code> applies multiple AG specifications to the same tree. It topologically sorts specs by their <code>deps</code> field, stamps the tree only once (reusing it across specs), then applies each spec's attributes in dependency order. Use it when you have multiple analysis passes (e.g., binder then checker) that build on each other's results. Returns a <code>Map&lt;string, unknown&gt;</code> of spec name to projection result.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Tabs ──
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabBar = container.previousElementSibling;
+  if (tabBar) tabBar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+}
+
+// ── Pipeline Stepper ──
+function showStep(stepId) {
+  const section = document.getElementById(stepId).parentElement;
+  section.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+  const stepper = section.querySelector('.pipeline-stepper');
+  if (stepper) {
+    stepper.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+    if (event && event.target) event.target.classList.add('active');
+  }
+}
+
+// ── Collapsible Stages ──
+function toggleStage(el) { el.classList.toggle('active'); }
+
+// ── Primitive Cards ──
+function selectPrim(card, detailId) {
+  const section = card.closest('section');
+  section.querySelectorAll('.prim-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  section.querySelectorAll('.card-detail').forEach(d => d.classList.remove('active'));
+  const detail = document.getElementById(detailId);
+  if (detail) detail.classList.add('active');
+}
+
+// ── Flashcards ──
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  const total = document.querySelectorAll('#flashcard-deck .flashcard').length;
+  document.getElementById('quiz-total').textContent = total;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+
+</body>
+</html>

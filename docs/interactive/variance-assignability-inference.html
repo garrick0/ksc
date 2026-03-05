@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variance, Assignability &amp; Inference — The Visual Link</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3348;
+  --text: #e2e4f0;
+  --dim: #8b8fa8;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --yellow: #facc15;
+  --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Inter','Segoe UI',system-ui,sans-serif; line-height:1.7; }
+.container { max-width:1100px; margin:0 auto; padding:2rem 1.5rem; }
+
+h1 { font-size:2.2rem; margin-bottom:0.3rem; background:linear-gradient(135deg,var(--accent),var(--accent2),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.subtitle { color:var(--dim); font-size:1.05rem; margin-bottom:2.5rem; }
+
+h2 { font-size:1.5rem; color:var(--accent); margin:2.5rem 0 1rem; }
+h3 { font-size:1.15rem; color:var(--accent2); margin:1.5rem 0 0.8rem; }
+p { margin-bottom:1rem; color:var(--text); }
+.dim { color:var(--dim); }
+
+/* Core Intuition Section */
+.intuition-box {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:2rem;
+  margin:1.5rem 0;
+}
+.intuition-box .big-idea {
+  font-size:1.2rem;
+  text-align:center;
+  margin-bottom:1.5rem;
+  color:var(--yellow);
+  font-weight:600;
+}
+
+/* Flow Diagrams */
+.flow-container {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.5rem;
+  flex-wrap:wrap;
+  margin:1.5rem 0;
+}
+.flow-box {
+  background:var(--surface2);
+  border:2px solid var(--border);
+  border-radius:8px;
+  padding:0.8rem 1.2rem;
+  text-align:center;
+  min-width:120px;
+  transition:all 0.3s;
+}
+.flow-box.highlight-co { border-color:var(--green); background:rgba(74,222,128,0.08); }
+.flow-box.highlight-contra { border-color:var(--red); background:rgba(248,113,113,0.08); }
+.flow-box.highlight-inv { border-color:var(--orange); background:rgba(251,146,60,0.08); }
+.flow-arrow { font-size:1.5rem; color:var(--dim); }
+.flow-arrow.green { color:var(--green); }
+.flow-arrow.red { color:var(--red); }
+
+/* Interactive Animal Hierarchy */
+.animal-scene {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin:1.5rem 0;
+}
+.animal-canvas {
+  width:100%;
+  height:200px;
+  margin-bottom:1rem;
+}
+
+/* Variance Selector */
+.variance-tabs {
+  display:flex;
+  gap:0.5rem;
+  margin:1rem 0;
+  flex-wrap:wrap;
+}
+.vtab {
+  padding:0.6rem 1.2rem;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:0.9rem;
+  border:2px solid var(--border);
+  background:var(--surface);
+  color:var(--dim);
+  transition:all 0.25s;
+}
+.vtab:hover { border-color:var(--accent); color:var(--text); }
+.vtab.active-co { border-color:var(--green); color:var(--green); background:rgba(74,222,128,0.1); }
+.vtab.active-contra { border-color:var(--red); color:var(--red); background:rgba(248,113,113,0.1); }
+.vtab.active-inv { border-color:var(--orange); color:var(--orange); background:rgba(251,146,60,0.1); }
+.vtab.active-bi { border-color:var(--cyan); color:var(--cyan); background:rgba(34,211,238,0.1); }
+
+/* Assignment Demo */
+.assign-demo {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin:1.5rem 0;
+}
+.assign-row {
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  padding:0.8rem;
+  margin:0.5rem 0;
+  border-radius:8px;
+  background:var(--surface2);
+  font-family:'JetBrains Mono','Fira Code',monospace;
+  font-size:0.9rem;
+  transition:all 0.3s;
+}
+.assign-target { color:var(--accent2); min-width:200px; }
+.assign-eq { color:var(--dim); }
+.assign-source { color:var(--cyan); min-width:200px; }
+.assign-result {
+  padding:0.3rem 0.8rem;
+  border-radius:6px;
+  font-weight:700;
+  font-size:0.85rem;
+  min-width:50px;
+  text-align:center;
+}
+.assign-ok { background:rgba(74,222,128,0.15); color:var(--green); }
+.assign-fail { background:rgba(248,113,113,0.15); color:var(--red); }
+
+/* Code blocks */
+.code-block {
+  background:#0d0f16;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:1.2rem;
+  font-family:'JetBrains Mono','Fira Code',monospace;
+  font-size:0.85rem;
+  line-height:1.8;
+  overflow-x:auto;
+  margin:1rem 0;
+}
+.kw { color:#c084fc; }
+.tp { color:#6c8cff; }
+.fn { color:#22d3ee; }
+.str { color:#4ade80; }
+.cmt { color:#6b7280; font-style:italic; }
+.op { color:#f87171; }
+.num { color:#fb923c; }
+.ann { color:var(--yellow); }
+
+/* Interactive Pipe Visual */
+.pipe-demo {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:2rem;
+  margin:1.5rem 0;
+}
+.pipe-canvas { width:100%; height:300px; }
+
+/* Nesting Section */
+.nesting-demo {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin:1.5rem 0;
+}
+.nest-chain {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.4rem;
+  flex-wrap:wrap;
+  margin:1rem 0;
+  font-size:1.1rem;
+  font-weight:600;
+}
+.nest-item {
+  padding:0.5rem 1rem;
+  border-radius:8px;
+  border:2px solid;
+}
+.nest-co { border-color:var(--green); color:var(--green); background:rgba(74,222,128,0.08); }
+.nest-contra { border-color:var(--red); color:var(--red); background:rgba(248,113,113,0.08); }
+.nest-op { color:var(--dim); font-size:1.3rem; }
+
+/* Inference Section */
+.infer-demo {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin:1.5rem 0;
+}
+.constraint-row {
+  display:flex;
+  align-items:center;
+  gap:0.8rem;
+  padding:0.7rem 1rem;
+  margin:0.4rem 0;
+  border-radius:8px;
+  background:var(--surface2);
+  font-family:'JetBrains Mono','Fira Code',monospace;
+  font-size:0.9rem;
+}
+.constraint-label {
+  font-weight:600;
+  min-width:120px;
+}
+
+/* Stepper */
+.stepper {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin:1.5rem 0;
+}
+.step-controls {
+  display:flex;
+  gap:0.5rem;
+  margin-bottom:1rem;
+  flex-wrap:wrap;
+}
+.step-btn {
+  padding:0.5rem 1rem;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:var(--surface2);
+  color:var(--dim);
+  cursor:pointer;
+  font-size:0.85rem;
+  transition:all 0.2s;
+}
+.step-btn:hover { border-color:var(--accent); color:var(--text); }
+.step-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(108,140,255,0.12); }
+.step-content {
+  padding:1rem;
+  background:var(--surface2);
+  border-radius:8px;
+  min-height:120px;
+}
+.step-viz { width:100%; height:250px; margin:1rem 0; }
+
+/* Summary Table */
+.summary-table {
+  width:100%;
+  border-collapse:collapse;
+  margin:1.5rem 0;
+}
+.summary-table th, .summary-table td {
+  padding:0.8rem 1rem;
+  border:1px solid var(--border);
+  text-align:left;
+}
+.summary-table th {
+  background:var(--surface2);
+  color:var(--accent);
+  font-weight:600;
+}
+.summary-table td { background:var(--surface); }
+
+/* Quiz */
+.quiz-section {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin:1.5rem 0;
+}
+.quiz-q {
+  margin-bottom:1.5rem;
+  padding:1rem;
+  background:var(--surface2);
+  border-radius:8px;
+}
+.quiz-q h4 { color:var(--accent); margin-bottom:0.8rem; }
+.quiz-options { display:flex; flex-direction:column; gap:0.4rem; }
+.quiz-opt {
+  padding:0.6rem 1rem;
+  border:1px solid var(--border);
+  border-radius:6px;
+  cursor:pointer;
+  transition:all 0.2s;
+  font-size:0.9rem;
+}
+.quiz-opt:hover { border-color:var(--accent); }
+.quiz-opt.correct { border-color:var(--green); background:rgba(74,222,128,0.1); color:var(--green); }
+.quiz-opt.wrong { border-color:var(--red); background:rgba(248,113,113,0.1); color:var(--red); }
+.quiz-explain {
+  margin-top:0.5rem;
+  padding:0.8rem;
+  border-radius:6px;
+  font-size:0.9rem;
+  display:none;
+}
+
+/* Position map */
+.position-map {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1rem;
+  margin:1.5rem 0;
+}
+.pos-card {
+  background:var(--surface);
+  border:2px solid;
+  border-radius:var(--radius);
+  padding:1.2rem;
+}
+.pos-card.co-card { border-color:var(--green); }
+.pos-card.contra-card { border-color:var(--red); }
+.pos-card h4 { margin-bottom:0.5rem; }
+.pos-card ul { list-style:none; padding:0; }
+.pos-card li { padding:0.3rem 0; font-size:0.9rem; }
+.pos-card li::before { content:'→ '; color:var(--dim); }
+
+@media (max-width: 700px) {
+  .position-map { grid-template-columns:1fr; }
+  .assign-row { flex-wrap:wrap; font-size:0.8rem; }
+  h1 { font-size:1.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Variance, Assignability &amp; Inference</h1>
+<p class="subtitle">The visual link — how one concept controls two different things</p>
+
+<!-- ========== Section 1: The Core Intuition ========== -->
+<h2>§1 — The One Core Idea</h2>
+
+<div class="intuition-box">
+  <div class="big-idea">Variance = which way does the subtype arrow flow through a generic wrapper?</div>
+  <p>You already know that <code style="color:var(--green)">Cat</code> is a subtype of <code style="color:var(--accent)">Animal</code>. The question variance answers is: when you wrap them in <code>Box&lt;Cat&gt;</code> and <code>Box&lt;Animal&gt;</code>, does the subtype arrow between the boxes point the <em>same</em> direction, the <em>opposite</em> direction, or <em>neither</em>?</p>
+  <p>This one answer simultaneously determines two things:</p>
+  <div class="flow-container">
+    <div class="flow-box" style="border-color:var(--accent2);">Variance of T in Box&lt;T&gt;</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box" style="border-color:var(--green);">Assignability direction</div>
+    <span class="flow-arrow" style="margin-left:1rem;">→</span>
+    <div class="flow-box" style="border-color:var(--cyan);">Inference constraint direction</div>
+  </div>
+  <p class="dim" style="text-align:center;margin-top:0.5rem;">Same concept, two consequences. That's the whole link.</p>
+</div>
+
+<!-- ========== Section 2: The Subtype Hierarchy ========== -->
+<h2>§2 — Start with the Subtype Hierarchy</h2>
+<p>Before we can talk about variance, we need a concrete subtype chain to work with. Click any node to highlight the subtype path:</p>
+
+<div class="animal-scene" id="hierarchySection">
+  <canvas class="animal-canvas" id="hierarchyCanvas"></canvas>
+  <p class="dim" style="text-align:center;font-size:0.85rem;" id="hierarchyLabel">Click a node to highlight the subtype chain</p>
+</div>
+
+<p>The rule is: a subtype can be used wherever a supertype is expected. A <code style="color:var(--green)">Cat</code> is an <code style="color:var(--accent)">Animal</code>, so anywhere you need an Animal, a Cat works.</p>
+
+<!-- ========== Section 3: The Three Variances ========== -->
+<h2>§3 — Three Variances, Visually</h2>
+<p>Now wrap these types in a generic container. Pick a variance to see what happens to the subtype arrow:</p>
+
+<div class="assign-demo" id="varianceDemo">
+  <div class="variance-tabs">
+    <div class="vtab active-co" onclick="setVariance('co')" id="vtab-co">Covariant (out T)</div>
+    <div class="vtab" onclick="setVariance('contra')" id="vtab-contra">Contravariant (in T)</div>
+    <div class="vtab" onclick="setVariance('inv')" id="vtab-inv">Invariant (in out T)</div>
+    <div class="vtab" onclick="setVariance('bi')" id="vtab-bi">Bivariant</div>
+  </div>
+
+  <div id="variance-explanation" style="margin:1rem 0;padding:1rem;background:var(--surface2);border-radius:8px;"></div>
+
+  <canvas id="varianceCanvas" style="width:100%;height:200px;margin:1rem 0;"></canvas>
+
+  <div id="variance-assignments"></div>
+</div>
+
+<!-- ========== Section 4: Why Each Variance is What It Is ========== -->
+<h2>§4 — Why: The Pipe Intuition</h2>
+<p>Think of a generic type as a <strong>pipe</strong>. The variance depends on which direction values flow through it:</p>
+
+<div class="pipe-demo">
+  <canvas class="pipe-canvas" id="pipeCanvas"></canvas>
+  <div class="variance-tabs" style="justify-content:center;">
+    <div class="vtab active-co" onclick="setPipe('producer')" id="ptab-producer">Producer (out)</div>
+    <div class="vtab" onclick="setPipe('consumer')" id="ptab-consumer">Consumer (in)</div>
+    <div class="vtab" onclick="setPipe('both')" id="ptab-both">Mutable Box (in+out)</div>
+  </div>
+  <div id="pipe-explanation" style="margin-top:1rem;padding:1rem;background:var(--surface2);border-radius:8px;font-size:0.95rem;"></div>
+</div>
+
+<!-- ========== Section 5: Position Map ========== -->
+<h2>§5 — Which Positions are Covariant vs Contravariant?</h2>
+<p>Here's the complete map. Anything in an "output" position is covariant; anything in an "input" position is contravariant:</p>
+
+<div class="position-map">
+  <div class="pos-card co-card">
+    <h4 style="color:var(--green);">Covariant Positions (output)</h4>
+    <ul>
+      <li>Function return type: <code>(): T</code></li>
+      <li>Readonly property: <code>readonly x: T</code></li>
+      <li>Promise resolution: <code>Promise&lt;T&gt;</code></li>
+      <li>Array element (read): <code>ReadonlyArray&lt;T&gt;</code></li>
+      <li>Getter: <code>get value(): T</code></li>
+      <li>Conditional true branch: <code>T extends U ? T : never</code></li>
+    </ul>
+  </div>
+  <div class="pos-card contra-card">
+    <h4 style="color:var(--red);">Contravariant Positions (input)</h4>
+    <ul>
+      <li>Function parameter: <code>(x: T) => void</code></li>
+      <li>Setter: <code>set value(x: T)</code></li>
+      <li>Write-only property (rare)</li>
+      <li>Callback parameter: <code>on(cb: (x: T) => void)</code></li>
+      <li>Constructor parameter: <code>new (x: T) => Obj</code></li>
+      <li>Argument to contravariant generic</li>
+    </ul>
+  </div>
+</div>
+
+<div class="code-block">
+<span class="cmt">// This interface is COVARIANT in T — T only flows OUT</span>
+<span class="kw">interface</span> <span class="tp">Producer</span>&lt;<span class="ann">out</span> <span class="tp">T</span>&gt; {
+  <span class="fn">get</span>(): <span class="tp">T</span>;                  <span class="cmt">// return type → covariant</span>
+  <span class="fn">map</span>&lt;<span class="tp">U</span>&gt;(f: (x: <span class="tp">T</span>) =&gt; <span class="tp">U</span>): <span class="tp">Producer</span>&lt;<span class="tp">U</span>&gt;;  <span class="cmt">// T in callback param... </span>
+}  <span class="cmt">// Wait — isn't (x: T) contravariant? Yes! But it's inside</span>
+   <span class="cmt">// another function parameter, so contra × contra = covariant!</span>
+</div>
+
+<!-- ========== Section 6: Nesting — Variance Multiplication ========== -->
+<h2>§6 — Nesting: Variance Multiplies</h2>
+<p>When generics are nested, their variances <strong>multiply</strong> like signs. This is the key rule:</p>
+
+<div class="nesting-demo">
+  <div style="text-align:center;margin-bottom:1rem;">
+    <table class="summary-table" style="max-width:400px;margin:0 auto;">
+      <tr><th>×</th><th style="color:var(--green)">Covariant</th><th style="color:var(--red)">Contravariant</th></tr>
+      <tr><td style="color:var(--green);font-weight:600;">Covariant</td><td style="color:var(--green);">= Covariant</td><td style="color:var(--red)">= Contravariant</td></tr>
+      <tr><td style="color:var(--red);font-weight:600;">Contravariant</td><td style="color:var(--red)">= Contravariant</td><td style="color:var(--green)">= Covariant</td></tr>
+    </table>
+  </div>
+  <p class="dim" style="text-align:center;">Just like multiplying positive and negative numbers!</p>
+
+  <h3>Interactive: click to trace the variance through nesting</h3>
+  <div id="nestingExamples"></div>
+</div>
+
+<!-- ========== Section 7: Assignability — The First Consequence ========== -->
+<h2>§7 — Assignability: First Consequence of Variance</h2>
+<p>When TypeScript checks <code>Box&lt;Cat&gt; assignable to Box&lt;Animal&gt;?</code>, it uses variance to decide which way to compare the type arguments:</p>
+
+<div class="stepper" id="assignStepper">
+  <h3>Step through: is <code>Effect&lt;Cat, IOError, Database&gt;</code> assignable to <code>Effect&lt;Animal, Error, Service&gt;</code>?</h3>
+  <div class="step-controls" id="assignStepBtns"></div>
+  <div class="step-content" id="assignStepContent"></div>
+  <canvas class="step-viz" id="assignCanvas"></canvas>
+</div>
+
+<!-- ========== Section 8: Inference — The Second Consequence ========== -->
+<h2>§8 — Inference: Second Consequence of Variance</h2>
+<p>When TypeScript infers type arguments, variance controls which <strong>direction</strong> the constraint goes. This is the less obvious but equally important link:</p>
+
+<div class="infer-demo">
+  <h3>The rule</h3>
+  <div class="constraint-row">
+    <span class="constraint-label" style="color:var(--green);">Covariant position:</span>
+    <span>generates <strong>T ⊇ observed_type</strong> (lower bound — T must be at least this wide)</span>
+  </div>
+  <div class="constraint-row">
+    <span class="constraint-label" style="color:var(--red);">Contravariant position:</span>
+    <span>generates <strong>T ⊆ observed_type</strong> (upper bound — T must be at most this wide)</span>
+  </div>
+  <div class="constraint-row">
+    <span class="constraint-label" style="color:var(--orange);">Both:</span>
+    <span>generates constraints in both directions → T is pinned to specific type</span>
+  </div>
+</div>
+
+<div class="stepper" id="inferStepper">
+  <h3>Step through: infer T in <code>function transform&lt;T&gt;(p: Producer&lt;T&gt;, c: Consumer&lt;T&gt;): T</code></h3>
+  <p class="dim" style="margin-bottom:1rem;">Called as: <code>transform(catProducer, animalConsumer)</code></p>
+  <div class="step-controls" id="inferStepBtns"></div>
+  <div class="step-content" id="inferStepContent"></div>
+</div>
+
+<!-- ========== Section 9: The Unified Picture ========== -->
+<h2>§9 — The Unified Picture</h2>
+<p>Here's the complete summary. Variance is the single knob that controls both assignability direction and inference constraint direction:</p>
+
+<table class="summary-table">
+  <tr>
+    <th>Variance</th>
+    <th>T appears in...</th>
+    <th>Assignability: Box&lt;Sub&gt; → Box&lt;Super&gt;?</th>
+    <th>Inference: constraint on T</th>
+    <th>Intuition</th>
+  </tr>
+  <tr>
+    <td style="color:var(--green);font-weight:600;">Covariant</td>
+    <td>Output positions</td>
+    <td style="color:var(--green);">✓ Same direction</td>
+    <td>T ⊇ observed (lower bound)</td>
+    <td>"I produce T — specific is safe"</td>
+  </tr>
+  <tr>
+    <td style="color:var(--red);font-weight:600;">Contravariant</td>
+    <td>Input positions</td>
+    <td style="color:var(--red);">✗ Must flip direction</td>
+    <td>T ⊆ observed (upper bound)</td>
+    <td>"I consume T — general is safe"</td>
+  </tr>
+  <tr>
+    <td style="color:var(--orange);font-weight:600;">Invariant</td>
+    <td>Both positions</td>
+    <td style="color:var(--orange);">✗ Must be exact</td>
+    <td>T = observed (pinned)</td>
+    <td>"I read and write T — must match"</td>
+  </tr>
+  <tr>
+    <td style="color:var(--cyan);font-weight:600;">Bivariant</td>
+    <td>Special (unsound)</td>
+    <td style="color:var(--cyan);">✓ Either direction</td>
+    <td>Weakest constraint</td>
+    <td>"TS legacy — allows both"</td>
+  </tr>
+</table>
+
+<!-- ========== Section 10: strictFunctionTypes ========== -->
+<h2>§10 — strictFunctionTypes: When TS Gets Variance Wrong</h2>
+
+<div class="intuition-box">
+  <p>Without <code>strictFunctionTypes</code>, TypeScript treats function parameters as <strong>bivariant</strong> — it allows both directions. This is unsound:</p>
+  <div class="code-block">
+<span class="kw">type</span> <span class="tp">Handler</span> = (x: <span class="tp">Animal</span>) =&gt; <span class="kw">void</span>;
+
+<span class="kw">const</span> catOnly = (x: <span class="tp">Cat</span>) =&gt; x.purr();  <span class="cmt">// expects Cat</span>
+
+<span class="kw">let</span> h: <span class="tp">Handler</span> = catOnly;  <span class="cmt">// ✓ Allowed without strict! (bivariant)</span>
+h(<span class="kw">new</span> <span class="fn">Dog</span>());             <span class="cmt">// 💥 Runtime crash — Dog has no .purr()</span>
+  </div>
+  <p style="margin-top:1rem;">With <code>strictFunctionTypes: true</code>, parameters become properly <strong>contravariant</strong>:</p>
+  <div class="code-block">
+<span class="kw">let</span> h: <span class="tp">Handler</span> = catOnly;  <span class="cmt">// ✗ Error! Cat is not assignable to Animal</span>
+                            <span class="cmt">//   (parameter is contravariant)</span>
+
+<span class="kw">const</span> anyAnimal = (x: <span class="tp">Animal</span>) =&gt; console.log(x);
+<span class="kw">let</span> h2: (x: <span class="tp">Cat</span>) =&gt; <span class="kw">void</span> = anyAnimal;  <span class="cmt">// ✓ Safe — Animal handler accepts Cat</span>
+  </div>
+  <p class="dim" style="margin-top:1rem;">The reason: if you need a handler for Cats specifically, a handler that accepts <em>any</em> Animal is safe (it handles Cats too). But a handler that only handles Cats is NOT safe when you might pass it a Dog.</p>
+</div>
+
+<!-- ========== Section 11: Quiz ========== -->
+<h2>§11 — Test Your Understanding</h2>
+
+<div class="quiz-section" id="quizSection"></div>
+
+</div><!-- end container -->
+
+<script>
+// ========== Hierarchy Canvas ==========
+const hierCanvas = document.getElementById('hierarchyCanvas');
+const hierCtx = hierCanvas.getContext('2d');
+const hierLabel = document.getElementById('hierarchyLabel');
+
+const hierNodes = [
+  { id:'unknown', label:'unknown', x:0.5, y:0.05, color:'#8b8fa8' },
+  { id:'object', label:'object', x:0.5, y:0.25, color:'#a78bfa' },
+  { id:'animal', label:'Animal', x:0.5, y:0.48, color:'#6c8cff' },
+  { id:'cat', label:'Cat', x:0.3, y:0.72, color:'#4ade80' },
+  { id:'dog', label:'Dog', x:0.7, y:0.72, color:'#22d3ee' },
+  { id:'persian', label:'Persian', x:0.15, y:0.92, color:'#f472b6' },
+  { id:'siamese', label:'Siamese', x:0.42, y:0.92, color:'#fb923c' },
+];
+const hierEdges = [
+  ['unknown','object'],['object','animal'],['animal','cat'],['animal','dog'],
+  ['cat','persian'],['cat','siamese']
+];
+
+let hierHighlight = null;
+
+function getAncestors(id) {
+  const ancestors = new Set([id]);
+  for (const [parent, child] of hierEdges) {
+    if (child === id) { for (const a of getAncestors(parent)) ancestors.add(a); }
+  }
+  return ancestors;
+}
+
+function drawHierarchy() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = hierCanvas.getBoundingClientRect();
+  hierCanvas.width = rect.width * dpr;
+  hierCanvas.height = rect.height * dpr;
+  hierCtx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  hierCtx.clearRect(0, 0, W, H);
+
+  const highlighted = hierHighlight ? getAncestors(hierHighlight) : null;
+
+  // edges
+  for (const [pid, cid] of hierEdges) {
+    const p = hierNodes.find(n=>n.id===pid);
+    const c = hierNodes.find(n=>n.id===cid);
+    const active = highlighted && highlighted.has(pid) && highlighted.has(cid);
+    hierCtx.strokeStyle = active ? '#6c8cff' : '#2e3348';
+    hierCtx.lineWidth = active ? 2.5 : 1.5;
+    hierCtx.beginPath();
+    hierCtx.moveTo(p.x*W, p.y*H);
+    hierCtx.lineTo(c.x*W, c.y*H);
+    hierCtx.stroke();
+    // arrow
+    if (active) {
+      const mx = (p.x*W + c.x*W)/2, my = (p.y*H + c.y*H)/2;
+      hierCtx.fillStyle = '#6c8cff';
+      hierCtx.font = '14px sans-serif';
+      hierCtx.textAlign = 'center';
+      hierCtx.fillText('⊂', mx + 12, my);
+    }
+  }
+
+  // nodes
+  for (const n of hierNodes) {
+    const active = !highlighted || highlighted.has(n.id);
+    const nx = n.x * W, ny = n.y * H;
+    hierCtx.fillStyle = active ? n.color : '#2e3348';
+    hierCtx.beginPath();
+    hierCtx.roundRect(nx - 40, ny - 14, 80, 28, 6);
+    hierCtx.fill();
+    hierCtx.fillStyle = active ? '#0f1117' : '#555';
+    hierCtx.font = 'bold 13px Inter, sans-serif';
+    hierCtx.textAlign = 'center';
+    hierCtx.textBaseline = 'middle';
+    hierCtx.fillText(n.label, nx, ny);
+  }
+}
+
+hierCanvas.addEventListener('click', (e) => {
+  const rect = hierCanvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+  let clicked = null;
+  for (const n of hierNodes) {
+    if (Math.abs(mx - n.x) < 0.06 && Math.abs(my - n.y) < 0.1) { clicked = n.id; break; }
+  }
+  hierHighlight = clicked;
+  if (clicked) {
+    const anc = [...getAncestors(clicked)].map(id => hierNodes.find(n=>n.id===id).label);
+    hierLabel.textContent = `${hierNodes.find(n=>n.id===clicked).label} <: ${anc.filter(a=>a!==hierNodes.find(n=>n.id===clicked).label).join(' <: ')}`;
+  } else {
+    hierLabel.textContent = 'Click a node to highlight the subtype chain';
+  }
+  drawHierarchy();
+});
+
+drawHierarchy();
+window.addEventListener('resize', drawHierarchy);
+
+// ========== Variance Demo ==========
+let currentVariance = 'co';
+
+function setVariance(v) {
+  currentVariance = v;
+  document.querySelectorAll('.vtab').forEach(t => t.className = 'vtab');
+  const cls = {co:'active-co',contra:'active-contra',inv:'active-inv',bi:'active-bi'};
+  document.getElementById('vtab-'+v).classList.add(cls[v]);
+  renderVarianceDemo();
+}
+
+function renderVarianceDemo() {
+  const expEl = document.getElementById('variance-explanation');
+  const assEl = document.getElementById('variance-assignments');
+
+  const explanations = {
+    co: `<p><strong style="color:var(--green)">Covariant</strong> — the arrow <em>preserves</em> direction. If Cat <: Animal, then Box&lt;Cat&gt; <: Box&lt;Animal&gt;.</p>
+         <p class="dim">Think: "I only read from this box. A box of cats IS a box of animals — everything I pull out is an animal."</p>
+         <div class="code-block"><span class="kw">interface</span> <span class="tp">ReadBox</span>&lt;<span class="ann">out</span> <span class="tp">T</span>&gt; { <span class="fn">get</span>(): <span class="tp">T</span>; }</div>`,
+    contra: `<p><strong style="color:var(--red)">Contravariant</strong> — the arrow <em>flips</em> direction. If Cat <: Animal, then Sink&lt;Animal&gt; <: Sink&lt;Cat&gt;.</p>
+             <p class="dim">Think: "I only write to this sink. A sink that accepts any animal CAN be used where you need a sink for cats — cats are animals."</p>
+             <div class="code-block"><span class="kw">interface</span> <span class="tp">Sink</span>&lt;<span class="ann">in</span> <span class="tp">T</span>&gt; { <span class="fn">put</span>(x: <span class="tp">T</span>): <span class="kw">void</span>; }</div>`,
+    inv: `<p><strong style="color:var(--orange)">Invariant</strong> — the arrow goes <em>neither</em> way. Box&lt;Cat&gt; and Box&lt;Animal&gt; are unrelated.</p>
+          <p class="dim">Think: "I both read AND write. If I put a Dog into a 'Box&lt;Animal&gt;' that's really a Box&lt;Cat&gt;, I've corrupted it."</p>
+          <div class="code-block"><span class="kw">interface</span> <span class="tp">MutBox</span>&lt;<span class="tp">T</span>&gt; { <span class="fn">get</span>(): <span class="tp">T</span>; <span class="fn">set</span>(x: <span class="tp">T</span>): <span class="kw">void</span>; }</div>`,
+    bi: `<p><strong style="color:var(--cyan)">Bivariant</strong> — the arrow goes <em>both</em> ways. Box&lt;Cat&gt; <: Box&lt;Animal&gt; AND Box&lt;Animal&gt; <: Box&lt;Cat&gt;.</p>
+         <p class="dim">This is TypeScript's legacy behavior for method parameters (without strictFunctionTypes). It's technically unsound but convenient.</p>
+         <div class="code-block"><span class="cmt">// Method shorthand is bivariant (even with strict)</span>
+<span class="kw">interface</span> <span class="tp">Events</span> { <span class="fn">on</span>(handler: (e: <span class="tp">Event</span>) =&gt; <span class="kw">void</span>): <span class="kw">void</span>; }</div>`
+  };
+
+  expEl.innerHTML = explanations[currentVariance];
+
+  const checks = [
+    { target:'Box<Animal>', source:'Box<Cat>', subNote:'Cat <: Animal' },
+    { target:'Box<Cat>', source:'Box<Animal>', subNote:'Animal ≮: Cat' },
+    { target:'Box<Cat>', source:'Box<Cat>', subNote:'Cat = Cat' },
+  ];
+
+  const results = {
+    co:    [true, false, true],
+    contra:[false, true, true],
+    inv:   [false, false, true],
+    bi:    [true, true, true],
+  };
+
+  let html = '';
+  for (let i = 0; i < checks.length; i++) {
+    const ok = results[currentVariance][i];
+    html += `<div class="assign-row">
+      <span class="assign-target">${checks[i].target}</span>
+      <span class="assign-eq">=</span>
+      <span class="assign-source">${checks[i].source}</span>
+      <span class="assign-result ${ok?'assign-ok':'assign-fail'}">${ok?'✓':'✗'}</span>
+      <span class="dim" style="font-size:0.8rem;">${checks[i].subNote}</span>
+    </div>`;
+  }
+  assEl.innerHTML = html;
+
+  drawVarianceCanvas();
+}
+
+function drawVarianceCanvas() {
+  const canvas = document.getElementById('varianceCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const leftX = W*0.2, rightX = W*0.8, topY = H*0.25, botY = H*0.75;
+  const colors = {co:'#4ade80',contra:'#f87171',inv:'#fb923c',bi:'#22d3ee'};
+  const c = colors[currentVariance];
+
+  // Left side: raw types
+  ctx.fillStyle = '#4ade80';
+  ctx.beginPath(); ctx.roundRect(leftX-45, topY-15, 90, 30, 6); ctx.fill();
+  ctx.fillStyle = '#0f1117'; ctx.font = 'bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('Cat', leftX, topY);
+
+  ctx.fillStyle = '#6c8cff';
+  ctx.beginPath(); ctx.roundRect(leftX-45, botY-15, 90, 30, 6); ctx.fill();
+  ctx.fillStyle = '#0f1117';
+  ctx.fillText('Animal', leftX, botY);
+
+  // Arrow between raw types
+  ctx.strokeStyle = '#8b8fa8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(leftX, topY+18); ctx.lineTo(leftX, botY-18); ctx.stroke();
+  drawArrowhead(ctx, leftX, botY-18, Math.PI/2, '#8b8fa8');
+  ctx.fillStyle = '#8b8fa8'; ctx.font = '12px Inter,sans-serif';
+  ctx.fillText('<: (subtype)', leftX, (topY+botY)/2);
+
+  // Right side: wrapped types
+  ctx.fillStyle = c; ctx.globalAlpha = 0.15;
+  ctx.beginPath(); ctx.roundRect(rightX-65, topY-15, 130, 30, 6); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = c; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(rightX-65, topY-15, 130, 30, 6); ctx.stroke();
+  ctx.fillStyle = c; ctx.font = 'bold 13px Inter,sans-serif';
+  ctx.fillText('Box<Cat>', rightX, topY);
+
+  ctx.globalAlpha = 0.15; ctx.fillStyle = c;
+  ctx.beginPath(); ctx.roundRect(rightX-65, botY-15, 130, 30, 6); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = c; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(rightX-65, botY-15, 130, 30, 6); ctx.stroke();
+  ctx.fillStyle = c;
+  ctx.fillText('Box<Animal>', rightX, botY);
+
+  // Arrow(s) between wrapped types
+  ctx.lineWidth = 3;
+  if (currentVariance === 'co') {
+    ctx.strokeStyle = c;
+    ctx.beginPath(); ctx.moveTo(rightX, topY+18); ctx.lineTo(rightX, botY-18); ctx.stroke();
+    drawArrowhead(ctx, rightX, botY-18, Math.PI/2, c);
+    ctx.font = 'bold 12px Inter,sans-serif'; ctx.fillStyle = c;
+    ctx.fillText('same direction ↓', rightX, (topY+botY)/2);
+  } else if (currentVariance === 'contra') {
+    ctx.strokeStyle = c;
+    ctx.beginPath(); ctx.moveTo(rightX, botY-18); ctx.lineTo(rightX, topY+18); ctx.stroke();
+    drawArrowhead(ctx, rightX, topY+18, -Math.PI/2, c);
+    ctx.font = 'bold 12px Inter,sans-serif'; ctx.fillStyle = c;
+    ctx.fillText('flipped! ↑', rightX, (topY+botY)/2);
+  } else if (currentVariance === 'inv') {
+    ctx.strokeStyle = c; ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.moveTo(rightX, topY+18); ctx.lineTo(rightX, botY-18); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = 'bold 12px Inter,sans-serif'; ctx.fillStyle = c;
+    ctx.fillText('✗ no relationship', rightX, (topY+botY)/2);
+  } else {
+    ctx.strokeStyle = c;
+    ctx.beginPath(); ctx.moveTo(rightX-8, topY+18); ctx.lineTo(rightX-8, botY-18); ctx.stroke();
+    drawArrowhead(ctx, rightX-8, botY-18, Math.PI/2, c);
+    ctx.beginPath(); ctx.moveTo(rightX+8, botY-18); ctx.lineTo(rightX+8, topY+18); ctx.stroke();
+    drawArrowhead(ctx, rightX+8, topY+18, -Math.PI/2, c);
+    ctx.font = 'bold 12px Inter,sans-serif'; ctx.fillStyle = c;
+    ctx.fillText('both ways ↕', rightX, (topY+botY)/2);
+  }
+
+  // connecting dotted lines
+  ctx.strokeStyle = '#2e3348'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(leftX+50, topY); ctx.lineTo(rightX-70, topY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(leftX+50, botY); ctx.lineTo(rightX-70, botY); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawArrowhead(ctx, x, y, angle, color) {
+  ctx.fillStyle = color;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-7, -12); ctx.lineTo(7, -12); ctx.closePath();
+  ctx.fill(); ctx.restore();
+}
+
+renderVarianceDemo();
+window.addEventListener('resize', () => { renderVarianceDemo(); });
+
+// ========== Pipe Canvas ==========
+let currentPipe = 'producer';
+
+function setPipe(p) {
+  currentPipe = p;
+  document.querySelectorAll('#pipeCanvas ~ .variance-tabs .vtab').forEach(t => t.className = 'vtab');
+  const cls = {producer:'active-co',consumer:'active-contra',both:'active-inv'};
+  document.getElementById('ptab-'+p).classList.add(cls[p]);
+  drawPipe();
+  renderPipeExplanation();
+}
+
+function renderPipeExplanation() {
+  const el = document.getElementById('pipe-explanation');
+  const texts = {
+    producer: `<strong style="color:var(--green)">Producer&lt;T&gt;</strong> — values flow <em>out</em>. You only ever read T from it. Since a Producer&lt;Cat&gt; always gives you Cats (which are Animals), it's safe to use it as a Producer&lt;Animal&gt;. Arrow preserves: <strong>covariant</strong>.`,
+    consumer: `<strong style="color:var(--red)">Consumer&lt;T&gt;</strong> — values flow <em>in</em>. You only ever write T into it. A Consumer&lt;Animal&gt; accepts any Animal, so it can definitely accept Cats. It's safe to use as Consumer&lt;Cat&gt;. Arrow flips: <strong>contravariant</strong>.`,
+    both: `<strong style="color:var(--orange)">MutableBox&lt;T&gt;</strong> — values flow <em>both ways</em>. You read AND write. If you treat MutableBox&lt;Cat&gt; as MutableBox&lt;Animal&gt;, someone could .set(new Dog()) and corrupt your Cat box. Neither direction is safe: <strong>invariant</strong>.`
+  };
+  el.innerHTML = texts[currentPipe];
+}
+
+function drawPipe() {
+  const canvas = document.getElementById('pipeCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const cx = W/2, cy = H/2;
+  const boxW = 180, boxH = 100;
+
+  // The "box"
+  ctx.strokeStyle = '#2e3348'; ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(35,39,54,0.8)';
+  ctx.beginPath(); ctx.roundRect(cx-boxW/2, cy-boxH/2, boxW, boxH, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#e2e4f0'; ctx.font = 'bold 16px Inter,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  const labels = {producer:'Producer<T>', consumer:'Consumer<T>', both:'MutBox<T>'};
+  ctx.fillText(labels[currentPipe], cx, cy - 10);
+  ctx.font = '12px Inter,sans-serif'; ctx.fillStyle = '#8b8fa8';
+  const sublabels = {producer:'readonly — out only', consumer:'write-only — in only', both:'read + write — in & out'};
+  ctx.fillText(sublabels[currentPipe], cx, cy + 15);
+
+  // Arrows
+  const leftEdge = cx - boxW/2, rightEdge = cx + boxW/2;
+  const arrowY = cy;
+
+  if (currentPipe === 'producer' || currentPipe === 'both') {
+    // out arrow
+    ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(rightEdge, arrowY); ctx.lineTo(rightEdge+80, arrowY); ctx.stroke();
+    drawArrowhead(ctx, rightEdge+80, arrowY, 0, '#4ade80');
+    ctx.fillStyle = '#4ade80'; ctx.font = 'bold 13px Inter,sans-serif';
+    ctx.fillText('T flows OUT', rightEdge+100, arrowY - 20);
+    ctx.font = '11px Inter,sans-serif'; ctx.fillStyle = '#8b8fa8';
+    ctx.fillText('(covariant)', rightEdge+100, arrowY + 5);
+  }
+
+  if (currentPipe === 'consumer' || currentPipe === 'both') {
+    // in arrow
+    ctx.strokeStyle = '#f87171'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(leftEdge-80, arrowY); ctx.lineTo(leftEdge, arrowY); ctx.stroke();
+    drawArrowhead(ctx, leftEdge, arrowY, 0, '#f87171');
+    ctx.fillStyle = '#f87171'; ctx.font = 'bold 13px Inter,sans-serif';
+    ctx.fillText('T flows IN', leftEdge-100, arrowY - 20);
+    ctx.font = '11px Inter,sans-serif'; ctx.fillStyle = '#8b8fa8';
+    ctx.fillText('(contravariant)', leftEdge-100, arrowY + 5);
+  }
+
+  // Result label
+  const resultColors = {producer:'#4ade80', consumer:'#f87171', both:'#fb923c'};
+  const resultLabels = {producer:'= COVARIANT', consumer:'= CONTRAVARIANT', both:'= INVARIANT'};
+  ctx.fillStyle = resultColors[currentPipe];
+  ctx.font = 'bold 18px Inter,sans-serif';
+  ctx.fillText(resultLabels[currentPipe], cx, cy + boxH/2 + 40);
+}
+
+drawPipe();
+renderPipeExplanation();
+window.addEventListener('resize', drawPipe);
+
+// ========== Nesting Examples ==========
+function renderNesting() {
+  const examples = [
+    {
+      chain: [
+        { label:'Producer<T>', variance:'co' },
+      ],
+      result: 'co',
+      desc: 'Producer<T> — T in return type → covariant',
+      code: 'interface Producer<out T> { get(): T; }'
+    },
+    {
+      chain: [
+        { label:'Consumer<T>', variance:'contra' },
+      ],
+      result: 'contra',
+      desc: 'Consumer<T> — T in parameter → contravariant',
+      code: 'interface Consumer<in T> { put(x: T): void; }'
+    },
+    {
+      chain: [
+        { label:'Consumer', variance:'contra' },
+        { label:'Producer<T>', variance:'co' },
+      ],
+      result: 'contra',
+      desc: 'Consumer<Producer<T>> — contra × co = contra',
+      code: 'type CP<T> = Consumer<Producer<T>>;\n// Cat<:Animal → Producer<Cat><:Producer<Animal>\n// → Consumer<Producer<Animal>> <: Consumer<Producer<Cat>>  (flipped!)'
+    },
+    {
+      chain: [
+        { label:'Producer', variance:'co' },
+        { label:'Consumer<T>', variance:'contra' },
+      ],
+      result: 'contra',
+      desc: 'Producer<Consumer<T>> — co × contra = contra',
+      code: 'type PC<T> = Producer<Consumer<T>>;\n// Cat<:Animal → Consumer<Animal><:Consumer<Cat>  (flip)\n// → Producer<Consumer<Animal>> <: Producer<Consumer<Cat>>  (preserve flip)'
+    },
+    {
+      chain: [
+        { label:'Consumer', variance:'contra' },
+        { label:'Consumer<T>', variance:'contra' },
+      ],
+      result: 'co',
+      desc: 'Consumer<Consumer<T>> — contra × contra = co (double flip!)',
+      code: 'type CC<T> = Consumer<Consumer<T>>;\n// Cat<:Animal → Consumer<Animal><:Consumer<Cat>  (flip)\n// → Consumer<Consumer<Cat>> <: Consumer<Consumer<Animal>>  (flip again = same!)'
+    },
+    {
+      chain: [
+        { label:'Consumer', variance:'contra' },
+        { label:'Consumer', variance:'contra' },
+        { label:'Consumer<T>', variance:'contra' },
+      ],
+      result: 'contra',
+      desc: 'Consumer<Consumer<Consumer<T>>> — contra³ = contra',
+      code: '// Three negations = negative. Like (-1)³ = -1'
+    },
+  ];
+
+  let html = '';
+  for (let i = 0; i < examples.length; i++) {
+    const ex = examples[i];
+    html += `<div style="margin:1rem 0;padding:1rem;background:var(--surface2);border-radius:8px;cursor:pointer;" onclick="toggleNest(${i})">
+      <div class="nest-chain">`;
+    for (let j = 0; j < ex.chain.length; j++) {
+      if (j > 0) html += `<span class="nest-op">×</span>`;
+      html += `<span class="nest-item nest-${ex.chain[j].variance}">${ex.chain[j].label}</span>`;
+    }
+    html += `<span class="nest-op">=</span>
+      <span class="nest-item nest-${ex.result}">${ex.result === 'co' ? 'Covariant' : ex.result === 'contra' ? 'Contravariant' : 'Invariant'}</span>`;
+    html += `</div>
+      <p class="dim" style="text-align:center;font-size:0.85rem;margin-top:0.5rem;">${ex.desc}</p>
+      <div id="nest-detail-${i}" style="display:none;margin-top:0.8rem;">
+        <div class="code-block" style="font-size:0.8rem;">${ex.code}</div>
+      </div>
+    </div>`;
+  }
+  document.getElementById('nestingExamples').innerHTML = html;
+}
+function toggleNest(i) {
+  const el = document.getElementById('nest-detail-'+i);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+renderNesting();
+
+// ========== Assignability Stepper ==========
+const assignSteps = [
+  {
+    title: '1. Recognize generic match',
+    html: `<p>Both sides are <code>Effect&lt;A, E, R&gt;</code> — same generic type with three type parameters. Instead of doing a full structural comparison of every method and property, TypeScript can use <strong>variance-based shortcut</strong>.</p>
+    <p class="dim">This is a major performance optimization — comparing three type arguments is much faster than recursively comparing the full type structure.</p>`
+  },
+  {
+    title: '2. Look up variance of each parameter',
+    html: `<p>Effect has declared variances (or TypeScript computes them structurally):</p>
+    <div class="constraint-row"><span class="constraint-label" style="color:var(--green)">A (success)</span><span><strong style="color:var(--green)">out</strong> — covariant (only returned/produced)</span></div>
+    <div class="constraint-row"><span class="constraint-label" style="color:var(--green)">E (error)</span><span><strong style="color:var(--green)">out</strong> — covariant (only appears in failure channel)</span></div>
+    <div class="constraint-row"><span class="constraint-label" style="color:var(--red)">R (requirements)</span><span><strong style="color:var(--red)">in</strong> — contravariant (requirements are consumed/demanded)</span></div>`
+  },
+  {
+    title: '3. Compare A: Cat → Animal (covariant)',
+    html: `<p>A is <strong style="color:var(--green)">covariant</strong>, so compare in the <strong>same direction</strong>:</p>
+    <div class="assign-row"><span class="assign-source" style="color:var(--green)">Cat</span><span class="assign-eq"><: ?</span><span class="assign-target">Animal</span><span class="assign-result assign-ok">✓</span></div>
+    <p class="dim">Cat is a subtype of Animal → this parameter checks out.</p>`
+  },
+  {
+    title: '4. Compare E: IOError → Error (covariant)',
+    html: `<p>E is also <strong style="color:var(--green)">covariant</strong>, same direction again:</p>
+    <div class="assign-row"><span class="assign-source" style="color:var(--green)">IOError</span><span class="assign-eq"><: ?</span><span class="assign-target">Error</span><span class="assign-result assign-ok">✓</span></div>
+    <p class="dim">IOError extends Error → passes.</p>`
+  },
+  {
+    title: '5. Compare R: Database → Service (contravariant!)',
+    html: `<p>R is <strong style="color:var(--red)">contravariant</strong>, so we <strong>flip the comparison direction</strong>:</p>
+    <div class="assign-row"><span class="assign-source" style="color:var(--red)">Service</span><span class="assign-eq"><: ?</span><span class="assign-target">Database</span><span class="assign-result assign-ok">✓</span></div>
+    <p>We check <code>Service <: Database</code> (reversed!) — because if the target requires Database, and the source demands Service, then Service must be a subtype of Database for the requirement to be satisfiable.</p>
+    <p class="dim">Intuition: the source Effect <em>needs</em> a Database. The target slot promises to provide a Service. For that to work, Service must provide at least what Database provides.</p>`
+  },
+  {
+    title: '6. Verdict: all pass → assignable ✓',
+    html: `<p>All three parameter comparisons passed:</p>
+    <div class="assign-row"><span style="color:var(--green);min-width:80px;">A: co</span><span>Cat <: Animal</span><span class="assign-result assign-ok">✓</span></div>
+    <div class="assign-row"><span style="color:var(--green);min-width:80px;">E: co</span><span>IOError <: Error</span><span class="assign-result assign-ok">✓</span></div>
+    <div class="assign-row"><span style="color:var(--red);min-width:80px;">R: contra</span><span>Service <: Database (flipped)</span><span class="assign-result assign-ok">✓</span></div>
+    <p style="margin-top:1rem;"><strong>Effect&lt;Cat, IOError, Database&gt; IS assignable to Effect&lt;Animal, Error, Service&gt;</strong></p>
+    <p class="dim">No structural comparison needed! Just three subtype checks on the type arguments.</p>`
+  },
+];
+
+let assignStep = 0;
+function renderAssignStepper() {
+  let btns = '';
+  for (let i = 0; i < assignSteps.length; i++) {
+    btns += `<div class="step-btn ${i===assignStep?'active':''}" onclick="assignStep=${i};renderAssignStepper();">${assignSteps[i].title.split('.')[0]}</div>`;
+  }
+  document.getElementById('assignStepBtns').innerHTML = btns;
+  document.getElementById('assignStepContent').innerHTML = `<h4 style="color:var(--accent);margin-bottom:0.5rem;">${assignSteps[assignStep].title}</h4>${assignSteps[assignStep].html}`;
+  drawAssignCanvas();
+}
+
+function drawAssignCanvas() {
+  const canvas = document.getElementById('assignCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const params = [
+    { label:'A', src:'Cat', tgt:'Animal', variance:'co', color:'#4ade80' },
+    { label:'E', src:'IOError', tgt:'Error', variance:'co', color:'#4ade80' },
+    { label:'R', src:'Database', tgt:'Service', variance:'contra', color:'#f87171' },
+  ];
+
+  const startX = W*0.1, endX = W*0.9, y0 = H*0.2;
+  const colW = (endX - startX) / 3;
+
+  for (let i = 0; i < 3; i++) {
+    const p = params[i];
+    const cx = startX + colW * i + colW/2;
+    const highlighted = assignStep >= i + 2 && assignStep <= 5;
+    const passed = assignStep > i + 2 || assignStep === 5;
+
+    // parameter label
+    ctx.fillStyle = highlighted ? p.color : '#8b8fa8';
+    ctx.font = `bold 14px Inter,sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${p.label} (${p.variance === 'co' ? 'covariant' : 'contravariant'})`, cx, y0);
+
+    // source box
+    const srcY = y0 + 30;
+    ctx.strokeStyle = highlighted ? '#22d3ee' : '#2e3348';
+    ctx.lineWidth = highlighted ? 2 : 1;
+    ctx.beginPath(); ctx.roundRect(cx-50, srcY, 100, 28, 5); ctx.stroke();
+    ctx.fillStyle = highlighted ? '#22d3ee' : '#555';
+    ctx.font = '13px Inter,sans-serif';
+    ctx.fillText(p.src, cx, srcY + 14);
+
+    // target box
+    const tgtY = y0 + 100;
+    ctx.strokeStyle = highlighted ? '#a78bfa' : '#2e3348';
+    ctx.lineWidth = highlighted ? 2 : 1;
+    ctx.beginPath(); ctx.roundRect(cx-50, tgtY, 100, 28, 5); ctx.stroke();
+    ctx.fillStyle = highlighted ? '#a78bfa' : '#555';
+    ctx.fillText(p.tgt, cx, tgtY + 14);
+
+    // arrow
+    if (highlighted) {
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 2.5;
+      if (p.variance === 'co') {
+        ctx.beginPath(); ctx.moveTo(cx, srcY+30); ctx.lineTo(cx, tgtY-2); ctx.stroke();
+        drawArrowhead(ctx, cx, tgtY-2, Math.PI/2, p.color);
+        ctx.font = '11px Inter,sans-serif'; ctx.fillStyle = p.color;
+        ctx.fillText('<: same dir', cx, (srcY+30+tgtY)/2);
+      } else {
+        ctx.beginPath(); ctx.moveTo(cx, tgtY); ctx.lineTo(cx, srcY+30); ctx.stroke();
+        drawArrowhead(ctx, cx, srcY+30, -Math.PI/2, p.color);
+        ctx.font = '11px Inter,sans-serif'; ctx.fillStyle = p.color;
+        ctx.fillText('<: flipped!', cx, (srcY+30+tgtY)/2);
+      }
+    }
+
+    // check mark
+    if (passed) {
+      ctx.fillStyle = '#4ade80';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('✓', cx + 60, y0 + 75);
+    }
+  }
+
+  // Labels
+  ctx.fillStyle = '#8b8fa8'; ctx.font = '12px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('Source:', startX - 10, y0 + 44);
+  ctx.fillText('Target:', startX - 10, y0 + 114);
+}
+
+renderAssignStepper();
+
+// ========== Inference Stepper ==========
+const inferSteps = [
+  {
+    title: '1. The call site',
+    html: `<div class="code-block"><span class="kw">function</span> <span class="fn">transform</span>&lt;<span class="tp">T</span>&gt;(p: <span class="tp">Producer</span>&lt;<span class="tp">T</span>&gt;, c: <span class="tp">Consumer</span>&lt;<span class="tp">T</span>&gt;): <span class="tp">T</span>
+
+<span class="cmt">// Call:</span>
+<span class="fn">transform</span>(catProducer, animalConsumer)
+<span class="cmt">// catProducer: Producer&lt;Cat&gt;</span>
+<span class="cmt">// animalConsumer: Consumer&lt;Animal&gt;</span></div>
+<p>TypeScript needs to figure out what <code>T</code> is. It looks at each argument for clues.</p>`
+  },
+  {
+    title: '2. First arg: Producer<T> ← Producer<Cat>',
+    html: `<p>The first argument is <code>catProducer: Producer&lt;Cat&gt;</code>, matched against parameter <code>p: Producer&lt;T&gt;</code>.</p>
+<p>Producer is <strong style="color:var(--green)">covariant</strong> in T. So this generates a <strong>covariant candidate</strong>:</p>
+<div class="constraint-row"><span style="color:var(--green);font-weight:700;">T candidate (co):</span><span>Cat</span></div>
+<p class="dim">Covariant candidates get unioned together. Think: "T must be <em>at least</em> Cat."</p>`
+  },
+  {
+    title: '3. Second arg: Consumer<T> ← Consumer<Animal>',
+    html: `<p>The second argument is <code>animalConsumer: Consumer&lt;Animal&gt;</code>, matched against <code>c: Consumer&lt;T&gt;</code>.</p>
+<p>Consumer is <strong style="color:var(--red)">contravariant</strong> in T. So this generates a <strong>contravariant candidate</strong>:</p>
+<div class="constraint-row"><span style="color:var(--red);font-weight:700;">T candidate (contra):</span><span>Animal</span></div>
+<p class="dim">Contravariant candidates get intersected. Think: "T must be <em>at most</em> Animal."</p>`
+  },
+  {
+    title: '4. Combine constraints',
+    html: `<p>TypeScript now has two constraints on T:</p>
+<div class="constraint-row"><span style="color:var(--green);font-weight:700;">From covariant position:</span><span>T ⊇ Cat (lower bound)</span></div>
+<div class="constraint-row"><span style="color:var(--red);font-weight:700;">From contravariant position:</span><span>T ⊆ Animal (upper bound)</span></div>
+<p style="margin-top:1rem;">Combined: <strong>Cat ⊆ T ⊆ Animal</strong></p>
+<p class="dim">T must be somewhere between Cat and Animal in the subtype hierarchy.</p>`
+  },
+  {
+    title: '5. Pick the winner',
+    html: `<p>TypeScript's heuristic: <strong>covariant candidates win</strong> (it picks the lower bound unless there's a reason not to).</p>
+<div class="constraint-row"><span style="color:var(--accent);font-weight:700;">T =</span><span style="font-size:1.1rem;font-weight:700;color:var(--green);">Cat</span></div>
+<p>This makes sense: Cat satisfies both constraints (Cat ⊆ Cat ✓, Cat ⊆ Animal ✓).</p>
+<p class="dim">If the covariant candidate didn't fit the contravariant bound, TypeScript would widen T or report an error.</p>`
+  },
+  {
+    title: '6. Verify and instantiate',
+    html: `<p>TypeScript instantiates the function with T = Cat:</p>
+<div class="code-block"><span class="fn">transform</span>&lt;<span class="tp">Cat</span>&gt;(p: <span class="tp">Producer</span>&lt;<span class="tp">Cat</span>&gt;, c: <span class="tp">Consumer</span>&lt;<span class="tp">Cat</span>&gt;): <span class="tp">Cat</span></div>
+<p>Then checks: is <code>Consumer&lt;Animal&gt;</code> assignable to <code>Consumer&lt;Cat&gt;</code>?</p>
+<div class="assign-row"><span class="assign-source">Consumer&lt;Animal&gt;</span><span class="assign-eq">→</span><span class="assign-target">Consumer&lt;Cat&gt;</span><span class="assign-result assign-ok">✓</span></div>
+<p class="dim">Consumer is contravariant, so Consumer&lt;Animal&gt; <: Consumer&lt;Cat&gt;. Checks out!</p>
+<p style="margin-top:0.5rem;">The return type is <code>Cat</code>. Done.</p>`
+  },
+];
+
+let inferStep = 0;
+function renderInferStepper() {
+  let btns = '';
+  for (let i = 0; i < inferSteps.length; i++) {
+    btns += `<div class="step-btn ${i===inferStep?'active':''}" onclick="inferStep=${i};renderInferStepper();">${i+1}</div>`;
+  }
+  document.getElementById('inferStepBtns').innerHTML = btns;
+  document.getElementById('inferStepContent').innerHTML = `<h4 style="color:var(--accent);margin-bottom:0.5rem;">${inferSteps[inferStep].title}</h4>${inferSteps[inferStep].html}`;
+}
+renderInferStepper();
+
+// ========== Quiz ==========
+const quizzes = [
+  {
+    q: 'Promise<T> is covariant in T. Is Promise<Cat> assignable to Promise<Animal>?',
+    opts: ['Yes — covariant preserves direction, Cat <: Animal so Promise<Cat> <: Promise<Animal>',
+           'No — Promise flips the direction',
+           'Only if Cat and Animal are exactly equal'],
+    correct: 0,
+    explain: 'Covariant means the subtype relationship is preserved. Since Cat <: Animal, wrapping them in a covariant container keeps the same direction.'
+  },
+  {
+    q: 'A function type (x: T) => void is contravariant in T (with strictFunctionTypes). Is (x: Animal) => void assignable to (x: Cat) => void?',
+    opts: ['No — Animal is not a subtype of Cat',
+           'Yes — contravariant flips the direction, so since Cat <: Animal, the function types go the other way',
+           'Only with bivariance enabled'],
+    correct: 1,
+    explain: 'Contravariance flips the arrow. A function that accepts any Animal can safely be used where a function accepting Cats is expected (Cats are Animals).'
+  },
+  {
+    q: 'What is the variance of T in Consumer<Consumer<T>>?',
+    opts: ['Contravariant — it\'s still a Consumer',
+           'Invariant — nested containers are always invariant',
+           'Covariant — contra × contra = co (double negation)'],
+    correct: 2,
+    explain: 'Variance multiplies like signs. Contravariant × contravariant = covariant, just like (-1) × (-1) = (+1).'
+  },
+  {
+    q: 'During inference, T appears in a contravariant position and TypeScript observes type "string". What constraint is generated?',
+    opts: ['T must be exactly string',
+           'T ⊇ string (lower bound — T at least string)',
+           'T ⊆ string (upper bound — T at most string)'],
+    correct: 2,
+    explain: 'Contravariant positions generate upper bounds. The observed type constrains T from above: T must be a subtype of (or equal to) string.'
+  },
+  {
+    q: 'MutableArray<T> has both .push(x: T) and [index]: T (readable). What is the variance of T?',
+    opts: ['Covariant — arrays are covariant',
+           'Contravariant — push makes it contravariant',
+           'Invariant — T appears in both input and output positions',
+           'Bivariant — TypeScript allows both directions for arrays'],
+    correct: 2,
+    explain: 'T in push() parameter is contravariant. T as the readable element type is covariant. Both together = invariant. This is why TypeScript\'s Array<T> assignability is actually unsound (it treats arrays as covariant for convenience).'
+  },
+];
+
+function renderQuiz() {
+  let html = '';
+  for (let i = 0; i < quizzes.length; i++) {
+    const q = quizzes[i];
+    html += `<div class="quiz-q" id="quiz-${i}">
+      <h4>Q${i+1}: ${q.q}</h4>
+      <div class="quiz-options">`;
+    for (let j = 0; j < q.opts.length; j++) {
+      html += `<div class="quiz-opt" onclick="checkQuiz(${i},${j})" id="qopt-${i}-${j}">${q.opts[j]}</div>`;
+    }
+    html += `</div>
+      <div class="quiz-explain" id="qexp-${i}" style="background:var(--surface);padding:0.8rem;border-radius:6px;">${q.explain}</div>
+    </div>`;
+  }
+  document.getElementById('quizSection').innerHTML = html;
+}
+
+function checkQuiz(qi, oi) {
+  const q = quizzes[qi];
+  for (let j = 0; j < q.opts.length; j++) {
+    const el = document.getElementById(`qopt-${qi}-${j}`);
+    el.classList.remove('correct','wrong');
+    if (j === q.correct) el.classList.add('correct');
+    else if (j === oi && oi !== q.correct) el.classList.add('wrong');
+  }
+  document.getElementById(`qexp-${qi}`).style.display = 'block';
+}
+
+renderQuiz();
+</script>
+</body>
+</html>

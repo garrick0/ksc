@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Syntactic Categories in Programming Language Theory</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a2e;--surface3:#222240;--border:#2a2a4a;--text:#e0e0f0;--text-dim:#8888aa;--accent:#7c6ff7;--accent2:#00d4aa;--accent3:#ff6b9d;--accent4:#ffa64d;--accent5:#4dc3ff;--error:#ff4466;--success:#44ff88;--warning:#ffcc44}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'SF Mono','Fira Code','JetBrains Mono',monospace;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+h1{font-size:1.8em;margin:40px 0 10px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.3em;margin:32px 0 12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+h3{font-size:1.08em;margin:16px 0 8px;color:var(--accent2)}
+p{margin:10px 0;color:var(--text-dim);font-size:0.93em}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:0.82em;margin:10px 0;line-height:1.5}
+code{font-family:inherit}
+.kw{color:var(--accent3)}.tp{color:var(--accent)}.fn{color:var(--accent2)}.str{color:var(--accent4)}.cm{color:var(--text-dim);font-style:italic}.ok{color:var(--success)}.err{color:var(--error)}.num{color:var(--accent5)}.op{color:#ccc}
+
+.hero{text-align:center;padding:50px 20px 20px}
+.hero h1{font-size:2.1em;margin-bottom:12px}
+.hero p{font-size:1em;max-width:720px;margin:0 auto}
+.subtitle{color:var(--accent3);font-size:0.85em;margin-top:10px;letter-spacing:2px;text-transform:uppercase}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin:15px 0}
+.card-accent{border-left:3px solid var(--accent)}
+.card-green{border-left:3px solid var(--accent2)}
+.card-pink{border-left:3px solid var(--accent3)}
+.card-orange{border-left:3px solid var(--accent4)}
+.card-blue{border-left:3px solid var(--accent5)}
+.card-yellow{border-left:3px solid var(--warning)}
+
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin:15px 0 0}
+.tab-btn{padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px 8px 0 0;cursor:pointer;color:var(--text-dim);font-size:0.8em;font-family:inherit;transition:all 0.2s}
+.tab-btn:hover{color:var(--text);background:var(--surface3)}
+.tab-btn.active{color:var(--accent);background:var(--surface3);border-bottom-color:var(--surface3)}
+.tab-content{display:none;background:var(--surface3);border:1px solid var(--border);border-radius:0 8px 8px 8px;padding:20px}
+.tab-content.active{display:block}
+
+.step-container{display:flex;flex-direction:column;gap:8px;margin:15px 0}
+.step{padding:12px 16px;background:var(--surface2);border-left:3px solid var(--border);border-radius:0 8px 8px 0;cursor:pointer;transition:all 0.3s}
+.step:hover{background:var(--surface3)}
+.step.active{border-left-color:var(--accent);background:var(--surface3)}
+.step-num{color:var(--accent);font-weight:bold;margin-right:8px}
+.step-detail{display:none;margin-top:8px;padding:10px;background:var(--surface);border-radius:6px;color:var(--text-dim);font-size:0.9em}
+.step.active .step-detail{display:block}
+
+table{width:100%;border-collapse:collapse;margin:15px 0;font-size:0.83em}
+th,td{padding:9px 12px;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface3);color:var(--accent)}
+td{background:var(--surface);color:var(--text-dim)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+@media(max-width:700px){.grid-2{grid-template-columns:1fr}}
+
+.callout{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin:12px 0;font-size:0.9em}
+.callout-key{color:var(--accent4);font-weight:bold}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75em;font-weight:bold}
+.badge-expr{background:rgba(0,212,170,0.15);color:var(--accent2);border:1px solid rgba(0,212,170,0.3)}
+.badge-stmt{background:rgba(255,107,157,0.15);color:var(--accent3);border:1px solid rgba(255,107,157,0.3)}
+.badge-decl{background:rgba(124,111,247,0.15);color:var(--accent);border:1px solid rgba(124,111,247,0.3)}
+.badge-pat{background:rgba(255,166,77,0.15);color:var(--accent4);border:1px solid rgba(255,166,77,0.3)}
+.badge-type{background:rgba(77,195,255,0.15);color:var(--accent5);border:1px solid rgba(77,195,255,0.3)}
+.badge-mod{background:rgba(255,204,68,0.15);color:var(--warning);border:1px solid rgba(255,204,68,0.3)}
+
+/* Category map */
+.cat-map{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:20px 0}
+.cat-node{width:150px;padding:14px;background:var(--surface2);border:2px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;transition:all 0.3s}
+.cat-node:hover{transform:translateY(-2px);border-color:var(--accent)}
+.cat-node.active{border-color:var(--accent);background:var(--surface3);box-shadow:0 0 20px rgba(124,111,247,0.2)}
+.cat-node .cat-icon{font-size:1.6em;margin-bottom:6px}
+.cat-node .cat-name{font-weight:bold;font-size:0.9em;color:var(--text)}
+.cat-node .cat-brief{font-size:0.72em;color:var(--text-dim);margin-top:4px}
+.cat-detail{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin:10px 0;display:none}
+.cat-detail.active{display:block}
+.cat-detail h3{margin-top:0}
+
+/* Formal rule box */
+.rule-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;margin:12px 0;text-align:center;font-size:0.9em}
+.rule-premise{padding-bottom:8px;border-bottom:2px solid var(--accent);margin-bottom:8px;color:var(--text-dim)}
+.rule-conclusion{color:var(--accent2)}
+.rule-name{font-size:0.75em;color:var(--accent3);text-align:right;margin-top:4px}
+
+/* Language comparison grid */
+.lang-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));gap:12px;margin:15px 0}
+.lang-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px}
+.lang-card h4{color:var(--accent2);font-size:0.9em;margin-bottom:8px}
+
+/* Quiz */
+.quiz-section{margin:30px 0}
+.quiz-q{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin:12px 0}
+.quiz-q p{color:var(--text);font-weight:bold;font-size:0.95em}
+.quiz-opts{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.quiz-opt{padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.85em;font-family:inherit;color:var(--text-dim);text-align:left;transition:all 0.2s}
+.quiz-opt:hover{border-color:var(--accent);color:var(--text)}
+.quiz-opt.correct{border-color:var(--success);background:rgba(68,255,136,0.08);color:var(--success)}
+.quiz-opt.wrong{border-color:var(--error);background:rgba(255,68,102,0.08);color:var(--error)}
+.quiz-explain{display:none;margin-top:8px;padding:10px;background:var(--surface2);border-radius:6px;font-size:0.85em;color:var(--text-dim)}
+
+/* Spectrum bar */
+.spectrum{position:relative;height:60px;background:linear-gradient(90deg,var(--accent3),var(--accent),var(--accent2));border-radius:8px;margin:15px 0}
+.spectrum-label{position:absolute;top:50%;transform:translateY(-50%);font-size:0.75em;font-weight:bold;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.7)}
+.spectrum-mark{position:absolute;top:-8px;width:2px;height:76px;background:rgba(255,255,255,0.5)}
+.spectrum-mark-label{position:absolute;bottom:-22px;transform:translateX(-50%);font-size:0.7em;color:var(--text-dim);white-space:nowrap}
+
+/* Composition diagram */
+.compose-flow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0;justify-content:center}
+.compose-box{padding:8px 14px;border-radius:8px;font-size:0.82em;font-weight:bold;cursor:pointer;transition:all 0.2s;border:2px solid}
+.compose-arrow{color:var(--text-dim);font-size:1.2em}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <h1>Syntactic Categories in PL Theory</h1>
+  <p>The fundamental building blocks every programming language is made of — what they are, how they work, and how they compose</p>
+  <div class="subtitle">Part 20 — KindScript Research Series</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: THE SIX CATEGORIES -->
+<!-- ============================================================ -->
+
+<h1>1. The Six Fundamental Categories</h1>
+<p>Every programming language, from assembly to Haskell, partitions its source code into a small number of <strong>syntactic categories</strong>. These are the fundamental "parts of speech" of programs. Click each category to explore it.</p>
+
+<div class="cat-map">
+  <div class="cat-node" onclick="showCat('expr')" id="cat-expr">
+    <div class="cat-icon">⟦ ⟧</div>
+    <div class="cat-name">Expressions</div>
+    <div class="cat-brief">Denote values</div>
+  </div>
+  <div class="cat-node" onclick="showCat('stmt')" id="cat-stmt">
+    <div class="cat-icon">→</div>
+    <div class="cat-name">Statements</div>
+    <div class="cat-brief">Perform effects</div>
+  </div>
+  <div class="cat-node" onclick="showCat('decl')" id="cat-decl">
+    <div class="cat-icon">≡</div>
+    <div class="cat-name">Declarations</div>
+    <div class="cat-brief">Create bindings</div>
+  </div>
+  <div class="cat-node" onclick="showCat('pat')" id="cat-pat">
+    <div class="cat-icon">⟨ ⟩</div>
+    <div class="cat-name">Patterns</div>
+    <div class="cat-brief">Deconstruct values</div>
+  </div>
+  <div class="cat-node" onclick="showCat('typ')" id="cat-typ">
+    <div class="cat-icon">:</div>
+    <div class="cat-name">Types</div>
+    <div class="cat-brief">Classify values</div>
+  </div>
+  <div class="cat-node" onclick="showCat('mod')" id="cat-mod">
+    <div class="cat-icon">{ }</div>
+    <div class="cat-name">Modules</div>
+    <div class="cat-brief">Organize scope</div>
+  </div>
+</div>
+
+<!-- Expression detail -->
+<div class="cat-detail" id="detail-expr">
+  <h3><span class="badge badge-expr">Expressions</span> — The Core Category</h3>
+  <p>Expressions are the most fundamental syntactic category. An expression <strong>denotes a value</strong> — when evaluated, it produces a result. Expressions are the category with the richest recursive structure: expressions contain sub-expressions, nested arbitrarily deep.</p>
+
+  <div class="rule-box">
+    <div class="rule-premise">Γ ⊢ e₁ : <span class="tp">number</span> &nbsp;&nbsp; Γ ⊢ e₂ : <span class="tp">number</span></div>
+    <div class="rule-conclusion">Γ ⊢ e₁ + e₂ : <span class="tp">number</span></div>
+    <div class="rule-name">T-Add</div>
+  </div>
+  <p>The typing judgment <code>Γ ⊢ e : τ</code> reads: "In type environment Γ, expression e has type τ." Every expression gets a type.</p>
+
+  <div class="callout"><span class="callout-key">Denotational view:</span> ⟦ e ⟧ : Env → Value — an expression denotes a function from environment to value. ⟦ 2 + 3 ⟧ = 5. ⟦ x ⟧ = lookup(x, ρ).</div>
+
+  <p><strong>Examples across languages:</strong></p>
+  <div class="lang-grid">
+    <div class="lang-card"><h4>TypeScript</h4>
+      <pre><span class="num">2</span> + <span class="num">3</span> * <span class="num">4</span>          <span class="cm">// arithmetic</span>
+<span class="fn">f</span>(<span class="str">"hello"</span>)           <span class="cm">// call</span>
+x > <span class="num">0</span> ? <span class="str">"yes"</span> : <span class="str">"no"</span> <span class="cm">// conditional expr</span>
+[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>].<span class="fn">map</span>(x => x*<span class="num">2</span>) <span class="cm">// method + arrow</span></pre>
+    </div>
+    <div class="lang-card"><h4>Haskell</h4>
+      <pre><span class="fn">map</span> (*<span class="num">2</span>) [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>]  <span class="cm">-- application</span>
+<span class="kw">if</span> x > <span class="num">0</span> <span class="kw">then</span> <span class="str">"yes"</span> <span class="kw">else</span> <span class="str">"no"</span>
+<span class="kw">let</span> y = <span class="num">5</span> <span class="kw">in</span> y + <span class="num">3</span>    <span class="cm">-- let expression</span>
+\x -> x * <span class="num">2</span>           <span class="cm">-- lambda</span></pre>
+    </div>
+    <div class="lang-card"><h4>Rust</h4>
+      <pre><span class="kw">if</span> x > <span class="num">0</span> { <span class="str">"yes"</span> } <span class="kw">else</span> { <span class="str">"no"</span> }
+<span class="kw">match</span> n { <span class="num">0</span> => <span class="num">1</span>, _ => n * <span class="fn">fact</span>(n-<span class="num">1</span>) }
+vec![<span class="num">1</span>,<span class="num">2</span>,<span class="num">3</span>].<span class="fn">iter</span>().<span class="fn">map</span>(|x| x*<span class="num">2</span>)
+{ <span class="kw">let</span> t = <span class="fn">compute</span>(); t + <span class="num">1</span> } <span class="cm">// block expr</span></pre>
+    </div>
+    <div class="lang-card"><h4>C</h4>
+      <pre><span class="num">2</span> + <span class="num">3</span> * <span class="num">4</span>        <span class="cm">// arithmetic only</span>
+<span class="fn">f</span>(<span class="str">"hello"</span>)         <span class="cm">// call</span>
+x > <span class="num">0</span> ? <span class="num">10</span> : <span class="num">20</span>   <span class="cm">// ternary (limited)</span>
+<span class="cm">// no if-expr, no match-expr</span>
+<span class="cm">// no block-as-expression</span></pre>
+    </div>
+  </div>
+
+  <div class="callout"><span class="callout-key">Key property:</span> Expressions <strong>compose</strong>. Anywhere you can put an expression, you can put a compound expression. This is why expression-oriented languages are more composable — more positions in the grammar accept expressions.</div>
+</div>
+
+<!-- Statement detail -->
+<div class="cat-detail" id="detail-stmt">
+  <h3><span class="badge badge-stmt">Statements</span> — Commands That Transform State</h3>
+  <p>Statements are executed for their <strong>effects</strong>, not for a value they produce. A statement transforms the program state — memory, control flow position, or the external world.</p>
+
+  <div class="rule-box">
+    <div class="rule-premise">Γ ⊢ e : <span class="tp">τ</span></div>
+    <div class="rule-conclusion">Γ ⊢ <span class="kw">return</span> e &nbsp; <span class="kw">ok</span></div>
+    <div class="rule-name">T-Return</div>
+  </div>
+  <p>The judgment <code>Γ ⊢ s ok</code> reads: "In type environment Γ, statement s is well-formed." Statements don't get types — they get well-formedness checks.</p>
+
+  <div class="callout"><span class="callout-key">Denotational view:</span> ⟦ s ⟧ : Store → Store<sub>⊥</sub> — a statement denotes a partial function from states to states. ⟦ x = 5 ⟧(σ) = σ[x ↦ 5]. The ⊥ (bottom) represents non-termination — a loop that runs forever.</div>
+
+  <p><strong>What statements do:</strong></p>
+  <div class="step-container">
+    <div class="step" onclick="toggleStep(this)">
+      <span class="step-num">1</span> <strong>Modify memory</strong> — assignment: <code>x = 5;</code>
+      <div class="step-detail">The assignment statement takes the current store σ, evaluates the expression on the right to a value v, and produces a new store σ[x ↦ v] where the location bound to x now holds v. This is the fundamental state-transforming operation.</div>
+    </div>
+    <div class="step" onclick="toggleStep(this)">
+      <span class="step-num">2</span> <strong>Control flow</strong> — branching: <code>if (...) {...} else {...}</code>
+      <div class="step-detail">An if-statement evaluates its condition expression, then executes one of two sub-statements. It doesn't produce a value — it selects which state transformation to apply. In TypeScript, this also <strong>narrows the type environment</strong> differently in each branch.</div>
+    </div>
+    <div class="step" onclick="toggleStep(this)">
+      <span class="step-num">3</span> <strong>Iteration</strong> — loops: <code>for (...) {...}</code>, <code>while (...) {...}</code>
+      <div class="step-detail">Loops apply a state transformation repeatedly. Denotationally, a while loop is the least fixed point of a recursive state transformer: ⟦ while(c) s ⟧ = fix(λf.λσ. if ⟦c⟧(σ) then f(⟦s⟧(σ)) else σ). This is why loops can diverge — the fixed point may not exist.</div>
+    </div>
+    <div class="step" onclick="toggleStep(this)">
+      <span class="step-num">4</span> <strong>Transfer control</strong> — jumps: <code>return</code>, <code>break</code>, <code>throw</code>
+      <div class="step-detail">These statements don't just transform state — they abort the current continuation. A return transfers control to the caller. A throw transfers control to the nearest enclosing catch. In the formal model, these are handled by extending the state with a "control tag" indicating normal vs exceptional flow.</div>
+    </div>
+    <div class="step" onclick="toggleStep(this)">
+      <span class="step-num">5</span> <strong>Sequence</strong> — composition: <code>s₁; s₂</code>
+      <div class="step-detail">The semicolon is the fundamental statement combinator. ⟦ s₁; s₂ ⟧ = ⟦ s₂ ⟧ ∘ ⟦ s₁ ⟧ — apply s₁'s transformation, then s₂'s. This is function composition of state transformers, and it's where the "imperative = monadic" insight comes from (Moggi 1989).</div>
+    </div>
+  </div>
+</div>
+
+<!-- Declaration detail -->
+<div class="cat-detail" id="detail-decl">
+  <h3><span class="badge badge-decl">Declarations</span> — Binding Names to Meanings</h3>
+  <p>Declarations introduce <strong>bindings</strong> — they associate names with entities (values, types, modules) and extend the environment. The key theoretical distinction from statements: a declaration extends the <em>environment</em> (name → meaning mapping), while a statement modifies the <em>store</em> (location → value mapping).</p>
+
+  <div class="rule-box">
+    <div class="rule-premise">Γ ⊢ e : <span class="tp">τ</span></div>
+    <div class="rule-conclusion">Γ, x : <span class="tp">τ</span> ⊢ <span class="kw">let</span> x = e &nbsp; <span class="kw">ok</span></div>
+    <div class="rule-name">T-Let</div>
+  </div>
+  <p>Notice how the conclusion <strong>extends Γ</strong> with a new binding x : τ. This is what makes declarations special — they modify the environment available to subsequent code.</p>
+
+  <div class="callout"><span class="callout-key">Denotational view:</span> ⟦ let x = e ⟧ : Env → Env — a declaration denotes an environment extension. ⟦ let x = 5 ⟧(ρ) = ρ[x ↦ 5]. Subsequent code sees the extended environment.</div>
+
+  <p><strong>Kinds of declarations:</strong></p>
+  <div class="lang-grid">
+    <div class="lang-card"><h4>Value Declarations</h4>
+<pre><span class="kw">const</span> x = <span class="num">5</span>;          <span class="cm">// TS</span>
+<span class="kw">let</span> x = <span class="num">5</span>;            <span class="cm">// Rust</span>
+<span class="kw">val</span> x = <span class="num">5</span>             <span class="cm">// ML</span>
+x = <span class="num">5</span>                 <span class="cm">// Haskell</span>
+<span class="cm">Bind a name to a runtime value</span></pre>
+    </div>
+    <div class="lang-card"><h4>Function Declarations</h4>
+<pre><span class="kw">function</span> <span class="fn">f</span>(x) {...}   <span class="cm">// TS</span>
+<span class="kw">fn</span> <span class="fn">f</span>(x: <span class="tp">i32</span>) {...}    <span class="cm">// Rust</span>
+<span class="kw">fun</span> <span class="fn">f</span> x = ...          <span class="cm">// ML</span>
+<span class="fn">f</span> x = ...              <span class="cm">// Haskell</span>
+<span class="cm">Bind a name to a function</span></pre>
+    </div>
+    <div class="lang-card"><h4>Type Declarations</h4>
+<pre><span class="kw">type</span> <span class="tp">Alias</span> = <span class="tp">string</span> | <span class="tp">number</span>; <span class="cm">// TS</span>
+<span class="kw">type</span> <span class="tp">Alias</span> = <span class="tp">i32</span>;     <span class="cm">// Rust</span>
+<span class="kw">type</span> <span class="tp">alias</span> = <span class="tp">int</span>      <span class="cm">// ML</span>
+<span class="kw">type</span> <span class="tp">Alias</span> = <span class="tp">Int</span>      <span class="cm">// Haskell</span>
+<span class="cm">Bind a name to a type (erased)</span></pre>
+    </div>
+    <div class="lang-card"><h4>Module Declarations</h4>
+<pre><span class="kw">import</span> { x } <span class="kw">from</span> <span class="str">'m'</span>; <span class="cm">// TS</span>
+<span class="kw">use</span> m::x;              <span class="cm">// Rust</span>
+<span class="kw">open</span> M                 <span class="cm">// ML</span>
+<span class="kw">import</span> M (x)           <span class="cm">// Haskell</span>
+<span class="cm">Link a name to an export elsewhere</span></pre>
+    </div>
+  </div>
+
+  <div class="callout"><span class="callout-key">In TypeScript:</span> Declarations create <strong>symbols</strong>. A symbol stores: name, declaration site, type, scope, visibility (exported?), mutability (const/let). When TS later sees the expression <code>x</code>, it resolves the identifier to its symbol.</div>
+</div>
+
+<!-- Pattern detail -->
+<div class="cat-detail" id="detail-pat">
+  <h3><span class="badge badge-pat">Patterns</span> — The Mirror of Expressions</h3>
+  <p>Patterns are the <strong>dual</strong> of expressions. Where expressions <em>construct</em> values (build up), patterns <em>deconstruct</em> them (take apart). They have their own grammar — they look like expressions but the rules for what's valid are completely different.</p>
+
+  <div class="rule-box">
+    <div class="rule-premise">Γ ⊢ e : { x: <span class="tp">τ₁</span>, y: <span class="tp">τ₂</span> }</div>
+    <div class="rule-conclusion">Γ, a : <span class="tp">τ₁</span>, b : <span class="tp">τ₂</span> ⊢ <span class="kw">let</span> { x: a, y: b } = e &nbsp; <span class="kw">ok</span></div>
+    <div class="rule-name">T-Destructure</div>
+  </div>
+  <p>A single pattern can introduce <strong>multiple bindings</strong> simultaneously — it distributes the scrutinee's structure across named parts.</p>
+
+  <p><strong>Pattern richness varies enormously by language:</strong></p>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab(this,'pat-ts')">TypeScript</button>
+    <button class="tab-btn" onclick="showTab(this,'pat-rust')">Rust</button>
+    <button class="tab-btn" onclick="showTab(this,'pat-ml')">OCaml/ML</button>
+    <button class="tab-btn" onclick="showTab(this,'pat-haskell')">Haskell</button>
+  </div>
+  <div class="tab-content active" id="pat-ts">
+    <p>TypeScript has <strong>destructuring patterns</strong> only — no full pattern matching.</p>
+<pre><span class="cm">// Object destructuring</span>
+<span class="kw">const</span> { name, age } = person;
+
+<span class="cm">// Array destructuring</span>
+<span class="kw">const</span> [first, ...rest] = items;
+
+<span class="cm">// Nested destructuring</span>
+<span class="kw">const</span> { address: { city, zip } } = user;
+
+<span class="cm">// In function parameters</span>
+<span class="kw">function</span> <span class="fn">greet</span>({ name, age }: <span class="tp">Person</span>) { ... }
+
+<span class="cm">// Default values</span>
+<span class="kw">const</span> { x = <span class="num">0</span>, y = <span class="num">0</span> } = point;
+
+<span class="cm">// NO algebraic pattern matching</span>
+<span class="cm">// Must use discriminated unions + if/switch instead</span>
+<span class="kw">if</span> (result.kind === <span class="str">'ok'</span>) { result.value } <span class="cm">// ← not a pattern</span></pre>
+  </div>
+  <div class="tab-content" id="pat-rust">
+    <p>Rust has <strong>full algebraic patterns</strong> — one of the richest pattern systems.</p>
+<pre><span class="cm">// Enum patterns</span>
+<span class="kw">match</span> result {
+    <span class="tp">Ok</span>(value) => <span class="fn">println!</span>(<span class="str">"{}"</span>, value),
+    <span class="tp">Err</span>(e) => <span class="fn">eprintln!</span>(<span class="str">"{}"</span>, e),
+}
+
+<span class="cm">// Nested patterns with guards</span>
+<span class="kw">match</span> msg {
+    <span class="tp">Message::Move</span> { x, y } <span class="kw">if</span> x > <span class="num">0</span> => ...,
+    <span class="tp">Message::Color</span>(r, _, _) => ...,
+    _ => ...,  <span class="cm">// wildcard</span>
+}
+
+<span class="cm">// Binding + matching simultaneously</span>
+<span class="kw">match</span> value {
+    n @ <span class="num">1</span>..=<span class="num">5</span> => <span class="fn">println!</span>(<span class="str">"small: {n}"</span>),
+    n => <span class="fn">println!</span>(<span class="str">"large: {n}"</span>),
+}
+
+<span class="cm">// Patterns everywhere: let, if-let, while-let, for</span>
+<span class="kw">if let</span> <span class="tp">Some</span>(x) = optional { ... }
+<span class="kw">while let</span> <span class="tp">Some</span>(item) = iter.<span class="fn">next</span>() { ... }</pre>
+  </div>
+  <div class="tab-content" id="pat-ml">
+    <p>OCaml/ML — the <strong>origin</strong> of algebraic pattern matching.</p>
+<pre><span class="cm">(* Algebraic data type *)</span>
+<span class="kw">type</span> expr =
+  | <span class="tp">Num</span> <span class="kw">of</span> <span class="tp">int</span>
+  | <span class="tp">Add</span> <span class="kw">of</span> <span class="tp">expr</span> * <span class="tp">expr</span>
+  | <span class="tp">Mul</span> <span class="kw">of</span> <span class="tp">expr</span> * <span class="tp">expr</span>
+
+<span class="cm">(* Pattern matching with exhaustiveness checking *)</span>
+<span class="kw">let rec</span> <span class="fn">eval</span> = <span class="kw">function</span>
+  | <span class="tp">Num</span> x -> x
+  | <span class="tp">Add</span> (e1, e2) -> <span class="fn">eval</span> e1 + <span class="fn">eval</span> e2
+  | <span class="tp">Mul</span> (e1, e2) -> <span class="fn">eval</span> e1 * <span class="fn">eval</span> e2
+
+<span class="cm">(* Compiler warns if you miss a case! *)</span>
+<span class="cm">(* This is "the ML way" — make illegal states *)</span>
+<span class="cm">(* unrepresentable via algebraic types + patterns *)</span></pre>
+  </div>
+  <div class="tab-content" id="pat-haskell">
+    <p>Haskell — patterns are <strong>everywhere</strong>, including function definitions.</p>
+<pre><span class="cm">-- Patterns in function definitions</span>
+<span class="fn">factorial</span> <span class="num">0</span> = <span class="num">1</span>
+<span class="fn">factorial</span> n = n * <span class="fn">factorial</span> (n - <span class="num">1</span>)
+
+<span class="cm">-- Patterns in case expressions</span>
+<span class="fn">eval</span> expr = <span class="kw">case</span> expr <span class="kw">of</span>
+  <span class="tp">Num</span> x     -> x
+  <span class="tp">Add</span> e1 e2 -> <span class="fn">eval</span> e1 + <span class="fn">eval</span> e2
+
+<span class="cm">-- As-patterns: bind AND match</span>
+<span class="fn">firstTwo</span> xs@(a:b:_) = (xs, a, b)
+
+<span class="cm">-- View patterns (GHC extension)</span>
+<span class="fn">f</span> (<span class="fn">length</span> -> <span class="num">0</span>) = <span class="str">"empty"</span>
+<span class="fn">f</span> _              = <span class="str">"non-empty"</span></pre>
+  </div>
+
+  <div class="callout"><span class="callout-key">Duality:</span> Expression <code>{ x: 1, y: 2 }</code> <em>constructs</em> an object. Pattern <code>{ x, y }</code> <em>deconstructs</em> one. Same syntax, opposite direction. Expressions are introduction forms; patterns are elimination forms.</div>
+</div>
+
+<!-- Type detail -->
+<div class="cat-detail" id="detail-typ">
+  <h3><span class="badge badge-type">Types</span> — A Language Within the Language</h3>
+  <p>Type expressions form their own sub-language with their own grammar, their own composition rules, and in TypeScript's case, their own Turing-complete computation. They denote <strong>classifiers</strong> — sets of values, predicates, constraints — and exist purely at the static level. They are erased before runtime.</p>
+
+  <div class="rule-box">
+    <div class="rule-premise">⊢ <span class="tp">τ₁</span> type &nbsp;&nbsp; ⊢ <span class="tp">τ₂</span> type</div>
+    <div class="rule-conclusion">⊢ <span class="tp">τ₁</span> → <span class="tp">τ₂</span> type</div>
+    <div class="rule-name">T-Arrow</div>
+  </div>
+  <p>Types have their own well-formedness judgment: <code>⊢ τ type</code>. They compose via type constructors (→, ×, +, etc.) just as expressions compose via expression constructors (+, *, function application).</p>
+
+  <p><strong>TypeScript's type language is remarkably expressive:</strong></p>
+<pre><span class="cm">// Primitive types (base cases)</span>
+<span class="tp">number</span>, <span class="tp">string</span>, <span class="tp">boolean</span>, <span class="tp">null</span>, <span class="tp">undefined</span>, <span class="tp">void</span>, <span class="tp">never</span>
+
+<span class="cm">// Composite types (type constructors)</span>
+<span class="tp">A</span> | <span class="tp">B</span>                  <span class="cm">// union (set union)</span>
+<span class="tp">A</span> & <span class="tp">B</span>                  <span class="cm">// intersection (set intersection)</span>
+<span class="tp">T</span>[]                    <span class="cm">// array type constructor</span>
+[<span class="tp">T₁</span>, <span class="tp">T₂</span>]              <span class="cm">// tuple</span>
+(x: <span class="tp">A</span>) => <span class="tp">B</span>           <span class="cm">// function type (→)</span>
+
+<span class="cm">// Type-level computation (!)</span>
+<span class="kw">type</span> <span class="tp">IsString</span>&lt;<span class="tp">T</span>&gt; = <span class="tp">T</span> <span class="kw">extends</span> <span class="tp">string</span> ? <span class="str">"yes"</span> : <span class="str">"no"</span>;  <span class="cm">// conditional</span>
+<span class="kw">type</span> <span class="tp">Keys</span>&lt;<span class="tp">T</span>&gt; = { [<span class="tp">K</span> <span class="kw">in keyof</span> <span class="tp">T</span>]: <span class="tp">T</span>[<span class="tp">K</span>] };             <span class="cm">// mapped type</span>
+<span class="kw">type</span> <span class="tp">Deep</span>&lt;<span class="tp">T</span>&gt; = <span class="tp">T</span> <span class="kw">extends</span> <span class="tp">object</span>                       <span class="cm">// recursive type</span>
+  ? { [<span class="tp">K</span> <span class="kw">in keyof</span> <span class="tp">T</span>]: <span class="tp">Deep</span>&lt;<span class="tp">T</span>[<span class="tp">K</span>]&gt; }
+  : <span class="tp">T</span>;</pre>
+
+  <div class="callout"><span class="callout-key">Key insight:</span> TypeScript's type language is <strong>Turing-complete</strong> — you can encode arbitrary computation in conditional types + recursive types. This makes it a genuine programming language embedded in the type annotation positions of another programming language. Most languages' type sub-languages are much simpler (Java's generics, C's type names, Haskell's type classes).</div>
+</div>
+
+<!-- Module detail -->
+<div class="cat-detail" id="detail-mod">
+  <h3><span class="badge badge-mod">Modules</span> — Organizing the Namespace</h3>
+  <p>Modules are the top-level organizational category. A module is a <strong>collection of declarations with a visibility boundary</strong>. Some bindings are exported (public), others are internal (private). Modules create a two-level structure: the language of expressions/statements/declarations, and a "module language" describing how collections are composed and linked.</p>
+
+  <div class="callout"><span class="callout-key">Denotational view:</span> ⟦ module ⟧ : Env → Env<sub>public</sub> — a module denotes a function from the imported environment to the exported environment. The module hides its internal bindings.</div>
+
+  <p><strong>Module systems vary significantly:</strong></p>
+  <div class="lang-grid">
+    <div class="lang-card"><h4>TypeScript / ES Modules</h4>
+<pre><span class="cm">// File = module (implicit boundary)</span>
+<span class="kw">import</span> { <span class="fn">sort</span> } <span class="kw">from</span> <span class="str">'./utils'</span>;
+<span class="kw">export function</span> <span class="fn">process</span>() { ... }
+<span class="kw">export type</span> <span class="tp">Config</span> = { ... };
+<span class="cm">// Can export values AND types</span></pre>
+    </div>
+    <div class="lang-card"><h4>Rust</h4>
+<pre><span class="cm">// Explicit module hierarchy</span>
+<span class="kw">mod</span> utils {
+    <span class="kw">pub fn</span> <span class="fn">sort</span>() { ... }
+    <span class="kw">fn</span> <span class="fn">internal</span>() { ... } <span class="cm">// private</span>
+}
+<span class="kw">use</span> utils::<span class="fn">sort</span>;</pre>
+    </div>
+    <div class="lang-card"><h4>OCaml</h4>
+<pre><span class="cm">(* First-class modules! *)</span>
+<span class="kw">module type</span> <span class="tp">SORTABLE</span> = <span class="kw">sig</span>
+  <span class="kw">type</span> <span class="tp">t</span>
+  <span class="kw">val</span> <span class="fn">compare</span> : <span class="tp">t</span> -> <span class="tp">t</span> -> <span class="tp">int</span>
+<span class="kw">end</span>
+<span class="cm">(* Module signatures = type system for modules *)</span></pre>
+    </div>
+    <div class="lang-card"><h4>Haskell</h4>
+<pre><span class="kw">module</span> Utils (<span class="fn">sort</span>, <span class="tp">Config</span>) <span class="kw">where</span>
+<span class="cm">-- Explicit export list</span>
+<span class="fn">sort</span> :: [<span class="tp">a</span>] -> [<span class="tp">a</span>]  <span class="cm">-- exported</span>
+<span class="fn">helper</span> = ...          <span class="cm">-- hidden</span>
+<span class="cm">-- Type classes = module-like structures</span></pre>
+    </div>
+  </div>
+
+  <div class="callout"><span class="callout-key">For KindScript:</span> Module-level properties are natural. <code>@ksc pure</code> on a module could mean "all exports of this module are pure." This is how the property system scales — instead of annotating every function, you annotate the module boundary.</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: THE EXPRESSION/STATEMENT SPECTRUM -->
+<!-- ============================================================ -->
+
+<h1>2. The Expression/Statement Spectrum</h1>
+<p>The most significant design decision in language design is <strong>how much is an expression</strong>. Languages sit on a spectrum from "everything is a statement" to "everything is an expression."</p>
+
+<div class="spectrum">
+  <span class="spectrum-label" style="left:5%">Statement-<br>oriented</span>
+  <span class="spectrum-label" style="right:5%">Expression-<br>oriented</span>
+  <div class="spectrum-mark" style="left:10%"><span class="spectrum-mark-label">C</span></div>
+  <div class="spectrum-mark" style="left:20%"><span class="spectrum-mark-label">Java</span></div>
+  <div class="spectrum-mark" style="left:35%"><span class="spectrum-mark-label">Python</span></div>
+  <div class="spectrum-mark" style="left:45%"><span class="spectrum-mark-label">JS / TS</span></div>
+  <div class="spectrum-mark" style="left:60%"><span class="spectrum-mark-label">Scala</span></div>
+  <div class="spectrum-mark" style="left:72%"><span class="spectrum-mark-label">Rust</span></div>
+  <div class="spectrum-mark" style="left:82%"><span class="spectrum-mark-label">Ruby</span></div>
+  <div class="spectrum-mark" style="left:95%"><span class="spectrum-mark-label">Haskell / ML</span></div>
+</div>
+
+<p><strong>Why does this matter?</strong> Expression-oriented design gives you three things:</p>
+
+<div class="card card-green">
+  <h3>Composability</h3>
+  <p>If <code>if</code> is an expression, you can use it anywhere an expression is expected — inside another expression, as a function argument, in a return position. If <code>if</code> is a statement, you need to introduce a temporary variable and break the composition chain.</p>
+  <div class="grid-2">
+    <div>
+<pre><span class="cm">// Rust: if is expression — composes</span>
+<span class="kw">let</span> items = vec.<span class="fn">iter</span>()
+    .<span class="fn">map</span>(|x| <span class="kw">if</span> *x > <span class="num">2</span> { x * <span class="num">2</span> } <span class="kw">else</span> { *x })
+    .<span class="fn">collect</span>::&lt;<span class="tp">Vec</span>&lt;_&gt;&gt;();</pre>
+    </div>
+    <div>
+<pre><span class="cm">// C: if is statement — breaks flow</span>
+<span class="tp">int</span> result[<span class="num">3</span>];
+<span class="kw">for</span> (<span class="tp">int</span> i = <span class="num">0</span>; i &lt; <span class="num">3</span>; i++) {
+    <span class="kw">if</span> (arr[i] > <span class="num">2</span>) result[i] = arr[i]*<span class="num">2</span>;
+    <span class="kw">else</span> result[i] = arr[i];
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="card card-blue">
+  <h3>Type Safety</h3>
+  <p>Every expression position has a type. If everything is an expression, the compiler can verify the type of every sub-component. Statement-oriented code leaves gaps — an uninitialized variable between its declaration and the if-statement that assigns it is a type hole.</p>
+<pre><span class="cm">// Type safe: y is always initialized with a number</span>
+<span class="kw">let</span> y: <span class="tp">number</span> = x > <span class="num">5</span> ? <span class="num">10</span> : <span class="num">20</span>;
+
+<span class="cm">// Less safe: what if you forget the else branch?</span>
+<span class="kw">let</span> y: <span class="tp">number</span>;
+<span class="kw">if</span> (x > <span class="num">5</span>) { y = <span class="num">10</span>; }
+<span class="cm">// y might be undefined here!</span></pre>
+</div>
+
+<div class="card card-orange">
+  <h3>Referential Transparency</h3>
+  <p>In a pure expression language, any expression can be replaced by its value without changing meaning. This enables equational reasoning — you can understand programs by substitution, just like algebra. Statements break this because they depend on (and modify) external state.</p>
+<pre><span class="cm">-- Haskell: these are interchangeable</span>
+<span class="kw">let</span> x = <span class="fn">expensive</span>() <span class="kw">in</span> x + x
+<span class="cm">-- is equivalent to:</span>
+<span class="fn">expensive</span>() + <span class="fn">expensive</span>()
+<span class="cm">-- (assuming expensive is pure)</span></pre>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: FORMAL FRAMEWORK -->
+<!-- ============================================================ -->
+
+<h1>3. The Formal Framework: Sorts, Judgments, and ABTs</h1>
+<p>Robert Harper's <em>Practical Foundations for Programming Languages</em> provides the rigorous foundation. The key idea: each syntactic category is a distinct <strong>sort</strong>, with its own <strong>judgment forms</strong> — you can't substitute an expression where a statement is expected.</p>
+
+<h2>3.1 Abstract Binding Trees (ABTs)</h2>
+<p>ABTs extend ASTs to properly handle <strong>variable binding and scope</strong>. A regular AST treats variable names as opaque strings. An ABT understands that <code>let x = 5 in x + 1</code> has a <em>binding site</em> (the <code>x</code> after <code>let</code>) and a <em>scope</em> (the <code>x + 1</code> part where that binding is visible).</p>
+
+<div class="card card-accent">
+<pre><span class="cm">// AST representation (naive):</span>
+Let("x", Num(5), Add(Var("x"), Num(1)))
+<span class="cm">// Problem: "x" is just a string. How do we know which</span>
+<span class="cm">// "x" refers to which binding? Renaming breaks things.</span>
+
+<span class="cm">// ABT representation (proper):</span>
+Let(Num(5), x. Add(Var(x), Num(1)))
+<span class="cm">// The "x." notation means "x is bound in what follows."</span>
+<span class="cm">// Now we know exactly which binding each variable refers to.</span>
+<span class="cm">// Renaming is safe: Let(Num(5), y. Add(Var(y), Num(1))) is</span>
+<span class="cm">// alpha-equivalent — the same program.</span></pre>
+</div>
+
+<div class="callout"><span class="callout-key">Why this matters for KindScript:</span> When KindScript walks the AST to check properties, it's implicitly working with binding structure. Knowing that a variable references a pure function (vs a mutating one) requires resolving bindings — the ABT formalism makes this precise.</div>
+
+<h2>3.2 Sorts and Judgments</h2>
+<p>Each syntactic category gets a distinct <strong>sort</strong> (a formal classification) and its own <strong>judgment form</strong> (a statement about well-formedness or properties):</p>
+
+<table>
+  <tr><th>Sort</th><th>What it is</th><th>Judgment Form</th><th>Reads as</th></tr>
+  <tr>
+    <td><span class="badge badge-expr">Exp</span></td>
+    <td>Expressions</td>
+    <td><code>Γ ⊢ e : τ</code></td>
+    <td>"e has type τ in context Γ"</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-stmt">Cmd</span></td>
+    <td>Statements / Commands</td>
+    <td><code>Γ ⊢ s ok</code></td>
+    <td>"s is well-formed in context Γ"</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-decl">Decl</span></td>
+    <td>Declarations</td>
+    <td><code>Γ ⊢ d ⇒ Γ'</code></td>
+    <td>"d extends environment Γ to Γ'"</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-pat">Pat</span></td>
+    <td>Patterns</td>
+    <td><code>Γ ⊢ p : τ ⇒ Γ'</code></td>
+    <td>"p matches type τ, binding new names"</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-type">Type</span></td>
+    <td>Type expressions</td>
+    <td><code>Δ ⊢ τ type</code></td>
+    <td>"τ is a well-formed type in kind context Δ"</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-mod">Mod</span></td>
+    <td>Modules</td>
+    <td><code>Σ ⊢ M : S</code></td>
+    <td>"module M has signature S"</td>
+  </tr>
+</table>
+
+<div class="callout"><span class="callout-key">Notice:</span> Each sort has a <strong>different kind of output</strong>. Expressions produce types. Declarations produce extended environments. Patterns produce both bindings AND match conditions. Modules produce signatures. You can't interchange them — this is what "distinct sorts" means formally.</div>
+
+<h2>3.3 How Judgments Compose</h2>
+<p>The power of the framework is how judgments <strong>chain together</strong>. Click each rule to see how categories feed into each other:</p>
+
+<div class="step-container">
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">1</span> <strong>Declaration creates binding, expression uses it</strong>
+    <div class="step-detail">
+      <div class="rule-box">
+        <div class="rule-premise">Γ ⊢ e₁ : <span class="tp">τ₁</span> &nbsp;&nbsp;&nbsp; Γ, x : <span class="tp">τ₁</span> ⊢ e₂ : <span class="tp">τ₂</span></div>
+        <div class="rule-conclusion">Γ ⊢ <span class="kw">let</span> x = e₁ <span class="kw">in</span> e₂ : <span class="tp">τ₂</span></div>
+        <div class="rule-name">T-Let</div>
+      </div>
+      <p>The declaration <code>let x = e₁</code> extends the environment with x : τ₁. The expression e₂ is then checked in this extended environment. The result type is τ₂.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">2</span> <strong>Statement narrows environment for contained expressions</strong>
+    <div class="step-detail">
+      <div class="rule-box">
+        <div class="rule-premise">Γ ⊢ e : <span class="tp">string | number</span> &nbsp;&nbsp;&nbsp; Γ, e : <span class="tp">string</span> ⊢ s₁ ok &nbsp;&nbsp;&nbsp; Γ, e : <span class="tp">number</span> ⊢ s₂ ok</div>
+        <div class="rule-conclusion">Γ ⊢ <span class="kw">if</span> (<span class="kw">typeof</span> e === <span class="str">"string"</span>) s₁ <span class="kw">else</span> s₂ &nbsp; ok</div>
+        <div class="rule-name">T-If-Narrow</div>
+      </div>
+      <p>TypeScript's control flow narrowing in action: the if-statement produces <strong>two different environments</strong>, one per branch. Inside the true branch, e is narrowed to string. Inside the false branch, e is narrowed to number. The statement transforms the type environment differently along each path.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">3</span> <strong>Pattern distributes type across bindings</strong>
+    <div class="step-detail">
+      <div class="rule-box">
+        <div class="rule-premise">Γ ⊢ e : { <span class="fn">name</span>: <span class="tp">string</span>, <span class="fn">age</span>: <span class="tp">number</span> }</div>
+        <div class="rule-conclusion">Γ, name : <span class="tp">string</span>, age : <span class="tp">number</span> ⊢ <span class="kw">const</span> { name, age } = e &nbsp; ok</div>
+        <div class="rule-name">T-Destructure</div>
+      </div>
+      <p>The pattern takes one type ({name: string, age: number}) and produces multiple bindings (name: string AND age: number). It's a one-to-many binding operation — the type is "distributed" across the pattern's variables.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">4</span> <strong>Module imports link environments across files</strong>
+    <div class="step-detail">
+      <div class="rule-box">
+        <div class="rule-premise">Σ ⊢ M : { <span class="fn">sort</span>: <span class="tp">(a: T[]) → T[]</span>, <span class="fn">Config</span>: <span class="tp">Type</span> } &nbsp;&nbsp;&nbsp; Σ(M) = <span class="str">"./utils"</span></div>
+        <div class="rule-conclusion">Γ, sort : <span class="tp">(a: T[]) → T[]</span>, Config : <span class="tp">Type</span> ⊢ <span class="kw">import</span> { sort, Config } <span class="kw">from</span> <span class="str">"./utils"</span> &nbsp; ok</div>
+        <div class="rule-name">T-Import</div>
+      </div>
+      <p>The import declaration looks up module M's signature in the module context Σ, then extends the local type environment Γ with the imported bindings. Cross-module type checking works by composing module-level and expression-level judgments.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: FOUR SEMANTIC VIEWS -->
+<!-- ============================================================ -->
+
+<h1>4. Four Ways to See the Categories</h1>
+<p>Each syntactic category can be understood through four complementary lenses. Click a lens to see how it reveals the structure:</p>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab(this,'view-syntax')">Syntactic View</button>
+  <button class="tab-btn" onclick="showTab(this,'view-denot')">Denotational View</button>
+  <button class="tab-btn" onclick="showTab(this,'view-oper')">Operational View</button>
+  <button class="tab-btn" onclick="showTab(this,'view-ksc')">KindScript View</button>
+</div>
+<div class="tab-content active" id="view-syntax">
+  <h3>Syntactic View — What the Grammar Says</h3>
+  <p>Each category is a <strong>non-terminal</strong> in the language's grammar. The grammar defines what syntactic forms are valid for each category.</p>
+<pre><span class="cm">// Grammar (simplified TypeScript)</span>
+
+<span class="tp">Expr</span>  ::= <span class="num">number</span> | <span class="str">string</span> | <span class="fn">id</span>          <span class="cm">// atoms</span>
+        | <span class="tp">Expr</span> <span class="op">+</span> <span class="tp">Expr</span> | <span class="tp">Expr</span> <span class="op">*</span> <span class="tp">Expr</span>     <span class="cm">// binary ops</span>
+        | <span class="tp">Expr</span>(<span class="tp">Expr</span>, ...)                  <span class="cm">// function call</span>
+        | <span class="tp">Expr</span> ? <span class="tp">Expr</span> : <span class="tp">Expr</span>              <span class="cm">// conditional expr</span>
+        | (<span class="tp">Params</span>) => <span class="tp">Expr</span>                <span class="cm">// arrow function</span>
+
+<span class="tp">Stmt</span>  ::= <span class="tp">Expr</span> ;                           <span class="cm">// expression stmt</span>
+        | <span class="kw">if</span> (<span class="tp">Expr</span>) <span class="tp">Block</span> [<span class="kw">else</span> <span class="tp">Block</span>]    <span class="cm">// conditional</span>
+        | <span class="kw">while</span> (<span class="tp">Expr</span>) <span class="tp">Block</span>               <span class="cm">// loop</span>
+        | <span class="kw">return</span> <span class="tp">Expr</span> ;                     <span class="cm">// transfer</span>
+
+<span class="tp">Decl</span>  ::= <span class="kw">const</span> <span class="fn">id</span> [: <span class="tp">Type</span>] = <span class="tp">Expr</span> ;     <span class="cm">// value binding</span>
+        | <span class="kw">function</span> <span class="fn">id</span> (<span class="tp">Params</span>) <span class="tp">Block</span>     <span class="cm">// function binding</span>
+        | <span class="kw">type</span> <span class="fn">id</span> = <span class="tp">Type</span> ;                 <span class="cm">// type binding</span>
+
+<span class="tp">Pat</span>   ::= <span class="fn">id</span>                               <span class="cm">// simple binding</span>
+        | { <span class="fn">id</span>, <span class="fn">id</span>, ... }                  <span class="cm">// object destructure</span>
+        | [ <span class="fn">id</span>, ...<span class="fn">id</span> ]                    <span class="cm">// array destructure</span>
+
+<span class="tp">Type</span>  ::= <span class="tp">number</span> | <span class="tp">string</span> | <span class="tp">boolean</span>       <span class="cm">// primitives</span>
+        | <span class="tp">Type</span> | <span class="tp">Type</span>                        <span class="cm">// union</span>
+        | <span class="tp">Type</span> & <span class="tp">Type</span>                        <span class="cm">// intersection</span>
+        | (<span class="fn">id</span>: <span class="tp">Type</span>) => <span class="tp">Type</span>               <span class="cm">// function type</span></pre>
+  <p>Notice: each non-terminal (<span class="badge badge-expr">Expr</span>, <span class="badge badge-stmt">Stmt</span>, <span class="badge badge-decl">Decl</span>, <span class="badge badge-pat">Pat</span>, <span class="badge badge-type">Type</span>) is self-contained. Expressions refer to other expressions. Types refer to other types. The categories cross-reference each other at specific points (e.g., Stmt contains Expr, Decl contains Type).</p>
+</div>
+
+<div class="tab-content" id="view-denot">
+  <h3>Denotational View — What Each Category Means Mathematically</h3>
+  <p>In denotational semantics, we assign mathematical objects to each category via <strong>semantic functions</strong> (⟦ · ⟧):</p>
+  <table>
+    <tr><th>Category</th><th>Denotes</th><th>Semantic Function</th><th>Example</th></tr>
+    <tr><td><span class="badge badge-expr">Expression</span></td><td>A value</td><td>⟦ e ⟧ : Env → Value</td><td>⟦ 2 + 3 ⟧ = 5</td></tr>
+    <tr><td><span class="badge badge-stmt">Statement</span></td><td>A state transformer</td><td>⟦ s ⟧ : Store → Store<sub>⊥</sub></td><td>⟦ x = 5 ⟧(σ) = σ[x↦5]</td></tr>
+    <tr><td><span class="badge badge-decl">Declaration</span></td><td>An environment extension</td><td>⟦ d ⟧ : Env → Env</td><td>⟦ let x=5 ⟧(ρ) = ρ[x↦5]</td></tr>
+    <tr><td><span class="badge badge-pat">Pattern</span></td><td>A partial destructuring</td><td>⟦ p ⟧ : Value → Env<sub>⊥</sub></td><td>⟦ {a,b} ⟧({a:1,b:2}) = [a↦1,b↦2]</td></tr>
+    <tr><td><span class="badge badge-type">Type</span></td><td>A set of values</td><td>⟦ τ ⟧ : Set(Value)</td><td>⟦ number ⟧ = ℝ</td></tr>
+    <tr><td><span class="badge badge-mod">Module</span></td><td>A qualified environment</td><td>⟦ M ⟧ : Env → Env<sub>pub</sub></td><td>⟦ module ⟧ = exported bindings</td></tr>
+  </table>
+  <p>Each category maps to a fundamentally <strong>different kind of mathematical object</strong>. Values, state transformers, environment extensions, partial functions, sets, and qualified environments are all distinct. This is why you can't interchange the categories.</p>
+</div>
+
+<div class="tab-content" id="view-oper">
+  <h3>Operational View — How Each Category Executes</h3>
+  <p>In operational semantics, we define <strong>reduction rules</strong> showing how each category steps forward:</p>
+  <table>
+    <tr><th>Category</th><th>Reduction Form</th><th>What Happens</th></tr>
+    <tr><td><span class="badge badge-expr">Expression</span></td><td>e → e' → ... → v</td><td>Reduces step by step to a value</td></tr>
+    <tr><td><span class="badge badge-stmt">Statement</span></td><td>⟨s, σ⟩ → ⟨s', σ'⟩ → ... → ⟨skip, σₙ⟩</td><td>Transforms state until done</td></tr>
+    <tr><td><span class="badge badge-decl">Declaration</span></td><td>⟨d, Γ⟩ → ⟨skip, Γ'⟩</td><td>Extends environment, then done</td></tr>
+    <tr><td><span class="badge badge-pat">Pattern</span></td><td>match(p, v) = θ or fail</td><td>Either produces bindings or fails</td></tr>
+    <tr><td><span class="badge badge-type">Type</span></td><td><em>No runtime behavior</em></td><td>Erased before execution</td></tr>
+    <tr><td><span class="badge badge-mod">Module</span></td><td>⟨M, Σ⟩ → ⟨M', Σ'⟩</td><td>Links dependencies, resolves exports</td></tr>
+  </table>
+  <p>Notice that <strong>types have no operational semantics</strong> — they exist only at the static level and are completely erased before execution. This is the fundamental distinction between "static" and "dynamic" categories.</p>
+</div>
+
+<div class="tab-content" id="view-ksc">
+  <h3>KindScript View — Properties as a New Judgment Layer</h3>
+  <p>KindScript adds a <strong>parallel judgment</strong> to each category — a property judgment that runs alongside the type judgment:</p>
+  <table>
+    <tr><th>Category</th><th>Type Judgment (TS)</th><th>Property Judgment (KSC)</th></tr>
+    <tr><td><span class="badge badge-expr">Expression</span></td><td>Γ ⊢ e : τ</td><td>Π ⊢ e [pure, noIO]</td></tr>
+    <tr><td><span class="badge badge-stmt">Statement</span></td><td>Γ ⊢ s ok</td><td>Π ⊢ s [effect-free]</td></tr>
+    <tr><td><span class="badge badge-decl">Declaration</span></td><td>Γ ⊢ d ⇒ Γ'</td><td>Π ⊢ d ⇒ Π'</td></tr>
+    <tr><td><span class="badge badge-type">Type</span></td><td>⊢ τ type</td><td>(not yet — but could constrain)</td></tr>
+    <tr><td><span class="badge badge-mod">Module</span></td><td>Σ ⊢ M : S</td><td>Σ_P ⊢ M [pure, noSideEffects]</td></tr>
+  </table>
+  <p>The property environment <strong>Π</strong> transforms in parallel with the type environment Γ. When a declaration introduces a binding, it extends both Γ (with a type) and Π (with properties). When a statement narrows types, it could also narrow properties.</p>
+
+  <div class="rule-box">
+    <div class="rule-premise">Π ⊢ e₁ [P₁] &nbsp;&nbsp;&nbsp; Π ⊢ e₂ [P₂]</div>
+    <div class="rule-conclusion">Π ⊢ e₁ + e₂ [P₁ ∩ P₂]</div>
+    <div class="rule-name">P-Add (properties compose via intersection)</div>
+  </div>
+  <p>If both operands are pure, the addition is pure. If either has side effects, the combination has side effects. Properties compose through <strong>intersection</strong> — the result has only the properties that all sub-expressions share.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: HOW CATEGORIES COMPOSE -->
+<!-- ============================================================ -->
+
+<h1>5. How Categories Compose</h1>
+<p>The categories aren't isolated — they connect at specific <strong>interface points</strong>. Here's the dependency structure:</p>
+
+<div class="card card-accent">
+  <h3>The Composition Hierarchy</h3>
+  <div class="compose-flow">
+    <div class="compose-box" style="border-color:var(--warning);color:var(--warning)">Module</div>
+    <span class="compose-arrow">contains →</span>
+    <div class="compose-box" style="border-color:var(--accent);color:var(--accent)">Declarations</div>
+    <span class="compose-arrow">contain →</span>
+    <div class="compose-box" style="border-color:var(--accent3);color:var(--accent3)">Statements</div>
+    <span class="compose-arrow">contain →</span>
+    <div class="compose-box" style="border-color:var(--accent2);color:var(--accent2)">Expressions</div>
+  </div>
+  <div class="compose-flow" style="margin-top:8px">
+    <div class="compose-box" style="border-color:var(--accent5);color:var(--accent5)">Types</div>
+    <span class="compose-arrow">annotate →</span>
+    <div class="compose-box" style="border-color:var(--accent);color:var(--accent)">Declarations</div>
+    <span class="compose-arrow">& →</span>
+    <div class="compose-box" style="border-color:var(--accent2);color:var(--accent2)">Expressions</div>
+  </div>
+  <div class="compose-flow" style="margin-top:8px">
+    <div class="compose-box" style="border-color:var(--accent4);color:var(--accent4)">Patterns</div>
+    <span class="compose-arrow">appear in →</span>
+    <div class="compose-box" style="border-color:var(--accent);color:var(--accent)">Declarations</div>
+    <span class="compose-arrow">& →</span>
+    <div class="compose-box" style="border-color:var(--accent3);color:var(--accent3)">Statements</div>
+  </div>
+</div>
+
+<p><strong>Cross-category embedding examples:</strong></p>
+<div class="step-container">
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">↗</span> <strong>Expression inside Statement</strong> — <code>if (x > 5) { ... }</code>
+    <div class="step-detail">The condition <code>x > 5</code> is an expression embedded inside a statement. The statement uses the expression's value to decide control flow, but the statement itself doesn't produce a value. This is the most common cross-category embedding.</div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">↗</span> <strong>Statement inside Expression</strong> — Rust: <code>{ let x = 5; x + 1 }</code>
+    <div class="step-detail">In expression-oriented languages, a block (which contains statements) IS an expression — its value is the last expression in the block. This is why Rust can use <code>if</code> and <code>match</code> as expressions. TypeScript doesn't have this — you can't use a block as an expression value.</div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">↗</span> <strong>Declaration inside Expression</strong> — <code>let x = 5 in x + 1</code>
+    <div class="step-detail">The <code>let...in</code> construct embeds a declaration inside an expression. The declaration extends the environment, and the body expression is evaluated in that extended environment. TypeScript doesn't have this exact form, but arrow functions approximate it: <code>((x) => x + 1)(5)</code>.</div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">↗</span> <strong>Type inside Expression</strong> — <code>x as number</code>, <code>x satisfies T</code>
+    <div class="step-detail">Type assertions and satisfies expressions embed type syntax inside expression positions. The type annotation influences what the type checker believes about the expression, but is erased at runtime.</div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">↗</span> <strong>Pattern inside Declaration</strong> — <code>const { x, y } = point;</code>
+    <div class="step-detail">The destructuring pattern appears in the binding position of a declaration. Instead of binding one name, the pattern binds multiple names simultaneously. The pattern "distributes" the declaration across its components.</div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">↗</span> <strong>Expression inside Type</strong> — TS: <code>typeof x</code> in type position
+    <div class="step-detail">TypeScript's <code>typeof</code> in type position takes a runtime expression and extracts its type: <code>type T = typeof myObject</code>. This bridges from the value world to the type world — the expression is not evaluated, but its static type is used as a type expression.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: TYPESCRIPT'S SPECIFIC MAPPING -->
+<!-- ============================================================ -->
+
+<h1>6. TypeScript's Category Map</h1>
+<p>TypeScript's AST nodes map onto the six categories with some notable <strong>blurred boundaries</strong>. Here's the full mapping:</p>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab(this,'ts-expr')">Expressions</button>
+  <button class="tab-btn" onclick="showTab(this,'ts-stmt')">Statements</button>
+  <button class="tab-btn" onclick="showTab(this,'ts-decl')">Declarations</button>
+  <button class="tab-btn" onclick="showTab(this,'ts-blur')">Blurred Boundaries</button>
+</div>
+<div class="tab-content active" id="ts-expr">
+  <h3>TypeScript Expression Nodes</h3>
+<pre><span class="cm">// Literal expressions</span>
+NumericLiteral         <span class="cm">42</span>
+StringLiteral          <span class="cm">"hello"</span>
+TemplateLiteral        <span class="cm">`hello ${name}`</span>
+ArrayLiteralExpression <span class="cm">[1, 2, 3]</span>
+ObjectLiteralExpression<span class="cm">{ x: 1, y: 2 }</span>
+
+<span class="cm">// Compound expressions</span>
+BinaryExpression       <span class="cm">a + b,  x && y,  a ?? b</span>
+CallExpression         <span class="cm">f(x, y)</span>
+PropertyAccessExpr     <span class="cm">obj.prop</span>
+ElementAccessExpr      <span class="cm">arr[0]</span>
+ConditionalExpression  <span class="cm">x > 0 ? "yes" : "no"</span>
+ArrowFunction          <span class="cm">(x) => x + 1</span>
+FunctionExpression     <span class="cm">function(x) { return x + 1 }</span>
+NewExpression          <span class="cm">new Foo()</span>
+AwaitExpression        <span class="cm">await promise</span>
+YieldExpression        <span class="cm">yield value</span>
+
+<span class="cm">// Type-related expressions</span>
+AsExpression           <span class="cm">x as number</span>
+SatisfiesExpression    <span class="cm">x satisfies T</span>
+TypeOfExpression       <span class="cm">typeof x  (runtime, not type position)</span>
+NonNullExpression      <span class="cm">x!</span></pre>
+</div>
+<div class="tab-content" id="ts-stmt">
+  <h3>TypeScript Statement Nodes</h3>
+<pre><span class="cm">// Control flow</span>
+IfStatement            <span class="cm">if (x) { ... } else { ... }</span>
+WhileStatement         <span class="cm">while (x) { ... }</span>
+ForStatement           <span class="cm">for (let i = 0; ...) { ... }</span>
+ForOfStatement         <span class="cm">for (const x of items) { ... }</span>
+ForInStatement         <span class="cm">for (const k in obj) { ... }</span>
+DoStatement            <span class="cm">do { ... } while (x)</span>
+SwitchStatement        <span class="cm">switch (x) { case 1: ... }</span>
+
+<span class="cm">// Transfer</span>
+ReturnStatement        <span class="cm">return x;</span>
+BreakStatement         <span class="cm">break;</span>
+ContinueStatement      <span class="cm">continue;</span>
+ThrowStatement         <span class="cm">throw new Error();</span>
+
+<span class="cm">// Exception handling</span>
+TryStatement           <span class="cm">try { ... } catch { ... } finally { ... }</span>
+
+<span class="cm">// Block</span>
+Block                  <span class="cm">{ stmt; stmt; stmt; }</span>
+
+<span class="cm">// Expression-as-statement</span>
+ExpressionStatement    <span class="cm">f(x);  — an expression promoted to a statement</span></pre>
+</div>
+<div class="tab-content" id="ts-decl">
+  <h3>TypeScript Declaration Nodes</h3>
+<pre><span class="cm">// Value declarations</span>
+VariableDeclaration    <span class="cm">const x = 5;  let y = "hi";  var z = true;</span>
+FunctionDeclaration    <span class="cm">function f() { ... }</span>
+ClassDeclaration       <span class="cm">class Foo { ... }</span>
+EnumDeclaration        <span class="cm">enum Color { Red, Green, Blue }</span>
+
+<span class="cm">// Type-only declarations (erased)</span>
+InterfaceDeclaration   <span class="cm">interface Foo { ... }</span>
+TypeAliasDeclaration   <span class="cm">type Foo = string | number;</span>
+
+<span class="cm">// Module declarations</span>
+ImportDeclaration      <span class="cm">import { x } from './mod';</span>
+ExportDeclaration      <span class="cm">export { x };</span>
+ExportAssignment       <span class="cm">export default x;</span>
+ModuleDeclaration      <span class="cm">namespace Foo { ... }  (legacy)</span>
+
+<span class="cm">// Sub-declaration nodes</span>
+ParameterDeclaration   <span class="cm">function f(x: number) — the "x: number" part</span>
+PropertyDeclaration    <span class="cm">class { prop: string; } — the "prop" part</span>
+MethodDeclaration      <span class="cm">class { method() {} } — the "method" part</span></pre>
+</div>
+<div class="tab-content" id="ts-blur">
+  <h3>Where TypeScript Blurs the Boundaries</h3>
+  <p>TypeScript inherits JavaScript's messy boundary between categories:</p>
+<pre><span class="cm">// 1. EXPRESSION STATEMENT: expression in statement position</span>
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="str">"hi"</span>);   <span class="cm">// This is a CallExpression wrapped in</span>
+                       <span class="cm">// an ExpressionStatement node</span>
+
+<span class="cm">// 2. DECLARATION STATEMENT: declaration that acts as a statement</span>
+<span class="kw">function</span> <span class="fn">f</span>() {}       <span class="cm">// FunctionDeclaration IS a statement in TS's</span>
+                       <span class="cm">// grammar — it can appear in statement position</span>
+
+<span class="cm">// 3. EXPRESSION vs DECLARATION ambiguity</span>
+<span class="kw">function</span> <span class="fn">f</span>() {}       <span class="cm">// declaration (in statement position)</span>
+<span class="kw">const</span> g = <span class="kw">function</span>() {} <span class="cm">// expression (in expression position)</span>
+<span class="cm">// Same syntax, different category based on position!</span>
+
+<span class="cm">// 4. CLASS: same ambiguity</span>
+<span class="kw">class</span> <span class="tp">Foo</span> {}           <span class="cm">// declaration</span>
+<span class="kw">const</span> Bar = <span class="kw">class</span> {}   <span class="cm">// expression</span>
+
+<span class="cm">// 5. FOR-OF destructuring: statement + pattern + declaration</span>
+<span class="kw">for</span> (<span class="kw">const</span> { x, y } <span class="kw">of</span> points) { ... }
+<span class="cm">// for-of = statement</span>
+<span class="cm">// const = declaration keyword</span>
+<span class="cm">// { x, y } = pattern</span>
+<span class="cm">// points = expression</span>
+<span class="cm">// All four categories in one line!</span></pre>
+
+  <div class="callout"><span class="callout-key">Why this matters:</span> When KindScript walks the AST, it encounters these blurred nodes constantly. A function in expression position and a function in declaration position should get the <em>same</em> property analysis — the category boundary is a syntactic artifact, not a semantic one.</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: THE META-CATEGORIES -->
+<!-- ============================================================ -->
+
+<h1>7. Beyond the Six: Meta-Categories</h1>
+<p>There are two additional categories that sit <em>outside</em> the program's semantics:</p>
+
+<div class="grid-2">
+  <div class="card card-pink">
+    <h3>Pragmas / Directives</h3>
+    <p>Instructions to the compiler or runtime that don't contribute to the program's meaning. They modify <em>how</em> the code is processed, not <em>what</em> it computes.</p>
+<pre><span class="str">"use strict"</span>;            <span class="cm">// JS directive</span>
+<span class="cm">// @ts-ignore</span>              <span class="cm">// TS pragma</span>
+<span class="cm">// @ts-expect-error</span>        <span class="cm">// TS pragma</span>
+<span class="cm">#pragma once</span>              <span class="cm">// C pragma</span>
+<span class="cm">{-# LANGUAGE GADTs #-}</span>    <span class="cm">// Haskell ext</span>
+@<span class="fn">deprecated</span>              <span class="cm">// decorator/annotation</span></pre>
+    <p><strong>For KindScript:</strong> <code>@ksc pure</code> annotations are pragmas! They're meta-level instructions that tell KindScript's checker what to verify, without changing the program's runtime behavior.</p>
+  </div>
+  <div class="card card-yellow">
+    <h3>Comments</h3>
+    <p>Carry no semantic content in most languages, but are part of the source text. TypeScript's compiler <strong>preserves comments</strong> in its AST (unusual among compilers) — this is why TSDoc works, and why KindScript could read annotations from comments.</p>
+<pre><span class="cm">// Single-line comment</span>
+<span class="cm">/* Multi-line comment */</span>
+<span class="cm">/** TSDoc comment — structured metadata */</span>
+<span class="cm">// TODO: fix this — informal pragma</span></pre>
+    <p>The boundary between comments and pragmas is porous. JSDoc type annotations (<code>/** @type {number} */</code>) are technically comments but carry semantic weight. KindScript annotations could live in either space.</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 8: QUIZZES -->
+<!-- ============================================================ -->
+
+<h2>Test Your Understanding</h2>
+
+<div class="quiz-section">
+  <div class="quiz-q">
+    <p>1. In TypeScript, what is <code>const { x, y } = point;</code>?</p>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">An expression — it evaluates to a value</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">A statement — it modifies program state</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,true)">A declaration with a pattern — creates bindings by destructuring</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">A type annotation — classifies a value</button>
+    </div>
+    <div class="quiz-explain">Correct! This is a <strong>variable declaration</strong> (const) using an <strong>object destructuring pattern</strong> ({x, y}) on the right-hand side <strong>expression</strong> (point). It's a declaration + pattern + expression all in one. The pattern creates two bindings (x and y) by deconstructing the value of point.</div>
+  </div>
+
+  <div class="quiz-q">
+    <p>2. Why can Rust use <code>if</code> in assignment (<code>let y = if x > 5 { 10 } else { 20 };</code>) but TypeScript can't?</p>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="checkQuiz(this,true)">In Rust, <code>if</code> is an expression (denotes a value). In TypeScript, <code>if</code> is a statement (performs an effect).</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Rust has better type inference than TypeScript</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">TypeScript doesn't support conditional assignment</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Rust compiles to native code so it can do more</button>
+    </div>
+    <div class="quiz-explain">Correct! This is the expression/statement distinction in action. In Rust, <code>if</code> is an expression — it evaluates to a value (the value of whichever branch is taken). In TypeScript, <code>if</code> is a statement — it performs control flow but doesn't produce a value. TypeScript uses the ternary operator (<code>? :</code>) as the expression form of conditionals instead.</div>
+  </div>
+
+  <div class="quiz-q">
+    <p>3. What is the formal difference between a declaration and a statement?</p>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Declarations are at the top level, statements are inside functions</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,true)">Declarations extend the environment (name → meaning). Statements modify the store (location → value).</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Declarations create variables, statements don't</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">There is no formal difference — they're the same category</button>
+    </div>
+    <div class="quiz-explain">Correct! In formal semantics, the distinction is precise: declarations extend the <strong>environment</strong> (mapping names to meanings), producing Γ → Γ'. Statements modify the <strong>store</strong> (mapping memory locations to values), producing σ → σ'. In practice, most languages blur this — <code>let x = 5</code> both declares a binding (environment) and allocates storage (store) — but the conceptual distinction is fundamental.</div>
+  </div>
+
+  <div class="quiz-q">
+    <p>4. What does the typing judgment <code>Γ ⊢ e : τ</code> mean?</p>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Expression e evaluates to type τ at runtime</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Variable Γ has type τ in expression e</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,true)">In type environment Γ, expression e has type τ</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Type τ is a subtype of Γ in context e</button>
+    </div>
+    <div class="quiz-explain">Correct! The turnstile (⊢) means "entails." Γ is the type environment — a mapping of variable names to their types (e.g., {x: number, y: string}). The whole judgment reads: "Given that the variables in scope have the types listed in Γ, the expression e is well-typed with type τ." This is a <strong>static</strong> assertion — it's verified at compile time without running the program.</div>
+  </div>
+
+  <div class="quiz-q">
+    <p>5. How could KindScript assign properties to a <code>for...of</code> statement like <code>for (const item of items) { process(item); }</code>?</p>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Give the for-of a type, just like expressions get types</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,true)">Model the statement as a property environment transformer: properties of the body depend on properties of items and process</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Statements can't have properties — only expressions can</button>
+      <button class="quiz-opt" onclick="checkQuiz(this,false)">Ignore the for-of and only check the function call inside</button>
+    </div>
+    <div class="quiz-explain">Correct! Just as TypeScript models statements as type environment transformers (Γ → Γ'), KindScript would model them as <strong>property environment transformers</strong> (Π → Π'). The for-of statement's properties derive from: (1) the properties of the <code>items</code> expression (is the iteration pure?), (2) the properties of <code>process</code> (is the callback pure?), and (3) the statement's own structure. If both items and process are pure, the entire for-of is effect-free.</div>
+  </div>
+</div>
+
+<div class="card" style="text-align:center;margin-top:40px;padding:30px">
+  <p style="color:var(--text)">
+    Part 20 of the KindScript Research Series
+  </p>
+  <p style="font-size:0.8em">References: Harper's <em>PFPL</em> (2016), Pierce's <em>TAPL</em> (2002), Cardelli & Wegner (1985), Moggi (1989), Krishnamurthi's <em>PLAI</em></p>
+</div>
+
+</div><!-- /container -->
+
+<script>
+function showCat(id) {
+  document.querySelectorAll('.cat-node').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.cat-detail').forEach(d => d.classList.remove('active'));
+  document.getElementById('cat-' + id).classList.add('active');
+  document.getElementById('detail-' + id).classList.add('active');
+}
+
+function showTab(btn, id) {
+  const parent = btn.closest('.card, .container, .cat-detail') || document;
+  const tabGroup = btn.parentElement;
+  tabGroup.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let sibling = tabGroup.nextElementSibling;
+  while (sibling && sibling.classList.contains('tab-content')) {
+    sibling.classList.remove('active');
+    sibling = sibling.nextElementSibling;
+  }
+  document.getElementById(id).classList.add('active');
+}
+
+function toggleStep(el) {
+  el.classList.toggle('active');
+}
+
+function checkQuiz(btn, correct) {
+  const opts = btn.parentElement.querySelectorAll('.quiz-opt');
+  opts.forEach(o => { o.disabled = true; o.style.pointerEvents = 'none'; });
+  if (correct) {
+    btn.classList.add('correct');
+    btn.parentElement.nextElementSibling.style.display = 'block';
+  } else {
+    btn.classList.add('wrong');
+    opts.forEach(o => { if (!o.classList.contains('wrong')) { /* find correct */ } });
+  }
+}
+</script>
+</body>
+</html>

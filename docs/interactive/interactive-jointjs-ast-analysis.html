@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JointJS AST Visualizer &mdash; Deep Analysis &amp; Build Options</title>
+<style>
+:root {
+  --bg: #0b0d13;
+  --bg2: #12151e;
+  --bg3: #1a1e2e;
+  --bg4: #232840;
+  --border: #2a2f45;
+  --text: #e2e4eb;
+  --text2: #8b90a5;
+  --text3: #5c6180;
+  --purple: #7c6af7;
+  --blue: #63c1f1;
+  --green: #77c63d;
+  --red: #ff5246;
+  --yellow: #fcbc2a;
+  --orange: #f97316;
+  --mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+
+/* ── Layout ── */
+.page { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+
+.hero {
+  text-align: center;
+  padding: 48px 0 40px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+.hero h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+.hero .sub { color: var(--text2); font-size: 15px; }
+
+h2 {
+  font-size: 20px; font-weight: 700; margin: 40px 0 16px;
+  display: flex; align-items: center; gap: 10px;
+  letter-spacing: -0.3px;
+}
+h2 .badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+h3 { font-size: 16px; font-weight: 600; margin: 24px 0 10px; color: var(--text); }
+
+p, li { color: var(--text2); line-height: 1.7; }
+p { margin-bottom: 12px; }
+ul { padding-left: 20px; margin-bottom: 12px; }
+li { margin-bottom: 4px; }
+strong { color: var(--text); font-weight: 600; }
+
+a { color: var(--purple); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--bg3); padding: 1px 5px; border-radius: 3px;
+  color: var(--blue);
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card.highlight { border-left: 3px solid var(--purple); }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; gap: 2px; margin-bottom: 16px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 3px; width: fit-content;
+}
+.tab {
+  background: transparent; border: none; padding: 6px 16px;
+  border-radius: 5px; color: var(--text2); cursor: pointer;
+  font-size: 12px; font-weight: 600; font-family: var(--sans);
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Code blocks ── */
+.code-block {
+  background: #0d0f14;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--text2);
+  margin-bottom: 14px;
+}
+.code-block .kw { color: #c678dd; }
+.code-block .fn { color: #61afef; }
+.code-block .str { color: #98c379; }
+.code-block .cm { color: #5c6370; font-style: italic; }
+.code-block .num { color: #d19a66; }
+.code-block .type { color: #e5c07b; }
+
+/* ── Comparison table ── */
+.comparison {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13px;
+}
+.comparison th {
+  text-align: left; padding: 10px 12px;
+  background: var(--bg3); color: var(--text);
+  font-weight: 600; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.comparison td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  color: var(--text2); vertical-align: top;
+}
+.comparison tr:hover td { background: var(--bg3); }
+.yes { color: var(--green); font-weight: 600; }
+.no { color: var(--red); font-weight: 600; }
+.mid { color: var(--yellow); font-weight: 600; }
+
+/* ── SVG Demo ── */
+.demo-container {
+  background: #0d0f14;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  margin: 16px 0;
+  overflow: hidden;
+  position: relative;
+}
+.demo-toolbar {
+  display: flex; gap: 8px; padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  flex-wrap: wrap;
+}
+.demo-btn {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); padding: 4px 12px; border-radius: 4px;
+  font-size: 11px; font-family: var(--sans); cursor: pointer;
+  font-weight: 600; transition: all 0.15s;
+}
+.demo-btn:hover { background: var(--bg4); color: var(--text); }
+.demo-btn.active { background: var(--purple); color: white; border-color: var(--purple); }
+
+#demo-svg-area {
+  width: 100%; height: 420px; cursor: grab;
+  overflow: hidden; position: relative;
+}
+#demo-svg-area:active { cursor: grabbing; }
+#demo-svg-area svg { width: 100%; height: 100%; }
+
+/* ── Flow diagram ── */
+.flow {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; margin: 16px 0;
+}
+.flow-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 8px 14px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+  white-space: nowrap;
+}
+.flow-box.purple { border-color: var(--purple); color: var(--purple); }
+.flow-box.blue { border-color: var(--blue); color: var(--blue); }
+.flow-box.green { border-color: var(--green); color: var(--green); }
+.flow-arrow { color: var(--text3); font-size: 16px; }
+
+/* ── Color swatches ── */
+.swatch-row {
+  display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0;
+}
+.swatch {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text2);
+}
+.swatch-dot {
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ── Option cards ── */
+.option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+@media (max-width: 700px) { .option-grid { grid-template-columns: 1fr; } }
+.option-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+  transition: border-color 0.15s;
+}
+.option-card:hover { border-color: var(--purple); }
+.option-card.recommended { border-color: var(--green); }
+.option-card .tag {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 4px; text-transform: uppercase;
+  letter-spacing: 0.5px; display: inline-block; margin-bottom: 8px;
+}
+.option-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.option-card p { font-size: 12px; margin-bottom: 0; }
+.option-card .metric {
+  display: flex; gap: 12px; margin-top: 10px; font-size: 11px;
+}
+.option-card .metric span {
+  color: var(--text2); display: flex; align-items: center; gap: 4px;
+}
+
+/* ── Collapsible sections ── */
+.collapse-toggle {
+  cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 0;
+}
+.collapse-toggle .arrow {
+  font-size: 10px; color: var(--text3);
+  transition: transform 0.2s; display: inline-block;
+}
+.collapse-toggle.open .arrow { transform: rotate(90deg); }
+.collapse-body { display: none; padding-bottom: 10px; }
+.collapse-body.open { display: block; }
+
+/* ── Scroll indicator ── */
+.scroll-top {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--purple); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer; opacity: 0;
+  transition: opacity 0.2s; border: none;
+  box-shadow: 0 2px 12px rgba(124,106,247,0.3);
+}
+.scroll-top.visible { opacity: 1; }
+
+/* ── TOC ── */
+.toc {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px;
+  margin-bottom: 32px;
+}
+.toc-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 10px; }
+.toc a {
+  display: block; padding: 4px 0; font-size: 13px;
+  color: var(--text2); text-decoration: none;
+}
+.toc a:hover { color: var(--purple); }
+.toc a.indent { padding-left: 16px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <h1>JointJS AST Visualizer &mdash; Deep Analysis</h1>
+  <div class="sub">How it works, what it does, and how to build something like it ourselves</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TOC -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <a href="#overview">1. Overview &mdash; What JointJS Does</a>
+  <a href="#architecture" class="indent">Architecture &amp; Data Flow</a>
+  <a href="#anatomy" class="indent">SVG Node Anatomy</a>
+  <a href="#interactions" class="indent">Interactions</a>
+  <a href="#color-system" class="indent">Color System</a>
+  <a href="#layout" class="indent">Layout Algorithm</a>
+  <a href="#pricing">2. JointJS Pricing &amp; Licensing</a>
+  <a href="#demo">3. Interactive Demo</a>
+  <a href="#options">4. Build Options</a>
+  <a href="#option-a" class="indent">A: D3.js Tree (recommended)</a>
+  <a href="#option-b" class="indent">B: Custom SVG Engine</a>
+  <a href="#option-c" class="indent">C: Cytoscape.js</a>
+  <a href="#option-d" class="indent">D: ELK.js Layout</a>
+  <a href="#comparison">5. Comparison Matrix</a>
+  <a href="#recommendation">6. Original Recommendation</a>
+  <a href="#post-impl">7. Post-Implementation Review</a>
+  <a href="#what-we-built" class="indent">What We Built</a>
+  <a href="#head-to-head" class="indent">Head-to-Head Comparison</a>
+  <a href="#gaps">8. Gaps &mdash; What JointJS Does That We Don&rsquo;t</a>
+  <a href="#uplift">9. Uplift Opportunities</a>
+  <a href="#uplift-source-link" class="indent">Source-Code Linking</a>
+  <a href="#uplift-search" class="indent">Node Search</a>
+  <a href="#uplift-export" class="indent">SVG Export</a>
+  <a href="#uplift-minimap" class="indent">Minimap</a>
+  <a href="#uplift-focus" class="indent">Focus Mode</a>
+  <a href="#uplift-ancestor" class="indent">Ancestor Highlight</a>
+  <a href="#advantages">10. Where We Exceed JointJS</a>
+  <a href="#updated-recommendation">11. Updated Verdict</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: OVERVIEW -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="overview">
+  <span class="badge" style="background:var(--purple);color:white;">Analysis</span>
+  What JointJS Does
+</h2>
+
+<p>The <strong>JointJS+ AST Visualizer</strong> is a demo application that parses JavaScript source code into an AST using <strong>Esprima</strong>, then renders each AST node as a colored rectangle in an SVG canvas managed by JointJS+. Here's what makes it notable:</p>
+
+<div class="card">
+  <h3>Key Features Observed</h3>
+  <ul>
+    <li><strong>Node-link tree diagram</strong> &mdash; each AST node is a 120&times;30 rounded rectangle with white text, connected by orthogonal L-shaped edges with arrow markers</li>
+    <li><strong>Color-coded by node type</strong> &mdash; 7 distinct colors map to AST categories (declarations, identifiers, literals, operators, arguments, etc.)</li>
+    <li><strong>Click-to-collapse</strong> &mdash; clicking a node hides all descendants and re-layouts the tree; clicking again restores them</li>
+    <li><strong>Bidirectional source linking</strong> &mdash; hovering an AST node highlights the corresponding source range in the code editor; clicking a token in the token list highlights it in source</li>
+    <li><strong>Zoom &amp; pan</strong> &mdash; PaperScroller component provides viewport navigation with pinch-to-zoom</li>
+    <li><strong>Export</strong> &mdash; built-in SVG and PNG export</li>
+  </ul>
+</div>
+
+<h3 id="architecture">Architecture &amp; Data Flow</h3>
+
+<p>The demo has a clean 4-step pipeline:</p>
+
+<div class="flow">
+  <div class="flow-box purple">Source Code</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box blue">Esprima Parse</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box green">graphUtils.constructTree()</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box" style="border-color:var(--yellow);color:var(--yellow);">TreeLayout + Render</div>
+</div>
+
+<div class="card">
+  <div class="code-block"><span class="cm">// 1. Parse with Esprima</span>
+<span class="kw">const</span> syntax = esprima.<span class="fn">parseScript</span>(code, {
+  loc: <span class="num">true</span>, range: <span class="num">true</span>, tokens: <span class="num">true</span>
+});
+
+<span class="cm">// 2. Build JointJS graph cells from AST</span>
+<span class="kw">const</span> cells = graphUtils.<span class="fn">constructTree</span>(syntax, {
+  children: <span class="fn">getChildren</span>,     <span class="cm">// node &rarr; child nodes[]</span>
+  makeElement: (node) =&gt; <span class="kw">new</span> <span class="type">Node</span>({...}),
+  makeLink: (parent, child) =&gt; <span class="kw">new</span> <span class="type">Link</span>({...}),
+});
+
+<span class="cm">// 3. Layout with TreeLayout (direction: 'BR' = bottom-right)</span>
+graph.<span class="fn">resetCells</span>(cells);
+treeLayout.<span class="fn">layout</span>();
+
+<span class="cm">// 4. Animate viewport to fit</span>
+scroller.<span class="fn">transitionToRect</span>(graph.<span class="fn">getBBox</span>(), { visibility: .9 });</div>
+</div>
+
+<p>The <code>graphUtils.constructTree()</code> function is the key &mdash; it recursively walks the AST and creates a flat array of Element and Link JointJS cells. The <code>TreeLayout</code> class then computes positions using a Reingold-Tilford-style algorithm.</p>
+
+<h3 id="anatomy">SVG Node Anatomy</h3>
+
+<p>Each AST node in the SVG is rendered as:</p>
+
+<div class="card">
+  <div class="code-block"><span class="cm">&lt;!-- JointJS renders each node as a &lt;g&gt; group --&gt;</span>
+&lt;<span class="fn">g</span> data-type=<span class="str">"ast.Node"</span> transform=<span class="str">"translate(240,150)"</span>&gt;
+  &lt;<span class="fn">rect</span> width=<span class="str">"120"</span> height=<span class="str">"30"</span> rx=<span class="str">"5"</span> ry=<span class="str">"5"</span>
+        fill=<span class="str">"#ff5246"</span> stroke=<span class="str">"none"</span> cursor=<span class="str">"pointer"</span>/&gt;
+  &lt;<span class="fn">text</span> x=<span class="str">"60"</span> y=<span class="str">"15"</span> text-anchor=<span class="str">"middle"</span>
+        fill=<span class="str">"white"</span> font-size=<span class="str">"10"</span>&gt;a&lt;/<span class="fn">text</span>&gt;
+&lt;/<span class="fn">g</span>&gt;
+
+<span class="cm">&lt;!-- Links use L-shaped orthogonal paths with arrow markers --&gt;</span>
+&lt;<span class="fn">g</span> data-type=<span class="str">"ast.Link"</span>&gt;
+  &lt;<span class="fn">path</span> d=<span class="str">"M 60 30 L 60 65 L 80 65"</span> stroke=<span class="str">"#666"</span>
+        stroke-width=<span class="str">"2"</span> marker-end=<span class="str">"url(#arrowhead)"</span>/&gt;
+&lt;/<span class="fn">g</span>&gt;</div>
+</div>
+
+<p>Key measurements: <strong>120&times;30px</strong> per node, <strong>50px vertical gap</strong> between levels, <strong>80px horizontal indent</strong> per depth level. All nodes are the same size (no variable sizing). The layout direction is "BR" (bottom-right), producing the distinctive staircase pattern.</p>
+
+<h3 id="interactions">Interactions</h3>
+
+<div class="tabs" id="interact-tabs">
+  <button class="tab active" onclick="switchTab('interact', 'collapse')">Collapse/Expand</button>
+  <button class="tab" onclick="switchTab('interact', 'highlight')">Source Highlight</button>
+  <button class="tab" onclick="switchTab('interact', 'zoom')">Zoom &amp; Pan</button>
+</div>
+
+<div id="interact-collapse" class="tab-content active">
+  <div class="card">
+    <p>The collapse mechanism stores subtrees in a <code>subtrees</code> map keyed by cell ID:</p>
+    <div class="code-block"><span class="cm">// On click: toggle collapse</span>
+<span class="kw">if</span> (subtrees[cell.id]) {
+  <span class="cm">// Expand: re-add stored cells</span>
+  graph.<span class="fn">addCells</span>(subtrees[cell.id]);
+  <span class="kw">delete</span> subtrees[cell.id];
+} <span class="kw">else</span> {
+  <span class="cm">// Collapse: remove all successors</span>
+  <span class="kw">const</span> successors = graph.<span class="fn">getSuccessors</span>(cell);
+  subtrees[cell.id] = [].<span class="fn">concat</span>(
+    graph.<span class="fn">getSubgraph</span>(successors),
+    graph.<span class="fn">getConnectedLinks</span>(cell, { outbound: <span class="num">true</span> })
+  );
+  successors.<span class="fn">forEach</span>(s =&gt; s.<span class="fn">remove</span>());
+}
+treeLayout.<span class="fn">layout</span>();  <span class="cm">// re-layout after change</span></div>
+    <p>After collapse/expand, <code>treeLayout.layout()</code> recomputes all positions, producing a smooth transition to the new layout.</p>
+  </div>
+</div>
+
+<div id="interact-highlight" class="tab-content">
+  <div class="card">
+    <p>Each AST node stores its <code>range: [start, end]</code> from Esprima. On hover, the range is applied as a CodeMirror decoration:</p>
+    <div class="code-block"><span class="cm">// element:mouseenter &rarr; highlight source range</span>
+paper.<span class="fn">on</span>(<span class="str">'element:mouseenter'</span>, (view) =&gt; {
+  <span class="kw">const</span> range = view.model.<span class="fn">get</span>(<span class="str">'node'</span>).range;
+  <span class="fn">highlightRange</span>(range);
+});
+
+<span class="cm">// Uses CodeMirror StateEffect to add/remove decorations</span>
+<span class="kw">const</span> highlightMark = StateEffect.<span class="fn">define</span>();
+editorView.<span class="fn">dispatch</span>({
+  effects: highlightMark.<span class="fn">of</span>([
+    highlightDecoration.<span class="fn">range</span>(start, end)
+  ])
+});</div>
+    <p>This creates the green background highlight over the corresponding source code. The token list uses the same mechanism via <code>data-range</code> attributes.</p>
+  </div>
+</div>
+
+<div id="interact-zoom" class="tab-content">
+  <div class="card">
+    <p>JointJS+ provides a <code>PaperScroller</code> component that wraps the paper (SVG canvas):</p>
+    <div class="code-block"><span class="kw">const</span> scroller = <span class="kw">new</span> ui.<span class="type">PaperScroller</span>({
+  paper,
+  baseWidth: <span class="num">1</span>,
+  baseHeight: <span class="num">1</span>,
+  contentOptions: { padding: <span class="num">10</span> },
+  autoResizePaper: <span class="num">true</span>
+});
+
+<span class="cm">// Blank area drag = pan</span>
+paper.<span class="fn">on</span>(<span class="str">'blank:pointerdown'</span>, (evt) =&gt;
+  scroller.<span class="fn">startPanning</span>(evt));
+
+<span class="cm">// Pinch-to-zoom with clamping</span>
+paper.<span class="fn">on</span>(<span class="str">'paper:pinch'</span>, (evt, ox, oy, scale) =&gt; {
+  scroller.<span class="fn">zoom</span>((scale - <span class="num">1</span>) * <span class="num">1.2</span>,
+    { min: <span class="num">0.2</span>, max: <span class="num">5</span>, ox, oy });
+});</div>
+    <p>The scroller provides: scroll-based panning, pinch-to-zoom, auto-resize of the SVG canvas, and animated transitions between zoom levels.</p>
+  </div>
+</div>
+
+<h3 id="color-system">Color System</h3>
+
+<p>JointJS maps AST node types to 7 colors. This is hardcoded in a simple lookup:</p>
+
+<div class="swatch-row">
+  <div class="swatch"><div class="swatch-dot" style="background:black;"></div><span>Program</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#232323;"></div><span>Statements / Declarations</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#414141;"></div><span>Declarators</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#ff5246;"></div><span>Identifiers</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#77c63d;"></div><span>Literals</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#fcbc2a;"></div><span>Operators</span></div>
+  <div class="swatch"><div class="swatch-dot" style="background:#63c1f1;"></div><span>Arguments</span></div>
+</div>
+
+<div class="card">
+  <div class="code-block"><span class="kw">function</span> <span class="fn">getElementColor</span>(node) {
+  <span class="kw">const</span> color = ({
+    <span class="str">'Program'</span>:              <span class="str">'black'</span>,
+    <span class="str">'VariableDeclarator'</span>:   <span class="str">'#414141'</span>,
+    <span class="str">'arguments'</span>:            <span class="str">'#63c1f1'</span>,   <span class="cm">// cyan</span>
+    <span class="str">'BinaryExpression'</span>:     <span class="str">'#fcbc2a'</span>,   <span class="cm">// yellow</span>
+    <span class="str">'UnaryExpression'</span>:      <span class="str">'#fcbc2a'</span>,
+    <span class="str">'AssignmentExpression'</span>: <span class="str">'#fcbc2a'</span>,
+    <span class="str">'Identifier'</span>:           <span class="str">'#ff5246'</span>,   <span class="cm">// red</span>
+    <span class="str">'Literal'</span>:              <span class="str">'#77c63d'</span>,   <span class="cm">// green</span>
+  })[node.type];
+  <span class="kw">return</span> color || <span class="str">'#232323'</span>;  <span class="cm">// dark gray default</span>
+}</div>
+</div>
+
+<h3 id="layout">Layout Algorithm</h3>
+
+<p>JointJS+ uses <code>layout.TreeLayout</code> with <code>direction: 'BR'</code> (bottom-right). From the extracted node positions:</p>
+
+<div class="card">
+  <ul>
+    <li><strong>Horizontal offset per depth level:</strong> 80px (each child is 80px right of parent)</li>
+    <li><strong>Vertical gap between siblings:</strong> 50px (node is 30px tall + 20px gap)</li>
+    <li><strong>Node size:</strong> fixed 120&times;30px for all nodes</li>
+    <li><strong>Edge routing:</strong> orthogonal L-shaped paths (down from parent center-bottom, then right to child left-center)</li>
+    <li><strong>Y Combinator example:</strong> 81 nodes, canvas spans <strong>1640 &times; 4030px</strong>, max depth ~19 levels</li>
+  </ul>
+  <p>This produces a distinctive <strong>staircase diagonal layout</strong> that grows down-right. Unlike a traditional top-down tree where children spread horizontally, this layout is more like a cascading file explorer.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: PRICING -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="pricing">
+  <span class="badge" style="background:var(--red);color:white;">Cost</span>
+  JointJS Pricing &amp; Licensing
+</h2>
+
+<div class="card" style="border-left: 3px solid var(--red);">
+  <h3 style="margin-top:0;">JointJS+ is Commercial Software</h3>
+  <ul>
+    <li><strong>$2,990 per developer</strong> (one-time perpetual license)</li>
+    <li>Update subscription: $1,490/year after first year</li>
+    <li>Enterprise plan: custom pricing (includes source code, SOC 2)</li>
+    <li>The open-source <code>@joint/core</code> exists but <strong>TreeLayout, PaperScroller, graphUtils.constructTree, and format.openAsSVG/PNG are all JointJS+ exclusive</strong></li>
+  </ul>
+  <p>The features that make the AST demo impressive (automatic layout, zoom/pan scroller, tree construction utility, SVG/PNG export) are all in the commercial package. Using just the open-source core would require building all of this from scratch anyway.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: INTERACTIVE DEMO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="demo">
+  <span class="badge" style="background:var(--green);color:white;">Live</span>
+  Interactive Demo &mdash; Pure SVG Tree
+</h2>
+
+<p>This is a zero-dependency proof-of-concept showing how a JointJS-style node-link tree can be built with pure SVG + JavaScript. Click nodes to collapse/expand. Drag to pan. Scroll to zoom.</p>
+
+<div class="demo-container">
+  <div class="demo-toolbar">
+    <button class="demo-btn active" onclick="demoPreset('simple')">Simple (6 nodes)</button>
+    <button class="demo-btn" onclick="demoPreset('medium')">Medium (15 nodes)</button>
+    <button class="demo-btn" onclick="demoPreset('ast')">TypeScript AST (24 nodes)</button>
+    <button class="demo-btn" onclick="demoReset()">Reset View</button>
+  </div>
+  <div id="demo-svg-area"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: BUILD OPTIONS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="options">
+  <span class="badge" style="background:var(--blue);color:var(--bg);">Options</span>
+  How to Build This Ourselves
+</h2>
+
+<p>Given that JointJS+ is $2,990 per developer and we only need a small subset of its features, here are four approaches ranked by practicality:</p>
+
+<div class="option-grid">
+
+  <div class="option-card recommended" id="option-a">
+    <div class="tag" style="background:var(--green);color:var(--bg);">Recommended</div>
+    <h4>Option A: D3.js Tree Layout</h4>
+    <p>Use <code>d3.hierarchy()</code> + <code>d3.tree()</code> with our existing D3 v7 dependency. We already have a working <code>renderTree()</code> with zoom, pan, collapse, and tooltips in the dashboard.</p>
+    <div class="metric">
+      <span style="color:var(--green);">+0 KB added</span>
+      <span>~150 lines</span>
+      <span>~2 hours</span>
+    </div>
+  </div>
+
+  <div class="option-card" id="option-b">
+    <div class="tag" style="background:var(--purple);color:white;">Lightweight</div>
+    <h4>Option B: Custom SVG Engine</h4>
+    <p>Hand-roll a minimal tree layout + SVG renderer. No dependencies at all. Full control over every pixel. This is what the interactive demo above uses.</p>
+    <div class="metric">
+      <span style="color:var(--green);">+0 KB added</span>
+      <span>~250 lines</span>
+      <span>~4 hours</span>
+    </div>
+  </div>
+
+  <div class="option-card" id="option-c">
+    <div class="tag" style="background:var(--yellow);color:var(--bg);">Feature-Rich</div>
+    <h4>Option C: Cytoscape.js</h4>
+    <p>Canvas-based graph library with <code>cytoscape-dagre</code> for tree layout. Rich API for interaction, selection, and filtering. Overkill but powerful.</p>
+    <div class="metric">
+      <span style="color:var(--yellow);">+380 KB</span>
+      <span>~100 lines</span>
+      <span>~3 hours</span>
+    </div>
+  </div>
+
+  <div class="option-card" id="option-d">
+    <div class="tag" style="background:var(--text3);color:white;">Industrial</div>
+    <h4>Option D: ELK.js + D3 Render</h4>
+    <p>Use ELK (Eclipse Layout Kernel) for sophisticated Sugiyama layout, render with D3 SVG. Best layout quality but complex integration.</p>
+    <div class="metric">
+      <span style="color:var(--red);">+330 KB</span>
+      <span>~300 lines</span>
+      <span>~6 hours</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Option A Detail -->
+<div class="collapse-toggle open" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="option-a-detail">Option A: D3.js Tree &mdash; Implementation Detail</h3>
+</div>
+<div class="collapse-body open">
+  <div class="card highlight">
+    <p>This is the clear winner. We already have D3 v7 loaded and a <code>renderTree()</code> function in <code>compiler-dashboard.html</code> that handles hierarchy, zoom, pan, collapse, and tooltips. The AST graph view would:</p>
+    <ol style="padding-left:20px; margin: 12px 0;">
+      <li>Convert the <code>ASTNode</code> tree to a <code>d3.hierarchy()</code></li>
+      <li>Apply <code>d3.tree().nodeSize([24, 160])</code> for compact layout</li>
+      <li>Render nodes as <code>&lt;rect&gt;</code> + <code>&lt;text&gt;</code> groups (exactly like JointJS)</li>
+      <li>Draw L-shaped orthogonal links with arrow markers</li>
+      <li>Auto-collapse at depth 3, click to expand/collapse</li>
+      <li>Add a fullscreen modal for the graph (too wide for 420px panel)</li>
+    </ol>
+    <div class="code-block"><span class="cm">// Pseudocode for AST graph view</span>
+<span class="kw">function</span> <span class="fn">renderASTGraph</span>(astNode, container) {
+  <span class="kw">const</span> root = d3.<span class="fn">hierarchy</span>(astNode, d =&gt; d.children);
+  root.<span class="fn">eachBefore</span>((d, i) =&gt; { d.id = i; });
+
+  <span class="cm">// Auto-collapse deep nodes</span>
+  root.<span class="fn">each</span>(d =&gt; {
+    <span class="kw">if</span> (d.depth &gt; <span class="num">2</span> && d.children) {
+      d._children = d.children;
+      d.children = <span class="num">null</span>;
+    }
+  });
+
+  <span class="kw">const</span> tree = d3.<span class="fn">tree</span>().<span class="fn">nodeSize</span>([<span class="num">24</span>, <span class="num">160</span>]);
+  <span class="kw">const</span> svg = d3.<span class="fn">select</span>(container).<span class="fn">append</span>(<span class="str">'svg'</span>);
+  <span class="kw">const</span> g = svg.<span class="fn">append</span>(<span class="str">'g'</span>);
+
+  <span class="cm">// Zoom + pan</span>
+  svg.<span class="fn">call</span>(d3.<span class="fn">zoom</span>().<span class="fn">on</span>(<span class="str">'zoom'</span>, (e) =&gt;
+    g.<span class="fn">attr</span>(<span class="str">'transform'</span>, e.transform)));
+
+  <span class="kw">function</span> <span class="fn">update</span>(source) {
+    <span class="kw">const</span> treeData = <span class="fn">tree</span>(root);
+    <span class="cm">// ... render nodes as rect+text, links as L-paths</span>
+    <span class="cm">// ... click handler toggles children/_children</span>
+  }
+  <span class="fn">update</span>(root);
+}</div>
+    <p>The D3 <code>d3.tree()</code> layout uses the <strong>Reingold-Tilford algorithm</strong> (O(n)), which is the same class of algorithm JointJS+ uses internally. The visual output would be very similar to JointJS, just with a top-down layout instead of the diagonal staircase.</p>
+  </div>
+</div>
+
+<!-- Option B Detail -->
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="option-b-detail">Option B: Custom SVG Engine &mdash; Implementation Detail</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p>Build a minimal tree layout from scratch. The algorithm is simple for trees:</p>
+    <div class="code-block"><span class="cm">// Simple tree layout: assign x,y to each node</span>
+<span class="kw">function</span> <span class="fn">layoutTree</span>(node, depth = <span class="num">0</span>, state = { y: <span class="num">0</span> }) {
+  node.x = depth * <span class="num">180</span>;  <span class="cm">// horizontal: 180px per level</span>
+  node.y = state.y;
+  state.y += <span class="num">36</span>;          <span class="cm">// vertical: 36px per node</span>
+
+  <span class="kw">if</span> (node.children &amp;&amp; !node.collapsed) {
+    node.children.<span class="fn">forEach</span>(child =&gt;
+      <span class="fn">layoutTree</span>(child, depth + <span class="num">1</span>, state));
+  }
+}
+
+<span class="cm">// SVG render: rect + text per node, path per edge</span>
+<span class="kw">function</span> <span class="fn">renderNode</span>(node) {
+  <span class="kw">return</span> <span class="str">`&lt;g transform="translate(${node.x},${node.y})"&gt;
+    &lt;rect width="140" height="28" rx="5" fill="${color(node)}"/&gt;
+    &lt;text x="70" y="17" text-anchor="middle"
+          fill="white" font-size="10"&gt;${node.kind}&lt;/text&gt;
+  &lt;/g&gt;`</span>;
+}</div>
+    <p><strong>Pros:</strong> Zero dependencies, full control, smallest possible code. The demo above uses this approach.<br/>
+    <strong>Cons:</strong> Must implement zoom/pan/collapse yourself (~80 lines). No built-in smooth transitions.</p>
+  </div>
+</div>
+
+<!-- Option C Detail -->
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="option-c-detail">Option C: Cytoscape.js &mdash; Implementation Detail</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p>Cytoscape.js is a Canvas-based graph visualization library. It provides zoom, pan, selection, and layout out of the box.</p>
+    <div class="code-block"><span class="cm">// Cytoscape setup</span>
+<span class="kw">const</span> cy = <span class="fn">cytoscape</span>({
+  container: document.<span class="fn">getElementById</span>(<span class="str">'graph'</span>),
+  elements: <span class="fn">flattenAST</span>(astNode), <span class="cm">// [{data:{id,label,parent}}]</span>
+  layout: { name: <span class="str">'dagre'</span>, rankDir: <span class="str">'TB'</span>, nodeSep: <span class="num">20</span> },
+  style: [{
+    selector: <span class="str">'node'</span>,
+    style: {
+      <span class="str">'label'</span>: <span class="str">'data(label)'</span>,
+      <span class="str">'background-color'</span>: <span class="str">'data(color)'</span>,
+      <span class="str">'shape'</span>: <span class="str">'round-rectangle'</span>,
+      <span class="str">'width'</span>: <span class="num">120</span>, <span class="str">'height'</span>: <span class="num">30</span>,
+    }
+  }]
+});</div>
+    <p><strong>Pros:</strong> Rich built-in interactions, good for large graphs, easy hover/click handlers.<br/>
+    <strong>Cons:</strong> +380KB, Canvas rendering (text less crisp), no native tree collapse, requires flattening the recursive tree into Cytoscape's flat format.</p>
+  </div>
+</div>
+
+<!-- Option D Detail -->
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="option-d-detail">Option D: ELK.js &mdash; Implementation Detail</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p>ELK (Eclipse Layout Kernel) provides the most sophisticated layout algorithms, including Sugiyama for DAGs and Mr. Tree for trees. Layout-only &mdash; you render with D3 or raw SVG.</p>
+    <div class="code-block"><span class="cm">// ELK layout is async</span>
+<span class="kw">const</span> elk = <span class="kw">new</span> <span class="type">ELK</span>();
+<span class="kw">const</span> graph = {
+  id: <span class="str">'root'</span>,
+  layoutOptions: { <span class="str">'elk.algorithm'</span>: <span class="str">'mrtree'</span> },
+  children: <span class="fn">flattenNodes</span>(ast),
+  edges: <span class="fn">flattenEdges</span>(ast),
+};
+<span class="kw">const</span> layout = <span class="kw">await</span> elk.<span class="fn">layout</span>(graph);
+<span class="cm">// layout.children now have x, y positions</span>
+<span class="cm">// Render with D3 or raw SVG...</span></div>
+    <p><strong>Pros:</strong> Best layout quality, handles edge cases, used by VS Code.<br/>
+    <strong>Cons:</strong> +330KB (Java-to-JS transpilation), async API, layout-only (still need renderer), overkill for simple trees.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: COMPARISON -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="comparison">
+  <span class="badge" style="background:var(--yellow);color:var(--bg);">Compare</span>
+  Comparison Matrix
+</h2>
+
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Criteria</th>
+      <th>A: D3 Tree</th>
+      <th>B: Custom SVG</th>
+      <th>C: Cytoscape</th>
+      <th>D: ELK + D3</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Added bundle size</strong></td>
+      <td class="yes">0 KB</td>
+      <td class="yes">0 KB</td>
+      <td class="mid">~380 KB</td>
+      <td class="no">~330 KB</td>
+    </tr>
+    <tr>
+      <td><strong>Already in codebase</strong></td>
+      <td class="yes">Yes (D3 v7)</td>
+      <td class="yes">Yes (native)</td>
+      <td class="no">No</td>
+      <td class="no">No</td>
+    </tr>
+    <tr>
+      <td><strong>Existing code to reuse</strong></td>
+      <td class="yes">renderTree()</td>
+      <td class="mid">Patterns only</td>
+      <td class="no">None</td>
+      <td class="mid">D3 render</td>
+    </tr>
+    <tr>
+      <td><strong>Layout algorithm</strong></td>
+      <td>Reingold-Tilford</td>
+      <td>Simple depth-first</td>
+      <td>Dagre (Sugiyama)</td>
+      <td>Mr. Tree / Sugiyama</td>
+    </tr>
+    <tr>
+      <td><strong>Layout quality</strong></td>
+      <td class="yes">Excellent</td>
+      <td class="mid">Good</td>
+      <td class="yes">Excellent</td>
+      <td class="yes">Best</td>
+    </tr>
+    <tr>
+      <td><strong>Zoom &amp; pan</strong></td>
+      <td class="yes">d3.zoom()</td>
+      <td class="mid">Manual SVG transform</td>
+      <td class="yes">Built-in</td>
+      <td class="yes">d3.zoom()</td>
+    </tr>
+    <tr>
+      <td><strong>Collapse / expand</strong></td>
+      <td class="yes">children/_children</td>
+      <td class="mid">Manual</td>
+      <td class="no">Manual</td>
+      <td class="no">Manual</td>
+    </tr>
+    <tr>
+      <td><strong>Animated transitions</strong></td>
+      <td class="yes">d3.transition()</td>
+      <td class="no">No</td>
+      <td class="yes">Built-in</td>
+      <td class="mid">d3.transition()</td>
+    </tr>
+    <tr>
+      <td><strong>SVG export</strong></td>
+      <td class="yes">Native SVG</td>
+      <td class="yes">Native SVG</td>
+      <td class="mid">Canvas &rarr; PNG</td>
+      <td class="yes">Native SVG</td>
+    </tr>
+    <tr>
+      <td><strong>300 nodes</strong></td>
+      <td class="yes">Fast</td>
+      <td class="yes">Fast</td>
+      <td class="yes">Fast</td>
+      <td class="yes">Fast</td>
+    </tr>
+    <tr>
+      <td><strong>Single-file embed</strong></td>
+      <td class="yes">Yes (CDN)</td>
+      <td class="yes">Yes (inline)</td>
+      <td class="yes">Yes (CDN)</td>
+      <td class="yes">Yes (CDN)</td>
+    </tr>
+    <tr>
+      <td><strong>Implementation effort</strong></td>
+      <td class="yes">~150 lines</td>
+      <td class="mid">~250 lines</td>
+      <td class="mid">~100 lines</td>
+      <td class="no">~300 lines</td>
+    </tr>
+    <tr>
+      <td><strong>Visual similarity to JointJS</strong></td>
+      <td class="yes">Very close</td>
+      <td class="yes">Very close</td>
+      <td class="mid">Canvas look</td>
+      <td class="yes">Very close</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: RECOMMENDATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="recommendation">
+  <span class="badge" style="background:var(--text3);color:white;">Superseded</span>
+  Original Recommendation (Pre-Implementation)
+</h2>
+
+<div class="card" style="border-left: 3px solid var(--text3); opacity: 0.75;">
+  <p style="color:var(--yellow); font-weight:600; margin-bottom:8px;">Note: This recommendation was written before implementation. We ultimately chose Option D (ELK+D3) and significantly enhanced it. See <a href="#updated-recommendation">Updated Verdict</a> below for the current assessment.</p>
+  <h3 style="margin-top:0;">Go with Option A: D3.js Tree Layout</h3>
+  <p><strong>Why:</strong></p>
+  <ul>
+    <li>D3 v7 is already loaded in the dashboard (&rarr; 0 KB added)</li>
+    <li>The existing <code>renderTree()</code> already has zoom, pan, collapse, animated transitions, and tooltips</li>
+    <li>D3's <code>d3.tree()</code> uses the same Reingold-Tilford algorithm class as JointJS+ TreeLayout</li>
+    <li>We get the same visual output (colored rect+text nodes, orthogonal or curved links) with SVG export for free</li>
+    <li>The collapse/expand pattern (<code>children</code>/<code>_children</code>) is simpler than JointJS's <code>getSuccessors</code>/<code>remove</code>/<code>addCells</code> approach</li>
+  </ul>
+  <p><strong>What we'd add:</strong></p>
+  <ol style="padding-left:20px; margin: 8px 0;">
+    <li>A "Graph" button alongside the existing Source/AST tabs in the file viewer</li>
+    <li>A fullscreen modal for the graph (necessary &mdash; a node-link tree for 250+ nodes won't fit in a 420px panel)</li>
+    <li>AST-specific color mapping (reuse existing <code>astKindColor()</code> function)</li>
+    <li>Orthogonal L-shaped links to match the JointJS aesthetic</li>
+    <li>Source-position highlighting (click AST graph node &rarr; scroll source view to that line)</li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: POST-IMPLEMENTATION REVIEW -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="post-impl" style="margin-top:56px;">
+  <span class="badge" style="background:var(--orange);color:var(--bg);">Update</span>
+  Post-Implementation Review &mdash; Our ELK+D3 vs JointJS
+</h2>
+
+<p><strong>Date: 2026-02-23</strong> &mdash; We ultimately went with <strong>Option D (ELK.js + D3)</strong> rather than the originally recommended Option A (D3 tree). After building and iterating, we then added significant interaction improvements (animated transitions, inspect/collapse separation, smart collapse, layout direction toggle, outline mode). This section compares what we built against JointJS capabilities.</p>
+
+<h3 id="what-we-built">What We Built</h3>
+
+<div class="card highlight">
+  <p>Our implementation in <code>compiler-dashboard.html</code> (~620 lines of graph code) includes:</p>
+  <ul>
+    <li><strong>ELK.js layered/Sugiyama layout</strong> with orthogonal edge routing (BRANDES_KOEPF placement, LAYER_SWEEP crossing minimization)</li>
+    <li><strong>D3.js SVG rendering</strong> with zoom/pan (<code>d3.zoom</code>, scale range 0.05&ndash;5)</li>
+    <li><strong>Animated transitions</strong> (400ms, <code>d3.easeCubicOut</code>) &mdash; existing nodes interpolate position, new nodes fade in from parent, edges fade in</li>
+    <li><strong>Click = inspect, double-click = collapse</strong> &mdash; single-click shows persistent detail panel; double-click toggles branch collapse</li>
+    <li><strong>Persistent detail panel</strong> (top-right) showing Kind, Name, Pos, Children, Hidden descendants, Text preview</li>
+    <li><strong>Smart collapse heuristics</strong> &mdash; Expression subtrees at depth &ge;2, structural nodes at depth &ge;4, large subtrees (&gt;8 descendants) at depth &ge;3</li>
+    <li><strong>Outline mode</strong> &mdash; collapses all non-structural nodes, showing only SourceFile/Declaration/Statement/Block skeleton</li>
+    <li><strong>Layout direction toggle</strong> (LR left-right / TD top-down) with active state highlighting</li>
+    <li><strong>6-color node classification</strong> by AST category with legend</li>
+    <li><strong>Zoom/pan preservation</strong> across re-renders via saved <code>d3.zoomTransform</code></li>
+    <li><strong>Namespaced D3 events</strong> preventing handler overwrite bugs</li>
+    <li><strong>Tooltip cleanup</strong> on re-render and across file changes</li>
+  </ul>
+</div>
+
+<h3 id="head-to-head">Head-to-Head Feature Comparison</h3>
+
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Capability</th>
+      <th>Our ELK+D3</th>
+      <th>JointJS Free</th>
+      <th>JointJS+ ($2,990)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Layout algorithm</strong></td>
+      <td class="yes">ELK Sugiyama (best-in-class)</td>
+      <td class="mid">Dagre or MSAGL</td>
+      <td class="yes">TreeLayout + ELK demos</td>
+    </tr>
+    <tr>
+      <td><strong>Edge routing</strong></td>
+      <td class="yes">Orthogonal (ELK native)</td>
+      <td class="yes">Manhattan, orthogonal, metro</td>
+      <td class="yes">All routers + connectors</td>
+    </tr>
+    <tr>
+      <td><strong>Zoom &amp; pan</strong></td>
+      <td class="yes">d3.zoom (smooth, preserved)</td>
+      <td class="mid">paper.scale/translate (manual)</td>
+      <td class="yes">PaperScroller (polished)</td>
+    </tr>
+    <tr>
+      <td><strong>Collapse / expand</strong></td>
+      <td class="yes">Double-click + 4 toolbar modes</td>
+      <td class="no">Must build from scratch</td>
+      <td class="yes">TreeLayout built-in</td>
+    </tr>
+    <tr>
+      <td><strong>Smart / semantic collapse</strong></td>
+      <td class="yes">AST-aware heuristics</td>
+      <td class="no">N/A</td>
+      <td class="no">N/A (generic collapse only)</td>
+    </tr>
+    <tr>
+      <td><strong>Outline mode</strong></td>
+      <td class="yes">Structural skeleton view</td>
+      <td class="no">N/A</td>
+      <td class="no">N/A</td>
+    </tr>
+    <tr>
+      <td><strong>Click = inspect (non-destructive)</strong></td>
+      <td class="yes">Detail panel + highlight</td>
+      <td class="mid">Events available, UI manual</td>
+      <td class="mid">Halo/Inspector available</td>
+    </tr>
+    <tr>
+      <td><strong>Animated transitions</strong></td>
+      <td class="yes">Position + opacity (400ms)</td>
+      <td class="mid">cell.transition() (basic)</td>
+      <td class="mid">cell.transition() (basic)</td>
+    </tr>
+    <tr>
+      <td><strong>Layout direction toggle</strong></td>
+      <td class="yes">LR / TD with button state</td>
+      <td class="mid">Re-run layout manually</td>
+      <td class="yes">TreeLayout direction option</td>
+    </tr>
+    <tr>
+      <td><strong>Hover tooltips</strong></td>
+      <td class="yes">Custom HTML, cross-file safe</td>
+      <td class="no">Must build from scratch</td>
+      <td class="yes">ui.Tooltip</td>
+    </tr>
+    <tr>
+      <td><strong>Color-coded nodes</strong></td>
+      <td class="yes">6 categories + legend</td>
+      <td class="yes">Custom shapes/attrs</td>
+      <td class="yes">Custom shapes/attrs</td>
+    </tr>
+    <tr>
+      <td><strong>Node drag</strong></td>
+      <td class="no">Not implemented</td>
+      <td class="yes">Built-in</td>
+      <td class="yes">Built-in + FreeTransform</td>
+    </tr>
+    <tr>
+      <td><strong>Source-code linking</strong></td>
+      <td class="no">Has pos data, no link-back</td>
+      <td class="no">Must build from scratch</td>
+      <td class="yes">AST demo has CodeMirror link</td>
+    </tr>
+    <tr>
+      <td><strong>Minimap / navigator</strong></td>
+      <td class="no">Fit-to-view only</td>
+      <td class="no">N/A</td>
+      <td class="yes">ui.Navigator</td>
+    </tr>
+    <tr>
+      <td><strong>Search / filter nodes</strong></td>
+      <td class="no">Not implemented</td>
+      <td class="no">Must build from scratch</td>
+      <td class="no">Must build from scratch</td>
+    </tr>
+    <tr>
+      <td><strong>SVG / PNG export</strong></td>
+      <td class="no">Not implemented (SVG is in DOM)</td>
+      <td class="mid">SVG in DOM (can serialize)</td>
+      <td class="yes">format.openAsSVG/PNG</td>
+    </tr>
+    <tr>
+      <td><strong>Virtual rendering (1000+ nodes)</strong></td>
+      <td class="no">Renders all SVG nodes</td>
+      <td class="yes">viewManagement (v4.2)</td>
+      <td class="yes">viewManagement (v4.2)</td>
+    </tr>
+    <tr>
+      <td><strong>Graph model / traversal API</strong></td>
+      <td class="no">Walks raw AST tree</td>
+      <td class="yes">BFS/DFS/neighbors/sources</td>
+      <td class="yes">Full graph algebra</td>
+    </tr>
+    <tr>
+      <td><strong>JSON serialization</strong></td>
+      <td class="no">Rebuilds from AST each time</td>
+      <td class="yes">graph.toJSON()/fromJSON()</td>
+      <td class="yes">graph.toJSON()/fromJSON()</td>
+    </tr>
+    <tr>
+      <td><strong>Undo / redo</strong></td>
+      <td class="no">N/A</td>
+      <td class="no">N/A</td>
+      <td class="yes">CommandManager</td>
+    </tr>
+    <tr>
+      <td><strong>Multi-select</strong></td>
+      <td class="no">Single selection only</td>
+      <td class="no">N/A</td>
+      <td class="yes">ui.Selection</td>
+    </tr>
+    <tr>
+      <td><strong>Cost</strong></td>
+      <td class="yes">$0 (MIT + EPL)</td>
+      <td class="yes">$0 (MPL 2.0)</td>
+      <td class="no">$2,990/dev</td>
+    </tr>
+    <tr>
+      <td><strong>Bundle size added</strong></td>
+      <td class="mid">~530 KB (D3 280 + ELK 250)</td>
+      <td class="mid">~400 KB (core + layout pkg)</td>
+      <td class="no">~600 KB+ (core + plus + layout)</td>
+    </tr>
+    <tr>
+      <td><strong>Single-file HTML embed</strong></td>
+      <td class="yes">Yes (CDN)</td>
+      <td class="yes">Yes (CDN)</td>
+      <td class="no">Requires license/npm</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: GAPS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="gaps">
+  <span class="badge" style="background:var(--red);color:white;">Gaps</span>
+  What JointJS Does That We Don&rsquo;t
+</h2>
+
+<p>These are features present in JointJS (free or paid) that our current implementation lacks. Ordered by impact for our AST visualization use case.</p>
+
+<div class="option-grid">
+
+  <div class="option-card" style="border-color:var(--red);">
+    <div class="tag" style="background:var(--red);color:white;">High Impact</div>
+    <h4>Gap 1: Source-Code Linking</h4>
+    <p>JointJS+ AST demo highlights the corresponding source range in a CodeMirror editor when hovering a graph node. We store <code>pos</code>/<code>end</code> on every node but don&rsquo;t link back to the Source tab.</p>
+    <div class="metric">
+      <span>JointJS+: bidirectional</span>
+      <span>Us: data present, UI missing</span>
+    </div>
+  </div>
+
+  <div class="option-card" style="border-color:var(--red);">
+    <div class="tag" style="background:var(--red);color:white;">High Impact</div>
+    <h4>Gap 2: Search / Filter Nodes</h4>
+    <p>No way to search for a specific AST node by kind or name. For a 39-node tree this is manageable, but for 200+ nodes it becomes essential. JointJS doesn&rsquo;t provide this either &mdash; but their graph model API (<code>graph.getElements().filter(...)</code>) makes it trivial.</p>
+    <div class="metric">
+      <span>Neither has built-in search</span>
+      <span>JointJS model API helps</span>
+    </div>
+  </div>
+
+  <div class="option-card" style="border-color:var(--yellow);">
+    <div class="tag" style="background:var(--yellow);color:var(--bg);">Medium Impact</div>
+    <h4>Gap 3: Minimap / Navigator</h4>
+    <p>JointJS+ provides <code>ui.Navigator</code> &mdash; a small overview rectangle showing your viewport position within the full graph. We rely on Fit View to reorient. For large expanded trees, a minimap provides crucial spatial awareness.</p>
+    <div class="metric">
+      <span>JointJS+: built-in</span>
+      <span>Us: not implemented</span>
+    </div>
+  </div>
+
+  <div class="option-card" style="border-color:var(--yellow);">
+    <div class="tag" style="background:var(--yellow);color:var(--bg);">Medium Impact</div>
+    <h4>Gap 4: SVG / PNG Export</h4>
+    <p>JointJS+ has <code>format.openAsSVG()</code> and <code>format.openAsPNG()</code>. Our graph is already SVG in the DOM, so export is straightforward to implement &mdash; serialize the SVG element and open in a new tab or trigger download.</p>
+    <div class="metric">
+      <span>JointJS+: one-liner</span>
+      <span>Us: ~20 lines to add</span>
+    </div>
+  </div>
+
+  <div class="option-card" style="border-color:var(--text3);">
+    <div class="tag" style="background:var(--text3);color:white;">Low Impact</div>
+    <h4>Gap 5: Virtual Rendering</h4>
+    <p>JointJS 4.2 renders only visible cells (<code>viewManagement: true</code>) &mdash; 19,999 elements in 0.24s. We render all SVG nodes. For our current scale (39&ndash;250 nodes), this isn&rsquo;t a bottleneck. Only matters at 500+ nodes.</p>
+    <div class="metric">
+      <span>JointJS: 19,999 nodes in 0.24s</span>
+      <span>Us: fine up to ~300 nodes</span>
+    </div>
+  </div>
+
+  <div class="option-card" style="border-color:var(--text3);">
+    <div class="tag" style="background:var(--text3);color:white;">Low Impact</div>
+    <h4>Gap 6: Node Drag / Manual Layout</h4>
+    <p>JointJS allows dragging nodes to adjust positions. For an AST visualization (read-only tree structure), this is rarely useful &mdash; the layout algorithm should determine positions. Could be interesting for custom annotation workflows.</p>
+    <div class="metric">
+      <span>JointJS: built-in</span>
+      <span>Us: not needed for ASTs</span>
+    </div>
+  </div>
+
+  <div class="option-card" style="border-color:var(--text3);">
+    <div class="tag" style="background:var(--text3);color:white;">Low Impact</div>
+    <h4>Gap 7: Graph Model API</h4>
+    <p>JointJS has <code>graph.bfs()</code>, <code>graph.dfs()</code>, <code>graph.getSuccessors()</code>, <code>graph.toJSON()</code>. We walk the raw AST tree directly. A model abstraction would help if we added features like &ldquo;highlight all ancestors&rdquo; or &ldquo;focus subtree&rdquo;.</p>
+    <div class="metric">
+      <span>JointJS: rich graph API</span>
+      <span>Us: raw tree walk</span>
+    </div>
+  </div>
+
+  <div class="option-card" style="border-color:var(--text3);">
+    <div class="tag" style="background:var(--text3);color:white;">Low Impact</div>
+    <h4>Gap 8: Multi-Select</h4>
+    <p>JointJS+ <code>ui.Selection</code> allows selecting multiple nodes (shift-click, rubber-band). We support single selection only. Multi-select would enable batch collapse, comparison, or &ldquo;highlight these nodes in source&rdquo;.</p>
+    <div class="metric">
+      <span>JointJS+: built-in</span>
+      <span>Us: single select</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: UPLIFT OPPORTUNITIES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="uplift">
+  <span class="badge" style="background:var(--green);color:var(--bg);">Uplift</span>
+  Opportunities for Improvement
+</h2>
+
+<p>Concrete improvements we can make, inspired by JointJS patterns but achievable within our ELK+D3 stack. Ordered by impact-to-effort ratio.</p>
+
+<div class="collapse-toggle open" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="uplift-source-link">Uplift 1: Source-Code Linking (High Impact, Low Effort)</h3>
+</div>
+<div class="collapse-body open">
+  <div class="card highlight">
+    <p><strong>What:</strong> Clicking an AST graph node scrolls the Source tab to the corresponding line and highlights the range. Hovering a node briefly flashes the source range.</p>
+    <p><strong>How:</strong> We already store <code>pos</code> and <code>end</code> on every node. The dashboard has a Source tab with line numbers. On click:</p>
+    <div class="code-block"><span class="cm">// In the click handler for graph nodes:</span>
+<span class="kw">const</span> { line } = sf.<span class="fn">getLineAndCharacterOfPosition</span>(node.pos);
+<span class="cm">// Close graph modal, switch to Source tab, scroll to line</span>
+<span class="fn">scrollSourceToLine</span>(line + <span class="num">1</span>);
+<span class="fn">highlightRange</span>(node.pos, node.end);</div>
+    <p><strong>Effort:</strong> ~30 lines. The Source tab already renders with line numbers; adding a temporary highlight class and scroll-into-view is straightforward.</p>
+    <p><strong>JointJS parallel:</strong> Their AST demo uses CodeMirror StateEffect decorations for the same feature. Our approach would be simpler (CSS class + scrollIntoView).</p>
+  </div>
+</div>
+
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="uplift-search">Uplift 2: Node Search (High Impact, Low Effort)</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p><strong>What:</strong> A search input in the toolbar that filters/highlights nodes matching a query (by kind name, identifier name, or text content).</p>
+    <p><strong>How:</strong> Add <code>&lt;input&gt;</code> to the toolbar. On input, walk the AST, find matches, and either:</p>
+    <ul>
+      <li><strong>Option A (Highlight):</strong> Add a pulsing border to matching nodes, dim non-matching ones</li>
+      <li><strong>Option B (Expand-to-reveal):</strong> Auto-expand collapsed ancestors of matching nodes, then highlight</li>
+    </ul>
+    <div class="code-block"><span class="cm">// Walk AST and collect matching node IDs</span>
+<span class="kw">function</span> <span class="fn">searchNodes</span>(node, query) {
+  <span class="kw">const</span> matches = [];
+  <span class="kw">const</span> q = query.<span class="fn">toLowerCase</span>();
+  (<span class="kw">function</span> <span class="fn">walk</span>(n) {
+    <span class="kw">if</span> (n.kind.<span class="fn">toLowerCase</span>().<span class="fn">includes</span>(q) ||
+        (n.name &amp;&amp; n.name.<span class="fn">toLowerCase</span>().<span class="fn">includes</span>(q)))
+      matches.<span class="fn">push</span>(n._elkId);
+    <span class="kw">if</span> (n.children) n.children.<span class="fn">forEach</span>(walk);
+  })(node);
+  <span class="kw">return</span> matches;
+}</div>
+    <p><strong>Effort:</strong> ~40 lines including UI.</p>
+  </div>
+</div>
+
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="uplift-export">Uplift 3: SVG Export (Medium Impact, Very Low Effort)</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p><strong>What:</strong> A toolbar button that exports the current graph view as an SVG file.</p>
+    <p><strong>How:</strong> Serialize the existing SVG element, inject inline styles, and trigger a download.</p>
+    <div class="code-block"><span class="kw">function</span> <span class="fn">elkExportSVG</span>() {
+  <span class="kw">const</span> svg = document.<span class="fn">querySelector</span>(<span class="str">'#ast-graph-container svg'</span>);
+  <span class="kw">const</span> clone = svg.<span class="fn">cloneNode</span>(<span class="num">true</span>);
+  <span class="cm">// Inline critical styles for standalone viewing</span>
+  clone.<span class="fn">setAttribute</span>(<span class="str">'xmlns'</span>, <span class="str">'http://www.w3.org/2000/svg'</span>);
+  <span class="kw">const</span> blob = <span class="kw">new</span> <span class="type">Blob</span>([clone.outerHTML], { type: <span class="str">'image/svg+xml'</span> });
+  <span class="kw">const</span> a = document.<span class="fn">createElement</span>(<span class="str">'a'</span>);
+  a.href = URL.<span class="fn">createObjectURL</span>(blob);
+  a.download = <span class="str">`ast-graph.svg`</span>;
+  a.<span class="fn">click</span>();
+}</div>
+    <p><strong>Effort:</strong> ~15 lines. JointJS+ charges $2,990 for this among other features.</p>
+  </div>
+</div>
+
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="uplift-minimap">Uplift 4: Minimap (Medium Impact, Medium Effort)</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p><strong>What:</strong> A small (200&times;150px) overview panel in the bottom-right showing the full graph with a viewport rectangle you can drag.</p>
+    <p><strong>How:</strong> Clone the SVG into a smaller container, scale it to fit, overlay a draggable rectangle representing the current viewport. Sync with <code>d3.zoom</code> transform.</p>
+    <p><strong>Effort:</strong> ~80&ndash;100 lines. The tricky part is keeping the minimap viewport rectangle in sync with zoom/pan transforms bidirectionally.</p>
+    <p><strong>When to add:</strong> Only worth it when graphs regularly exceed 100 visible nodes. For our current 39-node test cases, Fit View is sufficient.</p>
+  </div>
+</div>
+
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="uplift-focus">Uplift 5: Focus Mode / Breadcrumb Navigation (Medium Impact, Medium Effort)</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p><strong>What:</strong> Click a node + press a &ldquo;Focus&rdquo; button to make it the new root. A breadcrumb bar shows the path back up: <code>SourceFile &rsaquo; FunctionDeclaration: add &rsaquo; Block</code>. Click any breadcrumb segment to zoom back out.</p>
+    <p><strong>How:</strong> Set a <code>elkFocusRoot</code> variable. In <code>buildELKGraph()</code>, start from the focus root instead of the AST root. Render breadcrumbs by walking up the parent chain.</p>
+    <p><strong>Effort:</strong> ~60 lines. JointJS doesn&rsquo;t have this either &mdash; it would be a differentiator.</p>
+  </div>
+</div>
+
+<div class="collapse-toggle" onclick="toggleCollapse(this)">
+  <span class="arrow">&#9654;</span>
+  <h3 style="margin:0;" id="uplift-ancestor">Uplift 6: Ancestor Highlight Path (Low Impact, Low Effort)</h3>
+</div>
+<div class="collapse-body">
+  <div class="card">
+    <p><strong>What:</strong> When a node is selected, highlight the path from the root to that node (thicker/brighter edges and ancestor node borders). Gives immediate context of &ldquo;where am I in the tree?&rdquo;</p>
+    <p><strong>How:</strong> Walk up the <code>_elkId</code> path (e.g., <code>n0-1-0-2</code> &rarr; <code>n0-1-0</code> &rarr; <code>n0-1</code> &rarr; <code>n0</code>) and add a CSS class to those nodes/edges.</p>
+    <p><strong>Effort:</strong> ~20 lines. Uses the same ID-path structure already in place for <code>findParentPosition()</code>.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 10: ADVANTAGES WE HAVE OVER JOINTJS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="advantages">
+  <span class="badge" style="background:var(--purple);color:white;">Strengths</span>
+  Where We Exceed JointJS
+</h2>
+
+<p>Areas where our custom ELK+D3 implementation already surpasses what JointJS (even the paid version) offers out of the box:</p>
+
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Our Advantage</th>
+      <th>JointJS Equivalent</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Smart collapse</strong></td>
+      <td class="yes">AST-aware: knows Expressions vs Statements vs Declarations</td>
+      <td class="no">Generic depth-only or manual</td>
+    </tr>
+    <tr>
+      <td><strong>Outline mode</strong></td>
+      <td class="yes">One-click structural skeleton view</td>
+      <td class="no">No equivalent</td>
+    </tr>
+    <tr>
+      <td><strong>Layout quality</strong></td>
+      <td class="yes">ELK layered algorithm (industry standard, used by VS Code)</td>
+      <td class="mid">Dagre (free) or TreeLayout (paid)</td>
+    </tr>
+    <tr>
+      <td><strong>Collapse animation</strong></td>
+      <td class="yes">Nodes interpolate to new positions, new nodes fade from parent</td>
+      <td class="no">JointJS+ TreeLayout re-renders positions; animation is manual</td>
+    </tr>
+    <tr>
+      <td><strong>Inspect vs collapse separation</strong></td>
+      <td class="yes">Click=inspect, double-click=collapse</td>
+      <td class="no">JointJS AST demo: click=collapse only</td>
+    </tr>
+    <tr>
+      <td><strong>4 collapse presets</strong></td>
+      <td class="yes">Expand All, Depth 2+, Smart, Outline</td>
+      <td class="no">JointJS AST demo: expand all + click only</td>
+    </tr>
+    <tr>
+      <td><strong>Zoom preservation</strong></td>
+      <td class="yes">Pan/zoom restored across collapse operations</td>
+      <td class="mid">PaperScroller maintains state, but TreeLayout may reset</td>
+    </tr>
+    <tr>
+      <td><strong>Cost</strong></td>
+      <td class="yes">$0 for everything</td>
+      <td class="no">$2,990/dev for TreeLayout, PaperScroller, export, etc.</td>
+    </tr>
+    <tr>
+      <td><strong>Single-file deployment</strong></td>
+      <td class="yes">One HTML file with CDN scripts</td>
+      <td class="no">JointJS+ requires npm install + license key</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 11: UPDATED RECOMMENDATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2 id="updated-recommendation">
+  <span class="badge" style="background:var(--green);color:var(--bg);">Verdict</span>
+  Updated Recommendation
+</h2>
+
+<div class="card" style="border-left: 3px solid var(--green);">
+  <h3 style="margin-top:0;">Stay with ELK+D3 &mdash; Add Targeted Uplifts</h3>
+  <p><strong>Our current stack is the right choice.</strong> We have feature parity or superiority to JointJS in every area that matters for AST visualization, at $0 cost. JointJS+ would give us a minimap, export, and a graph model API &mdash; but none of these justify $2,990/dev when they can be built in a few hours each.</p>
+
+  <h3>Recommended Uplift Priority</h3>
+  <table class="comparison" style="margin-top:12px;">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Uplift</th>
+        <th>Impact</th>
+        <th>Effort</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><strong>Source-code linking</strong> (click node &rarr; scroll to source line)</td>
+        <td class="yes">High</td>
+        <td class="yes">~30 lines</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Node search</strong> (search by kind/name, highlight matches)</td>
+        <td class="yes">High</td>
+        <td class="yes">~40 lines</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>SVG export</strong> (download current graph as .svg)</td>
+        <td class="mid">Medium</td>
+        <td class="yes">~15 lines</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>Ancestor highlight path</strong> (show root-to-selected trail)</td>
+        <td class="mid">Medium</td>
+        <td class="yes">~20 lines</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>Focus mode</strong> (subtree-as-root with breadcrumbs)</td>
+        <td class="mid">Medium</td>
+        <td class="mid">~60 lines</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><strong>Minimap</strong> (viewport overview for large graphs)</td>
+        <td class="mid">Medium</td>
+        <td class="mid">~100 lines</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;"><strong>Total uplift:</strong> ~265 lines for all 6 features. Items 1&ndash;4 are quick wins (&lt;30 min each). Items 5&ndash;6 are worth adding if/when graphs scale beyond 100 nodes.</p>
+</div>
+
+</div><!-- end .page -->
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- INTERACTIVE DEMO SCRIPT -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
+// ── Tab switching ──
+function switchTab(group, tab) {
+  document.querySelectorAll(`#${group}-tabs .tab`).forEach(t => t.classList.remove('active'));
+  document.querySelectorAll(`[id^="${group}-"]`).forEach(c => {
+    if (c.classList.contains('tab-content')) c.classList.remove('active');
+  });
+  event.target.classList.add('active');
+  document.getElementById(`${group}-${tab}`).classList.add('active');
+}
+
+// ── Collapsible sections ──
+function toggleCollapse(el) {
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+
+// ── Scroll to top button ──
+const scrollBtn = document.createElement('button');
+scrollBtn.className = 'scroll-top';
+scrollBtn.innerHTML = '&#8593;';
+scrollBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+document.body.appendChild(scrollBtn);
+window.addEventListener('scroll', () => {
+  scrollBtn.classList.toggle('visible', window.scrollY > 400);
+});
+
+// ═══════════════════════════════════════════════════════════
+// INTERACTIVE SVG TREE DEMO
+// ═══════════════════════════════════════════════════════════
+
+const PRESETS = {
+  simple: {
+    kind: 'Program', children: [
+      { kind: 'VariableDeclaration', children: [
+        { kind: 'VariableDeclarator', children: [
+          { kind: 'Identifier', name: 'x', children: [] },
+          { kind: 'Literal', name: '42', children: [] },
+        ]},
+      ]},
+      { kind: 'ExpressionStatement', children: [
+        { kind: 'Identifier', name: 'x', children: [] },
+      ]},
+    ]
+  },
+  medium: {
+    kind: 'Program', children: [
+      { kind: 'VariableDeclaration', children: [
+        { kind: 'VariableDeclarator', children: [
+          { kind: 'Identifier', name: 'a', children: [] },
+          { kind: 'Literal', name: '42', children: [] },
+        ]},
+      ]},
+      { kind: 'FunctionDeclaration', name: 'addA', children: [
+        { kind: 'Parameter', name: 'd', children: [] },
+        { kind: 'BlockStatement', children: [
+          { kind: 'ReturnStatement', children: [
+            { kind: 'BinaryExpression', name: '+', children: [
+              { kind: 'Identifier', name: 'a', children: [] },
+              { kind: 'Identifier', name: 'd', children: [] },
+            ]},
+          ]},
+        ]},
+      ]},
+      { kind: 'VariableDeclaration', children: [
+        { kind: 'VariableDeclarator', children: [
+          { kind: 'Identifier', name: 'c', children: [] },
+          { kind: 'CallExpression', children: [
+            { kind: 'Identifier', name: 'addA', children: [] },
+            { kind: 'Literal', name: '2', children: [] },
+          ]},
+        ]},
+      ]},
+    ]
+  },
+  ast: {
+    kind: 'SourceFile', children: [
+      { kind: 'ImportDeclaration', children: [
+        { kind: 'ImportClause', name: 'ts', children: [] },
+        { kind: 'StringLiteral', name: "'typescript'", children: [] },
+      ]},
+      { kind: 'InterfaceDeclaration', name: 'ASTNode', children: [
+        { kind: 'PropertySignature', name: 'kind', children: [{ kind: 'StringKeyword', children: [] }] },
+        { kind: 'PropertySignature', name: 'name', children: [{ kind: 'StringKeyword', children: [] }] },
+        { kind: 'PropertySignature', name: 'children', children: [{ kind: 'ArrayType', children: [] }] },
+      ]},
+      { kind: 'FunctionDeclaration', name: 'extractAST', children: [
+        { kind: 'Parameter', name: 'sf', children: [
+          { kind: 'TypeReference', name: 'SourceFile', children: [] },
+        ]},
+        { kind: 'Block', children: [
+          { kind: 'FunctionDeclaration', name: 'walk', children: [
+            { kind: 'Parameter', name: 'node', children: [] },
+            { kind: 'Block', children: [
+              { kind: 'VariableStatement', children: [
+                { kind: 'Identifier', name: 'kind', children: [] },
+              ]},
+              { kind: 'ReturnStatement', children: [
+                { kind: 'ObjectLiteralExpression', children: [] },
+              ]},
+            ]},
+          ]},
+          { kind: 'ReturnStatement', children: [
+            { kind: 'CallExpression', name: 'walk', children: [
+              { kind: 'Identifier', name: 'sf', children: [] },
+            ]},
+          ]},
+        ]},
+      ]},
+    ]
+  }
+};
+
+// Node color by kind category
+function nodeColor(kind) {
+  if (/Declaration|Signature|Function/.test(kind)) return '#7c6af7';
+  if (/Statement|Block/.test(kind)) return '#a855f7';
+  if (/Expression|Call/.test(kind)) return '#fcbc2a';
+  if (/Literal|Keyword|String|Numeric/.test(kind)) return '#77c63d';
+  if (/Type|Interface|Array/.test(kind)) return '#63c1f1';
+  if (/Identifier|Parameter/.test(kind)) return '#ff5246';
+  if (/Import|Export/.test(kind)) return '#8b90a5';
+  return '#414141';
+}
+
+// Tree layout algorithm
+function layoutTree(node, depth, state) {
+  if (!state) state = { y: 0 };
+  node._x = depth * 170;
+  node._y = state.y;
+  state.y += 34;
+  if (node.children && node.children.length > 0 && !node._collapsed) {
+    node.children.forEach(c => layoutTree(c, depth + 1, state));
+  }
+  return state;
+}
+
+// Count visible nodes
+function countNodes(node) {
+  let n = 1;
+  if (node.children && !node._collapsed) {
+    node.children.forEach(c => { n += countNodes(c); });
+  }
+  return n;
+}
+
+// SVG rendering state
+let currentTree = null;
+let panState = { x: 20, y: 20, scale: 1 };
+let dragStart = null;
+
+function renderDemo() {
+  if (!currentTree) return;
+  layoutTree(currentTree, 0);
+  const total = countNodes(currentTree);
+
+  const area = document.getElementById('demo-svg-area');
+  const W = area.clientWidth;
+  const H = area.clientHeight;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="background:#0d0f14;">`;
+  svg += `<defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#555"/></marker></defs>`;
+  svg += `<g transform="translate(${panState.x},${panState.y}) scale(${panState.scale})">`;
+
+  // Render edges first
+  function renderEdges(node) {
+    if (node.children && !node._collapsed) {
+      node.children.forEach(child => {
+        const x1 = node._x + 70, y1 = node._y + 28;
+        const x2 = child._x, y2 = child._y + 14;
+        const midY = y1 + (y2 - y1) * 0.5;
+        svg += `<path d="M${x1},${y1} L${x1},${midY} L${x2},${midY} L${x2},${y2}" fill="none" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+        renderEdges(child);
+      });
+    }
+  }
+  renderEdges(currentTree);
+
+  // Render nodes
+  let nodeIdx = 0;
+  function renderNodes(node) {
+    const idx = nodeIdx++;
+    const label = node.name ? `${node.kind}: ${node.name}` : node.kind;
+    const w = Math.max(100, Math.min(160, label.length * 7 + 20));
+    const fill = nodeColor(node.kind);
+    const hasChildren = node.children && node.children.length > 0;
+    const collapsed = node._collapsed;
+    const badge = collapsed ? ` (+${countCollapsed(node)})` : '';
+    const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+
+    svg += `<g data-idx="${idx}" style="cursor:pointer;" class="tree-node">`;
+    svg += `<rect x="${node._x}" y="${node._y}" width="${w}" height="28" rx="5" fill="${fill}" stroke="${collapsed ? '#fff' : 'none'}" stroke-width="${collapsed ? '1.5' : '0'}" opacity="${collapsed ? '0.85' : '1'}"/>`;
+    svg += `<text x="${node._x + w/2}" y="${node._y + 17}" text-anchor="middle" fill="white" font-size="10" font-family="'SF Mono',monospace" pointer-events="none">${esc(label.length > 22 ? label.slice(0,20) + '..' : label)}${badge}</text>`;
+
+    if (hasChildren) {
+      const tx = node._x + w - 3;
+      const ty = node._y + 3;
+      svg += `<circle cx="${tx}" cy="${ty}" r="4" fill="rgba(0,0,0,0.4)"/>`;
+      svg += `<text x="${tx}" y="${ty + 3}" text-anchor="middle" fill="white" font-size="7" pointer-events="none">${collapsed ? '+' : '-'}</text>`;
+    }
+    svg += `</g>`;
+
+    if (node.children && !node._collapsed) {
+      node.children.forEach(c => renderNodes(c));
+    }
+  }
+  renderNodes(currentTree);
+
+  svg += '</g></svg>';
+  area.innerHTML = svg;
+
+  // Click handler
+  area.querySelector('svg').addEventListener('click', (e) => {
+    const g = e.target.closest('.tree-node');
+    if (!g) return;
+    const idx = parseInt(g.dataset.idx);
+    const node = findNodeByIdx(currentTree, idx, { i: 0 });
+    if (node && node.children && node.children.length > 0) {
+      node._collapsed = !node._collapsed;
+      renderDemo();
+    }
+  });
+
+  // Pan handler
+  const svgEl = area.querySelector('svg');
+  svgEl.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.tree-node')) return;
+    dragStart = { x: e.clientX - panState.x, y: e.clientY - panState.y };
+    svgEl.setPointerCapture(e.pointerId);
+  });
+  svgEl.addEventListener('pointermove', (e) => {
+    if (!dragStart) return;
+    panState.x = e.clientX - dragStart.x;
+    panState.y = e.clientY - dragStart.y;
+    area.querySelector('svg g').setAttribute('transform',
+      `translate(${panState.x},${panState.y}) scale(${panState.scale})`);
+  });
+  svgEl.addEventListener('pointerup', () => { dragStart = null; });
+
+  // Zoom handler
+  svgEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    panState.scale = Math.max(0.2, Math.min(3, panState.scale * delta));
+    area.querySelector('svg g').setAttribute('transform',
+      `translate(${panState.x},${panState.y}) scale(${panState.scale})`);
+  }, { passive: false });
+}
+
+function countCollapsed(node) {
+  let n = 0;
+  if (node.children) node.children.forEach(c => { n += 1 + countCollapsed(c); });
+  return n;
+}
+
+function findNodeByIdx(node, target, state) {
+  if (state.i === target) return node;
+  state.i++;
+  if (node.children && !node._collapsed) {
+    for (const c of node.children) {
+      const found = findNodeByIdx(c, target, state);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function deepClone(obj) {
+  if (Array.isArray(obj)) return obj.map(deepClone);
+  if (obj && typeof obj === 'object') {
+    const out = {};
+    for (const k in obj) out[k] = deepClone(obj[k]);
+    return out;
+  }
+  return obj;
+}
+
+function demoPreset(name) {
+  currentTree = deepClone(PRESETS[name]);
+  panState = { x: 20, y: 20, scale: 1 };
+  document.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderDemo();
+}
+
+function demoReset() {
+  panState = { x: 20, y: 20, scale: 1 };
+  if (currentTree) {
+    (function uncollapse(n) { n._collapsed = false; if (n.children) n.children.forEach(uncollapse); })(currentTree);
+  }
+  renderDemo();
+}
+
+// Initial render
+currentTree = deepClone(PRESETS.simple);
+setTimeout(renderDemo, 100);
+
+// Resize handler
+window.addEventListener('resize', () => { if (currentTree) renderDemo(); });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Effect-TS Deep Dive — How It Actually Works</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3348;
+  --text: #e2e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4ecdc4;
+  --green: #4ecdc4;
+  --yellow: #ffd93d;
+  --orange: #ff8c42;
+  --red: #ff6b6b;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --pink: #ff6b9d;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;line-height:1.7;padding:2rem;max-width:1150px;margin:0 auto}
+h1{font-size:2rem;margin-bottom:.3rem;background:linear-gradient(135deg,var(--purple),var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.4rem;color:var(--accent);margin:2.5rem 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+h3{font-size:1.08rem;color:var(--accent2);margin:1.4rem 0 .5rem}
+p,li{color:var(--text2);margin-bottom:.7rem}
+.sub{color:var(--text2);font-size:1.02rem;margin-bottom:2rem}
+code{background:var(--surface2);padding:.15rem .4rem;border-radius:4px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85rem;color:var(--accent)}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;overflow-x:auto;margin:.8rem 0 1.2rem;line-height:1.5}
+pre code{background:none;padding:0;color:var(--text)}
+.kw{color:var(--purple)}.str{color:var(--green)}.num{color:var(--orange)}.cmt{color:#555b70;font-style:italic}.typ{color:var(--cyan)}.fn{color:var(--yellow)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin:.8rem 0;transition:all .3s}
+.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin:1rem 0}
+.card h4{color:var(--accent);margin-bottom:.4rem;font-size:1rem}
+.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.72rem;margin-right:.3rem;margin-bottom:.3rem}
+.tag-green{background:rgba(78,205,196,.15);color:var(--green)}
+.tag-red{background:rgba(255,107,107,.15);color:var(--red)}
+.tag-purple{background:rgba(167,139,250,.15);color:var(--purple)}
+.tag-blue{background:rgba(108,140,255,.15);color:var(--accent)}
+.tag-yellow{background:rgba(255,217,61,.15);color:var(--yellow)}
+.tag-cyan{background:rgba(34,211,238,.15);color:var(--cyan)}
+.tag-orange{background:rgba(255,140,66,.15);color:var(--orange)}
+.tabs{display:flex;gap:0;margin:1.2rem 0 0;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.tab{padding:.55rem 1rem;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;font-size:.85rem}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none;padding:1.2rem;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:1rem}
+.tab-content.active{display:block}
+.flow{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.8rem 0;padding:.8rem;background:var(--surface2);border-radius:8px}
+.flow-box{padding:.4rem .7rem;border-radius:6px;font-size:.8rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.flow-arrow{color:var(--text2);font-size:.9rem}
+.expand{cursor:pointer;user-select:none}
+.expand-header{display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:var(--surface2);border-radius:6px;margin:.4rem 0;transition:background .2s}
+.expand-header:hover{background:rgba(108,140,255,.08)}
+.expand-arrow{transition:transform .2s;font-size:.7rem;color:var(--text2)}
+.expand-arrow.open{transform:rotate(90deg)}
+.expand-body{display:none;padding:.6rem .8rem .8rem 1.8rem;font-size:.9rem}
+.expand-body.open{display:block}
+.demo-box{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1rem 0}
+.demo-box h4{margin-bottom:1rem}
+.demo-btn{padding:.5rem 1rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:.82rem;font-family:inherit;transition:all .2s;margin:.2rem}
+.demo-btn:hover{border-color:var(--accent);background:rgba(108,140,255,.1)}
+.demo-btn.active{border-color:var(--accent);background:rgba(108,140,255,.15);color:var(--accent)}
+.demo-output{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-top:.8rem;font-family:'JetBrains Mono',monospace;font-size:.82rem;min-height:80px;line-height:1.6;white-space:pre-wrap}
+.verdict{display:inline-block;padding:.3rem .7rem;border-radius:6px;font-size:.78rem;font-weight:600;margin:.2rem}
+.verdict-yes{background:rgba(78,205,196,.12);color:var(--green);border:1px solid rgba(78,205,196,.3)}
+.verdict-no{background:rgba(255,107,107,.12);color:var(--red);border:1px solid rgba(255,107,107,.3)}
+.verdict-partial{background:rgba(255,217,61,.12);color:var(--yellow);border:1px solid rgba(255,217,61,.3)}
+.layer-diagram{display:flex;flex-direction:column;gap:2px;margin:1rem 0}
+.layer{padding:.6rem 1rem;border-radius:6px;font-size:.85rem;text-align:center;position:relative}
+.quiz{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.5rem 0}
+.quiz h4{color:var(--yellow);margin-bottom:1rem}
+.quiz-option{display:block;width:100%;text-align:left;padding:.65rem 1rem;margin:.3rem 0;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .2s}
+.quiz-option:hover{border-color:var(--accent)}
+.quiz-feedback{margin-top:.8rem;padding:.8rem;border-radius:6px;display:none;font-size:.9rem}
+.quiz-feedback.correct{display:block;background:rgba(78,205,196,.1);border:1px solid rgba(78,205,196,.3);color:var(--green)}
+.quiz-feedback.wrong{display:block;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+th{text-align:left;padding:.6rem;color:var(--text);border-bottom:2px solid var(--border)}
+td{padding:.5rem .6rem;border-bottom:1px solid var(--border);color:var(--text2)}
+</style>
+</head>
+<body>
+
+<h1>Effect-TS Deep Dive</h1>
+<p class="sub">A thorough analysis of how Effect-TS actually works — compilation, type encoding, runtime internals, what it checks statically, and where it stops.</p>
+
+<!-- =============================== -->
+<h2>1. The Headline: No Magic</h2>
+<!-- =============================== -->
+
+<p>The most important thing to understand about Effect-TS: <strong>there is no compiler plugin, no Babel transform, no SWC plugin, no AST manipulation, no custom type checker</strong>. It is a pure TypeScript library. Standard <code>tsc</code> compiles it. Every guarantee it provides comes from TypeScript's existing type system — generics, conditional types, variance annotations, branded types.</p>
+
+<div class="flow">
+  <div class="flow-box" style="background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:var(--purple)">Your Effect-TS Code</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-box" style="background:rgba(108,140,255,.15);border:1px solid rgba(108,140,255,.3);color:var(--accent)">Standard tsc</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-box" style="background:rgba(78,205,196,.15);border:1px solid rgba(78,205,196,.3);color:var(--green)">JavaScript</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-box" style="background:rgba(255,217,61,.15);border:1px solid rgba(255,217,61,.3);color:var(--yellow)">Effect Runtime</div>
+</div>
+
+<p>This means: everything Effect-TS "checks" is checked by tsc's normal generic resolution. Everything it "enforces" is enforced by type errors from tsc. It doesn't read your AST, doesn't do abstract interpretation, doesn't run a separate analysis pass. It makes TypeScript's type checker do the work by encoding information in generic type parameters.</p>
+
+<!-- =============================== -->
+<h2>2. How Effect&lt;A, E, R&gt; Is Built</h2>
+<!-- =============================== -->
+
+<div class="tabs" id="type-tabs">
+  <div class="tab active" onclick="switchTab('type-tabs','type-content',0)">The Type</div>
+  <div class="tab" onclick="switchTab('type-tabs','type-content',1)">Variance</div>
+  <div class="tab" onclick="switchTab('type-tabs','type-content',2)">Pipe Overloads</div>
+  <div class="tab" onclick="switchTab('type-tabs','type-content',3)">Context.Tag</div>
+  <div class="tab" onclick="switchTab('type-tabs','type-content',4)">Branded Types</div>
+</div>
+
+<div id="type-content">
+  <!-- The Type -->
+  <div class="tab-content active">
+    <h3>The Core Type Definition</h3>
+    <p><code>Effect&lt;A, E, R&gt;</code> is the central type. The three parameters encode everything:</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h4 style="color:var(--green)">A — Success Value</h4>
+        <p>What the computation produces on success. Like <code>Promise&lt;A&gt;</code> but with more tracking.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--red)">E — Error Channel</h4>
+        <p>What can go wrong. A <strong>union type</strong> that accumulates as you compose. <code>never</code> means "cannot fail."</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--cyan)">R — Requirements</h4>
+        <p>Services needed to run. An <strong>intersection type</strong> that accumulates. <code>never</code> means "needs nothing."</p>
+      </div>
+    </div>
+
+    <h3>What's the actual runtime representation?</h3>
+    <p>At runtime, an Effect is a <strong>Plain Old JavaScript Object (POJO)</strong> — a discriminated union of primitive instructions. Not a function, not a class instance. A data structure with a tag field that the runtime pattern-matches on:</p>
+
+    <pre><code><span class="cmt">// Simplified — the actual instruction set is larger</span>
+<span class="kw">type</span> <span class="typ">EffectPrimitive</span> =
+  | { _tag: <span class="str">"Succeed"</span>;  value: <span class="kw">any</span> }
+  | { _tag: <span class="str">"Fail"</span>;     cause: Cause }
+  | { _tag: <span class="str">"Sync"</span>;     thunk: () => <span class="kw">any</span> }
+  | { _tag: <span class="str">"Async"</span>;    register: (cb: (_: <span class="kw">any</span>) => <span class="kw">void</span>) => <span class="kw">void</span> }
+  | { _tag: <span class="str">"FlatMap"</span>;  first: Effect; andThen: (a: <span class="kw">any</span>) => Effect }
+  | { _tag: <span class="str">"OnFailure"</span>; first: Effect; onFailure: (e: <span class="kw">any</span>) => Effect }
+
+<span class="cmt">// When you write:</span>
+Effect.succeed(<span class="num">42</span>)
+<span class="cmt">// You get: { _tag: "Succeed", value: 42 }</span>
+
+<span class="cmt">// When you write:</span>
+Effect.flatMap(getUser, user => getAddress(user))
+<span class="cmt">// You get: { _tag: "FlatMap", first: getUserEffect, andThen: user => getAddressEffect }</span></code></pre>
+
+    <p>This is the <strong>Freer monad</strong> pattern: separate the description of what to do from the interpretation of how to do it. The runtime is the interpreter.</p>
+  </div>
+
+  <!-- Variance -->
+  <div class="tab-content">
+    <h3>Variance Annotations</h3>
+    <p>TypeScript 4.7+ introduced <code>in</code>/<code>out</code> modifiers for explicit variance control. Effect-TS uses these to tell TypeScript how to handle subtype relationships:</p>
+
+    <pre><code><span class="cmt">// Simplified from Effect's actual definition:</span>
+<span class="kw">interface</span> <span class="typ">Effect</span>&lt;<span class="kw">out</span> A, <span class="kw">out</span> E = <span class="kw">never</span>, <span class="kw">out</span> R = <span class="kw">never</span>&gt; {
+  <span class="cmt">// out = covariant: subtypes are compatible</span>
+}</code></pre>
+
+    <p>What covariance means in practice:</p>
+
+    <div class="card">
+      <h4 style="color:var(--cyan)">A is covariant (out)</h4>
+      <p><code>Effect&lt;Dog&gt;</code> is assignable to <code>Effect&lt;Animal&gt;</code> because Dog extends Animal. If you produce a more specific type, that's fine where a less specific type is expected.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--red)">E is covariant (out)</h4>
+      <p><code>Effect&lt;A, never&gt;</code> (cannot fail) is assignable to <code>Effect&lt;A, Error&gt;</code> (might fail). An effect that never fails is a valid substitute for one that might — it's strictly better.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--purple)">R is covariant (out)</h4>
+      <p><code>Effect&lt;A, E, never&gt;</code> (needs nothing) is assignable to <code>Effect&lt;A, E, Database&gt;</code> (needs Database). An effect with no requirements satisfies any requirement.</p>
+    </div>
+
+    <p>Without these annotations, TypeScript would default to structural checking, which can give wrong results for complex generic compositions. The variance annotations prevent subtle bugs where effects with different requirement profiles get mixed up.</p>
+  </div>
+
+  <!-- Pipe Overloads -->
+  <div class="tab-content">
+    <h3>How <code>pipe</code> Enables Type Inference</h3>
+    <p><code>pipe</code> is defined as ~20 overloaded signatures, each with progressive generic parameters:</p>
+
+    <pre><code><span class="cmt">// Each overload adds one more transformation step:</span>
+<span class="kw">function</span> <span class="fn">pipe</span>&lt;A&gt;(a: A): A
+<span class="kw">function</span> <span class="fn">pipe</span>&lt;A, B&gt;(a: A, ab: (a: A) => B): B
+<span class="kw">function</span> <span class="fn">pipe</span>&lt;A, B, C&gt;(a: A, ab: (a: A) => B, bc: (b: B) => C): C
+<span class="kw">function</span> <span class="fn">pipe</span>&lt;A, B, C, D&gt;(a: A, ab: (a: A) => B, bc: (b: B) => C, cd: (c: C) => D): D
+<span class="cmt">// ... up to ~20 steps</span></code></pre>
+
+    <p>TypeScript's generic inference resolves each step. Here's what happens in a real chain:</p>
+
+    <pre><code><span class="kw">const</span> result = pipe(
+  getUser(id),                    <span class="cmt">// A = Effect&lt;User, NotFound, Database&gt;</span>
+  Effect.flatMap(getAddress),     <span class="cmt">// B = Effect&lt;Address, NotFound | NoAddr, Database&gt;</span>
+  Effect.catchTag(<span class="str">"NoAddr"</span>,       <span class="cmt">// C = Effect&lt;Address, NotFound, Database&gt;</span>
+    () => Effect.succeed(fallback)),
+  Effect.timeout(<span class="str">"5 seconds"</span>),   <span class="cmt">// D = Effect&lt;Address, NotFound | TimeoutException, Database&gt;</span>
+);</code></pre>
+
+    <p>At each step, TypeScript infers the new A, E, R. Errors union together when composed. Errors narrow when handled. Requirements accumulate as intersections. All from standard generic resolution — no custom inference engine.</p>
+  </div>
+
+  <!-- Context.Tag -->
+  <div class="tab-content">
+    <h3>Context.Tag — Service Identity</h3>
+    <p>How does Effect-TS track which services a computation needs? Through <code>Context.Tag</code>, which uses a clever nominal typing trick:</p>
+
+    <pre><code><span class="cmt">// Define a service</span>
+<span class="kw">class</span> <span class="typ">Database</span> <span class="kw">extends</span> Context.Tag(<span class="str">"Database"</span>)&lt;
+  Database,                               <span class="cmt">// Self type (recursive)</span>
+  {                                       <span class="cmt">// Service interface</span>
+    query: (sql: <span class="kw">string</span>) => Effect&lt;Row[], DbError&gt;
+  }
+&gt;() {}
+
+<span class="cmt">// The string "Database" is the unique identifier</span>
+<span class="cmt">// The Self type parameter creates NOMINAL typing</span>
+<span class="cmt">// Two tags with identical interfaces but different names are DIFFERENT services</span></code></pre>
+
+    <p>At runtime, Context is essentially a <code>Map&lt;Tag, Implementation&gt;</code>. At the type level, the R parameter accumulates all Tags needed:</p>
+
+    <pre><code><span class="cmt">// When you use a service:</span>
+<span class="kw">const</span> <span class="fn">getUsers</span> = Effect.flatMap(
+  Effect.service(Database),    <span class="cmt">// R picks up Database</span>
+  db => db.query(<span class="str">"SELECT *"</span>)
+);
+<span class="cmt">// Type: Effect&lt;Row[], DbError, Database&gt;</span>
+<span class="cmt">//                              ^^^^^^^^ tracked here</span>
+
+<span class="cmt">// When you provide the service:</span>
+<span class="kw">const</span> <span class="fn">runnable</span> = Effect.provide(getUsers, DatabaseLive);
+<span class="cmt">// Type: Effect&lt;Row[], DbError, never&gt;</span>
+<span class="cmt">//                              ^^^^^ satisfied!</span></code></pre>
+
+    <p>The Tag creates a unique type-level "key." TypeScript's structural typing would normally merge two services with the same interface. The Self type parameter plus the string identifier prevent this — it's nominal typing within a structural system.</p>
+  </div>
+
+  <!-- Branded Types -->
+  <div class="tab-content">
+    <h3>Branded Types</h3>
+    <p>TypeScript uses structural typing — two types with the same shape are interchangeable. This is dangerous when you want semantic distinction:</p>
+
+    <pre><code><span class="cmt">// Without branding: these are the same type!</span>
+<span class="kw">type</span> <span class="typ">UserId</span> = <span class="kw">string</span>;
+<span class="kw">type</span> <span class="typ">OrderId</span> = <span class="kw">string</span>;
+
+<span class="kw">function</span> <span class="fn">getUser</span>(id: UserId) { ... }
+getUser(orderId); <span class="cmt">// TypeScript allows this! Both are strings.</span></code></pre>
+
+    <pre><code><span class="cmt">// With Brand: these are now distinct types</span>
+<span class="kw">type</span> <span class="typ">UserId</span> = <span class="kw">string</span> & Brand.Brand&lt;<span class="str">"UserId"</span>&gt;
+<span class="kw">type</span> <span class="typ">OrderId</span> = <span class="kw">string</span> & Brand.Brand&lt;<span class="str">"OrderId"</span>&gt;
+
+<span class="kw">function</span> <span class="fn">getUser</span>(id: UserId) { ... }
+getUser(orderId); <span class="cmt">// TypeScript ERROR: OrderId is not assignable to UserId</span></code></pre>
+
+    <p>The trick: <code>Brand.Brand&lt;"UserId"&gt;</code> adds a phantom property to the type — a property that exists in the type system but has no runtime representation. Two differently branded types have different phantom properties, so TypeScript considers them structurally distinct.</p>
+
+    <p>Effect-TS offers two flavors:</p>
+    <div class="card-grid">
+      <div class="card">
+        <h4 style="color:var(--purple)">Brand.nominal</h4>
+        <p>No validation. Just a type-level tag. Use when you trust the source of the value.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--green)">Brand.refined</h4>
+        <p>Includes runtime validation. Values are checked when branded. Use for domain constraints (positive numbers, email formats, etc.).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
+<h2>3. The Runtime — Fiber Execution Engine</h2>
+<!-- =============================== -->
+
+<div class="tabs" id="runtime-tabs">
+  <div class="tab active" onclick="switchTab('runtime-tabs','runtime-content',0)">Execution Loop</div>
+  <div class="tab" onclick="switchTab('runtime-tabs','runtime-content',1)">Instruction Set</div>
+  <div class="tab" onclick="switchTab('runtime-tabs','runtime-content',2)">Fibers</div>
+  <div class="tab" onclick="switchTab('runtime-tabs','runtime-content',3)">Scheduler</div>
+</div>
+
+<div id="runtime-content">
+  <!-- Execution Loop -->
+  <div class="tab-content active">
+    <h3>The Interpretation Loop</h3>
+    <p>When you call <code>Effect.runPromise(program)</code>, the fiber runtime starts an interpretation loop:</p>
+
+    <pre><code><span class="cmt">// Simplified pseudocode of the core loop:</span>
+<span class="kw">function</span> <span class="fn">runLoop</span>(effect: Effect): Exit {
+  <span class="kw">let</span> current = effect;
+  <span class="kw">let</span> continuationStack: Array&lt;(value) => Effect&gt; = [];
+  <span class="kw">let</span> opCount = <span class="num">0</span>;
+
+  <span class="kw">while</span> (<span class="kw">true</span>) {
+    opCount++;
+    <span class="kw">if</span> (opCount > <span class="num">2048</span>) {       <span class="cmt">// yield threshold</span>
+      reschedule(current);      <span class="cmt">// put back in work queue</span>
+      <span class="kw">return</span>;                   <span class="cmt">// give other fibers a turn</span>
+    }
+
+    <span class="kw">switch</span> (current._tag) {
+      <span class="kw">case</span> <span class="str">"Succeed"</span>:
+        <span class="kw">if</span> (continuationStack.length === <span class="num">0</span>) <span class="kw">return</span> Exit.succeed(current.value);
+        current = continuationStack.pop()(current.value);
+        <span class="kw">break</span>;
+
+      <span class="kw">case</span> <span class="str">"Fail"</span>:
+        <span class="cmt">// Walk up continuation stack looking for error handler</span>
+        <span class="cmt">// If none found, return Exit.fail(current.cause)</span>
+        <span class="kw">break</span>;
+
+      <span class="kw">case</span> <span class="str">"Sync"</span>:
+        current = { _tag: <span class="str">"Succeed"</span>, value: current.thunk() };
+        <span class="kw">break</span>;
+
+      <span class="kw">case</span> <span class="str">"Async"</span>:
+        current.register(result => resumeFiber(result));
+        <span class="kw">return</span>;  <span class="cmt">// suspend — will resume when callback fires</span>
+
+      <span class="kw">case</span> <span class="str">"FlatMap"</span>:
+        continuationStack.push(current.andThen);
+        current = current.first;  <span class="cmt">// evaluate the first effect</span>
+        <span class="kw">break</span>;
+    }
+  }
+}</code></pre>
+
+    <p>Key properties of this loop:</p>
+    <div class="card-grid">
+      <div class="card">
+        <h4 style="color:var(--green)">Stack-safe</h4>
+        <p>Continuations live on the heap (in the array), not on the JavaScript call stack. Deeply nested flatMap chains don't cause stack overflow.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--yellow)">Cooperative</h4>
+        <p>After ~2048 operations, the fiber yields. Other fibers get a turn. This prevents one computation from monopolizing the event loop.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--purple)">Suspendable</h4>
+        <p>On async boundaries, the fiber suspends. The continuation stack is preserved on the heap. When the async callback fires, the fiber resumes exactly where it left off.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instruction Set -->
+  <div class="tab-content">
+    <h3>The Effect Instruction Set</h3>
+    <p>Every Effect value is one of these primitive instructions. Complex programs are trees of these:</p>
+
+    <table>
+      <thead><tr><th>Instruction</th><th>What it means</th><th>Created by</th></tr></thead>
+      <tbody>
+        <tr><td><code>Succeed</code></td><td>Immediate value — done</td><td><code>Effect.succeed(42)</code></td></tr>
+        <tr><td><code>Fail</code></td><td>Immediate failure with a Cause</td><td><code>Effect.fail(err)</code></td></tr>
+        <tr><td><code>Sync</code></td><td>Run this synchronous thunk</td><td><code>Effect.sync(() => Date.now())</code></td></tr>
+        <tr><td><code>Async</code></td><td>Register a callback, suspend until it fires</td><td><code>Effect.async(cb => ...)</code></td></tr>
+        <tr><td><code>FlatMap</code></td><td>Run first, feed result to andThen</td><td><code>Effect.flatMap(e, f)</code></td></tr>
+        <tr><td><code>OnFailure</code></td><td>Run first, if it fails run onFailure</td><td><code>Effect.catchAll(e, f)</code></td></tr>
+        <tr><td><code>OnSuccess</code></td><td>Run first, if it succeeds run handler</td><td><code>Effect.tap(e, f)</code></td></tr>
+        <tr><td><code>Fork</code></td><td>Start a new fiber for this effect</td><td><code>Effect.fork(e)</code></td></tr>
+        <tr><td><code>Provide</code></td><td>Attach a context (service map) to this effect</td><td><code>Effect.provide(e, layer)</code></td></tr>
+      </tbody>
+    </table>
+
+    <p>A real program is a tree of these. For example:</p>
+    <pre><code>pipe(
+  getUser(id),             <span class="cmt">// Async (register fetch callback)</span>
+  Effect.flatMap(          <span class="cmt">// FlatMap</span>
+    user => getAddress(user) <span class="cmt">//   andThen: Async (another fetch)</span>
+  ),
+  Effect.catchTag(<span class="str">"NotFound"</span>, <span class="cmt">// OnFailure</span>
+    () => Effect.succeed(fallback) <span class="cmt">//   recovery: Succeed</span>
+  ),
+)
+<span class="cmt">// Becomes: OnFailure(FlatMap(Async(...), user => Async(...)), ...)</span></code></pre>
+  </div>
+
+  <!-- Fibers -->
+  <div class="tab-content">
+    <h3>Fibers — Lightweight Green Threads</h3>
+    <p>A fiber is the runtime's unit of concurrent execution — like a thread but managed entirely in JavaScript, not by the OS. Each fiber has:</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h4>Its own continuation stack</h4>
+        <p>Each fiber tracks where it is in its Effect tree independently. Suspending one fiber doesn't affect others.</p>
+      </div>
+      <div class="card">
+        <h4>An interruptible status</h4>
+        <p>Fibers can be interrupted (cancelled). The runtime checks for interruption between instructions. This enables timeouts, races, and resource cleanup.</p>
+      </div>
+      <div class="card">
+        <h4>A scope</h4>
+        <p>Each fiber belongs to a scope. When a scope closes (parent completes or fails), child fibers are interrupted. This is <strong>structured concurrency</strong> — no orphaned background work.</p>
+      </div>
+    </div>
+
+    <pre><code><span class="cmt">// Fork a fiber</span>
+<span class="kw">const</span> program = Effect.gen(<span class="kw">function</span>*() {
+  <span class="kw">const</span> fiber = <span class="kw">yield</span>* Effect.fork(longComputation);
+  <span class="cmt">// fiber is running concurrently now</span>
+
+  <span class="kw">const</span> result = <span class="kw">yield</span>* Fiber.join(fiber);
+  <span class="cmt">// wait for it to complete</span>
+
+  <span class="cmt">// Or: yield* Fiber.interrupt(fiber)  → cancel it</span>
+});
+
+<span class="cmt">// Race two effects — first one to complete wins, loser is interrupted</span>
+<span class="kw">const</span> fast = Effect.race(fetchFromCache, fetchFromDB);</code></pre>
+  </div>
+
+  <!-- Scheduler -->
+  <div class="tab-content">
+    <h3>The Scheduler</h3>
+    <p>The scheduler manages which fiber runs when:</p>
+
+    <div class="layer-diagram">
+      <div class="layer" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:var(--purple)">
+        <strong>Your Effect Programs</strong> — descriptions of work
+      </div>
+      <div class="layer" style="background:rgba(108,140,255,.1);border:1px solid rgba(108,140,255,.3);color:var(--accent)">
+        <strong>Fiber Runtime</strong> — interprets instructions, manages continuation stacks
+      </div>
+      <div class="layer" style="background:rgba(255,217,61,.1);border:1px solid rgba(255,217,61,.3);color:var(--yellow)">
+        <strong>Scheduler</strong> — work queue, op-count yielding (~2048 ops), cooperative multitasking
+      </div>
+      <div class="layer" style="background:rgba(78,205,196,.1);border:1px solid rgba(78,205,196,.3);color:var(--green)">
+        <strong>JavaScript Event Loop</strong> — the actual execution engine
+      </div>
+    </div>
+
+    <p>The scheduler uses <strong>cooperative yielding</strong>: each fiber maintains an <code>opCount</code>. After ~2048 primitive operations, the fiber voluntarily yields, the scheduler puts it back in the work queue, and picks up the next fiber. This prevents starvation and ensures responsiveness.</p>
+
+    <p>For async boundaries (<code>Async</code> instructions), the fiber suspends naturally — it registers a callback and returns control to the event loop. When the callback fires, the scheduler resumes the fiber.</p>
+  </div>
+</div>
+
+<!-- =============================== -->
+<h2>4. What tsc Catches — Static Guarantees</h2>
+<!-- =============================== -->
+
+<p>Remember: all "static checking" is just TypeScript's normal type checker resolving generics. But the encodings are clever enough to catch real mistakes:</p>
+
+<div class="demo-box">
+  <h4>Click an error scenario to see what tsc reports:</h4>
+  <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.5rem">
+    <button class="demo-btn active" onclick="showTscError(0)">Unhandled error type</button>
+    <button class="demo-btn" onclick="showTscError(1)">Missing service</button>
+    <button class="demo-btn" onclick="showTscError(2)">Wrong error handler</button>
+    <button class="demo-btn" onclick="showTscError(3)">Type mismatch in pipe</button>
+    <button class="demo-btn" onclick="showTscError(4)">Brand confusion</button>
+  </div>
+  <div class="demo-output" id="tsc-output"></div>
+</div>
+
+<h3>Summary of What tsc Catches</h3>
+<table>
+  <thead><tr><th>Scenario</th><th>Caught?</th><th>How</th></tr></thead>
+  <tbody>
+    <tr><td>Unhandled error type in E</td><td><span class="verdict verdict-yes">YES</span></td><td>E parameter stays non-never; downstream operations reject it</td></tr>
+    <tr><td>Missing service in R</td><td><span class="verdict verdict-yes">YES</span></td><td>R parameter stays non-never; runPromise/runSync reject it</td></tr>
+    <tr><td>Wrong error tag in catchTag</td><td><span class="verdict verdict-yes">YES</span></td><td>String literal type doesn't match union of _tag values</td></tr>
+    <tr><td>Type mismatch in pipe chain</td><td><span class="verdict verdict-yes">YES</span></td><td>Pipe overloads enforce A→B→C type flow</td></tr>
+    <tr><td>Brand confusion (UserId vs OrderId)</td><td><span class="verdict verdict-yes">YES</span></td><td>Phantom property makes types structurally distinct</td></tr>
+    <tr><td>Providing wrong Layer</td><td><span class="verdict verdict-yes">YES</span></td><td>Layer's Out type doesn't satisfy Effect's R</td></tr>
+    <tr><td>Incomplete error handling</td><td><span class="verdict verdict-yes">YES</span></td><td>Remaining error types stay in E</td></tr>
+  </tbody>
+</table>
+
+<!-- =============================== -->
+<h2>5. What tsc Misses — The Gaps</h2>
+<!-- =============================== -->
+
+<p>This is the critical section. Effect-TS has real blind spots that come from being a library rather than a language feature or a static analyzer:</p>
+
+<div class="demo-box">
+  <h4>Click a gap to see what gets through:</h4>
+  <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.5rem">
+    <button class="demo-btn active" onclick="showGap(0)">Hidden side effects</button>
+    <button class="demo-btn" onclick="showGap(1)">Type assertions</button>
+    <button class="demo-btn" onclick="showGap(2)">Unwrapped calls</button>
+    <button class="demo-btn" onclick="showGap(3)">Thrown exceptions</button>
+    <button class="demo-btn" onclick="showGap(4)">Mutation inside sync</button>
+  </div>
+  <div class="demo-output" id="gap-output"></div>
+</div>
+
+<h3>Summary of What tsc Misses</h3>
+<table>
+  <thead><tr><th>Scenario</th><th>Caught?</th><th>Why not</th></tr></thead>
+  <tbody>
+    <tr><td>Side effects inside Effect.sync</td><td><span class="verdict verdict-no">NO</span></td><td>tsc doesn't analyze callback bodies for purity</td></tr>
+    <tr><td><code>as any</code> type assertions</td><td><span class="verdict verdict-no">NO</span></td><td>Intentional escape hatch in TypeScript itself</td></tr>
+    <tr><td>Calling effectful code without wrapping</td><td><span class="verdict verdict-no">NO</span></td><td>Nothing forces you to use Effect for every side effect</td></tr>
+    <tr><td>Throwing inside Effect.sync (defects)</td><td><span class="verdict verdict-no">NO</span></td><td>Effect.sync assumes no failures; throws become "defects" not tracked in E</td></tr>
+    <tr><td>Mutation of shared state</td><td><span class="verdict verdict-no">NO</span></td><td>TypeScript doesn't track mutation / aliasing</td></tr>
+    <tr><td>Non-determinism (Math.random)</td><td><span class="verdict verdict-no">NO</span></td><td>No effect tracking for randomness unless you wrap it</td></tr>
+    <tr><td>Console.log inside sync</td><td><span class="verdict verdict-no">NO</span></td><td>No IO tracking inside closures</td></tr>
+    <tr><td>Timing side channels</td><td><span class="verdict verdict-no">NO</span></td><td>Not in scope for a type-level system</td></tr>
+  </tbody>
+</table>
+
+<div class="card" style="border-color:rgba(255,107,107,.3);margin-top:1rem">
+  <h4 style="color:var(--red)">The fundamental limit</h4>
+  <p>TypeScript's type checker doesn't analyze <strong>what happens inside function bodies</strong>. It checks the signature — the contract at the boundary. If <code>Effect.sync(() => ...)</code> says it returns <code>Effect&lt;number, never, never&gt;</code>, tsc believes it. It doesn't peek inside the callback to verify there's no IO, no mutation, no throws. This is the gap that a static analyzer like KindScript could fill.</p>
+</div>
+
+<!-- =============================== -->
+<h2>6. Inference — What's Automatic vs Manual</h2>
+<!-- =============================== -->
+
+<div class="tabs" id="infer-tabs">
+  <div class="tab active" onclick="switchTab('infer-tabs','infer-content',0)">Automatic</div>
+  <div class="tab" onclick="switchTab('infer-tabs','infer-content',1)">Effect.gen</div>
+  <div class="tab" onclick="switchTab('infer-tabs','infer-content',2)">Must Annotate</div>
+</div>
+
+<div id="infer-content">
+  <div class="tab-content active">
+    <h3>What TypeScript Infers Automatically</h3>
+    <p>Effect-TS is designed so you rarely need explicit type annotations. TypeScript's inference handles:</p>
+
+    <pre><code><span class="cmt">// All three parameters are inferred — no annotation needed:</span>
+<span class="kw">const</span> <span class="fn">getUser</span> = (id: <span class="kw">string</span>) => pipe(
+  Effect.service(Database),                  <span class="cmt">// R = Database</span>
+  Effect.flatMap(db => db.query(<span class="str">`...`</span>)),     <span class="cmt">// A = Row[], E = DbError</span>
+  Effect.flatMap(rows =>
+    rows.length > <span class="num">0</span>
+      ? Effect.succeed(rows[<span class="num">0</span>])               <span class="cmt">// A narrows to Row</span>
+      : Effect.fail(<span class="kw">new</span> NotFound(id))          <span class="cmt">// E adds NotFound</span>
+  ),
+);
+<span class="cmt">// TypeScript infers: Effect&lt;Row, DbError | NotFound, Database&gt;</span>
+<span class="cmt">// You didn't write any of that — it all came from the pipe chain.</span></code></pre>
+
+    <p>When you add a new service dependency, the R parameter updates automatically. When you add error-producing operations, E updates. When you handle errors, E narrows. All inferred.</p>
+  </div>
+
+  <div class="tab-content">
+    <h3>Effect.gen — Generator-Based Syntax</h3>
+    <p>The generator syntax gives the best inference and the most readable code:</p>
+
+    <pre><code><span class="kw">const</span> <span class="fn">program</span> = Effect.gen(<span class="kw">function</span>*() {
+  <span class="kw">const</span> db   = <span class="kw">yield</span>* Effect.service(Database);   <span class="cmt">// db: DatabaseService</span>
+  <span class="kw">const</span> rows = <span class="kw">yield</span>* db.query(<span class="str">"SELECT *"</span>);      <span class="cmt">// rows: Row[]</span>
+
+  <span class="kw">if</span> (rows.length === <span class="num">0</span>) {
+    <span class="kw">yield</span>* Effect.fail(<span class="kw">new</span> NotFound());        <span class="cmt">// adds NotFound to E</span>
+  }
+
+  <span class="kw">const</span> logger = <span class="kw">yield</span>* Effect.service(Logger);  <span class="cmt">// adds Logger to R</span>
+  <span class="kw">yield</span>* logger.info(<span class="str">`Found ${rows.length}`</span>);
+
+  <span class="kw">return</span> rows[<span class="num">0</span>];
+});
+<span class="cmt">// Inferred: Effect&lt;Row, NotFound | DbError, Database | Logger&gt;</span></code></pre>
+
+    <p>Each <code>yield*</code> "unwraps" an Effect, extracting the success value. TypeScript infers the type of each intermediate variable. The overall Effect type is inferred from all the yield* calls — errors union, requirements union, return type is A.</p>
+
+    <p style="font-size:.88rem;color:var(--text2)">Requires <code>"downlevelIteration": true</code> or <code>"target": "ES2015"</code>+ in tsconfig.</p>
+  </div>
+
+  <div class="tab-content">
+    <h3>What You Must Annotate</h3>
+
+    <div class="card">
+      <h4 style="color:var(--yellow)">Error types from external libraries</h4>
+      <pre><code><span class="cmt">// tsc can't know what fetch might throw</span>
+<span class="kw">const</span> fetchData = Effect.tryPromise({
+  try: () => fetch(<span class="str">"/api"</span>),
+  catch: (e) => <span class="kw">new</span> NetworkError(String(e))  <span class="cmt">// YOU define the error type</span>
+});</code></pre>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--yellow)">Service Tag definitions</h4>
+      <pre><code><span class="cmt">// The Self type parameter must be explicit:</span>
+<span class="kw">class</span> <span class="typ">Database</span> <span class="kw">extends</span> Context.Tag(<span class="str">"Database"</span>)&lt;
+  <span class="typ">Database</span>,             <span class="cmt">// ← this Self type is required</span>
+  { query: ... }
+&gt;() {}</code></pre>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--yellow)">Recursive or complex type boundaries</h4>
+      <p>When inference can't follow the recursion, or when you want to publish a clean API, you add an explicit return type annotation. Effect-TS recommends leaving return types off internal functions and adding them to public API boundaries.</p>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
+<h2>7. Configuration & Setup</h2>
+<!-- =============================== -->
+
+<div class="card">
+  <h4>tsconfig.json</h4>
+  <pre><code>{
+  <span class="str">"compilerOptions"</span>: {
+    <span class="str">"strict"</span>: <span class="kw">true</span>,                 <span class="cmt">// required — Effect relies on strict null checks, etc.</span>
+    <span class="str">"target"</span>: <span class="str">"ES2021"</span>,             <span class="cmt">// or higher — needed for generators</span>
+    <span class="str">"module"</span>: <span class="str">"preserve"</span>,           <span class="cmt">// when using a bundler</span>
+    <span class="str">"moduleResolution"</span>: <span class="str">"bundler"</span>, <span class="cmt">// for modern resolution</span>
+    <span class="str">"downlevelIteration"</span>: <span class="kw">true</span>,    <span class="cmt">// if targeting &lt; ES2015 (for Effect.gen)</span>
+    <span class="str">"declarationMap"</span>: <span class="kw">true</span>,        <span class="cmt">// for jump-to-definition into .d.ts</span>
+    <span class="str">"sourceMap"</span>: <span class="kw">true</span>              <span class="cmt">// for debugging</span>
+  }
+}</code></pre>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>TypeScript Version</h4>
+    <p>5.x recommended. 4.7+ minimum for variance annotations. No custom compiler version needed.</p>
+  </div>
+  <div class="card">
+    <h4>ESLint Plugin</h4>
+    <p><code>@effect/eslint-plugin</code> — provides rules like no barrel imports, no-curry-arrow. Install via npm. Optional but recommended.</p>
+  </div>
+  <div class="card">
+    <h4>Language Service</h4>
+    <p><code>@effect/language-service</code> — an LSP plugin providing enhanced editor support (better completions, quickfixes). Optional.</p>
+  </div>
+  <div class="card">
+    <h4>Bundler Config</h4>
+    <p>No special config needed. Works with Vite, webpack, esbuild, Rollup, etc. Standard ESM/CJS output. No Babel/SWC transforms required.</p>
+  </div>
+</div>
+
+<!-- =============================== -->
+<h2>8. The Monorepo — 68+ Packages</h2>
+<!-- =============================== -->
+
+<p>Effect-TS is not just a single library. It's an ecosystem:</p>
+
+<div class="expand" onclick="toggleExpand(this)">
+  <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Core</strong></div>
+  <div class="expand-body">
+    <p><code>effect</code> — the foundational package. Contains Effect, Layer, Context, Fiber, Stream, Schema, and all core abstractions. Described as "the missing standard library for TypeScript."</p>
+  </div>
+</div>
+<div class="expand" onclick="toggleExpand(this)">
+  <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Platform Runtimes</strong></div>
+  <div class="expand-body">
+    <p><code>@effect/platform</code>, <code>@effect/platform-node</code>, <code>@effect/platform-bun</code>, <code>@effect/platform-browser</code>. Provides platform-specific implementations (file system, HTTP server, terminal, etc.) behind abstract Effect interfaces.</p>
+  </div>
+</div>
+<div class="expand" onclick="toggleExpand(this)">
+  <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Database (8 packages)</strong></div>
+  <div class="expand-body">
+    <p><code>@effect/sql</code> (core) + adapters for Postgres, MySQL, MSSQL, SQLite/libsql, ClickHouse, Cloudflare D1, Drizzle ORM, Kysely. All provide Effect-wrapped database access with typed errors and resource management.</p>
+  </div>
+</div>
+<div class="expand" onclick="toggleExpand(this)">
+  <div class="expand-header"><span class="expand-arrow">▶</span> <strong>AI Integration (4 packages)</strong></div>
+  <div class="expand-body">
+    <p><code>@effect/openai</code>, <code>@effect/anthropic</code>, <code>@effect/amazon-bedrock</code>, <code>@effect/google-ai</code>. LLM provider clients with Effect-based APIs, streaming support, and typed error handling.</p>
+  </div>
+</div>
+<div class="expand" onclick="toggleExpand(this)">
+  <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Infrastructure</strong></div>
+  <div class="expand-body">
+    <p><code>@effect/cluster</code> (distributed computing), <code>@effect/rpc</code> (type-safe RPC), <code>@effect/opentelemetry</code> (observability), <code>@effect/cli</code> (command-line framework), <code>@effect/workflow</code> (orchestration).</p>
+  </div>
+</div>
+<div class="expand" onclick="toggleExpand(this)">
+  <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Dev Tools</strong></div>
+  <div class="expand-body">
+    <p><code>@effect/vitest</code> (test utilities), <code>@effect/eslint-plugin</code> (lint rules), <code>@effect/language-service</code> (LSP plugin), <code>@effect/printer</code> (formatting).</p>
+  </div>
+</div>
+
+<p>Build system: <strong>pnpm workspaces</strong> with TypeScript project references (<code>tsc -b tsconfig.build.json</code>) for incremental compilation across packages.</p>
+
+<!-- =============================== -->
+<h2>9. Interactive: Trace an Effect Through the System</h2>
+<!-- =============================== -->
+
+<div class="demo-box">
+  <h4>Select a program and step through its lifecycle:</h4>
+  <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.8rem">
+    <button class="demo-btn active" onclick="showTrace(0)">Simple succeed</button>
+    <button class="demo-btn" onclick="showTrace(1)">Sync with flatMap</button>
+    <button class="demo-btn" onclick="showTrace(2)">Async + error</button>
+    <button class="demo-btn" onclick="showTrace(3)">Service + Layer</button>
+  </div>
+  <div id="trace-display"></div>
+</div>
+
+<!-- =============================== -->
+<h2>10. KindScript Could Fill the Gaps</h2>
+<!-- =============================== -->
+
+<p>The gaps in section 5 all share a common cause: <strong>tsc doesn't analyze function bodies for effects</strong>. KindScript does exactly that. Here's where they'd complement each other:</p>
+
+<table>
+  <thead><tr><th>Gap</th><th>Effect-TS Status</th><th>KindScript Could</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Side effects in Effect.sync</td>
+      <td><span class="verdict verdict-no">Invisible</span></td>
+      <td><span class="verdict verdict-yes">Walk the AST inside the callback, flag IO/mutation/console</span></td>
+    </tr>
+    <tr>
+      <td>Unwrapped effectful calls</td>
+      <td><span class="verdict verdict-no">Invisible</span></td>
+      <td><span class="verdict verdict-yes">Detect bare fetch(), fs.*, console.* outside Effect wrappers</span></td>
+    </tr>
+    <tr>
+      <td>Mutation inside closures</td>
+      <td><span class="verdict verdict-no">Invisible</span></td>
+      <td><span class="verdict verdict-yes">Detect ++, =, delete in any function body</span></td>
+    </tr>
+    <tr>
+      <td>Purity verification</td>
+      <td><span class="verdict verdict-partial">Trust the wrapper</span></td>
+      <td><span class="verdict verdict-yes">Verify that "pure" functions actually are pure</span></td>
+    </tr>
+    <tr>
+      <td>Effect signature inference</td>
+      <td><span class="verdict verdict-partial">Only for wrapped code</span></td>
+      <td><span class="verdict verdict-yes">Infer Koka-like effect signatures from plain TS code</span></td>
+    </tr>
+    <tr>
+      <td>Architectural constraints</td>
+      <td><span class="verdict verdict-no">Not in scope</span></td>
+      <td><span class="verdict verdict-yes">noImports, maxFanOut, noCycles, composites</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The ideal combination: Effect-TS for runtime execution (fibers, retry, timeout, structured concurrency) + KindScript for static verification (actually checking that code does what the types claim).</p>
+
+<!-- =============================== -->
+<h2>11. Check Your Understanding</h2>
+<!-- =============================== -->
+
+<div class="quiz" id="q1">
+  <h4>Q1: Does Effect-TS use a custom TypeScript compiler plugin?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q1',false)">Yes — it has a Babel transform that processes Effect types</button>
+  <button class="quiz-option" onclick="checkQuiz('q1',true)">No — it's a pure library that uses standard tsc with no modifications</button>
+  <button class="quiz-option" onclick="checkQuiz('q1',false)">Partially — it uses an SWC plugin for the Effect.gen syntax</button>
+  <div class="quiz-feedback" id="q1-feedback"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <h4>Q2: What is an Effect value at runtime?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q2',false)">A function that executes immediately when called</button>
+  <button class="quiz-option" onclick="checkQuiz('q2',false)">A Promise that resolves to the result</button>
+  <button class="quiz-option" onclick="checkQuiz('q2',true)">A plain JavaScript object (POJO) with a _tag field — a description that the runtime interprets later</button>
+  <div class="quiz-feedback" id="q2-feedback"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <h4>Q3: Can Effect-TS detect a console.log hidden inside <code>Effect.sync(() => { console.log("hi"); return 42; })</code>?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q3',true)">No — tsc doesn't analyze callback bodies; the type says Effect&lt;number, never, never&gt; regardless</button>
+  <button class="quiz-option" onclick="checkQuiz('q3',false)">Yes — the E parameter would include a ConsoleEffect type</button>
+  <button class="quiz-option" onclick="checkQuiz('q3',false)">Yes — the ESLint plugin catches this</button>
+  <div class="quiz-feedback" id="q3-feedback"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <h4>Q4: What makes fibers different from JavaScript Promises?</h4>
+  <button class="quiz-option" onclick="checkQuiz('q4',false)">Fibers are just wrappers around Promises</button>
+  <button class="quiz-option" onclick="checkQuiz('q4',true)">Fibers have their own continuation stack, can be interrupted, yield cooperatively, and support structured concurrency</button>
+  <button class="quiz-option" onclick="checkQuiz('q4',false)">Fibers use Web Workers for true parallelism</button>
+  <div class="quiz-feedback" id="q4-feedback"></div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(tabsId, contentId, index) {
+  const tabs = document.getElementById(tabsId).children;
+  const contents = document.getElementById(contentId).children;
+  for (let i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', i === index);
+    contents[i].classList.toggle('active', i === index);
+  }
+}
+
+// Expandable
+function toggleExpand(el) {
+  const arrow = el.querySelector('.expand-arrow');
+  const body = el.querySelector('.expand-body');
+  arrow.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// TSC Errors
+const tscErrors = [
+  {
+    code: `const program = pipe(\n  getUser(id),         // Effect<User, NotFound, Database>\n  Effect.map(u => u.name)\n);\n// Type: Effect<string, NotFound, Database>\n\n// Try to run it without handling NotFound:\nawait Effect.runPromise(program);\n//                       ^^^^^^^\n// Argument of type 'Effect<string, NotFound, Database>'\n// is not assignable to parameter of type 'Effect<string, never, never>'`,
+    error: `<span style="color:var(--red)">error TS2345</span>: Type '<span style="color:var(--cyan)">NotFound</span>' is not assignable to type '<span style="color:var(--cyan)">never</span>'.\n\nThe E parameter is NotFound, but runPromise requires E = never\n(all errors handled). You must use catchAll, catchTag, or\norElseSucceed to handle the error before running.\n\n<span style="color:var(--green)">What tsc is doing:</span> The pipe overload inferred\nEffect<string, NotFound, Database> and runPromise's signature\nrequires Effect<A, never, never>. Generic constraints don't match.`
+  },
+  {
+    code: `const program = pipe(\n  Effect.service(Database),\n  Effect.flatMap(db => db.query("SELECT *"))\n);\n// Type: Effect<Row[], DbError, Database>\n//                               ^^^^^^^^\n\n// Try to run without providing Database:\nawait Effect.runPromise(program);`,
+    error: `<span style="color:var(--red)">error TS2345</span>: Type '<span style="color:var(--cyan)">Database</span>' is not assignable to type '<span style="color:var(--cyan)">never</span>'.\n\nThe R parameter is Database, but runPromise requires R = never\n(all services provided). You must call Effect.provide() with\na Layer that satisfies Database.\n\n<span style="color:var(--green)">What tsc is doing:</span> Same generic constraint checking.\nrunPromise needs R = never, but you have R = Database.\nThe fix: Effect.provide(program, DatabaseLive)`
+  },
+  {
+    code: `const program: Effect<User, NotFound | Timeout, Database> = ...;\n\nconst handled = pipe(\n  program,\n  Effect.catchTag("NotFond", () => Effect.succeed(fallback))\n  //               ^^^^^^^^ typo!\n);`,
+    error: `<span style="color:var(--red)">error TS2345</span>: Argument of type '<span style="color:var(--cyan)">"NotFond"</span>' is not assignable\nto parameter of type '<span style="color:var(--cyan)">"NotFound" | "Timeout"</span>'.\n\ncatchTag expects a string literal that matches the _tag property\nof one of the error types in the E union. "NotFond" doesn't match.\n\n<span style="color:var(--green)">What tsc is doing:</span> The catchTag function signature extracts\nthe _tag discriminant from the error union via a conditional type\nand constrains the first argument to that literal type.`
+  },
+  {
+    code: `pipe(\n  Effect.succeed("hello"),   // Effect<string, never, never>\n  Effect.flatMap((n: number) => Effect.succeed(n * 2))\n  //             ^^^^^^^^^\n  // string is not assignable to number\n);`,
+    error: `<span style="color:var(--red)">error TS2345</span>: Type '<span style="color:var(--cyan)">string</span>' is not assignable to type '<span style="color:var(--cyan)">number</span>'.\n\nThe pipe chain inferred A = string from the first step, but\nflatMap's callback expects number. The generic chain breaks.\n\n<span style="color:var(--green)">What tsc is doing:</span> pipe<A,B> where A = Effect<string,...>\nand the flatMap callback expects (n: number) => ... —\nTypeScript can't unify string with number.`
+  },
+  {
+    code: `type UserId  = string & Brand.Brand<"UserId">\ntype OrderId = string & Brand.Brand<"OrderId">\n\nconst userId: UserId = Brand.nominal<UserId>()("u123");\nconst orderId: OrderId = Brand.nominal<OrderId>()("o456");\n\nfunction getUser(id: UserId): Effect<User, NotFound> { ... }\n\ngetUser(orderId);  // ← passing OrderId where UserId expected`,
+    error: `<span style="color:var(--red)">error TS2345</span>: Argument of type '<span style="color:var(--cyan)">OrderId</span>' is not assignable\nto parameter of type '<span style="color:var(--cyan)">UserId</span>'.\n  Type 'Brand<"OrderId">' is not assignable to type 'Brand<"UserId">'.\n\nBoth are strings at runtime, but the Brand phantom property\nmakes them structurally distinct at the type level.\n\n<span style="color:var(--green)">What tsc is doing:</span> UserId has a phantom property\n{ readonly Brand: { readonly UserId: ... } } and OrderId has\n{ readonly Brand: { readonly OrderId: ... } }. These are\nstructurally different, so assignment fails.`
+  }
+];
+
+function showTscError(i) {
+  const btns = document.querySelectorAll('#tsc-output').closest('.demo-box').querySelectorAll('.demo-btn');
+  btns.forEach((b,j) => b.classList.toggle('active', i===j));
+  document.getElementById('tsc-output').innerHTML =
+    `<span style="color:var(--text2)">${escapeHtml(tscErrors[i].code)}</span>\n\n<span style="color:var(--accent)">── tsc output ────────────────────────────</span>\n\n${tscErrors[i].error}`;
+}
+
+// Gaps
+const gaps = [
+  {
+    code: `const sneaky = Effect.sync(() => {\n  console.log("I'm doing IO!");\n  fs.writeFileSync("/tmp/secret", "data");\n  globalThis.counter++;\n  return 42;\n});`,
+    analysis: `<span style="color:var(--purple)">Type says:</span>  Effect<number, never, never>\n<span style="color:var(--purple)">Claims:</span>     No requirements, no errors, produces a number\n\n<span style="color:var(--red)">Reality:</span>     console.log (IO), fs.writeFileSync (IO),\n             globalThis.counter++ (mutation)\n\n<span style="color:var(--red)">Why tsc misses it:</span>\ntsc checks the SIGNATURE of Effect.sync, which is:\n  (thunk: () => A) => Effect<A, never, never>\nThe thunk's return type is number, so A = number.\ntsc doesn't analyze what the thunk DOES — only what it returns.\nThe side effects are completely invisible at the type level.`
+  },
+  {
+    code: `const dangerous: Effect<string, never, never> = \n  someComplexEffect as any;\n\n// Or more subtly:\nconst lie = someEffect as Effect<string, never, never>;\n// Original might have been Effect<string, DbError, Database>`,
+    analysis: `<span style="color:var(--red)">Why tsc misses it:</span>\n'as any' and 'as Type' are intentional TypeScript escape hatches.\nThey tell the compiler "trust me." Effect-TS can't prevent this\nbecause it's a TypeScript language feature, not an Effect bug.\n\nAll three tracking parameters (A, E, R) can be lied about.\nYou can claim no errors when there are errors. You can claim\nno requirements when there are requirements.\n\n<span style="color:var(--yellow)">Mitigation:</span> ESLint rules banning 'as any' and 'as unknown'.\nBut these are team conventions, not enforced by the type system.`
+  },
+  {
+    code: `// Nothing stops you from doing this:\nasync function handler(req: Request) {\n  const data = await fetch("/api/external"); // bare fetch!\n  const parsed = JSON.parse(await data.text()); // might throw!\n  await db.query("INSERT ..."); // bare DB call!\n  return new Response("ok");\n}`,
+    analysis: `<span style="color:var(--red)">Why tsc misses it:</span>\nEffect-TS is a library, not a language. It can't force you to use\nEffect wrappers. These are normal TypeScript/JavaScript calls.\ntsc sees them as perfectly valid code.\n\nThe fetch, JSON.parse, and db.query are all untracked.\nNo E parameter captures their errors. No R tracks their\ndependencies. They exist outside Effect's world entirely.\n\n<span style="color:var(--yellow)">Mitigation:</span> Team discipline. Code review. ESLint rules.\nBut no static guarantee that all effectful code is wrapped.`
+  },
+  {
+    code: `const risky = Effect.sync(() => {\n  const data = JSON.parse(invalidJson); // throws!\n  return data;\n});`,
+    analysis: `<span style="color:var(--purple)">Type says:</span>  Effect<any, never, never>\n<span style="color:var(--purple)">E = never:</span>  "this cannot fail"\n\n<span style="color:var(--red)">Reality:</span>  JSON.parse WILL throw a SyntaxError\n\nEffect.sync's contract: the thunk should not throw.\nIf it does, the throw becomes a "defect" — an untracked failure\nthat crashes the fiber. It's NOT captured in E.\n\nThis is by design: Effect.sync is for code you KNOW won't throw.\nFor code that might throw, use Effect.try() instead:\n  Effect.try(() => JSON.parse(s))\n  // Type: Effect<any, UnknownException, never>\n  // Now the error IS tracked in E`
+  },
+  {
+    code: `let sharedState = { count: 0 };\n\nconst inc = Effect.sync(() => {\n  sharedState.count++;  // mutation of shared reference\n  return sharedState.count;\n});\n\n// Two fibers racing on shared mutable state:\nconst program = Effect.all([inc, inc], { concurrency: 2 });`,
+    analysis: `<span style="color:var(--purple)">Type says:</span>  Effect<[number, number], never, never>\n<span style="color:var(--purple)">Claims:</span>     Pure, no errors, deterministic\n\n<span style="color:var(--red)">Reality:</span>  Data race on sharedState.count.\nThe result depends on fiber scheduling order.\nCould be [1, 2] or [2, 1] or even [1, 1].\n\n<span style="color:var(--red)">Why tsc misses it:</span>\nTypeScript doesn't track mutation or aliasing.\nTwo references to the same object look independent to the\ntype system. The concurrent composition looks safe from the\ntypes but isn't.\n\n<span style="color:var(--yellow)">Proper approach:</span> Use Ref (Effect's mutable reference)\nwhich provides atomic, fiber-safe updates.`
+  }
+];
+
+function showGap(i) {
+  const btns = document.querySelectorAll('#gap-output').closest('.demo-box').querySelectorAll('.demo-btn');
+  btns.forEach((b,j) => b.classList.toggle('active', i===j));
+  document.getElementById('gap-output').innerHTML =
+    `<span style="color:var(--text2)">${escapeHtml(gaps[i].code)}</span>\n\n<span style="color:var(--accent)">── analysis ──────────────────────────────</span>\n\n${gaps[i].analysis}`;
+}
+
+// Trace
+const traces = [
+  {
+    title: 'Effect.succeed(42)',
+    steps: [
+      { phase: 'Build', detail: 'Effect.succeed(42) creates { _tag: "Succeed", value: 42 }', highlight: 'build' },
+      { phase: 'Type Check', detail: 'tsc infers: Effect<number, never, never>\nno errors possible, no requirements', highlight: 'type' },
+      { phase: 'Runtime', detail: 'Fiber starts. Sees _tag = "Succeed".\nNo continuation stack entries → return Exit.succeed(42)', highlight: 'run' },
+      { phase: 'Result', detail: 'Exit.succeed(42) → runPromise resolves with 42\nrunSync returns 42 directly', highlight: 'result' },
+    ]
+  },
+  {
+    title: 'Effect.sync → flatMap → succeed',
+    steps: [
+      { phase: 'Build', detail: 'pipe(\n  Effect.sync(() => Date.now()),\n  Effect.flatMap(t => Effect.succeed(t > 0 ? "ok" : "bad"))\n)\n\nCreates: FlatMap(\n  { _tag: "Sync", thunk: () => Date.now() },\n  { andThen: t => { _tag: "Succeed", value: t > 0 ? "ok" : "bad" } }\n)', highlight: 'build' },
+      { phase: 'Type Check', detail: 'Step 1: Effect.sync(() => Date.now()) → Effect<number, never, never>\nStep 2: flatMap callback returns Effect<string, never, never>\nPipe resolves: Effect<string, never, never>', highlight: 'type' },
+      { phase: 'Runtime Step 1', detail: 'Fiber sees _tag = "FlatMap"\n→ Push andThen onto continuation stack\n→ Set current = the Sync instruction', highlight: 'run' },
+      { phase: 'Runtime Step 2', detail: 'Fiber sees _tag = "Sync"\n→ Execute thunk: Date.now() returns 1740475123456\n→ current = { _tag: "Succeed", value: 1740475123456 }', highlight: 'run' },
+      { phase: 'Runtime Step 3', detail: 'Fiber sees _tag = "Succeed"\n→ Pop continuation: andThen(1740475123456)\n→ Returns { _tag: "Succeed", value: "ok" }', highlight: 'run' },
+      { phase: 'Runtime Step 4', detail: 'Fiber sees _tag = "Succeed", stack empty\n→ Return Exit.succeed("ok")', highlight: 'result' },
+    ]
+  },
+  {
+    title: 'Async fetch with error handling',
+    steps: [
+      { phase: 'Build', detail: 'pipe(\n  Effect.tryPromise({\n    try: () => fetch("/api/user"),\n    catch: (e) => new NetworkError(e)\n  }),\n  Effect.flatMap(res => res.ok\n    ? Effect.succeed(res)\n    : Effect.fail(new NotFound())),\n  Effect.catchTag("NotFound",\n    () => Effect.succeed(fallbackUser))\n)', highlight: 'build' },
+      { phase: 'Type Check', detail: 'Step 1: Effect<Response, NetworkError, never>\nStep 2: flatMap adds NotFound → Effect<Response, NetworkError | NotFound, never>\nStep 3: catchTag removes NotFound → Effect<Response, NetworkError, never>\n\ntsc enforces: "NotFound" literal must match a _tag in the error union', highlight: 'type' },
+      { phase: 'Runtime: Async', detail: 'Fiber sees Async instruction\n→ Registers fetch callback with event loop\n→ Fiber SUSPENDS (returns control to scheduler)\n→ Other fibers can run while we wait', highlight: 'run' },
+      { phase: 'Runtime: Resume', detail: 'fetch resolves → callback fires\n→ Scheduler resumes fiber with Response value\n→ Fiber continues with flatMap: res.ok check', highlight: 'run' },
+      { phase: 'Runtime: Success path', detail: 'If res.ok → Succeed(res) → skip OnFailure handler\nIf !res.ok → Fail(NotFound) → OnFailure catches it\n  → Execute recovery: Succeed(fallbackUser)', highlight: 'result' },
+    ]
+  },
+  {
+    title: 'Service + Layer provision',
+    steps: [
+      { phase: 'Build', detail: 'class Database extends Context.Tag("Database")<\n  Database, { query: (sql: string) => Effect<Row[], DbError> }\n>() {}\n\nconst program = pipe(\n  Effect.service(Database),\n  Effect.flatMap(db => db.query("SELECT *"))\n);\n\nconst runnable = Effect.provide(program, DatabaseLive);', highlight: 'build' },
+      { phase: 'Type Check', detail: 'Effect.service(Database) → Effect<DatabaseService, never, Database>\n                                              R = Database ^^^^^^^^\nflatMap → Effect<Row[], DbError, Database>\n\nEffect.provide(program, DatabaseLive):\n  DatabaseLive satisfies Database tag\n  → R becomes never: Effect<Row[], DbError, never>\n\nIf you forgot provide: runPromise would reject with\n  "Database is not assignable to never"', highlight: 'type' },
+      { phase: 'Runtime: Layer', detail: 'Layer construction runs first:\n→ DatabaseLive allocates connection pool\n→ Stores implementation in Context map\n→ Context = Map { Database.tag → { query: impl } }', highlight: 'run' },
+      { phase: 'Runtime: Service lookup', detail: 'Fiber reaches Effect.service(Database)\n→ Looks up Database.tag in the Context\n→ Finds the implementation\n→ Continues with db = { query: impl }', highlight: 'run' },
+      { phase: 'Runtime: Cleanup', detail: 'When the Effect completes (success or failure):\n→ Layer scope closes\n→ Database connection pool is released\n→ Resources are cleaned up in reverse order\n→ Structured resource management — no leaks', highlight: 'result' },
+    ]
+  }
+];
+
+function showTrace(i) {
+  const btns = document.querySelectorAll('#trace-display').closest('.demo-box').querySelectorAll('.demo-btn');
+  btns.forEach((b,j) => b.classList.toggle('active', i===j));
+  const t = traces[i];
+  let html = `<div style="font-size:.9rem;color:var(--yellow);margin-bottom:.8rem">▸ ${t.title}</div>`;
+  t.steps.forEach((step, idx) => {
+    const colors = { build: 'var(--purple)', type: 'var(--cyan)', run: 'var(--yellow)', result: 'var(--green)' };
+    const bgColors = { build: 'rgba(167,139,250,.05)', type: 'rgba(34,211,238,.05)', run: 'rgba(255,217,61,.05)', result: 'rgba(78,205,196,.05)' };
+    html += `<div style="padding:.6rem .8rem;margin:.4rem 0;border-left:3px solid ${colors[step.highlight]};background:${bgColors[step.highlight]};border-radius:0 6px 6px 0">`;
+    html += `<div style="font-size:.8rem;color:${colors[step.highlight]};font-weight:600;margin-bottom:.3rem">${step.phase}</div>`;
+    html += `<div class="demo-output" style="margin:0;min-height:auto;background:transparent;border:none;padding:0;font-size:.8rem">${escapeHtml(step.detail)}</div>`;
+    html += `</div>`;
+  });
+  document.getElementById('trace-display').innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Quiz
+function checkQuiz(id, correct) {
+  const fb = document.getElementById(id + '-feedback');
+  if (correct) {
+    fb.className = 'quiz-feedback correct';
+    const answers = {
+      q1: "Correct! Effect-TS is a pure TypeScript library compiled by standard tsc. No Babel transforms, no SWC plugins, no custom compiler. All its magic comes from TypeScript's own generics, conditional types, and variance annotations.",
+      q2: "Correct! At runtime, an Effect is a plain object with a _tag field (like 'Succeed', 'FlatMap', 'Async'). The fiber runtime pattern-matches on these tags to interpret the computation. This is the Freer monad pattern.",
+      q3: "Correct! tsc checks the SIGNATURE of Effect.sync (thunk returns A → Effect<A, never, never>) but doesn't analyze what the thunk actually does inside. Any side effects, IO, or mutations are invisible. This is the fundamental gap that a static analyzer like KindScript could fill.",
+      q4: "Correct! Fibers are Effect's lightweight green threads with their own continuation stacks, cooperative yielding (~2048 ops then yield), interruptibility, and structured concurrency (child fibers are cleaned up when parents complete). Promises have none of these features."
+    };
+    fb.textContent = answers[id];
+  } else {
+    fb.className = 'quiz-feedback wrong';
+    const hints = {
+      q1: "Not quite. Effect-TS uses no custom compiler tooling at all. It's a pure TypeScript library that compiles with standard tsc.",
+      q2: "Not quite. At runtime, Effects are plain objects (POJOs) with _tag fields. They're data structures describing what to do, not executable functions or Promises.",
+      q3: "Not quite. tsc only checks the type signature of Effect.sync, not what happens inside the callback. Side effects are completely invisible.",
+      q4: "Not quite. Fibers are much more than Promise wrappers — they have their own continuation stacks, cooperative yielding, interruption, and structured concurrency."
+    };
+    fb.textContent = hints[id];
+  }
+}
+
+// Init
+showTscError(0);
+showGap(0);
+showTrace(0);
+</script>
+
+</body>
+</html>

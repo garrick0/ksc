@@ -2,113 +2,108 @@ import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
 import { createProgram, createProgramFromTSProgram } from '../src/program.js';
-import { defineConfig } from '../src/config.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
+function getRootFiles(fixtureDir: string): string[] {
+  return ts.sys.readDirectory(
+    path.join(FIXTURES, fixtureDir, 'src'),
+    ['.ts'],
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+
 describe('createProgram', () => {
-  it('creates a KSProgram from root files and config', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const config = defineConfig({
-      pure: { path: './src/pure', rules: { noConsole: true } },
-    });
-    const program = createProgram([rootFile], config, {
+  it('creates a KSProgram with the full API', () => {
+    const rootFiles = getRootFiles('kind-basic');
+    const program = createProgram(rootFiles, undefined, {
       strict: true,
       noEmit: true,
     });
 
     expect(program).toBeDefined();
-    expect(program.getTSProgram).toBeTypeOf('function');
-    expect(program.getSourceFiles).toBeTypeOf('function');
-    expect(program.getCompilerOptions).toBeTypeOf('function');
-    expect(program.getTSTypeChecker).toBeTypeOf('function');
-    expect(program.getAllKindSymbols).toBeTypeOf('function');
-    expect(program.getKindChecker).toBeTypeOf('function');
-    expect(program.getKindDiagnostics).toBeTypeOf('function');
+    expect(program.getRootFileNames).toBeTypeOf('function');
+    expect(program.getCompilationUnits).toBeTypeOf('function');
+    expect(program.getKindDefinitions).toBeTypeOf('function');
+    expect(program.getDiagnostics).toBeTypeOf('function');
+    expect(program.getKSTree).toBeTypeOf('function');
   });
 
-  it('delegates scan/parse to TypeScript — source files are available', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const config = defineConfig({});
-    const program = createProgram([rootFile], config, {
+  it('provides compilation units for source files', () => {
+    const rootFiles = getRootFiles('kind-basic');
+    const program = createProgram(rootFiles, undefined, {
       strict: true,
       noEmit: true,
     });
 
-    const sourceFiles = program.getSourceFiles();
-    expect(sourceFiles.length).toBeGreaterThan(0);
+    const units = program.getCompilationUnits();
+    expect(units.length).toBeGreaterThan(0);
 
-    const mathFile = sourceFiles.find(sf => sf.fileName.includes('math.ts'));
+    const mathFile = units.find(cu => cu.fileName.includes('math.ts'));
     expect(mathFile).toBeDefined();
   });
 
-  it('returns populated KindSymbols from config', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true, immutable: true } },
+  it('finds kind definitions from source files', () => {
+    const rootFiles = getRootFiles('kind-basic');
+    const program = createProgram(rootFiles);
+
+    const defs = program.getKindDefinitions();
+    const names = defs.map(d => d.name);
+    expect(names).toContain('NoImports');
+  });
+
+  it('works with no config', () => {
+    const rootFiles = getRootFiles('kind-basic');
+    const program = createProgram(rootFiles);
+
+    expect(program.getKindDefinitions().length).toBeGreaterThan(0);
+  });
+
+  it('works with files that have no kinds', () => {
+    const file = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
+    const program = createProgram([file]);
+
+    expect(program.getKindDefinitions()).toEqual([]);
+  });
+
+  it('getDiagnostics returns empty for clean code', () => {
+    const rootFiles = getRootFiles('kind-basic');
+    const program = createProgram(rootFiles, undefined, {
+      strict: true,
+      noEmit: true,
     });
-    const program = createProgram([rootFile], config);
 
-    const symbols = program.getAllKindSymbols();
-    expect(symbols.length).toBe(1);
-    expect(symbols[0].name).toBe('pureDir');
-    expect(symbols[0].declaredProperties).toEqual({ noConsole: true, immutable: true });
+    const diagnostics = program.getDiagnostics();
+    expect(Array.isArray(diagnostics)).toBe(true);
+    expect(diagnostics).toEqual([]);
   });
 
-  it('lazily creates the checker', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const config = defineConfig({});
-    const program = createProgram([rootFile], config);
-
-    const checker1 = program.getKindChecker();
-    const checker2 = program.getKindChecker();
-    expect(checker1).toBe(checker2);
-  });
-
-  it('getKindDiagnostics returns empty array for clean files', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true, immutable: true } },
+  it('getDiagnostics detects violations', () => {
+    const rootFiles = getRootFiles('kind-violations');
+    const program = createProgram(rootFiles, undefined, {
+      strict: true,
+      noEmit: true,
     });
-    const program = createProgram([rootFile], config);
 
-    const diags = program.getKindDiagnostics();
-    expect(diags).toEqual([]);
-  });
-
-  it('getKindDiagnostics accepts a source file filter', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const config = defineConfig({
-      pureDir: { path: './src/pure', rules: { noConsole: true } },
-    });
-    const program = createProgram([rootFile], config);
-
-    const mathFile = program.getSourceFiles()
-      .find(sf => sf.fileName.includes('math.ts'))!;
-
-    const diags = program.getKindDiagnostics(mathFile);
-    expect(diags).toEqual([]);
-  });
-
-  it('empty config produces no diagnostics', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const config = defineConfig({});
-    const program = createProgram([rootFile], config);
-
-    const diags = program.getKindDiagnostics();
-    expect(diags).toEqual([]);
+    const diagnostics = program.getDiagnostics();
+    expect(diagnostics.length).toBeGreaterThanOrEqual(1);
+    expect(diagnostics[0].kindName).toBe('NoImports');
+    expect(diagnostics[0].property).toBe('noImports');
   });
 });
 
+// ────────────────────────────────────────────────────────────────────────
+
 describe('createProgramFromTSProgram', () => {
   it('wraps an existing ts.Program', () => {
-    const rootFile = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
-    const tsProgram = ts.createProgram([rootFile], { strict: true });
-    const config = defineConfig({});
+    const rootFiles = getRootFiles('kind-basic');
+    const tsProgram = ts.createProgram(rootFiles, { strict: true });
 
-    const ksProgram = createProgramFromTSProgram(tsProgram, config);
+    const ksProgram = createProgramFromTSProgram(tsProgram);
 
-    expect(ksProgram.getTSProgram()).toBe(tsProgram);
-    expect(ksProgram.getSourceFiles()).toBe(tsProgram.getSourceFiles());
+    expect(ksProgram.getRootFileNames().length).toBeGreaterThan(0);
+    expect(ksProgram.getCompilationUnits().length).toBeGreaterThan(0);
+    expect(ksProgram.getKSTree().root.kind).toBe('Program');
   });
 });

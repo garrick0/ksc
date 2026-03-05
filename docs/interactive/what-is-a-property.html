@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Is a Property?</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0e1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e;
+    --blue: #58a6ff; --purple: #bc8cff; --green: #3fb950;
+    --orange: #f0883e; --pink: #f778ba; --red: #f85149; --cyan: #39d4e0;
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.75; }
+  .container { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+
+  h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--blue), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.3rem; }
+  .subtitle { color: var(--muted); margin-bottom: 2.5rem; }
+  h2 { font-size: 1.3rem; margin: 2.5rem 0 0.6rem; color: var(--blue); display: flex; align-items: center; gap: 0.5rem; }
+  h2 .n { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--blue); color: var(--bg); font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+  p { margin-bottom: 1rem; }
+  code { background: rgba(88,166,255,0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.88em; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.15rem 1.35rem; margin: 1rem 0; }
+  .card.accent { border-left: 3px solid var(--purple); }
+  .card.green { border-left: 3px solid var(--green); }
+  .card.orange { border-left: 3px solid var(--orange); }
+  .card.red { border-left: 3px solid var(--red); }
+
+  .key { color: var(--muted); font-style: italic; border-left: 3px solid var(--purple); padding-left: 1rem; margin: 1.25rem 0; }
+
+  /* Interactive property machine */
+  .machine { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin: 1.25rem 0; }
+  .machine-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; font-weight: 600; }
+
+  .obj-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0.75rem 0; }
+  .obj-btn {
+    padding: 0.45rem 0.9rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.85rem;
+    transition: all 0.2s; user-select: none;
+  }
+  .obj-btn:hover { border-color: var(--blue); }
+  .obj-btn.in { border-color: var(--green); background: rgba(63,185,80,0.1); color: var(--green); }
+  .obj-btn.out { border-color: var(--red); background: rgba(248,81,73,0.06); color: var(--red); opacity: 0.6; }
+
+  .prop-select { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.75rem 0; }
+  .prop-chip {
+    padding: 0.35rem 0.85rem; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); cursor: pointer; font-size: 0.8rem;
+    transition: all 0.2s; font-weight: 500;
+  }
+  .prop-chip:hover { border-color: var(--purple); color: var(--text); }
+  .prop-chip.active { border-color: var(--purple); background: rgba(188,140,255,0.12); color: var(--purple); }
+
+  .result-box { margin-top: 0.75rem; padding: 0.75rem 1rem; border-radius: 8px; background: rgba(88,166,255,0.05); font-size: 0.88rem; min-height: 2.5rem; }
+  .result-box .set-label { color: var(--muted); font-size: 0.75rem; }
+
+  /* Examples grid */
+  .eg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 1rem 0; }
+  @media (max-width: 580px) { .eg-grid { grid-template-columns: 1fr; } }
+  .eg { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+  .eg h4 { font-size: 0.9rem; margin-bottom: 0.3rem; }
+  .eg p { font-size: 0.82rem; color: var(--muted); margin: 0; }
+  .eg .tag { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-bottom: 0.4rem; text-transform: uppercase; }
+
+  /* Venn */
+  .venn-wrap { display: flex; justify-content: center; margin: 1.25rem 0; }
+  .venn-wrap svg text { font-family: 'Segoe UI', system-ui, sans-serif; }
+
+  /* Spectrum */
+  .spectrum { display: flex; align-items: stretch; margin: 1rem 0; border-radius: 10px; overflow: hidden; font-size: 0.78rem; font-weight: 600; }
+  .spectrum > div { flex: 1; padding: 0.75rem 0.5rem; text-align: center; cursor: pointer; transition: filter 0.2s; }
+  .spectrum > div:hover { filter: brightness(1.3); }
+  .spec-detail { min-height: 2rem; font-size: 0.85rem; margin: 0.5rem 0 0; color: var(--muted); }
+
+  /* Quiz */
+  .quiz-opt {
+    display: block; width: 100%; text-align: left; padding: 0.6rem 1rem; margin: 0.35rem 0;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+    color: var(--text); cursor: pointer; font-size: 0.88rem; transition: border-color 0.2s;
+  }
+  .quiz-opt:hover { border-color: var(--blue); }
+  .quiz-opt.correct { border-color: var(--green); background: rgba(63,185,80,0.08); }
+  .quiz-opt.wrong { border-color: var(--red); background: rgba(248,81,73,0.06); }
+  .quiz-fb { margin-top: 0.4rem; font-size: 0.85rem; min-height: 1.2rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>What Actually Is a "Property"?</h1>
+<p class="subtitle">And why "properties of computations" are a special (and weird) case.</p>
+
+<!-- ====== 1 ====== -->
+<h2><span class="n">1</span> A property is just a yes/no question</h2>
+
+<p>Start with the simplest possible definition. You have a <strong>universe</strong> of objects. A <strong>property</strong> is any yes/no question you can ask about those objects. That's it.</p>
+
+<p>Mathematically: a property is a <strong>subset</strong>. The objects that answer "yes" are in the set; the objects that answer "no" are out.</p>
+
+<div class="card accent">
+  <strong>Property = Subset.</strong> If your universe is U, then a property P is just some subset P ⊆ U. An object x "has the property" when x ∈ P.
+</div>
+
+<p>Try it. Pick a property, and watch which objects are in or out:</p>
+
+<div class="machine" id="numberMachine">
+  <div class="machine-label">Universe: the numbers 1 through 12</div>
+  <div class="prop-select" id="numProps"></div>
+  <div class="obj-row" id="numObjects"></div>
+  <div class="result-box" id="numResult">
+    <span class="set-label">Pick a property above</span>
+  </div>
+</div>
+
+<p>Every property you just saw is a <strong>subset of {1, …, 12}</strong>. "Is even" is the subset {2, 4, 6, 8, 10, 12}. "Is prime" is {2, 3, 5, 7, 11}. Nothing mysterious — a property is a way of sorting things into two piles.</p>
+
+<!-- ====== 2 ====== -->
+<h2><span class="n">2</span> This works for any universe</h2>
+
+<p>The definition "property = subset" is completely general. It works for numbers, strings, people, triangles, programs — anything.</p>
+
+<div class="eg-grid">
+  <div class="eg">
+    <span class="tag" style="background:rgba(88,166,255,0.15);color:var(--blue)">Numbers</span>
+    <h4>"Is prime"</h4>
+    <p>Universe: ℕ. Property: {2, 3, 5, 7, 11, 13, …}</p>
+  </div>
+  <div class="eg">
+    <span class="tag" style="background:rgba(188,140,255,0.15);color:var(--purple)">Strings</span>
+    <h4>"Contains the letter 'z'"</h4>
+    <p>Universe: all strings. Property: {"zoo", "fizz", "pizza", …}</p>
+  </div>
+  <div class="eg">
+    <span class="tag" style="background:rgba(63,185,80,0.15);color:var(--green)">Triangles</span>
+    <h4>"Is equilateral"</h4>
+    <p>Universe: all triangles. Property: those where all sides are equal</p>
+  </div>
+  <div class="eg">
+    <span class="tag" style="background:rgba(240,136,62,0.15);color:var(--orange)">Functions</span>
+    <h4>"Is monotonically increasing"</h4>
+    <p>Universe: ℝ → ℝ. Property: {f : x ≤ y ⟹ f(x) ≤ f(y)}</p>
+  </div>
+</div>
+
+<p>So far, nothing is special about programs. Every mathematical object can have properties, and every property is just a subset. The <em>interesting</em> question is: <strong>how hard is it to check whether something is in the subset?</strong></p>
+
+<!-- ====== 3 ====== -->
+<h2><span class="n">3</span> Properties of programs are special</h2>
+
+<p>Now make the universe <strong>all programs</strong> (or equivalently, all Turing machines, all computable functions, all computations). A property of programs is still just a subset — but now something weird happens.</p>
+
+<div class="card red">
+  <strong>Rice's Theorem (1953):</strong> Every non-trivial property of the function a program computes is <em>undecidable</em>. There's no algorithm that always correctly answers the yes/no question.
+</div>
+
+<p>This doesn't apply to simple objects like numbers (you can check "is 7 prime?" — just try dividing). It's specific to programs, because programs can run forever, simulate other programs, and exhibit behavior that requires infinite observation to fully determine.</p>
+
+<div class="key">Properties of programs are subsets — same as any other property. But most of them are subsets you can never fully <em>compute membership in</em>. That's what makes them special.</div>
+
+<!-- ====== 4 ====== -->
+<h2><span class="n">4</span> "Property of a computation" vs "property of a program"</h2>
+
+<p>Your document distinguishes these. Here's the difference:</p>
+
+<div class="eg-grid">
+  <div class="eg" style="border-color:var(--cyan)">
+    <span class="tag" style="background:rgba(57,212,224,0.15);color:var(--cyan)">Program</span>
+    <h4>Static object</h4>
+    <p>The source code itself. A text file. You can look at its syntax, its structure, count its lines.</p>
+    <p style="margin-top:0.5rem"><strong>Example property:</strong> "Uses a while loop" — just scan the text.</p>
+  </div>
+  <div class="eg" style="border-color:var(--pink)">
+    <span class="tag" style="background:rgba(247,120,186,0.15);color:var(--pink)">Computation</span>
+    <h4>Dynamic process</h4>
+    <p>What happens when you <em>run</em> the program. An (possibly infinite) sequence of states, outputs, and effects.</p>
+    <p style="margin-top:0.5rem"><strong>Example property:</strong> "Terminates" — you'd have to actually run it (forever, potentially).</p>
+  </div>
+</div>
+
+<p>A <strong>computation</strong> is the behavior that a program produces when executed. It's the full trace of everything that happens — values read, outputs written, states visited, possibly going on forever. Properties of <em>computations</em> are the hard ones, because you're asking about the behavior of an infinite process, not a finite text.</p>
+
+<div class="card green">
+  <strong>The spectrum:</strong> Properties of programs sit on a scale from "purely syntactic" (easy, decidable) to "purely semantic" (hard, undecidable). Your property-space document is about classifying where properties fall on this scale.
+</div>
+
+<!-- ====== 5 ====== -->
+<h2><span class="n">5</span> The difficulty spectrum</h2>
+
+<p>Click a zone to see examples:</p>
+
+<div class="spectrum" id="specBar">
+  <div style="background:#3fb950;color:#0e1117" onclick="showSpec(0)">Syntactic<br>(decidable)</div>
+  <div style="background:#58a6ff;color:#0e1117" onclick="showSpec(1)">Finite behavior<br>(semi-decidable)</div>
+  <div style="background:#bc8cff;color:#0e1117" onclick="showSpec(2)">Infinite behavior<br>(undecidable)</div>
+  <div style="background:#f85149;color:#0e1117" onclick="showSpec(3)">Relating runs<br>(hyper)</div>
+</div>
+<div class="spec-detail" id="specDetail">Click a zone above to see examples.</div>
+
+<!-- ====== 6 ====== -->
+<h2><span class="n">6</span> So what was the property-space doc about?</h2>
+
+<p>Your document asks: <strong>can we make a complete checklist of all properties of programs?</strong> Meaning: can we define a finite number of categories (safety, liveness, purity, etc.) such that every possible property falls neatly into one?</p>
+
+<p>The answer is no, and here's the visual intuition for why:</p>
+
+<div class="venn-wrap">
+<svg viewBox="0 0 480 260" width="480" height="260">
+  <!-- The big universe -->
+  <rect x="10" y="10" width="460" height="240" rx="16" fill="none" stroke="#30363d" stroke-width="1.5"/>
+  <text x="240" y="38" text-anchor="middle" fill="#8b949e" font-size="12" font-weight="600">ALL possible properties of programs (infinite)</text>
+
+  <!-- A few finite bubbles -->
+  <ellipse cx="120" cy="145" rx="80" ry="60" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="120" y="130" text-anchor="middle" fill="#3fb950" font-size="11" font-weight="600">Safety</text>
+  <text x="120" y="148" text-anchor="middle" fill="#8b949e" font-size="9">"nothing bad</text>
+  <text x="120" y="160" text-anchor="middle" fill="#8b949e" font-size="9">ever happens"</text>
+
+  <ellipse cx="260" cy="145" rx="80" ry="60" fill="rgba(88,166,255,0.08)" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="260" y="130" text-anchor="middle" fill="#58a6ff" font-size="11" font-weight="600">Liveness</text>
+  <text x="260" y="148" text-anchor="middle" fill="#8b949e" font-size="9">"something good</text>
+  <text x="260" y="160" text-anchor="middle" fill="#8b949e" font-size="9">eventually happens"</text>
+
+  <ellipse cx="390" cy="130" rx="65" ry="45" fill="rgba(188,140,255,0.08)" stroke="#bc8cff" stroke-width="1.5"/>
+  <text x="390" y="125" text-anchor="middle" fill="#bc8cff" font-size="11" font-weight="600">Hyper</text>
+  <text x="390" y="141" text-anchor="middle" fill="#8b949e" font-size="9">comparing</text>
+  <text x="390" y="153" text-anchor="middle" fill="#8b949e" font-size="9">multiple runs</text>
+
+  <!-- The "..." to suggest infinity -->
+  <text x="390" y="210" text-anchor="middle" fill="#8b949e" font-size="16" font-weight="700">· · ·</text>
+  <text x="390" y="230" text-anchor="middle" fill="#8b949e" font-size="9">infinitely more</text>
+
+  <!-- Overlap region -->
+  <text x="190" y="190" text-anchor="middle" fill="#f0883e" font-size="9">overlap</text>
+</svg>
+</div>
+
+<p>No matter how many bubbles (categories) you draw, there are always properties that don't fit in any of them — and the arithmetic and Wadge hierarchies prove this rigorously. The space of subsets of "all programs" is just too large to capture with finitely many labels.</p>
+
+<div class="card accent">
+  <strong>The punchline of your document:</strong> The space of all program properties is a mathematically infinite object. But we have powerful <em>decomposition theorems</em> (Alpern-Schneider, Clarkson-Schneider, etc.) that carve it along useful axes. Each theorem is provably complete for the slice it covers. It's like how you can't list every possible color with a finite palette, but RGB gives you three axes that <em>span</em> the visible spectrum — except for program properties, even three axes aren't enough.
+</div>
+
+<!-- ====== 7 ====== -->
+<h2><span class="n">7</span> Quick check</h2>
+
+<div class="card" id="quiz1">
+  <p><strong>Which of these is a property of a <em>computation</em> (not just a program)?</strong></p>
+  <button class="quiz-opt" onclick="q1(this,false)">"Has fewer than 100 lines of code"</button>
+  <button class="quiz-opt" onclick="q1(this,false)">"Contains a recursive function definition"</button>
+  <button class="quiz-opt" onclick="q1(this,true)">"Eventually outputs the number 42"</button>
+  <button class="quiz-opt" onclick="q1(this,false)">"Imports the 'fs' module"</button>
+  <div class="quiz-fb" id="q1fb"></div>
+</div>
+
+<div class="card" id="quiz2">
+  <p><strong>What does Rice's theorem say?</strong></p>
+  <button class="quiz-opt" onclick="q2(this,false)">No program property can be checked</button>
+  <button class="quiz-opt" onclick="q2(this,true)">Every non-trivial property about what a program <em>computes</em> is undecidable</button>
+  <button class="quiz-opt" onclick="q2(this,false)">All program properties are hyperproperties</button>
+  <div class="quiz-fb" id="q2fb"></div>
+</div>
+
+</div>
+
+<script>
+// === Number machine ===
+const numbers = [1,2,3,4,5,6,7,8,9,10,11,12];
+const numProperties = [
+  { name: "Is even", test: n => n % 2 === 0 },
+  { name: "Is prime", test: n => { if(n<2) return false; for(let i=2;i*i<=n;i++) if(n%i===0) return false; return true; }},
+  { name: "Is > 6", test: n => n > 6 },
+  { name: "Is a perfect square", test: n => Math.sqrt(n) === Math.floor(Math.sqrt(n)) },
+  { name: "Is divisible by 3", test: n => n % 3 === 0 },
+];
+
+let activeProp = null;
+const numPropsEl = document.getElementById('numProps');
+const numObjEl = document.getElementById('numObjects');
+const numResultEl = document.getElementById('numResult');
+
+numProperties.forEach((p, i) => {
+  const chip = document.createElement('div');
+  chip.className = 'prop-chip';
+  chip.textContent = p.name;
+  chip.onclick = () => selectProp(i);
+  numPropsEl.appendChild(chip);
+});
+
+numbers.forEach(n => {
+  const btn = document.createElement('div');
+  btn.className = 'obj-btn';
+  btn.textContent = n;
+  btn.id = 'num-' + n;
+  numObjEl.appendChild(btn);
+});
+
+function selectProp(i) {
+  activeProp = i;
+  document.querySelectorAll('#numProps .prop-chip').forEach((c, j) => c.classList.toggle('active', j === i));
+  const p = numProperties[i];
+  const inSet = [], outSet = [];
+  numbers.forEach(n => {
+    const btn = document.getElementById('num-' + n);
+    if (p.test(n)) { btn.className = 'obj-btn in'; inSet.push(n); }
+    else { btn.className = 'obj-btn out'; outSet.push(n); }
+  });
+  numResultEl.innerHTML = `<span class="set-label">The property "${p.name}" IS the subset:</span><br><strong style="color:var(--green)">{${inSet.join(', ')}}</strong>`;
+}
+
+// === Spectrum ===
+const specData = [
+  `<strong style="color:var(--green)">Syntactic / decidable:</strong> Properties you can check by looking at the source code. "Uses a for loop." "Has fewer than 50 functions." "Imports React." These are properties of the <em>text</em>, not the behavior. Always answerable. This is where KindScript operates.`,
+  `<strong style="color:var(--blue)">Finite behavior / semi-decidable (Σ₁):</strong> Properties about things the program <em>might do</em>. "Halts on input 5." "Outputs the string 'hello'." You can confirm a YES answer by running the program and watching — but if it runs forever, you'll never know. You can verify, but not refute.`,
+  `<strong style="color:var(--purple)">Infinite behavior / undecidable (Π₂ and beyond):</strong> Properties about what a program does across <em>all</em> inputs or <em>forever</em>. "Halts on every input." "Outputs infinitely many primes." "Is equivalent to this other program." No algorithm can decide these — they require infinite observation.`,
+  `<strong style="color:var(--red)">Hyperproperties:</strong> Properties that relate <em>multiple</em> runs of a program. "Changing the secret input doesn't change the public output" (noninterference). You can't even state these by looking at one execution — you need to compare two or more. These live outside ordinary trace properties entirely.`,
+];
+
+function showSpec(i) {
+  document.getElementById('specDetail').innerHTML = specData[i];
+}
+
+// === Quizzes ===
+function q1(btn, correct) {
+  document.querySelectorAll('#quiz1 .quiz-opt').forEach(b => { b.disabled = true; b.classList.remove('correct','wrong'); });
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) document.querySelectorAll('#quiz1 .quiz-opt')[2].classList.add('correct');
+  document.getElementById('q1fb').innerHTML = correct
+    ? '<span style="color:var(--green)">Right. "Eventually outputs 42" depends on what happens when the program runs — that\'s behavior, not syntax. You might have to run it forever to find out.</span>'
+    : '<span style="color:var(--red)">Not quite. The other three are syntactic — you can answer them by reading the code. "Eventually outputs 42" requires actually running the program and observing its behavior.</span>';
+}
+function q2(btn, correct) {
+  document.querySelectorAll('#quiz2 .quiz-opt').forEach(b => { b.disabled = true; b.classList.remove('correct','wrong'); });
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) document.querySelectorAll('#quiz2 .quiz-opt')[1].classList.add('correct');
+  document.getElementById('q2fb').innerHTML = correct
+    ? '<span style="color:var(--green)">Exactly. Rice\'s theorem is specifically about <em>extensional</em> properties — properties of the input-output function. Syntactic/intensional properties (like "has a loop") can still be decidable.</span>'
+    : '<span style="color:var(--red)">Not quite. Rice\'s theorem is specifically about non-trivial extensional properties (what the program computes). Syntactic properties are still checkable, and not all properties are hyper.</span>';
+}
+</script>
+</body>
+</html>

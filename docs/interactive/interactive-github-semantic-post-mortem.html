@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Semantic — Rise and Fall of a Universal AST</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --haskell: #5e5086;
+  --github: #58a6ff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Hero ── */
+.hero {
+  text-align: center; padding: 80px 24px 60px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #1a1525 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 3rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--pink));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.15rem; color: var(--text-dim); max-width: 720px; margin: 0 auto 24px; }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.haskell { border-color: var(--haskell); color: #9b8ec4; }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+.badge.red { border-color: var(--red); color: var(--red); }
+.badge.pink { border-color: var(--pink); color: var(--pink); }
+
+/* ── Navigation ── */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+/* ── Sections ── */
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+h2 .num {
+  display: inline-block; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  text-align: center; line-height: 38px; margin-right: 12px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 12px; }
+
+p { margin-bottom: 16px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.84em;
+  line-height: 1.6; margin: 16px 0 20px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+/* Syntax highlighting */
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.number-lit { color: var(--orange); }
+.fn-name { color: var(--yellow); }
+
+/* ── Insight ── */
+.insight {
+  background: rgba(108,140,255,0.06); border-left: 3px solid var(--accent);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { background: rgba(251,146,60,0.06); border-left-color: var(--orange); }
+.insight.green { background: rgba(74,222,128,0.06); border-left-color: var(--green); }
+.insight.red { background: rgba(248,113,113,0.06); border-left-color: var(--red); }
+
+/* ── Timeline ── */
+.timeline { position: relative; margin: 32px 0; padding-left: 40px; }
+.timeline::before {
+  content: ''; position: absolute; left: 16px; top: 0; bottom: 0;
+  width: 2px; background: var(--border);
+}
+.tl-event {
+  position: relative; margin-bottom: 28px; cursor: pointer;
+}
+.tl-event::before {
+  content: ''; position: absolute; left: -32px; top: 6px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--surface2); border: 2px solid var(--accent);
+  transition: all 0.3s;
+}
+.tl-event.success::before { border-color: var(--green); }
+.tl-event.pivot::before { border-color: var(--orange); }
+.tl-event.fail::before { border-color: var(--red); }
+.tl-event.active::before { background: var(--accent); }
+.tl-event.success.active::before { background: var(--green); }
+.tl-event.pivot.active::before { background: var(--orange); }
+.tl-event.fail.active::before { background: var(--red); }
+
+.tl-year {
+  font-size: 0.78rem; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+}
+.tl-event.success .tl-year { color: var(--green); }
+.tl-event.pivot .tl-year { color: var(--orange); }
+.tl-event.fail .tl-year { color: var(--red); }
+
+.tl-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+.tl-desc { font-size: 0.88rem; color: var(--text-dim); }
+.tl-detail {
+  display: none; margin-top: 12px; padding: 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 0.88rem;
+}
+.tl-event.active .tl-detail { display: block; }
+
+/* ── Pipeline Diagram ── */
+.pipeline-diagram {
+  display: flex; align-items: center; gap: 0;
+  overflow-x: auto; padding: 20px 0; margin: 20px 0;
+}
+.pipe-stage {
+  min-width: 140px; padding: 14px 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); text-align: center;
+  flex-shrink: 0; cursor: pointer; transition: all 0.3s;
+}
+.pipe-stage:hover { border-color: var(--accent); }
+.pipe-stage.active { border-color: var(--accent); background: rgba(108,140,255,0.08); }
+.pipe-stage.problem { border-color: var(--red); }
+.pipe-stage.problem.active { background: rgba(248,113,113,0.08); }
+.pipe-stage-label {
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--accent); margin-bottom: 6px;
+}
+.pipe-stage.problem .pipe-stage-label { color: var(--red); }
+.pipe-stage-name { font-size: 0.92rem; font-weight: 600; }
+.pipe-stage-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+.pipe-arrow {
+  font-size: 1.2rem; color: var(--text-dim); flex-shrink: 0; padding: 0 4px;
+}
+
+.pipe-detail {
+  display: none; margin-top: 16px; padding: 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 0.9rem;
+}
+.pipe-detail.active { display: block; }
+
+/* ── Comparison Boxes ── */
+.compare-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 24px 0;
+}
+.compare-box {
+  padding: 24px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.compare-box h4 {
+  font-size: 1rem; font-weight: 700; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.compare-box.phase1 h4 { color: var(--orange); }
+.compare-box.phase2 h4 { color: var(--green); }
+.compare-box ul { list-style: none; }
+.compare-box li {
+  padding: 6px 0; font-size: 0.88rem; color: var(--text-dim);
+  border-bottom: 1px solid rgba(42,46,61,0.5);
+}
+.compare-box li:last-child { border-bottom: none; }
+.compare-box li::before { margin-right: 8px; }
+.compare-box.phase1 li::before { content: '!'; color: var(--orange); font-weight: 800; }
+.compare-box.phase2 li::before { content: '\2713'; color: var(--green); font-weight: 800; }
+
+/* ── Concept Cards ── */
+.concept-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px; margin: 24px 0;
+}
+.concept-card {
+  padding: 20px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; transition: all 0.3s;
+}
+.concept-card:hover { border-color: var(--accent); }
+.concept-card.active { border-color: var(--accent); background: rgba(108,140,255,0.05); }
+.concept-card .cc-label {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--accent); margin-bottom: 6px;
+}
+.concept-card .cc-title { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+.concept-card .cc-desc { font-size: 0.85rem; color: var(--text-dim); }
+
+.concept-detail {
+  display: none; margin-top: 16px; padding: 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 0.9rem;
+}
+.concept-detail.active { display: block; }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; gap: 2px; margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  padding: 10px 20px; background: none; border: none;
+  color: var(--text-dim); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab-content { display: none; padding: 20px 0; }
+.tab-content.active { display: block; }
+
+/* ── Data Flow / Expandable Stages ── */
+.data-flow { margin: 24px 0; }
+.df-stage {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 8px; cursor: pointer; transition: all 0.3s;
+  overflow: hidden;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage.active { border-color: var(--accent); }
+.df-stage-header {
+  padding: 14px 20px; display: flex; align-items: center;
+  justify-content: space-between;
+}
+.df-stage-title { font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 10px; }
+.df-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--bg);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 800; flex-shrink: 0;
+}
+.df-expand {
+  font-size: 0.8rem; color: var(--text-dim); transition: transform 0.3s;
+}
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  display: none; padding: 0 20px 16px;
+  font-size: 0.88rem; color: var(--text-dim);
+}
+.df-stage.active .df-detail { display: block; }
+.df-connector {
+  width: 2px; height: 16px; background: var(--border);
+  margin: 0 auto;
+}
+
+/* ── Score/Verdict Bars ── */
+.verdict-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0;
+}
+.verdict-item {
+  padding: 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.verdict-label {
+  font-size: 0.82rem; font-weight: 700; color: var(--text-dim);
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.verdict-bar {
+  height: 8px; background: var(--surface2); border-radius: 4px;
+  overflow: hidden; margin-bottom: 8px;
+}
+.verdict-fill {
+  height: 100%; border-radius: 4px; transition: width 0.6s ease;
+}
+.verdict-fill.green { background: var(--green); }
+.verdict-fill.orange { background: var(--orange); }
+.verdict-fill.red { background: var(--red); }
+.verdict-fill.accent { background: var(--accent); }
+.verdict-score {
+  font-size: 0.82rem; color: var(--text-dim);
+}
+
+/* ── Quote ── */
+.quote-block {
+  border-left: 3px solid var(--haskell);
+  background: rgba(94,80,134,0.06);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem; font-style: italic;
+  color: var(--text-dim);
+}
+.quote-block .quote-source {
+  font-style: normal; font-size: 0.8rem; color: var(--text-dim);
+  margin-top: 8px; opacity: 0.7;
+}
+
+/* ── Flashcards ── */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+  font-family: inherit;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* ── Architecture Diagram ── */
+.arch-diagram {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px 24px;
+  margin: 24px 0; font-family: var(--mono); font-size: 0.82rem;
+  line-height: 1.8; overflow-x: auto; color: var(--text-dim);
+}
+.arch-diagram .layer-label {
+  color: var(--accent); font-weight: 700;
+}
+.arch-diagram .problem-label {
+  color: var(--red); font-weight: 700;
+}
+.arch-diagram .box {
+  display: inline-block; padding: 2px 10px;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface2); margin: 2px;
+}
+.arch-diagram .box.highlight { border-color: var(--accent); color: var(--text); }
+.arch-diagram .box.problem { border-color: var(--red); color: var(--red); }
+.arch-diagram .box.green { border-color: var(--green); color: var(--green); }
+
+/* ── Artifact Grid ── */
+.artifact-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px; margin: 24px 0;
+}
+.artifact-card {
+  padding: 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  text-decoration: none; transition: all 0.3s;
+}
+.artifact-card:hover { border-color: var(--green); }
+.artifact-card .af-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; color: var(--text); }
+.artifact-card .af-desc { font-size: 0.8rem; color: var(--text-dim); }
+.artifact-card .af-status {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  margin-top: 8px; letter-spacing: 0.5px;
+}
+.af-status.alive { color: var(--green); }
+.af-status.archived { color: var(--red); }
+.af-status.contributed { color: var(--cyan); }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .verdict-grid { grid-template-columns: 1fr; }
+  .pipeline-diagram { flex-direction: column; }
+  .pipe-arrow { transform: rotate(90deg); }
+  .concept-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ HERO ════════════════════ -->
+<div class="hero">
+  <h1>GitHub Semantic</h1>
+  <p class="subtitle">
+    The ambitious Haskell project that tried to build a universal AST for multi-language
+    code analysis -- what it achieved, where it broke, and what we can learn from its decade-long arc.
+  </p>
+  <div class="badge-row">
+    <span class="badge haskell">Haskell</span>
+    <span class="badge cyan">tree-sitter</span>
+    <span class="badge purple">Data Types a la Carte</span>
+    <span class="badge orange">2015 &ndash; 2025</span>
+    <span class="badge red">Archived</span>
+  </div>
+</div>
+
+<!-- ════════════════════ NAV ════════════════════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#timeline">Timeline</a>
+    <a class="toc-link" href="#the-vision">The Vision</a>
+    <a class="toc-link" href="#alacarte">A La Carte</a>
+    <a class="toc-link" href="#pipeline">The Pipeline</a>
+    <a class="toc-link" href="#what-broke">What Broke</a>
+    <a class="toc-link" href="#codegen-pivot">CodeGen Pivot</a>
+    <a class="toc-link" href="#effects">Effects System</a>
+    <a class="toc-link" href="#successors">Successors</a>
+    <a class="toc-link" href="#lessons">Lessons</a>
+    <a class="toc-link" href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- ════════════════════ 01 — TIMELINE ════════════════════ -->
+<section id="timeline">
+<div class="container">
+  <h2><span class="num">01</span>The Arc: 2015 &ndash; 2025</h2>
+  <p class="section-sub">A decade of iteration, pivots, and hard-won lessons. Click each event for details.</p>
+
+  <div class="timeline">
+    <div class="tl-event success" onclick="toggleTimeline(this)">
+      <span class="tl-year">2015</span>
+      <div class="tl-title">Inception: Semantic Diffing in Swift, Then Haskell</div>
+      <div class="tl-desc">A small team at GitHub builds a semantic diff engine. Swift prototype ported to Haskell in less than a day -- 2x faster.</div>
+      <div class="tl-detail">
+        The original goal was structural diffing: understanding <em>what changed</em> in code at a semantic level, not just line-by-line. The Swift prototype (Swift was still in beta) used an O(n) comparison for fixed-arity tree nodes, O(n&sup2;) for variable-arity nodes. Porting to Haskell was the team's first production use of the language. The Haskell version was immediately faster and more concise, beginning a long relationship with functional programming in production.
+      </div>
+    </div>
+
+    <div class="tl-event success" onclick="toggleTimeline(this)">
+      <span class="tl-year">2016</span>
+      <div class="tl-title">Data Types a la Carte Adopted</div>
+      <div class="tl-desc">The team adopts Swierstra's technique to share syntax types across languages via open unions of functors.</div>
+      <div class="tl-detail">
+        The insight: constructs like <code>IfStatement</code>, <code>FunctionDeclaration</code>, and <code>Literal</code> appear in many languages. Rather than one AST type per language, define small, reusable syntax "functors" and compose them via coproducts. A language's syntax is the open union of the functors it uses. This would later be identified as the root architectural problem.
+      </div>
+    </div>
+
+    <div class="tl-event success" onclick="toggleTimeline(this)">
+      <span class="tl-year">2017</span>
+      <div class="tl-title">First Production Feature: Table of Contents</div>
+      <div class="tl-desc">The "table of contents" feature ships on GitHub.com, powered by a Go RPC server calling the <code>semantic</code> binary.</div>
+      <div class="tl-detail">
+        A Go-based RPC server called <code>semiotic</code> executed the Haskell <code>semantic</code> binary out-of-band, returning results via Protocol Buffers. This was the first Semantic-powered feature visible to GitHub users -- an outline of definitions in a source file.
+      </div>
+    </div>
+
+    <div class="tl-event pivot" onclick="toggleTimeline(this)">
+      <span class="tl-year">2018</span>
+      <div class="tl-title">Pivot: Diff to Code Navigation</div>
+      <div class="tl-desc">Semantic diffs abandoned for non-technical reasons. Team pivots to code navigation and comprehension.</div>
+      <div class="tl-detail">
+        The diff feature was dropped because users expected <code>git diff</code> output -- having structurally different diffs on GitHub.com was "deemed an insurmountable barrier." The team built <code>semanticd</code>, an HTTP service using the Haskell Servant web library that wrote tag information to MySQL on repository push. Diff summaries also proved intractable: "no formulation substantially improved on reading a textual diff."
+      </div>
+    </div>
+
+    <div class="tl-event success" onclick="toggleTimeline(this)">
+      <span class="tl-year">2019 (June)</span>
+      <div class="tl-title">Open-Sourced</div>
+      <div class="tl-desc">The project is open-sourced, generating significant discussion on Hacker News and in the Haskell community.</div>
+      <div class="tl-detail">
+        At this point the codebase was ~20,000 lines of Haskell handling tens of thousands of requests per minute with thousands of simultaneous connections. The team published "Why Haskell" and "Why tree-sitter" design documents explaining their technical choices.
+      </div>
+    </div>
+
+    <div class="tl-event pivot" onclick="toggleTimeline(this)">
+      <span class="tl-year">2020 (August)</span>
+      <div class="tl-title">CodeGen Pivot: Abandoning a la Carte</div>
+      <div class="tl-desc">The team replaces hand-written Assignment grammars with auto-generated per-language types from tree-sitter's <code>node-types.json</code>.</div>
+      <div class="tl-detail">
+        The a la carte approach had become a maintenance crisis. Assignment grammars broke at runtime when tree-sitter grammars changed. The team contributed the <code>field()</code> function to tree-sitter's grammar API, enabling child nodes to be retrieved by semantic name. Template Haskell then generated strongly-typed, <em>per-language</em> Haskell datatypes from the schema. Java and CodeQL were the first languages shipped using the new system.
+      </div>
+    </div>
+
+    <div class="tl-event pivot" onclick="toggleTimeline(this)">
+      <span class="tl-year">2021 (October)</span>
+      <div class="tl-title">Stack Graphs Replace Semantic</div>
+      <div class="tl-desc">A Rust-based successor, stack graphs, begins replacing the Haskell code navigation pipeline. Presented at Strange Loop.</div>
+      <div class="tl-detail">
+        Stack graphs analyze files in isolation, producing subgraphs of definitions and references. At query time, subgraphs merge and path-finding with a "symbol stack" resolves name bindings. Language rules are written in a declarative DSL on tree-sitter, not in Haskell. The team acknowledged needing "to enable external contributors to maintain their own code navigation rules without having to write Haskell code."
+      </div>
+    </div>
+
+    <div class="tl-event" onclick="toggleTimeline(this)">
+      <span class="tl-year">2022 (September)</span>
+      <div class="tl-title">ICFP Retrospective Paper</div>
+      <div class="tl-desc">"Fusing Industry and Academia at GitHub" -- the team's candid post-mortem. Semantic was "no longer part of the code navigation pipeline."</div>
+      <div class="tl-detail">
+        Published by Patrick Thomson, Rob Rix, Nicolas Wu, and Tom Schrijvers at ICFP 2022. Despite the project's end, the authors considered it "a successful application of FP techniques, which allowed us to iterate quickly on a solution, draw from well-researched avenues of thought, and express complex thoughts concisely."
+      </div>
+    </div>
+
+    <div class="tl-event fail" onclick="toggleTimeline(this)">
+      <span class="tl-year">2025 (April)</span>
+      <div class="tl-title">Repository Archived</div>
+      <div class="tl-desc">"This repository is no longer supported or updated by GitHub." Stack graphs also archived 5 months later.</div>
+      <div class="tl-detail">
+        The repository was officially archived on April 1, 2025. The README's archival notice was the final update. Stack graphs (the Rust successor) was itself archived in September 2025, suggesting GitHub moved to yet another approach internally or integrated the technology differently.
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 02 — THE VISION ════════════════════ -->
+<section id="the-vision">
+<div class="container">
+  <h2><span class="num">02</span>The Vision</h2>
+  <p class="section-sub">What was GitHub Semantic actually trying to do?</p>
+
+  <p>Semantic was an attempt to solve the <strong>m &times; n problem</strong> in code analysis: you want <em>m</em> analysis features (semantic diffing, code navigation, type checking, dead code detection) across <em>n</em> languages (Python, Ruby, JavaScript, Go, TypeScript, Java, PHP...). Without sharing, you write m &times; n implementations. With a universal representation, you write m + n.</p>
+
+  <div class="arch-diagram">
+    <div style="margin-bottom: 12px;">
+      <span class="layer-label">Without sharing (m &times; n):</span>
+    </div>
+    <div style="margin-bottom: 4px;">
+      <span class="box">Python Diff</span>
+      <span class="box">Python Nav</span>
+      <span class="box">Python Types</span>
+    </div>
+    <div style="margin-bottom: 4px;">
+      <span class="box">Ruby Diff</span>
+      <span class="box">Ruby Nav</span>
+      <span class="box">Ruby Types</span>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <span class="box">JS Diff</span>
+      <span class="box">JS Nav</span>
+      <span class="box">JS Types</span>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <span class="layer-label">With universal representation (m + n):</span>
+    </div>
+    <div style="margin-bottom: 4px;">
+      <span class="box highlight">Python parser</span>
+      <span class="box highlight">Ruby parser</span>
+      <span class="box highlight">JS parser</span>
+      &rarr; <span class="box green">Universal AST</span> &rarr;
+      <span class="box highlight">Diff</span>
+      <span class="box highlight">Nav</span>
+      <span class="box highlight">Types</span>
+    </div>
+  </div>
+
+  <p>The m + n approach has an obvious appeal. A single diff algorithm works across all languages. A single code navigation engine handles every repository. The team pursued this vision with deep Haskell type-level programming, algebraic effects, abstracting definitional interpreters, and recursion schemes.</p>
+
+  <div class="insight green">
+    <strong>What made it credible:</strong> The team was staffed with world-class Haskell programmers, had academic collaborators (Imperial College London, KU Leuven), and published at top venues (ICFP). The Haskell codebase handled production traffic at GitHub scale -- tens of thousands of requests per minute.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 03 — A LA CARTE ════════════════════ -->
+<section id="alacarte">
+<div class="container">
+  <h2><span class="num">03</span>Data Types a la Carte</h2>
+  <p class="section-sub">The type-level technique at the heart of Phase 1 -- and the root of its problems.</p>
+
+  <h3>The Idea</h3>
+  <p>Based on Wouter Swierstra's 2008 paper: instead of one monolithic AST type per language, define small reusable syntax <strong>functors</strong>, each representing one kind of node. A language's syntax is the <em>coproduct</em> (open union) of the functors it uses.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('alacarte-tabs','alacarte-concept')">Concept</button>
+    <button class="tab" onclick="switchTab('alacarte-tabs','alacarte-code')">Code</button>
+    <button class="tab" onclick="switchTab('alacarte-tabs','alacarte-json')">JSON Example</button>
+  </div>
+  <div id="alacarte-tabs">
+    <div class="tab-content active" id="alacarte-concept">
+      <p>Each language is defined as a union of reusable syntax pieces. If Python and Ruby both have <code>IfStatement</code>, they share that exact functor. Language-specific constructs get their own unique functors.</p>
+      <pre><code><span class="comment">-- Shared functors (used by many languages)</span>
+<span class="keyword">data</span> <span class="type-name">IfStatement</span> a = <span class="type-name">IfStatement</span> a a (Maybe a)   <span class="comment">-- cond, then, else</span>
+<span class="keyword">data</span> <span class="type-name">FuncDecl</span> a   = <span class="type-name">FuncDecl</span> a [a] a            <span class="comment">-- name, params, body</span>
+<span class="keyword">data</span> <span class="type-name">Literal</span> a    = <span class="type-name">TextLit</span> Text | <span class="type-name">IntLit</span> Int   <span class="comment">-- literals</span>
+
+<span class="comment">-- Language-specific functors</span>
+<span class="keyword">data</span> <span class="type-name">RubyZSuper</span> a = <span class="type-name">RubyZSuper</span>                  <span class="comment">-- Ruby-only</span>
+<span class="keyword">data</span> <span class="type-name">PythonWith</span> a = <span class="type-name">PythonWith</span> a a              <span class="comment">-- Python-only</span>
+
+<span class="comment">-- A language = coproduct (open union) of its functors</span>
+<span class="keyword">type</span> <span class="type-name">PythonSyntax</span> = <span class="type-name">Sum</span> '[<span class="type-name">IfStatement</span>, <span class="type-name">FuncDecl</span>, <span class="type-name">Literal</span>, <span class="type-name">PythonWith</span>, ...]
+<span class="keyword">type</span> <span class="type-name">RubySyntax</span>   = <span class="type-name">Sum</span> '[<span class="type-name">IfStatement</span>, <span class="type-name">FuncDecl</span>, <span class="type-name">Literal</span>, <span class="type-name">RubyZSuper</span>, ...]</code></pre>
+    </div>
+    <div class="tab-content" id="alacarte-code">
+      <p>The two fixed points: one for the tree, one for diffs. Annotations tracked source locations and diff status.</p>
+      <pre><code><span class="comment">-- Each functor is parameterized by an annotation type</span>
+<span class="comment">-- The tree is a fixed-point of the coproduct of functors</span>
+<span class="keyword">type</span> <span class="type-name">Term</span> syntax ann = <span class="type-name">Fix</span> (syntax :+: <span class="type-name">Annotation</span> ann)
+
+<span class="comment">-- Diff is a separate fixed-point</span>
+<span class="keyword">type</span> <span class="type-name">Diff</span> syntax ann = <span class="type-name">Free</span>
+  (<span class="type-name">Patch</span> (<span class="type-name">Term</span> syntax ann))  <span class="comment">-- insert, delete, replace</span>
+  (<span class="type-name">Term</span> syntax ann)           <span class="comment">-- copy (unchanged)</span>
+
+<span class="comment">-- The constraint: a functor f is "in" the union g</span>
+<span class="keyword">class</span> (f :<: g) <span class="keyword">where</span>
+  <span class="fn-name">inject</span>  :: f a -> g a
+  <span class="fn-name">project</span> :: g a -> Maybe (f a)</code></pre>
+    </div>
+    <div class="tab-content" id="alacarte-json">
+      <p>JSON's syntax, composed entirely from reusable Literal functors:</p>
+      <pre><code><span class="keyword">type</span> <span class="type-name">JSONSyntax</span> = <span class="type-name">Sum</span>
+  '[ <span class="type-name">Literal.Null</span>
+   , <span class="type-name">Literal.List</span>
+   , <span class="type-name">Literal.Boolean</span>
+   , <span class="type-name">Literal.Hash</span>
+   , <span class="type-name">Literal.Decimal</span>
+   , <span class="type-name">Literal.KeyValue</span>
+   , <span class="type-name">Literal.TextElement</span>
+   , <span class="type-name">Syntax.Error</span>
+   ]
+
+<span class="comment">-- 8 functors. Simple. Reusable.</span>
+<span class="comment">-- But JSON is the easy case...</span></code></pre>
+    </div>
+  </div>
+
+  <h3>The Scaling Problem: fastsum</h3>
+  <p>With 100+ syntax constructors possible across all languages, the standard Haskell typeclass resolution for the <code>f :&lt;: g</code> constraint became catastrophically slow -- recursive type-level search through the union. Patrick Thomson built the <strong>fastsum</strong> library (with Rob Rix's <code>ElemIndex</code> type family) to solve this: a closed type family that resolves membership in constant time.</p>
+
+  <div class="insight warn">
+    <strong>A hint of problems ahead:</strong> When you need to build a custom library just to make your type-level machinery compile in reasonable time, the abstraction may be fighting the problem rather than solving it.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 04 — PIPELINE ════════════════════ -->
+<section id="pipeline">
+<div class="container">
+  <h2><span class="num">04</span>The Pipeline (Phase 1)</h2>
+  <p class="section-sub">Source code to analysis, step by step. The red stage is where it broke.</p>
+
+  <div class="pipeline-diagram">
+    <div class="pipe-stage" onclick="showPipe('pipe-source')">
+      <div class="pipe-stage-label">Input</div>
+      <div class="pipe-stage-name">Source Code</div>
+      <div class="pipe-stage-sub">.py, .rb, .js, ...</div>
+    </div>
+    <div class="pipe-arrow">&rarr;</div>
+    <div class="pipe-stage" onclick="showPipe('pipe-ts')">
+      <div class="pipe-stage-label">Stage 1</div>
+      <div class="pipe-stage-name">tree-sitter</div>
+      <div class="pipe-stage-sub">Language-specific CST</div>
+    </div>
+    <div class="pipe-arrow">&rarr;</div>
+    <div class="pipe-stage problem" onclick="showPipe('pipe-assign')">
+      <div class="pipe-stage-label">Stage 2</div>
+      <div class="pipe-stage-name">Assignment</div>
+      <div class="pipe-stage-sub">Hand-written grammar</div>
+    </div>
+    <div class="pipe-arrow">&rarr;</div>
+    <div class="pipe-stage" onclick="showPipe('pipe-ast')">
+      <div class="pipe-stage-label">Stage 3</div>
+      <div class="pipe-stage-name">Typed AST</div>
+      <div class="pipe-stage-sub">A la carte coproduct</div>
+    </div>
+    <div class="pipe-arrow">&rarr;</div>
+    <div class="pipe-stage" onclick="showPipe('pipe-analysis')">
+      <div class="pipe-stage-label">Stage 4</div>
+      <div class="pipe-stage-name">Analysis</div>
+      <div class="pipe-stage-sub">Diff, Nav, Eval</div>
+    </div>
+  </div>
+
+  <div class="pipe-detail" id="pipe-source">
+    <h3>Source Code</h3>
+    <p>Any supported language file. At its peak, Semantic handled Python, Ruby, JavaScript, TypeScript, Go, Java, PHP, and Haskell. JSON was also supported as a simpler test case.</p>
+  </div>
+  <div class="pipe-detail" id="pipe-ts">
+    <h3>tree-sitter Parsing</h3>
+    <p>tree-sitter produces an untyped concrete syntax tree (CST) with positional access to children. The CST preserves all syntactic details (comments, whitespace), but children are accessed by index, not by semantic name. This meant the next stage had to know the exact child ordering of every grammar production.</p>
+  </div>
+  <div class="pipe-detail" id="pipe-assign">
+    <h3>Assignment Grammars (The Bottleneck)</h3>
+    <p>A hand-written Haskell parser per language that maps tree-sitter's untyped CST nodes to typed a la carte syntax functors. This was, in the team's description, "a language-specific anamorphism mapping a tree-sitter tree to a coproduct of functors."</p>
+    <p>In practice, it was a second grammar per language, tightly coupled to tree-sitter's output format. Every tree-sitter grammar update required a corresponding Assignment update -- but failures were <strong>only detectable at runtime</strong>.</p>
+    <div class="insight red">
+      <strong>The fundamental failure point:</strong> Comments and heredocs could appear at arbitrary positions in the CST, causing runtime crashes that were invisible at compile time. "Any update in a language grammar required modifications" to the assignment code.
+    </div>
+  </div>
+  <div class="pipe-detail" id="pipe-ast">
+    <h3>Typed AST</h3>
+    <p>A tree of a la carte syntax functors, each annotated with source locations. The tree is the fixed-point of the coproduct of all functors used by the language. Analysis code (diffing, evaluation) operates on this representation using recursion schemes and typeclass dispatch.</p>
+  </div>
+  <div class="pipe-detail" id="pipe-analysis">
+    <h3>Analysis</h3>
+    <p>Multiple analysis features operated on the typed AST:</p>
+    <ul style="list-style: none; margin-top: 8px;">
+      <li style="padding: 4px 0;">&#x2022; <strong>Diffing</strong>: RWS-Diff algorithm comparing two typed ASTs</li>
+      <li style="padding: 4px 0;">&#x2022; <strong>Code navigation</strong>: Extracting definitions and references</li>
+      <li style="padding: 4px 0;">&#x2022; <strong>Abstract interpretation</strong>: Based on Abstracting Definitional Interpreters (Darais et al. 2017)</li>
+      <li style="padding: 4px 0;">&#x2022; <strong>Table of contents</strong>: File-level outlines of definitions</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 05 — WHAT BROKE ════════════════════ -->
+<section id="what-broke">
+<div class="container">
+  <h2><span class="num">05</span>What Broke</h2>
+  <p class="section-sub">Five categories of failure, from technical to organizational.</p>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> The Assignment Maintenance Burden</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Every supported language required a hand-written Assignment grammar in Haskell that exactly mirrored the tree-sitter grammar's structure. This meant:</p>
+        <ul style="list-style: none; margin: 12px 0;">
+          <li style="padding: 4px 0; color: var(--red);">&#x2717; Two grammars per language (tree-sitter + Assignment)</li>
+          <li style="padding: 4px 0; color: var(--red);">&#x2717; Tight coupling to tree-sitter's child ordering</li>
+          <li style="padding: 4px 0; color: var(--red);">&#x2717; Runtime failures on grammar updates, no compile-time safety</li>
+          <li style="padding: 4px 0; color: var(--red);">&#x2717; "Inadvertently became incentivized against iterative improvement" -- improving a grammar risked breaking the Assignment layer</li>
+        </ul>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Insufficient Type Safety</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Despite using Haskell's powerful type system, the a la carte representation was "essentially untyped" at the structural level. A function's parameter list could contain any syntax node, not just parameters. The type system enforced that nodes were <em>valid syntax kinds</em>, but not that they appeared in <em>valid positions</em>.</p>
+        <p>Many <code>Evaluatable</code> typeclass instances had to handle error conditions that couldn't actually occur in practice -- the types were too permissive to rule them out.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Language-Specific Variants Undermined Sharing</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The promise of a la carte was reuse: <code>IfStatement</code> shared across Python, Ruby, JavaScript. But languages have unique semantic quirks:</p>
+        <ul style="list-style: none; margin: 12px 0;">
+          <li style="padding: 4px 0;">&#x2022; Ruby's <code>zsuper</code> keyword -- calls the parent method with the same arguments implicitly</li>
+          <li style="padding: 4px 0;">&#x2022; Python's <code>with</code> statement -- context managers with no equivalent elsewhere</li>
+          <li style="padding: 4px 0;">&#x2022; Go's goroutines, JavaScript's async/await semantics</li>
+        </ul>
+        <p>These required language-specific functors, and as languages grew in number, the "shared" portion of the coproduct shrank relative to the language-specific portion.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Semantic Diffs Were Unwanted</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The project's <em>original raison d'&ecirc;tre</em> was abandoned for a non-technical reason: users expected <code>git diff</code> output. Having structurally different diffs on GitHub.com was "deemed an insurmountable barrier."</p>
+        <p>Diff summaries (high-level descriptions of what changed) also failed: "no formulation substantially improved on reading a textual diff." The most ambitious feature was killed by UX expectations, not technical limitations.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">5</span> Haskell Was a Contributor Barrier</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Despite being excellent for the core team, Haskell was unsuitable for external language maintainers. The team needed the community to add and maintain language support, but "leveraging community support for adding languages has been difficult" because of Haskell's "considerable ecosystem, large compiler, and learning curve."</p>
+        <p>This drove the eventual move to stack graphs, where language rules are written in a declarative DSL rather than Haskell.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quote-block">
+    "The Assignment stage proved a significant maintenance burden: any update in a language grammar required modifications. The a la carte datatypes were essentially untyped; enforcing only a minimal structure on the tree."
+    <div class="quote-source">-- GitHub Engineering, CodeGen announcement (2020)</div>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 06 — CODEGEN PIVOT ════════════════════ -->
+<section id="codegen-pivot">
+<div class="container">
+  <h2><span class="num">06</span>The CodeGen Pivot</h2>
+  <p class="section-sub">How the team replaced hand-written grammars with auto-generated per-language types.</p>
+
+  <div class="compare-grid">
+    <div class="compare-box phase1">
+      <h4>&#x26A0; Phase 1: A La Carte</h4>
+      <ul>
+        <li>Hand-written Assignment grammars per language</li>
+        <li>Shared syntax functors across languages</li>
+        <li>Runtime failures on grammar changes</li>
+        <li>Children accessed by position index</li>
+        <li>Weeks of effort per new language</li>
+        <li>Community contributions nearly impossible</li>
+      </ul>
+    </div>
+    <div class="compare-box phase2">
+      <h4>&#x2713; Phase 2: CodeGen</h4>
+      <ul>
+        <li>Auto-generated types from <code>node-types.json</code></li>
+        <li>Per-language types (not shared)</li>
+        <li>Compile-time errors on grammar changes</li>
+        <li>Children accessed by named fields</li>
+        <li>Largely automated per new language</li>
+        <li>Contribution barrier significantly lowered</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>The Four-Step Pipeline</h3>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Named Fields in tree-sitter</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        The team contributed the <code>field()</code> function to tree-sitter's grammar API. Before this, tree-sitter children were accessible only by index. After: children could be retrieved by semantic name (<code>condition</code>, <code>body</code>, <code>alternative</code>) rather than position. This was a prerequisite for reliable automated unmarshaling.
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> <code>node-types.json</code> Schema</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        tree-sitter grammars now produce a JSON schema file describing four node shapes: <strong>sums</strong> (union types), <strong>products</strong> (record types), <strong>named leaves</strong> (identifiers, literals), and <strong>anonymous leaves</strong> (operators, punctuation). This file is the single source of truth for all AST types.
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Template Haskell Code Generation</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        The <code>astDeclarationsForLanguage</code> function uses Template Haskell (compile-time metaprogramming) to read the JSON schema and generate strongly-typed, <em>per-language</em> Haskell datatypes. A function's name is typed as an identifier, a switch's children as case statements. No more "anything can be anywhere."
+      </div>
+    </div>
+    <div class="df-connector"></div>
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Generic Unmarshaling</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        Using GHC.Generics, the system automatically constructs typed ASTs from tree-sitter's cursor API. The <code>parseByteString</code> function accepts source code and a language spec, producing a complete annotated AST. Non-generic instances handle special cases like <code>Maybe</code>, <code>[]</code>, and <code>NonEmpty</code>.
+      </div>
+    </div>
+  </div>
+
+  <div class="insight green">
+    <strong>The key reversal:</strong> Phase 1 tried to share syntax types across languages. Phase 2 generated <em>separate</em> types per language. The team discovered that per-language types generated from a schema were more practical than hand-crafted shared abstractions. Sharing moved from the data representation to the processing infrastructure.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 07 — EFFECTS SYSTEM ════════════════════ -->
+<section id="effects">
+<div class="container">
+  <h2><span class="num">07</span>The Effects System Journey</h2>
+  <p class="section-sub">One of the project's most significant technical contributions -- the fused-effects library.</p>
+
+  <p>The team went through three effect system architectures, each solving problems the previous one couldn't:</p>
+
+  <div class="concept-grid">
+    <div class="concept-card" onclick="showConcept(this, 'eff-mtl')">
+      <div class="cc-label">Phase 1</div>
+      <div class="cc-title">MTL (Monad Transformers)</div>
+      <div class="cc-desc">Classic approach. Failed due to the O(n&sup2;) instances problem.</div>
+    </div>
+    <div class="concept-card" onclick="showConcept(this, 'eff-freer')">
+      <div class="cc-label">Phase 2</div>
+      <div class="cc-title">Freer Monads</div>
+      <div class="cc-desc">Solved n&sup2; problem. Failed on scoped effects.</div>
+    </div>
+    <div class="concept-card" onclick="showConcept(this, 'eff-fused')">
+      <div class="cc-label">Phase 3</div>
+      <div class="cc-title">Fused-Effects</div>
+      <div class="cc-desc">Solved both problems. Open-sourced, widely adopted.</div>
+    </div>
+  </div>
+
+  <div class="concept-detail" id="eff-mtl">
+    <h3>MTL: The n&sup2; Problem</h3>
+    <p>MTL requires a separate monad transformer per effect, and each transformer must implement an instance for every other effect. With n effects, you need n&sup2; instances. For Semantic's numerous effects (filesystem, telemetry, concurrency, parsing, etc.), this was infeasible.</p>
+  </div>
+  <div class="concept-detail" id="eff-freer">
+    <h3>Freer Monads: The Scoped Effects Problem</h3>
+    <p>A freer monad approach (based on Dev and King, 2016) solved n&sup2; by encoding effects as data rather than type class instances. But Wu et al. (2014) identified a critical limitation: operations like <code>local</code> (modifying an environment for a scoped computation) produce "surprising, and often undesired behavior" when combined with other effects.</p>
+  </div>
+  <div class="concept-detail" id="eff-fused">
+    <h3>Fused-Effects: The Solution</h3>
+    <p>Based on Schrijvers et al. (2019), fused-effects eliminated the freer monad and used type class methods for effect handlers, supporting scoped effects with multiple interpretations. A concrete example: a <code>Telemetry</code> effect had three handlers -- production (aggregator upload), development (CLI reporting), and testing (discard) -- without altering application code. The library was open-sourced, achieved 10,000+ downloads, and is still actively used outside GitHub.</p>
+  </div>
+
+  <div class="insight">
+    <strong>Key takeaway:</strong> The effects system was arguably the project's most lasting contribution. While the universal AST failed, the effect handling pattern produced a library that outlived the project itself.
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 08 — SUCCESSORS ════════════════════ -->
+<section id="successors">
+<div class="container">
+  <h2><span class="num">08</span>What Replaced It</h2>
+  <p class="section-sub">Stack graphs, tree-sitter, and the open-source artifacts that survived.</p>
+
+  <h3>Stack Graphs (Rust, 2021&ndash;2025)</h3>
+  <p>Stack graphs replaced Semantic's code navigation pipeline. Key architectural differences:</p>
+
+  <div class="verdict-grid">
+    <div class="verdict-item">
+      <div class="verdict-label">Language Accessibility</div>
+      <div class="verdict-bar"><div class="verdict-fill green" style="width:90%"></div></div>
+      <div class="verdict-score">Declarative DSL on tree-sitter, not Haskell</div>
+    </div>
+    <div class="verdict-item">
+      <div class="verdict-label">Incrementalism</div>
+      <div class="verdict-bar"><div class="verdict-fill green" style="width:85%"></div></div>
+      <div class="verdict-score">File-level: only changed files need reanalysis</div>
+    </div>
+    <div class="verdict-item">
+      <div class="verdict-label">Analysis Depth</div>
+      <div class="verdict-bar"><div class="verdict-fill orange" style="width:40%"></div></div>
+      <div class="verdict-score">Name resolution only -- no dataflow, no type inference</div>
+    </div>
+    <div class="verdict-item">
+      <div class="verdict-label">Longevity</div>
+      <div class="verdict-bar"><div class="verdict-fill red" style="width:35%"></div></div>
+      <div class="verdict-score">Also archived September 2025</div>
+    </div>
+  </div>
+
+  <h3>Surviving Open-Source Artifacts</h3>
+  <p>Despite Semantic's archival, several extracted libraries continue to be used:</p>
+
+  <div class="artifact-grid">
+    <div class="artifact-card">
+      <div class="af-name">fused-effects</div>
+      <div class="af-desc">Algebraic/scoped effects library. 10k+ downloads, adopted industrially.</div>
+      <div class="af-status alive">Alive &amp; active</div>
+    </div>
+    <div class="artifact-card">
+      <div class="af-name">fastsum</div>
+      <div class="af-desc">Constant-time open union type for 100+ alternatives.</div>
+      <div class="af-status alive">Alive</div>
+    </div>
+    <div class="artifact-card">
+      <div class="af-name">tree-sitter fields</div>
+      <div class="af-desc">The <code>field()</code> API contributed to tree-sitter's grammar DSL.</div>
+      <div class="af-status contributed">Contributed upstream</div>
+    </div>
+    <div class="artifact-card">
+      <div class="af-name">ICFP 2022 Paper</div>
+      <div class="af-desc">"Fusing Industry and Academia at GitHub" -- the retrospective.</div>
+      <div class="af-status contributed">Published</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 09 — LESSONS ════════════════════ -->
+<section id="lessons">
+<div class="container">
+  <h2><span class="num">09</span>Lessons Learned</h2>
+  <p class="section-sub">What the decade-long arc of GitHub Semantic teaches about universal ASTs.</p>
+
+  <div class="concept-grid">
+    <div class="concept-card" onclick="showConcept(this, 'lesson-1')">
+      <div class="cc-label">Lesson 1</div>
+      <div class="cc-title">Share Infrastructure, Not Representation</div>
+      <div class="cc-desc">Per-language types + shared tooling beat shared types + per-language workarounds.</div>
+    </div>
+    <div class="concept-card" onclick="showConcept(this, 'lesson-2')">
+      <div class="cc-label">Lesson 2</div>
+      <div class="cc-title">Generate, Don't Abstract</div>
+      <div class="cc-desc">Auto-generated per-language types from a schema outperformed hand-crafted shared abstractions.</div>
+    </div>
+    <div class="concept-card" onclick="showConcept(this, 'lesson-3')">
+      <div class="cc-label">Lesson 3</div>
+      <div class="cc-title">Contributor Accessibility Matters</div>
+      <div class="cc-desc">A technically brilliant solution that only 5 people can maintain is worse than a simple one that 500 people can.</div>
+    </div>
+    <div class="concept-card" onclick="showConcept(this, 'lesson-4')">
+      <div class="cc-label">Lesson 4</div>
+      <div class="cc-title">User Expectations Trump Technical Elegance</div>
+      <div class="cc-desc">Semantic diffs were technically superior but users expected <code>git diff</code> output.</div>
+    </div>
+    <div class="concept-card" onclick="showConcept(this, 'lesson-5')">
+      <div class="cc-label">Lesson 5</div>
+      <div class="cc-title">The 65/35 Split Is Real</div>
+      <div class="cc-desc">About a third of language constructs resist universal representation. Plan for it.</div>
+    </div>
+    <div class="concept-card" onclick="showConcept(this, 'lesson-6')">
+      <div class="cc-label">Lesson 6</div>
+      <div class="cc-title">Extract Reusable Libraries</div>
+      <div class="cc-desc">fused-effects outlived the project. Good abstractions survive even when the application doesn't.</div>
+    </div>
+  </div>
+
+  <div class="concept-detail" id="lesson-1">
+    <h3>Share Infrastructure, Not Representation</h3>
+    <p>The Phase 1 approach shared the <em>data representation</em> (syntax functors) across languages. Phase 2 shared the <em>infrastructure</em> (Template Haskell code generation, generic unmarshaling, cursor API) while keeping data representation per-language. This mirrors the broader industry lesson: CodeQL shares the query language, Infer shares the analysis framework, GraalVM shares the compiler -- none of them share the AST.</p>
+  </div>
+  <div class="concept-detail" id="lesson-2">
+    <h3>Generate, Don't Abstract</h3>
+    <p>The team's own words: they prioritized "compile-time safety over runtime flexibility." Rather than clever type-level Haskell to abstract over language differences, mechanically generating per-language types from <code>node-types.json</code> was more maintainable, more type-safe, and easier to update when grammars changed. The schema is the single source of truth, not the Haskell type hierarchy.</p>
+  </div>
+  <div class="concept-detail" id="lesson-3">
+    <h3>Contributor Accessibility Matters</h3>
+    <p>Haskell's power was the team's advantage and the project's limitation. Adding a new language required understanding monad transformers, recursion schemes, open unions, and Template Haskell -- a vanishingly small contributor pool. Stack graphs replaced this with a declarative DSL that language experts (not Haskell experts) could write.</p>
+  </div>
+  <div class="concept-detail" id="lesson-4">
+    <h3>User Expectations Trump Technical Elegance</h3>
+    <p>The semantic diff engine -- the project's founding feature -- was abandoned because users expected <code>git diff</code>. Diff summaries "substantially improved" on nothing. The table-of-contents feature (much simpler) is what actually shipped and stayed. Sometimes the less ambitious feature is the right one.</p>
+  </div>
+  <div class="concept-detail" id="lesson-5">
+    <h3>The 65/35 Split Is Real</h3>
+    <p>YASA's research quantifies what Semantic experienced qualitatively: about 65% of syntax constructs can be universalized, but ~35% resist. Ruby's <code>zsuper</code>, Python's <code>with</code>, Go's goroutines -- these don't map to shared functors without semantic loss. Any universal AST design must explicitly account for this irreducible language-specific fraction rather than treating it as a corner case.</p>
+  </div>
+  <div class="concept-detail" id="lesson-6">
+    <h3>Extract Reusable Libraries</h3>
+    <p>fused-effects, fastsum, and the tree-sitter <code>field()</code> contribution all outlived the project. The team's investment in solving hard problems (algebraic effects, open union performance, parser API design) produced reusable artifacts even when the application they were built for didn't survive. Good engineering leaves a residue of useful components.</p>
+  </div>
+
+  <div class="quote-block">
+    "A successful application of FP techniques, which allowed us to iterate quickly on a solution, draw from well-researched avenues of thought, and express complex thoughts concisely, all the while retooling our approach in the face of evolving business requirements and use cases."
+    <div class="quote-source">-- Thomson, Rix, Wu, Schrijvers, ICFP 2022</div>
+  </div>
+</div>
+</section>
+
+<!-- ════════════════════ 10 — KNOWLEDGE CHECK ════════════════════ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">10</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">7</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is "data types a la carte" and why did GitHub Semantic adopt it?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A technique from Swierstra's 2008 paper where small, reusable syntax "functors" (e.g., <code>IfStatement</code>, <code>FuncDecl</code>) are composed into open unions (coproducts) per language. Semantic adopted it to share syntax definitions across languages, reducing the m &times; n problem to m + n.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What was the "Assignment grammar" and why was it the project's biggest pain point?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A hand-written Haskell parser per language that mapped tree-sitter's untyped CST to typed a la carte syntax functors. It was the biggest pain point because it duplicated the tree-sitter grammar, was tightly coupled to child ordering, and failures were only detectable at runtime -- not compile time.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why was the semantic diff feature -- Semantic's founding purpose -- abandoned?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>For a non-technical reason: users expected <code>git diff</code> output. Having structurally different diffs on GitHub.com was "deemed an insurmountable barrier." Additionally, high-level diff summaries proved intractable -- "no formulation substantially improved on reading a textual diff."</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How did CodeGen change the approach to language support?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>CodeGen replaced hand-written Assignment grammars with auto-generated, <em>per-language</em> Haskell types from tree-sitter's <code>node-types.json</code> schema using Template Haskell. This reversed the a la carte philosophy: instead of shared syntax types, each language got its own precise types, with sharing moved to the infrastructure (code generation, unmarshaling).</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is fused-effects and why did it outlive the Semantic project?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>An algebraic effects library (the team's third effects system, after MTL and freer monads) based on Schrijvers et al. (2019). It solved both the n&sup2; instances problem and the scoped effects problem. It outlived Semantic because it solves a general Haskell problem, not a code-analysis-specific one -- achieving 10,000+ downloads with adoption outside GitHub.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What key contribution did the Semantic team make to tree-sitter itself?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>They contributed the <code>field()</code> function to tree-sitter's grammar DSL, enabling child nodes to be retrieved by semantic name (e.g., <code>condition</code>, <code>body</code>) rather than by positional index. This feature is now fundamental to tree-sitter's architecture and was a prerequisite for reliable automated AST generation in CodeGen.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the core lesson about "sharing" from Semantic's a la carte failure?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Share <strong>infrastructure</strong> (code generators, analysis algorithms, query languages, effect systems), not <strong>data representation</strong> (AST types). Per-language types generated from a shared schema outperform hand-crafted shared abstractions. This mirrors the broader industry pattern: CodeQL shares the query language, Infer shares the analysis framework, GraalVM shares the compiler -- none share the AST.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 7</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+</div>
+</section>
+
+<div style="text-align:center; padding: 40px 24px; color: var(--text-dim); font-size: 0.8rem;">
+  Sources:
+  <a href="https://github.com/github/semantic" style="color:var(--accent);">GitHub Semantic</a> &middot;
+  <a href="https://github.blog/engineering/architecture-optimization/codegen-semantics-improved-language-support-system/" style="color:var(--accent);">CodeGen Blog Post</a> &middot;
+  <a href="https://ar5iv.labs.arxiv.org/html/2206.09206" style="color:var(--accent);">ICFP 2022 Paper</a> &middot;
+  <a href="https://github.blog/open-source/introducing-stack-graphs/" style="color:var(--accent);">Stack Graphs</a>
+</div>
+
+<script>
+/* ── Timeline ── */
+function toggleTimeline(el) {
+  const wasActive = el.classList.contains('active');
+  el.parentElement.querySelectorAll('.tl-event').forEach(e => e.classList.remove('active'));
+  if (!wasActive) el.classList.add('active');
+}
+
+/* ── Pipeline ── */
+function showPipe(id) {
+  document.querySelectorAll('.pipe-detail').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.pipe-stage').forEach(s => s.classList.remove('active'));
+  const detail = document.getElementById(id);
+  if (detail) {
+    detail.classList.add('active');
+    event.currentTarget.classList.add('active');
+  }
+}
+
+/* ── Tabs ── */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  container.previousElementSibling.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* ── Expandable Stages ── */
+function toggleStage(el) {
+  el.classList.toggle('active');
+}
+
+/* ── Concept Cards ── */
+function showConcept(card, detailId) {
+  const grid = card.parentElement;
+  const wasActive = card.classList.contains('active');
+  grid.querySelectorAll('.concept-card').forEach(c => c.classList.remove('active'));
+  const allDetails = grid.parentElement.querySelectorAll('.concept-detail');
+  allDetails.forEach(d => d.classList.remove('active'));
+  if (!wasActive) {
+    card.classList.add('active');
+    const detail = document.getElementById(detailId);
+    if (detail) detail.classList.add('active');
+  }
+}
+
+/* ── Flashcards ── */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+</body>
+</html>

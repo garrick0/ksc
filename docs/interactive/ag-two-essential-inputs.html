@@ -1,0 +1,2214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Two Essential Inputs to an Attribute Grammar</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --border: #30363d;
+    --border-highlight: #58a6ff;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --text-bright: #e6edf3;
+    --accent: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-yellow: #d29922;
+    --accent-orange: #db6d28;
+    --accent-red: #f85149;
+    --accent-purple: #bc8cff;
+    --accent-pink: #f778ba;
+    --code-bg: #0d1117;
+    --tab-active: #58a6ff;
+    --tab-inactive: #30363d;
+    --highlight: rgba(88,166,255,0.1);
+    --shadow: 0 3px 12px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1e2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    color: var(--text-bright);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .hero .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .hero .two-pillars {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+  }
+  .pillar-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    width: 280px;
+    text-align: left;
+    transition: border-color 0.2s;
+  }
+  .pillar-card:hover { border-color: var(--accent); }
+  .pillar-card .number {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.3rem;
+  }
+  .pillar-card h3 {
+    color: var(--text-bright);
+    font-size: 1.1rem;
+    margin-bottom: 0.3rem;
+  }
+  .pillar-card p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  /* ── Container ── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* ── Sections ── */
+  .section {
+    margin-bottom: 2.5rem;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .section-header:hover {
+    border-color: var(--accent);
+    background: var(--bg-tertiary);
+  }
+  .section-header .chevron {
+    transition: transform 0.2s;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+  .section.open .section-header .chevron { transform: rotate(90deg); }
+  .section-header h2 {
+    font-size: 1.2rem;
+    color: var(--text-bright);
+    flex: 1;
+  }
+  .section-header .badge {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge-current { background: rgba(248,81,73,0.15); color: var(--accent-red); border: 1px solid rgba(248,81,73,0.3); }
+  .badge-proposed { background: rgba(63,185,80,0.15); color: var(--accent-green); border: 1px solid rgba(63,185,80,0.3); }
+  .badge-jastadd { background: rgba(188,140,255,0.15); color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.3); }
+  .badge-silver { background: rgba(210,153,34,0.15); color: var(--accent-yellow); border: 1px solid rgba(210,153,34,0.3); }
+  .badge-compare { background: rgba(88,166,255,0.15); color: var(--accent); border: 1px solid rgba(88,166,255,0.3); }
+  .badge-insight { background: rgba(247,120,186,0.15); color: var(--accent-pink); border: 1px solid rgba(247,120,186,0.3); }
+
+  .section-body {
+    display: none;
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: var(--bg-secondary);
+    margin-top: -1px;
+  }
+  .section.open .section-body { display: block; }
+  .section.open .section-header {
+    border-radius: 8px 8px 0 0;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 0.6rem 1.2rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 0.75rem 0;
+  }
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.85em;
+  }
+  .inline-code {
+    background: rgba(88,166,255,0.1);
+    color: var(--accent);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+  }
+
+  /* Syntax highlighting */
+  .kw { color: #ff7b72; }
+  .fn { color: #d2a8ff; }
+  .str { color: #a5d6ff; }
+  .cm { color: #8b949e; font-style: italic; }
+  .ty { color: #79c0ff; }
+  .num { color: #79c0ff; }
+  .op { color: #ff7b72; }
+  .prop { color: #7ee787; }
+  .attr { color: #ffa657; }
+
+  /* ── Diagrams ── */
+  .diagram {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+  .diagram-title {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+  .diagram pre {
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: none;
+    font-size: 0.8rem;
+  }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  th {
+    background: var(--bg-tertiary);
+    color: var(--text-bright);
+    text-align: left;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  td {
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) { background: rgba(22,27,34,0.5); }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    border-left: 3px solid;
+  }
+  .callout-insight {
+    background: rgba(88,166,255,0.05);
+    border-color: var(--accent);
+  }
+  .callout-key {
+    background: rgba(63,185,80,0.05);
+    border-color: var(--accent-green);
+  }
+  .callout-warning {
+    background: rgba(210,153,34,0.05);
+    border-color: var(--accent-yellow);
+  }
+  .callout-critical {
+    background: rgba(248,81,73,0.05);
+    border-color: var(--accent-red);
+  }
+  .callout-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+  }
+  .callout-insight .callout-title { color: var(--accent); }
+  .callout-key .callout-title { color: var(--accent-green); }
+  .callout-warning .callout-title { color: var(--accent-yellow); }
+  .callout-critical .callout-title { color: var(--accent-red); }
+
+  /* ── Comparison Grid ── */
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  @media (max-width: 700px) { .comparison-grid { grid-template-columns: 1fr; } }
+  .comparison-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+  }
+  .comparison-card h4 {
+    color: var(--text-bright);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .comparison-card.highlight {
+    border-color: var(--accent-green);
+    background: rgba(63,185,80,0.03);
+  }
+
+  /* ── Spec Field Flow ── */
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid;
+  }
+  .flow-domain { background: rgba(88,166,255,0.1); border-color: rgba(88,166,255,0.3); color: var(--accent); }
+  .flow-rules { background: rgba(63,185,80,0.1); border-color: rgba(63,185,80,0.3); color: var(--accent-green); }
+  .flow-infra { background: rgba(210,153,34,0.1); border-color: rgba(210,153,34,0.3); color: var(--accent-yellow); }
+  .flow-derived { background: rgba(139,148,158,0.1); border-color: rgba(139,148,158,0.3); color: var(--text-muted); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+
+  /* ── Interactive Tree ── */
+  .tree-viz {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+  .tree-node {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    margin: 0.15rem;
+    transition: all 0.15s;
+  }
+  .tree-node:hover { border-color: var(--accent); background: var(--highlight); }
+  .tree-node.active { border-color: var(--accent-green); background: rgba(63,185,80,0.1); }
+  .tree-attrs {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    min-height: 60px;
+  }
+  .attr-line {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.2rem 0;
+    align-items: baseline;
+  }
+  .attr-name { color: var(--accent-green); font-family: monospace; font-weight: 600; }
+  .attr-dir { font-size: 0.7rem; padding: 0.1rem 0.3rem; border-radius: 3px; font-weight: 500; }
+  .attr-dir.syn-dir { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .attr-dir.inh-dir { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .attr-value { color: var(--text-muted); font-family: monospace; }
+
+  /* ── Flashcards ── */
+  .flashcard-container { margin: 1rem 0; }
+  .flashcard {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 100px;
+  }
+  .flashcard:hover { border-color: var(--accent); }
+  .flashcard-q { font-weight: 600; color: var(--text-bright); margin-bottom: 0.5rem; }
+  .flashcard-a {
+    color: var(--text-muted);
+    display: none;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+  .flashcard.revealed .flashcard-a { display: block; }
+  .flashcard-hint { color: var(--text-muted); font-size: 0.8rem; font-style: italic; }
+  .flashcard-nav {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  .flashcard-nav button {
+    padding: 0.4rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  .flashcard-nav button:hover { border-color: var(--accent); }
+  .flashcard-counter { color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 0.5rem; }
+
+  /* ── Lists ── */
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.3rem 0; }
+  li::marker { color: var(--text-muted); }
+
+  p { margin: 0.5rem 0; }
+  strong { color: var(--text-bright); }
+
+  /* ── Diff view ── */
+  .diff-added { background: rgba(63,185,80,0.1); border-left: 3px solid var(--accent-green); padding-left: 0.5rem; }
+  .diff-removed { background: rgba(248,81,73,0.1); border-left: 3px solid var(--accent-red); padding-left: 0.5rem; text-decoration: line-through; opacity: 0.7; }
+  .diff-context { opacity: 0.7; }
+
+  /* ── SVG diagrams ── */
+  svg text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  .field-reduction {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .field-block {
+    text-align: center;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    min-width: 120px;
+  }
+  .field-block .count {
+    font-size: 2rem;
+    font-weight: 800;
+    display: block;
+  }
+  .field-block .label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .field-block.current { border-color: var(--accent-red); }
+  .field-block.current .count { color: var(--accent-red); }
+  .field-block.proposed { border-color: var(--accent-green); }
+  .field-block.proposed .count { color: var(--accent-green); }
+  .field-arrow { font-size: 1.5rem; color: var(--text-muted); }
+
+  /* ── Interactive attribute graph ── */
+  .attr-graph {
+    position: relative;
+    margin: 1rem 0;
+  }
+  .attr-graph svg {
+    width: 100%;
+    height: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <h1>The Two Essential Inputs to an Attribute Grammar</h1>
+  <p class="subtitle">
+    Domain + Rules. Everything else is either inside them, derived from them,
+    or about composing multiple AGs rather than defining one.
+  </p>
+  <div class="two-pillars">
+    <div class="pillar-card">
+      <div class="number">1</div>
+      <h3>Domain</h3>
+      <p>Attribute declarations &mdash; the <em>what</em>. Names and types of values computed at each node.</p>
+    </div>
+    <div class="pillar-card">
+      <div class="number">2</div>
+      <h3>Semantic Rules</h3>
+      <p>Attribute equations &mdash; the <em>how</em>. Local functions computing each attribute from its neighborhood.</p>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: KSC AGSpecInput + Grammar -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section open" id="sec-current">
+  <div class="section-header" onclick="toggleSection('sec-current')">
+    <span class="chevron">&#9654;</span>
+    <h2>KSC AGSpecInput + Grammar: The Implemented Design</h2>
+    <span class="badge badge-proposed">Implemented</span>
+  </div>
+  <div class="section-body">
+
+    <p>After implementing Strategies 1, 3, 5, and 7 from the <a href="library-vs-generator-prior-art.html" style="color: var(--accent);">library-vs-generator prior art</a>, the spec is now <code class="inline-code">AGSpecInput&lt;N, R&gt;</code> &mdash; four fields, with tree structure owned by a shared Grammar object:</p>
+
+    <pre><code><span class="cm">// The spec: pure domain + rules + minimal infrastructure</span>
+<span class="kw">interface</span> <span class="ty">AGSpecInput</span>&lt;<span class="ty">N</span> <span class="kw">extends</span> <span class="ty">object</span>, <span class="ty">R</span> = <span class="ty">unknown</span>&gt; {
+  <span class="prop">name</span>:       <span class="ty">string</span>;                <span class="cm">// For dependency resolution</span>
+  <span class="prop">attributes</span>: <span class="ty">AttributeMap</span>&lt;<span class="ty">N</span>&gt;;      <span class="cm">// THE AG (domain + rules — currently fused)</span>
+  <span class="prop">deps</span>?:      <span class="ty">string</span>[];              <span class="cm">// Cross-AG dependencies</span>
+  <span class="prop">project</span>?:   (<span class="attr">root</span>: <span class="ty">N</span>) =&gt; <span class="ty">R</span>;      <span class="cm">// Result extraction (convenience)</span>
+}
+
+<span class="cm">// The grammar: shared tree substrate (Strategy 7)</span>
+<span class="kw">interface</span> <span class="ty">Grammar</span>&lt;<span class="ty">N</span> <span class="kw">extends</span> <span class="ty">object</span>&gt; {
+  <span class="kw">readonly</span> <span class="prop">getChildren</span>: (<span class="attr">node</span>: <span class="ty">N</span>) =&gt; <span class="ty">N</span>[];
+  <span class="fn">evaluate</span>&lt;<span class="ty">R</span>&gt;(<span class="attr">spec</span>: <span class="ty">AGSpecInput</span>, <span class="attr">root</span>: <span class="ty">N</span>): <span class="ty">R</span> | <span class="ty">undefined</span>;
+  <span class="fn">evaluateAll</span>(<span class="attr">specs</span>: <span class="ty">AGSpecInput</span>[], <span class="attr">root</span>: <span class="ty">N</span>): <span class="ty">Map</span>&lt;<span class="ty">string</span>, <span class="ty">unknown</span>&gt;;
+}</code></pre>
+
+    <div class="callout callout-key">
+      <div class="callout-title">Four fields &mdash; how many are essential?</div>
+      <p>The <code class="inline-code">children</code> accessor moved to the Grammar object (Strategy 7). The <code class="inline-code">domain</code> sub-object was flattened to a simple <code class="inline-code">project</code> function. Let's categorize what remains:</p>
+    </div>
+
+    <table>
+      <tr>
+        <th>Field</th>
+        <th>Category</th>
+        <th>Why</th>
+      </tr>
+      <tr>
+        <td><code class="inline-code">attributes</code></td>
+        <td><span class="flow-box flow-rules" style="display:inline-block">Essential #2</span></td>
+        <td>The semantic rules. Currently fuses domain and rules inside <code class="inline-code">AttributeDef</code> closures &mdash; planned to be separated into explicit <code class="inline-code">declarations</code> + <code class="inline-code">equations</code>.</td>
+      </tr>
+      <tr>
+        <td><code class="inline-code">name</code></td>
+        <td><span class="flow-box flow-infra" style="display:inline-block">Infrastructure</span></td>
+        <td>For multi-AG orchestration (dep resolution). Not about any single AG's definition.</td>
+      </tr>
+      <tr>
+        <td><code class="inline-code">deps</code></td>
+        <td><span class="flow-box flow-infra" style="display:inline-block">Composition</span></td>
+        <td>About composing multiple AGs. Not a property of any single AG's definition.</td>
+      </tr>
+      <tr>
+        <td><code class="inline-code">project</code></td>
+        <td><span class="flow-box flow-derived" style="display:inline-block">Convenience</span></td>
+        <td>Result extraction. Could be a standalone function &mdash; the AG doesn't need it to <em>be</em> an AG.</td>
+      </tr>
+    </table>
+
+    <p style="margin-top: 1rem;">And in the Grammar object (shared, not per-spec):</p>
+
+    <table>
+      <tr>
+        <th>Field</th>
+        <th>Category</th>
+        <th>Why</th>
+      </tr>
+      <tr>
+        <td><code class="inline-code">getChildren</code></td>
+        <td><span class="flow-box flow-infra" style="display:inline-block">Shared substrate</span></td>
+        <td>The tree structure. Shared across all AGs over the same AST &mdash; the <code class="inline-code">.ast</code> file equivalent. Now lives on Grammar, not in each spec.</td>
+      </tr>
+    </table>
+
+    <div class="tabs" id="current-tabs">
+      <button class="tab-btn active" onclick="switchTab('current-tabs', 'current-binder')">Binder Spec</button>
+      <button class="tab-btn" onclick="switchTab('current-tabs', 'current-checker')">Checker Spec</button>
+      <button class="tab-btn" onclick="switchTab('current-tabs', 'current-eval')">Evaluator</button>
+    </div>
+
+    <div class="tab-panel active" id="current-binder">
+      <p>The binder spec: 3 attributes + minimal infrastructure. No <code class="inline-code">children</code> or <code class="inline-code">domain</code> &mdash; the Grammar owns tree structure:</p>
+      <pre><code><span class="kw">return</span> {
+  <span class="prop">name</span>: <span class="str">'ksc-binder'</span>,                          <span class="cm">// infrastructure</span>
+  <span class="prop">attributes</span>: { kindDefs, defEnv, defLookup },   <span class="cm">// THE AG</span>
+  <span class="prop">project</span>: (<span class="attr">root</span>) =&gt; [...allDefs],             <span class="cm">// convenience</span>
+};</code></pre>
+      <p>The actual AG content is just the <code class="inline-code">attributes</code> object. <code class="inline-code">name</code> is for orchestration; <code class="inline-code">project</code> is for result extraction. The tree structure lives on <code class="inline-code">createGrammar(getChildren)</code>.</p>
+    </div>
+
+    <div class="tab-panel" id="current-checker">
+      <p>The checker: 9 attributes, with deps for cross-AG composition:</p>
+      <pre><code><span class="kw">return</span> {
+  <span class="prop">name</span>: <span class="str">'ksc-checker'</span>,                          <span class="cm">// infrastructure</span>
+  <span class="prop">attributes</span>: {                                    <span class="cm">// THE AG</span>
+    valueImports, fileImports, localBindings, enclosingLocals,
+    isReference, kindAnnotations, noImportsContext,
+    importViolation, allViolations
+  },
+  <span class="prop">deps</span>: [<span class="str">'ksc-binder'</span>],                          <span class="cm">// composition</span>
+  <span class="prop">project</span>: (<span class="attr">root</span>) =&gt; root.allViolations,       <span class="cm">// convenience</span>
+};</code></pre>
+    </div>
+
+    <div class="tab-panel" id="current-eval">
+      <p>The Grammar object evaluates specs. It owns the tree and orchestrates:</p>
+      <pre><code><span class="cm">// Grammar owns tree structure (Strategy 7)</span>
+<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
+
+<span class="cm">// Single spec evaluation:</span>
+grammar.<span class="fn">evaluate</span>(binderSpec, root);
+
+<span class="cm">// Multi-spec with validation + topo sort (Strategy 1):</span>
+<span class="kw">const</span> <span class="attr">results</span> = grammar.<span class="fn">evaluateAll</span>(
+  [checkerSpec, binderSpec], <span class="cm">// any order — auto-sorted</span>
+  root,
+);
+<span class="cm">// Validates: no duplicate attrs, no circular deps, no unknown deps</span></code></pre>
+      <p><code class="inline-code">evaluateAll</code> stamps the tree once, validates all specs, topologically sorts them, then applies attributes in order. The input is <em>just</em> <code class="inline-code">spec.attributes</code> per spec.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: The Two-Inputs View -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section open" id="sec-two">
+  <div class="section-header" onclick="toggleSection('sec-two')">
+    <span class="chevron">&#9654;</span>
+    <h2>The "Two Inputs" Thesis</h2>
+    <span class="badge badge-proposed">Proposed</span>
+  </div>
+  <div class="section-body">
+
+    <div class="field-reduction">
+      <div class="field-block" style="border-color: var(--text-muted);">
+        <span class="count" style="color: var(--text-muted); text-decoration: line-through;">5</span>
+        <span class="label">Old AGSpec fields</span>
+      </div>
+      <span class="field-arrow">&rarr;</span>
+      <div class="field-block proposed">
+        <span class="count">4</span>
+        <span class="label">AGSpecInput fields</span>
+      </div>
+      <span class="field-arrow">=</span>
+      <div class="field-block" style="border-color: var(--accent-green);">
+        <span class="count" style="color: var(--accent-green);">1</span>
+        <span class="label">Essential input</span>
+      </div>
+      <span class="field-arrow">+</span>
+      <div class="field-block" style="border-color: var(--accent-yellow);">
+        <span class="count" style="color: var(--accent-yellow);">3</span>
+        <span class="label">Infrastructure</span>
+      </div>
+      <span class="field-arrow">+</span>
+      <div class="field-block" style="border-color: var(--accent-purple);">
+        <span class="count" style="color: var(--accent-purple);">1</span>
+        <span class="label">Grammar (shared)</span>
+      </div>
+    </div>
+
+    <div class="callout callout-key">
+      <div class="callout-title">The core claim &mdash; and its implication</div>
+      <p>An attribute grammar is fully defined by <strong>what gets computed</strong> (domain) and <strong>how each node computes it</strong> (rules). Everything else is either inside these two, derivable from them, or about composing/orchestrating multiple AGs. The current <code class="inline-code">AGSpecInput</code> acknowledges this by having a single <code class="inline-code">attributes</code> field &mdash; but it <em>fuses</em> domain and rules inside <code class="inline-code">AttributeDef</code> closures. The next step is to <strong>separate them</strong>: explicit <code class="inline-code">declarations</code> (domain) + <code class="inline-code">equations</code> (rules), matching JastAdd's architecture and enabling collection attributes, extensibility, and completeness checking.</p>
+    </div>
+
+    <h3 style="color: var(--text-bright); margin: 1.5rem 0 0.75rem;">What's "inside" the two inputs</h3>
+    <p>Several concepts that feel like separate architectural concerns are actually embedded in the domain and rules:</p>
+
+    <div class="tabs" id="inside-tabs">
+      <button class="tab-btn active" onclick="switchTab('inside-tabs', 'inside-init')">Initial State</button>
+      <button class="tab-btn" onclick="switchTab('inside-tabs', 'inside-dir')">Direction</button>
+      <button class="tab-btn" onclick="switchTab('inside-tabs', 'inside-scope')">Scoping</button>
+      <button class="tab-btn" onclick="switchTab('inside-tabs', 'inside-join')">Join/Lattice</button>
+      <button class="tab-btn" onclick="switchTab('inside-tabs', 'inside-deps')">Dependencies</button>
+      <button class="tab-btn" onclick="switchTab('inside-tabs', 'inside-tree')">Grammar</button>
+    </div>
+
+    <div class="tab-panel active" id="inside-init">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Initial State = root's equation</h4>
+      <p>There's no separate "init" concept. The root's transfer function <em>is</em> the initial inherited context.</p>
+      <div class="comparison-grid">
+        <div class="comparison-card">
+          <h4>Feels like a separate concept</h4>
+          <pre><code><span class="cm">// "Initial context" for the binder</span>
+<span class="kw">const</span> <span class="attr">initialEnv</span> = <span class="kw">new</span> <span class="ty">Map</span>();
+<span class="cm">// somehow passed to root...</span></code></pre>
+        </div>
+        <div class="comparison-card highlight">
+          <h4>Actually just the root's equation</h4>
+          <pre><code><span class="kw">const</span> <span class="attr">defEnv</span> = <span class="fn">inh</span>&lt;<span class="ty">KSNode</span>, <span class="ty">Map</span>&gt;(
+  <span class="cm">// rootValue IS the initial state</span>
+  (<span class="attr">root</span>) =&gt; {
+    <span class="kw">const</span> <span class="attr">map</span> = <span class="kw">new</span> <span class="ty">Map</span>();
+    <span class="kw">for</span> (<span class="kw">const</span> <span class="attr">cu</span> <span class="kw">of</span> root.$children)
+      <span class="kw">for</span> (<span class="kw">const</span> <span class="attr">def</span> <span class="kw">of</span> cu.kindDefs)
+        map.<span class="fn">set</span>(def.name, def);
+    <span class="kw">return</span> map;
+  },
+);</code></pre>
+        </div>
+      </div>
+      <p>The first argument to <code class="inline-code">inh()</code> produces the value at the root. That's the "initial state." It's not separate &mdash; it's what the root node's equation computes.</p>
+    </div>
+
+    <div class="tab-panel" id="inside-dir">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Direction = emergent from equations</h4>
+      <p>You don't declare "this is synthesized" or "this is inherited." The equation <em>is</em> the direction.</p>
+      <div class="comparison-grid">
+        <div class="comparison-card">
+          <h4>Synthesized: equation reads children</h4>
+          <pre><code><span class="cm">// kindDefs reads child statements</span>
+<span class="kw">const</span> <span class="attr">kindDefs</span> = <span class="fn">match</span>(<span class="str">'kind'</span>, {
+  CompilationUnit: (<span class="attr">cu</span>) =&gt; {
+    <span class="kw">for</span> (<span class="kw">const</span> <span class="attr">stmt</span> <span class="kw">of</span> cu.children)
+      <span class="cm">// reads DOWN the tree</span>
+  }
+});</code></pre>
+        </div>
+        <div class="comparison-card">
+          <h4>Inherited: equation reads parent</h4>
+          <pre><code><span class="cm">// fileImports reads parent's value</span>
+<span class="kw">const</span> <span class="attr">fileImports</span> = <span class="fn">inh</span>(
+  <span class="kw">new</span> <span class="ty">Set</span>(),
+  (<span class="attr">parent</span>) =&gt; {
+    <span class="cm">// reads UP the tree</span>
+    <span class="kw">return</span> parent.valueImports;
+  }
+);</code></pre>
+        </div>
+      </div>
+      <p>The factory name (<code class="inline-code">syn</code> vs <code class="inline-code">inh</code>) is an implementation hint, not a declaration. The equation's data flow determines the direction.</p>
+    </div>
+
+    <div class="tab-panel" id="inside-scope">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Scope = inherited attribute + domain component</h4>
+      <p>"The scope chain" sounds architectural, but it's just an inherited attribute whose value type is a map/set.</p>
+      <pre><code><span class="cm">// Scope is just an inherited attr of type Map</span>
+<span class="kw">const</span> <span class="attr">defEnv</span> = <span class="fn">inh</span>&lt;<span class="ty">KSNode</span>, <span class="ty">Map</span>&lt;<span class="ty">string</span>, <span class="ty">KindDefinition</span>&gt;&gt;(
+  (<span class="attr">root</span>) =&gt; buildGlobalMap(root),  <span class="cm">// root computes initial scope</span>
+  <span class="cm">// auto-propagate: all children see same scope</span>
+);
+
+<span class="cm">// A richer scope system would have Block nodes extending it:</span>
+<span class="cm">// eq: (parent, child) => parent.kind === 'Block'</span>
+<span class="cm">//   ? new Map([...parent.defEnv, ...parent.localDefs])</span>
+<span class="cm">//   : undefined  // auto-propagate</span></code></pre>
+      <p>The scope chain is what certain transfer functions <em>do</em> with a certain part of the domain. It's not a separate concept.</p>
+    </div>
+
+    <div class="tab-panel" id="inside-join">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Join/Lattice = what branch equations do</h4>
+      <p>Different analyses handle control-flow merges differently. That's just what the equation says at branch points:</p>
+      <table>
+        <tr><th>Analysis</th><th>IfStatement equation</th><th>Lattice operation</th></tr>
+        <tr>
+          <td>KSC Binder</td>
+          <td>Identity (passthrough)</td>
+          <td>None needed &mdash; defs don't branch</td>
+        </tr>
+        <tr>
+          <td>Type checker</td>
+          <td><code class="inline-code">union(then.type, else.type)</code></td>
+          <td>Join (widening)</td>
+        </tr>
+        <tr>
+          <td>CFA</td>
+          <td><code class="inline-code">intersect(then.facts, else.facts)</code></td>
+          <td>Meet (narrowing)</td>
+        </tr>
+        <tr>
+          <td>Definite assignment</td>
+          <td><code class="inline-code">both ? assigned : maybe</code></td>
+          <td>Must-analysis meet</td>
+        </tr>
+      </table>
+      <p>There's no separate "lattice" concept. The lattice operation is encoded in the equation for that specific production.</p>
+    </div>
+
+    <div class="tab-panel" id="inside-deps">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Dependencies = multi-AG composition (now auto-discovered)</h4>
+      <p>The checker needs the binder's attributes. This is about <em>composing two AGs</em>, not defining one. The <code class="inline-code">deps</code> field declares spec-level ordering, while <code class="inline-code">analyzeDeps()</code> (Strategy 5) discovers attribute-level dependencies automatically:</p>
+      <pre><code><span class="cm">// Spec-level: declared (for topo sort of evaluateAll)</span>
+<span class="prop">deps</span>: [<span class="str">'ksc-binder'</span>]
+
+<span class="cm">// Attribute-level: discovered at runtime (Strategy 5)</span>
+<span class="kw">const</span> <span class="attr">result</span> = <span class="fn">analyzeDeps</span>(getChildren, [binder, checker], root);
+<span class="cm">// result.deps: importViolation → {noImportsContext, isReference, ...}</span>
+<span class="cm">// result.order: [kindDefs, defEnv, ..., allViolations]</span>
+<span class="cm">// result.cycles: [] (none in KSC)</span></code></pre>
+    </div>
+
+    <div class="tab-panel" id="inside-tree">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">The grammar = shared substrate (now a first-class object)</h4>
+      <p>The tree structure is shared across all AGs. After Strategy 7, it's a first-class Grammar object:</p>
+      <pre><code><span class="cm">// Grammar owns the tree structure — equivalent to JastAdd's .ast files</span>
+<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
+
+<span class="cm">// Specs are pure { attributes, deps? } — no children accessor</span>
+grammar.<span class="fn">evaluateAll</span>([binderSpec, checkerSpec], root);</code></pre>
+      <p>In JastAdd, the grammar is in <code class="inline-code">.ast</code> files, completely separate from <code class="inline-code">.jrag</code> specs. KSC now mirrors this: <code class="inline-code">createGrammar(getChildren)</code> is the <code class="inline-code">.ast</code> equivalent. Each spec adds attributes to the grammar's nodes &mdash; the grammar itself is shared.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: Interactive Attribute Graph -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-tree">
+  <div class="section-header" onclick="toggleSection('sec-tree')">
+    <span class="chevron">&#9654;</span>
+    <h2>Interactive: Attributed Tree in Action</h2>
+    <span class="badge badge-insight">Interactive</span>
+  </div>
+  <div class="section-body">
+    <p>Click any node to see its attributes. Notice how each attribute is <em>just</em> a domain declaration + an equation &mdash; the two essential inputs.</p>
+
+    <div class="tree-viz" id="tree-demo">
+      <div class="diagram-title">KSC Attributed Tree (simplified)</div>
+      <div style="text-align: center; padding: 0.5rem 0;">
+        <div style="margin-bottom: 0.25rem;">
+          <span class="tree-node active" onclick="showNodeAttrs('program')" id="tn-program">Program</span>
+        </div>
+        <div style="color: var(--text-muted); font-size: 0.7rem;">&darr;</div>
+        <div style="margin-bottom: 0.25rem;">
+          <span class="tree-node" onclick="showNodeAttrs('cu')" id="tn-cu">CompilationUnit</span>
+        </div>
+        <div style="color: var(--text-muted); font-size: 0.7rem;">&swarr; &nbsp; &searr;</div>
+        <div style="display: flex; justify-content: center; gap: 2rem; margin-bottom: 0.25rem;">
+          <span class="tree-node" onclick="showNodeAttrs('typealias')" id="tn-typealias">TypeAlias: Pure</span>
+          <span class="tree-node" onclick="showNodeAttrs('vardecl')" id="tn-vardecl">VarDecl: x: Pure</span>
+        </div>
+        <div style="text-align: center;">
+          <div style="color: var(--text-muted); font-size: 0.7rem; margin-left: 6rem;">&darr;</div>
+          <div style="margin-left: 6rem;">
+            <span class="tree-node" onclick="showNodeAttrs('ident')" id="tn-ident">Identifier: fetch</span>
+          </div>
+        </div>
+      </div>
+      <div class="tree-attrs" id="node-attrs">
+        <div class="attr-line">
+          <span class="attr-name">defEnv</span>
+          <span class="attr-dir inh-dir">inh</span>
+          <span class="attr-value">&larr; computed from children's kindDefs (root equation)</span>
+        </div>
+        <div class="attr-line">
+          <span class="attr-name">defLookup</span>
+          <span class="attr-dir syn-dir">syn</span>
+          <span class="attr-value">&larr; closure over defEnv.get()</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-insight">
+      <div class="callout-title">The demand-driven insight</div>
+      <p>After <code class="inline-code">evaluate()</code>, the tree just sits there with lazy getters. Nothing has been computed. When you access <code class="inline-code">root.allViolations</code>, that pulls <code class="inline-code">importViolation</code> on every identifier, which pulls <code class="inline-code">noImportsContext</code> (walks up), <code class="inline-code">fileImports</code> (walks up), <code class="inline-code">isReference</code> (checks parent), and <code class="inline-code">enclosingLocals</code> (walks up through scopes). The entire analysis is demand-driven &mdash; pulled from the root, not pushed by traversal.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: JastAdd -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-jastadd">
+  <div class="section-header" onclick="toggleSection('sec-jastadd')">
+    <span class="chevron">&#9654;</span>
+    <h2>JastAdd: The Canonical Two-Input System</h2>
+    <span class="badge badge-jastadd">JastAdd</span>
+  </div>
+  <div class="section-body">
+
+    <p>JastAdd is the reference implementation that most cleanly separates the two inputs. Its file structure <em>is</em> the separation:</p>
+
+    <div class="comparison-grid">
+      <div class="comparison-card">
+        <h4>.ast files &mdash; The Grammar (shared substrate)</h4>
+        <pre><code><span class="cm">// Grammar = tree structure</span>
+<span class="cm">// NOT part of any AG spec</span>
+<span class="ty">Program</span> ::= <span class="ty">CompUnit</span>*;
+<span class="ty">CompUnit</span> ::= <span class="ty">Stmt</span>*;
+<span class="ty">VarDecl</span>: <span class="ty">Stmt</span> ::= <span class="ty">Name</span>:<span class="ty">IdDecl</span>
+                   <span class="ty">Init</span>:<span class="ty">Expr</span>;
+<span class="ty">IdUse</span>: <span class="ty">Expr</span> ::= &lt;<span class="ty">ID</span>:<span class="ty">String</span>&gt;;</code></pre>
+      </div>
+      <div class="comparison-card highlight">
+        <h4>.jrag files &mdash; Domain + Rules (the AG)</h4>
+        <pre><code><span class="cm">// Domain: attribute declarations</span>
+<span class="kw">syn</span> <span class="ty">Set</span>&lt;<span class="ty">Def</span>&gt; <span class="ty">CompUnit</span>.<span class="fn">kindDefs</span>();
+<span class="kw">inh</span> <span class="ty">Map</span>&lt;<span class="ty">String</span>,<span class="ty">Def</span>&gt; <span class="ty">ASTNode</span>.<span class="fn">defEnv</span>();
+
+<span class="cm">// Rules: equations per production</span>
+<span class="kw">eq</span> <span class="ty">CompUnit</span>.<span class="fn">kindDefs</span>() {
+  <span class="kw">return</span> getStmts().stream()
+    .filter(s -&gt; s <span class="kw">instanceof</span> <span class="ty">TypeAlias</span>)
+    .map(s -&gt; extractDef(s))
+    .collect(toSet());
+}
+
+<span class="kw">eq</span> <span class="ty">Program</span>.getCompUnit().<span class="fn">defEnv</span>() {
+  <span class="kw">return</span> allKindDefs();
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-key">
+      <div class="callout-title">JastAdd's radical simplicity</div>
+      <p>A <code class="inline-code">.jrag</code> file contains <strong>only</strong> two things: attribute declarations (domain) and equations (rules). No name, no children accessor, no deps, no project function. The grammar is separate. The evaluator is generated. Composition is automatic via the JastAdd compiler reading multiple <code class="inline-code">.jrag</code> files.</p>
+    </div>
+
+    <h3 style="color: var(--text-bright); margin: 1.5rem 0 0.75rem;">JastAdd's handling of "everything else"</h3>
+
+    <table>
+      <tr>
+        <th>Concept</th>
+        <th>JastAdd's approach</th>
+        <th>Mapping to two inputs</th>
+      </tr>
+      <tr>
+        <td>Initial state</td>
+        <td>Root equation: <code class="inline-code">eq Program.getChild().env() = ...</code></td>
+        <td>Rule for root production</td>
+      </tr>
+      <tr>
+        <td>Direction</td>
+        <td><code class="inline-code">syn</code> / <code class="inline-code">inh</code> keywords</td>
+        <td>Domain declaration (types the direction)</td>
+      </tr>
+      <tr>
+        <td>Scoping</td>
+        <td><code class="inline-code">inh Env Block.env()</code> + equations</td>
+        <td>An inherited attribute of type Env</td>
+      </tr>
+      <tr>
+        <td>Circular</td>
+        <td><code class="inline-code">syn Set&lt;X&gt; Node.reaching() circular [emptySet()]</code></td>
+        <td>Domain (with bottom) + rule (equation)</td>
+      </tr>
+      <tr>
+        <td>Caching</td>
+        <td>Default: cached. Opt out: <code class="inline-code">uncache</code></td>
+        <td>Evaluator concern, not spec</td>
+      </tr>
+      <tr>
+        <td>Dependencies</td>
+        <td>JastAdd compiler resolves across .jrag files</td>
+        <td>Composition tool, not spec</td>
+      </tr>
+      <tr>
+        <td>Tree structure</td>
+        <td>Separate <code class="inline-code">.ast</code> files</td>
+        <td>Shared substrate</td>
+      </tr>
+      <tr>
+        <td>Result extraction</td>
+        <td>Just access <code class="inline-code">root.allDiagnostics()</code></td>
+        <td>Client code, not spec</td>
+      </tr>
+    </table>
+
+    <h3 style="color: var(--text-bright); margin: 1.5rem 0 0.75rem;">JastAdd's inherited attribute protocol</h3>
+    <p>JastAdd's approach to inherited attributes is notably different from ours. The equation is written <em>on the parent</em>, specifying what value it provides to a named child accessor:</p>
+
+    <pre><code><span class="cm">// JastAdd: parent defines what child receives</span>
+<span class="kw">inh</span> <span class="ty">Env</span> <span class="ty">Stmt</span>.<span class="fn">env</span>();                     <span class="cm">// declaration</span>
+
+<span class="kw">eq</span> <span class="ty">Block</span>.getStmt(<span class="kw">int</span> i).<span class="fn">env</span>() {         <span class="cm">// equation on parent</span>
+  <span class="kw">if</span> (i == <span class="num">0</span>) <span class="kw">return</span> env();              <span class="cm">// first child: inherit from block</span>
+  <span class="kw">return</span> getStmt(i-<span class="num">1</span>).envAfter();         <span class="cm">// others: chained from prev sibling</span>
+}
+
+<span class="cm">// KSC: child looks up via parent reference</span>
+<span class="kw">const</span> <span class="attr">fileImports</span> = <span class="fn">inh</span>(
+  <span class="kw">new</span> <span class="ty">Set</span>(),
+  (<span class="attr">parent</span>, <span class="attr">child</span>, <span class="attr">idx</span>) =&gt; {            <span class="cm">// dispatched at child</span>
+    <span class="kw">if</span> (parent.kind === <span class="str">'CompilationUnit'</span>)
+      <span class="kw">return</span> parent.valueImports;
+    <span class="kw">return</span> <span class="kw">undefined</span>;                     <span class="cm">// auto-propagate</span>
+  }
+);</code></pre>
+    <p>Both approaches encode the same information. JastAdd's is "parent pushes to named child." KSC's is "child queries parent via <code class="inline-code">$parent</code>." The equation is the same &mdash; just written from different perspectives.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: Silver -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-silver">
+  <div class="section-header" onclick="toggleSection('sec-silver')">
+    <span class="chevron">&#9654;</span>
+    <h2>Silver (MELT): Forwarding and Higher-Order</h2>
+    <span class="badge badge-silver">Silver</span>
+  </div>
+  <div class="section-body">
+
+    <p>Silver (from the MELT group at UMN) extends the AG formalism with forwarding, higher-order attributes, and collection attributes. Even with these extensions, the core remains: domain + rules.</p>
+
+    <div class="tabs" id="silver-tabs">
+      <button class="tab-btn active" onclick="switchTab('silver-tabs', 'silver-basics')">Basic Syntax</button>
+      <button class="tab-btn" onclick="switchTab('silver-tabs', 'silver-forwarding')">Forwarding</button>
+      <button class="tab-btn" onclick="switchTab('silver-tabs', 'silver-collection')">Collection</button>
+      <button class="tab-btn" onclick="switchTab('silver-tabs', 'silver-propagate')">Propagate</button>
+    </div>
+
+    <div class="tab-panel active" id="silver-basics">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Silver's two inputs</h4>
+      <pre><code><span class="cm">-- Nonterminal (grammar = shared substrate)</span>
+<span class="kw">nonterminal</span> <span class="ty">Expr</span>;
+
+<span class="cm">-- Domain: attribute declarations</span>
+<span class="kw">synthesized attribute</span> <span class="attr">value</span> :: <span class="ty">Integer</span>;
+<span class="kw">inherited attribute</span> <span class="attr">env</span> :: <span class="ty">Env</span>;
+
+<span class="cm">-- Rules: equations per production</span>
+<span class="kw">aspect production</span> <span class="fn">addExpr</span>
+<span class="attr">top</span>::<span class="ty">Expr</span> ::= <span class="attr">l</span>::<span class="ty">Expr</span> <span class="attr">r</span>::<span class="ty">Expr</span>
+{
+  top.<span class="attr">value</span> = l.<span class="attr">value</span> + r.<span class="attr">value</span>;
+  l.<span class="attr">env</span> = top.<span class="attr">env</span>;
+  r.<span class="attr">env</span> = top.<span class="attr">env</span>;
+}</code></pre>
+      <p>Note the symmetry with JastAdd: declarations (domain) + per-production equations (rules). Silver makes inherited attribute flow explicit: <code class="inline-code">l.env = top.env</code> rather than auto-propagation.</p>
+    </div>
+
+    <div class="tab-panel" id="silver-forwarding">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Forwarding: extensibility via the two inputs</h4>
+      <p>Silver's unique contribution. A production can "forward to" another production, inheriting its attributes by default:</p>
+      <pre><code><span class="kw">abstract production</span> <span class="fn">forEach</span>
+<span class="attr">top</span>::<span class="ty">Stmt</span> ::= <span class="attr">v</span>::<span class="ty">Name</span> <span class="attr">lst</span>::<span class="ty">Expr</span> <span class="attr">body</span>::<span class="ty">Stmt</span>
+{
+  <span class="cm">-- "forEach" doesn't exist in the base language</span>
+  <span class="cm">-- Forward to a while loop desugaring</span>
+  <span class="kw">forwards to</span> <span class="fn">whileLoop</span>(iterCond, <span class="fn">seqStmt</span>(body, iterStep));
+
+  <span class="cm">-- Only define attributes that DIFFER from the forwarded-to tree</span>
+  top.<span class="attr">pp</span> = <span class="str">"for ("</span> ++ v.<span class="attr">pp</span> ++ <span class="str">" in "</span> ++ lst.<span class="attr">pp</span> ++ <span class="str">") "</span> ++ body.<span class="attr">pp</span>;
+}</code></pre>
+      <p>Forwarding is still just rules. The forwarding equation says "for attributes I don't define, delegate to this other tree." It's a default equation strategy, not a new concept.</p>
+    </div>
+
+    <div class="tab-panel" id="silver-collection">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Collection attributes</h4>
+      <p>Silver's collection attributes aggregate contributions from anywhere in the tree:</p>
+      <pre><code><span class="cm">-- Domain: collection attribute declaration</span>
+<span class="kw">collection attribute</span> <span class="attr">errors</span> :: [<span class="ty">Error</span>]
+  <span class="kw">with</span> ++;   <span class="cm">-- combine via list append</span>
+
+<span class="cm">-- Rules: contributions from any production</span>
+<span class="kw">aspect production</span> <span class="fn">varRef</span>
+<span class="attr">top</span>::<span class="ty">Expr</span> ::= <span class="attr">n</span>::<span class="ty">Name</span>
+{
+  top.<span class="attr">errors</span> <span class="op">&lt;-</span>   <span class="cm">-- contribute to (not assign)</span>
+    <span class="kw">if</span> <span class="fn">lookup</span>(n, top.<span class="attr">env</span>) == <span class="fn">nothing</span>()
+    <span class="kw">then</span> [<span class="fn">err</span>(<span class="str">"undefined: "</span> ++ n)]
+    <span class="kw">else</span> [];
+}</code></pre>
+      <p>This is domain (a collection-typed attribute with a combining operator) plus rules (contribution equations). The "collection" is a <em>kind of domain component</em> with a specific combiner &mdash; still inside the two inputs.</p>
+    </div>
+
+    <div class="tab-panel" id="silver-propagate">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Propagate: auto-copy equations</h4>
+      <p>Silver has an explicit <code class="inline-code">propagate</code> mechanism for inherited attributes that should just pass through:</p>
+      <pre><code><span class="cm">-- Instead of writing env equations on every production:</span>
+<span class="kw">propagate</span> <span class="attr">env</span> <span class="kw">on</span> <span class="ty">Expr</span>, <span class="ty">Stmt</span>, <span class="ty">Decl</span>;
+
+<span class="cm">-- Equivalent to writing on every production of those types:</span>
+<span class="cm">-- child.env = top.env;</span></code></pre>
+      <p>Compare with KSC's <code class="inline-code">inh()</code> returning <code class="inline-code">undefined</code> for auto-propagation:</p>
+      <pre><code><span class="cm">// KSC equivalent: return undefined = auto-propagate</span>
+<span class="kw">const</span> <span class="attr">defEnv</span> = <span class="fn">inh</span>(rootValue, (<span class="attr">parent</span>) =&gt; {
+  <span class="kw">return</span> <span class="kw">undefined</span>; <span class="cm">// use parent's own value</span>
+});</code></pre>
+      <p>Silver's <code class="inline-code">propagate</code> is syntactic sugar for "write identity equations on these productions." It's a shorthand for rules, not a new concept.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: Three-Way Comparison -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-compare">
+  <div class="section-header" onclick="toggleSection('sec-compare')">
+    <span class="chevron">&#9654;</span>
+    <h2>Three-Way Comparison: KSC vs JastAdd vs Silver</h2>
+    <span class="badge badge-compare">Compare</span>
+  </div>
+  <div class="section-body">
+
+    <table>
+      <tr>
+        <th style="width: 20%;">Aspect</th>
+        <th style="width: 27%;">KSC (current)</th>
+        <th style="width: 27%;">JastAdd</th>
+        <th style="width: 27%;">Silver</th>
+      </tr>
+      <tr>
+        <td><strong>Domain declaration</strong></td>
+        <td>Currently implicit in factory types. Planned: explicit <code class="inline-code">declarations</code> object in <code class="inline-code">AGSpec2</code></td>
+        <td>Explicit: <code class="inline-code">syn Type Node.attr()</code></td>
+        <td>Explicit: <code class="inline-code">synthesized attribute attr :: Type</code></td>
+      </tr>
+      <tr>
+        <td><strong>Equations</strong></td>
+        <td>JS functions inside <code class="inline-code">syn()</code>, <code class="inline-code">inh()</code>, <code class="inline-code">match()</code></td>
+        <td><code class="inline-code">eq Prod.attr() { ... }</code> in .jrag</td>
+        <td>Inside <code class="inline-code">aspect production</code> blocks</td>
+      </tr>
+      <tr>
+        <td><strong>Per-production dispatch</strong></td>
+        <td><code class="inline-code">match('kind', { Leaf: ..., _: ... })</code></td>
+        <td>Separate <code class="inline-code">eq</code> per production</td>
+        <td>Separate <code class="inline-code">aspect production</code></td>
+      </tr>
+      <tr>
+        <td><strong>Tree structure</strong></td>
+        <td>Shared <code class="inline-code">Grammar</code> object (<code class="inline-code">createGrammar(getChildren)</code>)</td>
+        <td>Separate <code class="inline-code">.ast</code> files</td>
+        <td>Separate <code class="inline-code">nonterminal</code>/<code class="inline-code">production</code> decls</td>
+      </tr>
+      <tr>
+        <td><strong>Inherited auto-propagation</strong></td>
+        <td><code class="inline-code">return undefined</code> in <code class="inline-code">eq</code></td>
+        <td>Implicit (no equation = error)</td>
+        <td>Explicit <code class="inline-code">propagate</code> keyword</td>
+      </tr>
+      <tr>
+        <td><strong>Circular attributes</strong></td>
+        <td><code class="inline-code">circular(init, compute)</code></td>
+        <td><code class="inline-code">syn T Node.a() circular [bottom]</code></td>
+        <td>Not natively supported</td>
+      </tr>
+      <tr>
+        <td><strong>Caching</strong></td>
+        <td>JS getter &rarr; data property</td>
+        <td>Generated <code class="inline-code">_computed</code>/<code class="inline-code">_value</code> fields</td>
+        <td>Generated caching code</td>
+      </tr>
+      <tr>
+        <td><strong>Multi-AG composition</strong></td>
+        <td><code class="inline-code">deps</code> + <code class="inline-code">grammar.evaluateAll()</code> (validates + topo-sorts)</td>
+        <td>JastAdd compiler merges .jrag files</td>
+        <td>Silver compiler merges aspects</td>
+      </tr>
+      <tr>
+        <td><strong>Collection attributes</strong></td>
+        <td>Manual DFS in <code class="inline-code">syn()</code></td>
+        <td><code class="inline-code">coll T Node.a() [init] with op</code></td>
+        <td><code class="inline-code">collection attribute a :: T with op</code></td>
+      </tr>
+      <tr>
+        <td><strong>Forwarding</strong></td>
+        <td>Not supported</td>
+        <td>Not supported</td>
+        <td><code class="inline-code">forwards to</code> in productions</td>
+      </tr>
+      <tr>
+        <td><strong>Language</strong></td>
+        <td>TypeScript (runtime library)</td>
+        <td>Java (code generator)</td>
+        <td>Custom DSL (code generator)</td>
+      </tr>
+    </table>
+
+    <div class="callout callout-insight">
+      <div class="callout-title">Key structural difference &mdash; and how KSC bridges it</div>
+      <p>JastAdd and Silver are <strong>code generators</strong> &mdash; they read .jrag/.sv files and produce Java/C code with the caching machinery baked in. KSC is a <strong>runtime library</strong> &mdash; the JS engine's <code class="inline-code">Object.defineProperty</code> is the caching machinery. After implementing Strategies 1, 3, 5, and 7, KSC now matches the structural separation of generators: tree structure lives in a shared <code class="inline-code">Grammar</code> object (like <code class="inline-code">.ast</code> files), specs are pure <code class="inline-code">{ attributes, deps? }</code> (like <code class="inline-code">.jrag</code> files), and <code class="inline-code">evaluateAll()</code> validates + sorts (like the JastAdd compiler). Additionally, <code class="inline-code">analyzeDeps()</code> discovers attribute-level dependencies at runtime (Strategy 5), and <code class="inline-code">MatchEquations</code> provides type-level equation validation (Strategy 3).</p>
+    </div>
+
+    <h3 style="color: var(--text-bright); margin: 1.5rem 0 0.75rem;">Where domain and rules live in each system</h3>
+
+    <div class="diagram">
+      <div class="diagram-title">Separation of concerns</div>
+      <pre><code>
+  <span style="color: var(--accent);">DOMAIN</span>          <span style="color: var(--accent-green);">RULES</span>           <span style="color: var(--accent-yellow);">INFRASTRUCTURE</span>     <span style="color: var(--text-muted);">SUBSTRATE</span>
+
+  <span style="color: var(--accent-red); font-weight: 600;">KSC (current — fused)</span>
+  attributes map  attributes map  name, deps,       Grammar object
+  key names +     syn/inh/match   evaluateAll()     createGrammar()
+  factory types   function bodies analyzeDeps()     getChildren
+  MatchEquations                  project()
+
+  <span style="color: var(--accent-green); font-weight: 600;">KSC (planned — separated)</span>
+  declarations    equations       name, deps,       Grammar object
+  object          per-production  grammar.compile() createGrammar()
+  (inspectable)   (extensible)    project()         getChildren
+
+  <span style="color: var(--accent-purple); font-weight: 600;">JastAdd</span>
+  syn/inh decls   eq blocks in    JastAdd compiler  .ast files
+  in .jrag        .jrag files     (code generation)
+
+  <span style="color: var(--accent-yellow); font-weight: 600;">Silver</span>
+  attribute       aspect          Silver compiler    nonterminal/
+  declarations    production      (code generation)  production decls
+                  blocks
+      </code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: What a minimal spec looks like -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-minimal">
+  <div class="section-header" onclick="toggleSection('sec-minimal')">
+    <span class="chevron">&#9654;</span>
+    <h2>The Implemented Design: AGSpecInput + Grammar</h2>
+    <span class="badge badge-proposed">Implemented</span>
+  </div>
+  <div class="section-body">
+
+    <p>The "two essential inputs" thesis was used to guide the redesign. Here's what was implemented vs. the theoretical minimum:</p>
+
+    <div class="tabs" id="minimal-tabs">
+      <button class="tab-btn active" onclick="switchTab('minimal-tabs', 'minimal-pure')">Theoretical Minimum</button>
+      <button class="tab-btn" onclick="switchTab('minimal-tabs', 'minimal-pragmatic')">Implemented (AGSpecInput)</button>
+      <button class="tab-btn" onclick="switchTab('minimal-tabs', 'minimal-current')">Old Design (for comparison)</button>
+    </div>
+
+    <div class="tab-panel active" id="minimal-pure">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Theoretical minimum: just attributes</h4>
+      <pre><code><span class="cm">// The AG is JUST the attributes object.</span>
+<span class="cm">// Everything else is provided externally.</span>
+
+<span class="kw">const</span> <span class="attr">binderAttrs</span>: <span class="ty">AttributeMap</span>&lt;<span class="ty">KSNode</span>&gt; = {
+  kindDefs, defEnv, defLookup
+};
+
+<span class="kw">const</span> <span class="attr">checkerAttrs</span>: <span class="ty">AttributeMap</span>&lt;<span class="ty">KSNode</span>&gt; = {
+  valueImports, fileImports, localBindings, enclosingLocals,
+  isReference, kindAnnotations, noImportsContext,
+  importViolation, allViolations
+};
+
+<span class="cm">// Usage: framework handles everything else</span>
+<span class="kw">const</span> <span class="attr">framework</span> = <span class="fn">createAGFramework</span>(getChildren);
+framework.<span class="fn">apply</span>(root, binderAttrs);
+framework.<span class="fn">apply</span>(root, checkerAttrs);
+<span class="kw">const</span> <span class="attr">violations</span> = root.allViolations;</code></pre>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">The domain is implicit — and that's the problem</div>
+        <p>In this view, the domain declaration is <em>inside</em> the attributes — hidden in type signatures and closure bodies. You can't inspect, extend, or validate without executing. The planned <code class="inline-code">AGSpec2</code> makes domain declarations explicit: <code class="inline-code">declarations</code> are inspectable data objects, while <code class="inline-code">equations</code> are the extensible compute functions.</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="minimal-pragmatic">
+      <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">Implemented: AGSpecInput + Grammar</h4>
+      <pre><code><span class="cm">// AGSpecInput: two inputs + minimal infrastructure</span>
+<span class="kw">interface</span> <span class="ty">AGSpecInput</span>&lt;<span class="ty">N</span> <span class="kw">extends</span> <span class="ty">object</span>, <span class="ty">R</span> = <span class="ty">unknown</span>&gt; {
+  <span class="prop">name</span>: <span class="ty">string</span>;                  <span class="cm">// for dep resolution</span>
+  <span class="prop">attributes</span>: <span class="ty">AttributeMap</span>&lt;<span class="ty">N</span>&gt;;    <span class="cm">// THE AG (domain + rules fused — to be separated)</span>
+  <span class="prop">deps</span>?: <span class="ty">string</span>[];                <span class="cm">// multi-AG ordering</span>
+  <span class="prop">project</span>?: (<span class="attr">root</span>: <span class="ty">N</span>) =&gt; <span class="ty">R</span>;      <span class="cm">// result extraction</span>
+}
+
+<span class="cm">// Grammar owns tree structure (Strategy 7):</span>
+<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
+
+<span class="cm">// evaluateAll validates + topo-sorts (Strategy 1):</span>
+<span class="kw">const</span> <span class="attr">results</span> = grammar.<span class="fn">evaluateAll</span>(
+  [checkerSpec, binderSpec], root
+);
+
+<span class="cm">// project() extracts results:</span>
+<span class="kw">const</span> <span class="attr">violations</span> = results.<span class="fn">get</span>(<span class="str">'ksc-checker'</span>);
+
+<span class="cm">// analyzeDeps discovers attribute-level deps (Strategy 5):</span>
+<span class="kw">const</span> <span class="attr">analysis</span> = <span class="fn">analyzeDeps</span>(getChildren, specs, root);
+<span class="cm">// → { deps, order, cycles }</span></code></pre>
+      <p style="margin-top: 0.5rem; color: var(--accent-green);">This is the current KSC implementation. 100 tests passing.</p>
+    </div>
+
+    <div class="tab-panel" id="minimal-current">
+      <h4 style="color: var(--text-muted); margin-bottom: 0.5rem;">Old design (AGSpec): five fields with mixed concerns</h4>
+      <pre><code><span class="cm">// HISTORICAL — the old API before Strategy 7</span>
+<span class="kw">return</span> {
+  <span class="prop">name</span>: <span class="str">'ksc-checker'</span>,              <span class="cm">// orchestration</span>
+  <span class="prop">domain</span>: {                           <span class="cm">// metadata + convenience</span>
+    <span class="prop">name</span>: <span class="str">'Kind Violations'</span>,
+    <span class="prop">project</span>: (<span class="attr">root</span>) =&gt; root.allViolations,
+  },
+  <span class="prop">children</span>: getChildren,              <span class="cm">// shared substrate (now on Grammar)</span>
+  <span class="prop">attributes</span>: { ... },                <span class="cm">// THE ACTUAL AG</span>
+  <span class="prop">deps</span>: [<span class="str">'ksc-binder'</span>],              <span class="cm">// orchestration</span>
+};</code></pre>
+      <p style="margin-top: 0.5rem; color: var(--text-muted);">This old API is still supported via <code class="inline-code">grammar.toAGSpec()</code> for backward compatibility.</p>
+    </div>
+
+    <div class="callout callout-key">
+      <div class="callout-title">Resolution: pragmatic first, then principled</div>
+      <p>The first redesign moved <code class="inline-code">children</code> to a shared Grammar object and eliminated the <code class="inline-code">domain</code> nesting. But it left domain and rules fused inside <code class="inline-code">AttributeDef</code> closures. The next step (see <strong>Implementation Plan</strong> below) separates them into explicit <code class="inline-code">declarations</code> + <code class="inline-code">equations</code>, matching JastAdd's architecture while enabling collection attributes, extensibility, and completeness checking that the fused design cannot support.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: The Deep Insight -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-deep">
+  <div class="section-header" onclick="toggleSection('sec-deep')">
+    <span class="chevron">&#9654;</span>
+    <h2>The Fusion Spectrum: Where Domain and Rules Are (and Aren't) Separated</h2>
+    <span class="badge badge-insight">Analysis</span>
+  </div>
+  <div class="section-body">
+
+    <p>The current <code class="inline-code">AttributeDef</code> appears to fuse domain and rules into one object. But looking at the actual factories, the fusion is a <strong>spectrum</strong>, not a binary choice &mdash; and the factories already sit at different points on it:</p>
+
+    <div class="tabs" id="fusion-tabs">
+      <button class="tab-btn active" onclick="switchTab('fusion-tabs', 'fusion-syn')">syn (fully fused)</button>
+      <button class="tab-btn" onclick="switchTab('fusion-tabs', 'fusion-inh')">inh (partially separated)</button>
+      <button class="tab-btn" onclick="switchTab('fusion-tabs', 'fusion-circ')">circular (more separated)</button>
+      <button class="tab-btn" onclick="switchTab('fusion-tabs', 'fusion-match')">match (structural separation)</button>
+    </div>
+
+    <div class="tab-panel active" id="fusion-syn">
+      <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">syn: maximally fused</h4>
+      <p>Direction, caching, and equation in a single call. Domain is entirely implicit in the type signature.</p>
+      <pre><code><span class="cm">// Everything fused: direction + caching + equation</span>
+<span class="kw">const</span> <span class="attr">enclosingLocals</span> = <span class="fn">syn</span>&lt;<span class="ty">KSNode</span>, <span class="ty">Set</span>&lt;<span class="ty">string</span>&gt;&gt;((<span class="attr">node</span>) =&gt; {
+  <span class="kw">const</span> <span class="attr">locals</span> = <span class="kw">new</span> <span class="ty">Set</span>&lt;<span class="ty">string</span>&gt;();
+  <span class="kw">let</span> <span class="attr">current</span> = node.$parent;
+  <span class="kw">while</span> (current) { <span class="cm">/* walk up, accumulate */</span> }
+  <span class="kw">return</span> locals;
+});</code></pre>
+      <p>There's no way to inspect what this attribute <em>is</em> without executing it. No way to extend it from another module. No way to check if all productions are covered.</p>
+    </div>
+
+    <div class="tab-panel" id="fusion-inh">
+      <h4 style="color: var(--accent-yellow); margin-bottom: 0.5rem;">inh: partially separated</h4>
+      <p><code class="inline-code">rootValue</code> is a <strong>domain concern</strong> (initial state / lattice top). <code class="inline-code">eq</code> is a <strong>rule</strong> (propagation equation). They're already separate parameters.</p>
+      <pre><code><span class="kw">const</span> <span class="attr">defEnv</span> = <span class="fn">inh</span>&lt;<span class="ty">KSNode</span>, <span class="ty">Map</span>&lt;<span class="ty">string</span>, <span class="ty">KindDef</span>&gt;&gt;(
+  (<span class="attr">root</span>) =&gt; buildMap(root),  <span class="cm">// &larr; DOMAIN: initial state</span>
+  (<span class="attr">parent</span>) =&gt; { ... }        <span class="cm">// &larr; RULE: propagation equation</span>
+);</code></pre>
+      <p>The first argument declares the lattice structure (what the root starts with). The second provides the transfer function. These serve different purposes &mdash; inh already <em>partially un-fuses</em> them.</p>
+    </div>
+
+    <div class="tab-panel" id="fusion-circ">
+      <h4 style="color: var(--accent-orange); margin-bottom: 0.5rem;">circular: three distinct concerns</h4>
+      <p><code class="inline-code">circular</code> separates <strong>three</strong> things that the two-inputs thesis says should be separate:</p>
+      <pre><code><span class="kw">const</span> <span class="attr">reaching</span> = <span class="fn">circular</span>&lt;<span class="ty">N</span>, <span class="ty">Set</span>&lt;<span class="ty">string</span>&gt;&gt;(
+  <span class="kw">new</span> <span class="ty">Set</span>(),             <span class="cm">// &larr; DOMAIN: bottom value (lattice structure)</span>
+  (<span class="attr">node</span>) =&gt; compute(node),  <span class="cm">// &larr; RULE: equation</span>
+  { <span class="prop">equals</span>: setEquals }    <span class="cm">// &larr; DOMAIN: convergence criterion</span>
+);</code></pre>
+      <p>The bottom value and equality function are <strong>domain</strong> (they define the lattice). The compute function is the <strong>rule</strong>. <code class="inline-code">circular</code> already separates these &mdash; it has to, because you can't infer a lattice structure from an equation alone.</p>
+    </div>
+
+    <div class="tab-panel" id="fusion-match">
+      <h4 style="color: var(--accent-purple); margin-bottom: 0.5rem;">match: structural separation, but sealed</h4>
+      <p><code class="inline-code">match</code> separates the dispatch mechanism from per-production equations. But the equations are sealed inside the object literal &mdash; you can't extend them from another module.</p>
+      <pre><code><span class="kw">const</span> <span class="attr">kindDefs</span> = <span class="fn">match</span>&lt;<span class="ty">KSNode</span>, <span class="ty">KindDefinition</span>[]&gt;(<span class="str">'kind'</span>, {
+  CompilationUnit: (<span class="attr">cu</span>) =&gt; { ... },  <span class="cm">// &larr; per-production RULE</span>
+  _: () =&gt; [],                        <span class="cm">// &larr; default RULE</span>
+});
+<span class="cm">// Can't add: kindDefs.addEquation('NewProd', (n) =&gt; ...)</span>
+<span class="cm">// Must replace the entire match() call to change equations</span></code></pre>
+      <p>In JastAdd, <code class="inline-code">eq Mul.eval() = ...</code> in File C extends the attribute without touching File B. In KSC, the <code class="inline-code">match()</code> object is a sealed, self-contained unit.</p>
+    </div>
+
+    <h3 style="color: var(--text-bright); margin: 1.5rem 0 0.75rem;">Where separation matters</h3>
+
+    <div class="comparison-grid">
+      <div class="comparison-card">
+        <h4>1. Collection attributes (Silver-style)</h4>
+        <pre><code><span class="cm">-- Silver: domain declared ONCE</span>
+<span class="kw">collection attribute</span> <span class="attr">errors</span> :: [<span class="ty">Error</span>]
+  <span class="kw">with</span> ++;  <span class="cm">-- combiner</span>
+
+<span class="cm">-- Rules come from ANYWHERE:</span>
+<span class="kw">aspect</span> varRef  { top.errors &lt;- [err(...)] }
+<span class="kw">aspect</span> typeErr { top.errors &lt;- [typeErr(...)] }</code></pre>
+        <p>KSC can't do this. <code class="inline-code">allViolations</code> manually does a DFS in <code class="inline-code">syn()</code> to aggregate. A real collection attribute needs the domain (combiner, initial value) separate from distributed contribution rules.</p>
+      </div>
+      <div class="comparison-card">
+        <h4>2. Extensibility / aspect weaving</h4>
+        <pre><code><span class="cm">// JastAdd: File A — declaration</span>
+<span class="kw">syn int</span> <span class="ty">Expr</span>.<span class="fn">eval</span>();
+
+<span class="cm">// File B — base equations</span>
+<span class="kw">eq</span> <span class="ty">Add</span>.<span class="fn">eval</span>() = l.eval() + r.eval();
+
+<span class="cm">// File C (extension) — new production</span>
+<span class="kw">eq</span> <span class="ty">Mul</span>.<span class="fn">eval</span>() = l.eval() * r.eval();</code></pre>
+        <p>File C extends without touching File B. In KSC, <code class="inline-code">match('kind', {...})</code> is sealed &mdash; you can't add a production equation from another module without replacing the entire match.</p>
+      </div>
+      <div class="comparison-card">
+        <h4>3. Equation completeness checking</h4>
+        <p>When domain and rules are separate, you can check: "does every production have an equation for this attribute?" JastAdd does this statically.</p>
+        <p>With fusion, <code class="inline-code">_</code> in <code class="inline-code">match()</code> is an escape hatch &mdash; "I don't care about most productions." <code class="inline-code">MatchEquations</code> validates keys you <em>write</em>, but can't detect keys you <em>forgot</em>.</p>
+      </div>
+      <div class="comparison-card">
+        <h4>4. Introspection / tooling</h4>
+        <p>With separated declarations, tools can enumerate "what attributes does a CompilationUnit carry?" without executing anything.</p>
+        <p>With fusion, you need <code class="inline-code">analyzeDeps()</code> (runtime execution) to discover attribute structure. Domain metadata is lost inside closure bodies.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-critical">
+      <div class="callout-title">The honest framing: fusion is a trade-off, not a principle</div>
+      <p>The earlier claim that "the compute function implicitly declares the domain" is only true for <code class="inline-code">syn</code>. Even within the current codebase, <code class="inline-code">circular</code> and <code class="inline-code">inh</code> already partially un-fuse things. The fusion trades extensibility, introspectability, and composability for simplicity. It works for KSC specifically (fixed grammar, 12 attributes, single author) but breaks down for collection attributes, extensible tooling, static completeness guarantees, and third-party aspect weaving. The solution: <strong>separate the two inputs at the API level</strong>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: Implemented Strategies -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-strategies">
+  <div class="section-header" onclick="toggleSection('sec-strategies')">
+    <span class="chevron">&#9654;</span>
+    <h2>Bridging the Library-Generator Gap: Four Implemented Strategies</h2>
+    <span class="badge badge-proposed">Implemented</span>
+  </div>
+  <div class="section-body">
+
+    <p>Four strategies from the <a href="library-vs-generator-prior-art.html" style="color: var(--accent);">library-vs-generator prior art</a> have been implemented, closing ~80% of the gap with JastAdd:</p>
+
+    <div class="tabs" id="strategy-tabs">
+      <button class="tab-btn active" onclick="switchTab('strategy-tabs', 'strat-impl-7')">7. Grammar Object</button>
+      <button class="tab-btn" onclick="switchTab('strategy-tabs', 'strat-impl-1')">1. Validation</button>
+      <button class="tab-btn" onclick="switchTab('strategy-tabs', 'strat-impl-3')">3. Type Safety</button>
+      <button class="tab-btn" onclick="switchTab('strategy-tabs', 'strat-impl-5')">5. Dep Analysis</button>
+    </div>
+
+    <div class="tab-panel active" id="strat-impl-7">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Strategy 7: Shared Grammar Object</h4>
+      <p>Extracted <code class="inline-code">children</code> from specs into a shared <code class="inline-code">Grammar</code> object. This is the <code class="inline-code">.ast</code> file equivalent.</p>
+      <pre><code><span class="cm">// Before: children repeated in every spec</span>
+<span class="kw">const</span> <span class="attr">binder</span> = { children: getChildren, attributes: {...} };
+<span class="kw">const</span> <span class="attr">checker</span> = { children: getChildren, attributes: {...} };
+
+<span class="cm">// After: Grammar owns tree structure, specs are pure</span>
+<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
+<span class="kw">const</span> <span class="attr">binder</span>: <span class="ty">AGSpecInput</span> = { name: <span class="str">'ksc-binder'</span>, attributes: {...} };
+<span class="kw">const</span> <span class="attr">checker</span>: <span class="ty">AGSpecInput</span> = { name: <span class="str">'ksc-checker'</span>, attributes: {...} };</code></pre>
+    </div>
+
+    <div class="tab-panel" id="strat-impl-1">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Strategy 1: Registration + Validation</h4>
+      <p><code class="inline-code">grammar.evaluateAll()</code> validates all specs before first evaluation &mdash; the library's "compile step":</p>
+      <pre><code><span class="cm">// evaluateAll validates before applying:</span>
+grammar.<span class="fn">evaluateAll</span>([binder, checker], root);
+<span class="cm">// Throws if:</span>
+<span class="cm">//   - Duplicate attribute 'x' in specs 'a' and 'b'</span>
+<span class="cm">//   - Circular dependency: a → b → a</span>
+<span class="cm">//   - Unknown dependency: 'nonexistent'</span>
+
+<span class="cm">// Also topo-sorts: pass [checker, binder] and</span>
+<span class="cm">// binder still evaluates first (based on deps)</span></code></pre>
+      <p>Like Django's metaclass validation or attrs' <code class="inline-code">@define</code>, the validation runs once before any real work happens.</p>
+    </div>
+
+    <div class="tab-panel" id="strat-impl-3">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Strategy 3: Type-Level Equation Validation</h4>
+      <p>Enhanced <code class="inline-code">match()</code> with <code class="inline-code">MatchEquations&lt;N, V&gt;</code> &mdash; a mapped type that validates equation keys against the node union's <code class="inline-code">kind</code> values at compile time. Zero runtime cost.</p>
+      <pre><code><span class="cm">// KindValues extracts all 'kind' literals from a discriminated union</span>
+<span class="kw">type</span> <span class="ty">KindValues</span>&lt;<span class="ty">N</span>&gt; = <span class="ty">N</span> <span class="kw">extends</span> { kind: <span class="kw">infer</span> <span class="ty">K</span> <span class="kw">extends</span> <span class="ty">string</span> } ? <span class="ty">K</span> : <span class="kw">never</span>;
+
+<span class="cm">// MatchEquations validates keys and narrows callback types</span>
+<span class="kw">type</span> <span class="ty">MatchEquations</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt; =
+  &amp; { [<span class="ty">K</span> <span class="kw">in</span> <span class="ty">KindValues</span>&lt;<span class="ty">N</span>&gt;]?: (<span class="attr">node</span>: <span class="ty">Extract</span>&lt;<span class="ty">N</span>, { kind: <span class="ty">K</span> }&gt;) =&gt; <span class="ty">V</span> }
+  &amp; { _?: (<span class="attr">node</span>: <span class="ty">N</span>) =&gt; <span class="ty">V</span> };
+
+<span class="cm">// Typos caught at compile time:</span>
+<span class="kw">const</span> <span class="attr">bad</span> = <span class="fn">match</span>&lt;<span class="ty">KSNode</span>, <span class="ty">boolean</span>&gt;(<span class="str">'kind'</span>, {
+  <span class="prop">ComipilationUnit</span>: ... <span class="cm">// TS error: typo!</span>
+});</code></pre>
+      <p>This is the TS equivalent of JastAdd's static equation validation. The TypeScript compiler <em>is</em> the "JastAdd compiler."</p>
+    </div>
+
+    <div class="tab-panel" id="strat-impl-5">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Strategy 5: Runtime Dependency Analysis</h4>
+      <p><code class="inline-code">analyzeDeps()</code> discovers cross-attribute dependencies at runtime, producing the same dependency graph that JastAdd computes statically:</p>
+      <pre><code><span class="kw">const</span> <span class="attr">result</span> = <span class="fn">analyzeDeps</span>(getChildren, [binder, checker], root);
+
+result.<span class="prop">deps</span>;    <span class="cm">// Map: importViolation → {noImportsContext, isReference, ...}</span>
+result.<span class="prop">order</span>;   <span class="cm">// [kindDefs, valueImports, ..., allViolations]</span>
+result.<span class="prop">cycles</span>;  <span class="cm">// [] (empty = no circular dependencies)</span></code></pre>
+      <div class="callout callout-insight" style="margin-top: 0.75rem;">
+        <div class="callout-title">How it works: prototype-chained clones</div>
+        <p>For each target attribute, <code class="inline-code">analyzeDeps</code> creates ephemeral clones (<code class="inline-code">Object.create(node)</code>) with tracking getters on non-target attributes. It installs the real <code class="inline-code">AttributeDef</code> for the target, triggers it, and records which attributes were accessed. The prototype chain preserves <code class="inline-code">kind</code>, <code class="inline-code">$children</code>, <code class="inline-code">$parent</code> reads, while all <code class="inline-code">Object.defineProperty</code> calls land on the clone. No cleanup needed &mdash; clones are garbage-collected.</p>
+        <p style="margin-top: 0.5rem;">This approach was necessary because <code class="inline-code">installLazy</code> creates <code class="inline-code">configurable: false</code> data properties on first access, making Proxy-based interception and save/restore approaches fail. Clones side-step the problem entirely.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-key" style="margin-top: 1rem;">
+      <div class="callout-title">Result: library with generator-class capabilities</div>
+      <p>With these four strategies, KSC's runtime AG library now provides: grammar separation (Strategy 7), validation at registration time (Strategy 1), compile-time equation validation (Strategy 3), and runtime dependency analysis (Strategy 5). This matches or exceeds SQLAlchemy's strategy count (3) and puts KSC among the most sophisticated library-based AG systems. The remaining gap (optimized caching via optional compiler &mdash; Strategy 6) is a stretch goal.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 10: De-fusion Implementation Plan -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-defusion">
+  <div class="section-header" onclick="toggleSection('sec-defusion')">
+    <span class="chevron">&#9654;</span>
+    <h2>Implementation Plan: Separating Domain from Rules</h2>
+    <span class="badge badge-proposed">Planned</span>
+  </div>
+  <div class="section-body">
+
+    <p>Shift from a fused <code class="inline-code">AttributeDef</code> to a true two-input spec where domain declarations and semantic rules are separate first-class objects.</p>
+
+    <div class="tabs" id="defusion-tabs">
+      <button class="tab-btn active" onclick="switchTab('defusion-tabs', 'defusion-api')">New API</button>
+      <button class="tab-btn" onclick="switchTab('defusion-tabs', 'defusion-before')">Before (fused)</button>
+      <button class="tab-btn" onclick="switchTab('defusion-tabs', 'defusion-after')">After (separated)</button>
+      <button class="tab-btn" onclick="switchTab('defusion-tabs', 'defusion-phases')">Phases</button>
+      <button class="tab-btn" onclick="switchTab('defusion-tabs', 'defusion-enables')">What It Enables</button>
+    </div>
+
+    <div class="tab-panel active" id="defusion-api">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">The two-input AGSpec</h4>
+      <pre><code><span class="cm">// ── Input 1: Domain declarations ──</span>
+<span class="cm">// What gets computed. Inspectable, extensible, no closures.</span>
+
+<span class="kw">interface</span> <span class="ty">SynDecl</span>&lt;<span class="ty">V</span>&gt; {
+  <span class="prop">direction</span>: <span class="str">'syn'</span>;
+  <span class="prop">cached</span>?: <span class="ty">boolean</span>;            <span class="cm">// default true</span>
+}
+
+<span class="kw">interface</span> <span class="ty">InhDecl</span>&lt;<span class="ty">V</span>&gt; {
+  <span class="prop">direction</span>: <span class="str">'inh'</span>;
+  <span class="prop">initial</span>: <span class="ty">V</span> | ((<span class="attr">root</span>: <span class="ty">any</span>) =&gt; <span class="ty">V</span>);  <span class="cm">// lattice top / root value</span>
+}
+
+<span class="kw">interface</span> <span class="ty">CircularDecl</span>&lt;<span class="ty">V</span>&gt; {
+  <span class="prop">direction</span>: <span class="str">'circular'</span>;
+  <span class="prop">bottom</span>: <span class="ty">V</span>;                  <span class="cm">// lattice bottom</span>
+  <span class="prop">equals</span>?: (<span class="attr">a</span>: <span class="ty">V</span>, <span class="attr">b</span>: <span class="ty">V</span>) =&gt; <span class="ty">boolean</span>;
+}
+
+<span class="kw">interface</span> <span class="ty">CollectionDecl</span>&lt;<span class="ty">V</span>&gt; {
+  <span class="prop">direction</span>: <span class="str">'collection'</span>;
+  <span class="prop">initial</span>: <span class="ty">V</span>;                 <span class="cm">// identity element</span>
+  <span class="prop">combine</span>: (<span class="attr">a</span>: <span class="ty">V</span>, <span class="attr">b</span>: <span class="ty">V</span>) =&gt; <span class="ty">V</span>;  <span class="cm">// monoid operation</span>
+}
+
+<span class="kw">type</span> <span class="ty">AttrDecl</span> = <span class="ty">SynDecl</span> | <span class="ty">InhDecl</span> | <span class="ty">CircularDecl</span> | <span class="ty">CollectionDecl</span>;
+
+<span class="cm">// ── Input 2: Semantic rules ──</span>
+<span class="cm">// How each production computes it. Extensible, composable.</span>
+
+<span class="kw">type</span> <span class="ty">Equation</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt; = (<span class="attr">node</span>: <span class="ty">N</span>) =&gt; <span class="ty">V</span>;
+<span class="kw">type</span> <span class="ty">InhEquation</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt; = (<span class="attr">parent</span>: <span class="ty">N</span>, <span class="attr">child</span>: <span class="ty">N</span>, <span class="attr">idx</span>: <span class="ty">number</span>) =&gt; <span class="ty">V</span> | <span class="ty">undefined</span>;
+
+<span class="cm">// Per-production dispatch (open, unlike match())</span>
+<span class="kw">type</span> <span class="ty">ProductionRules</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt; = {
+  [<span class="attr">production</span>: <span class="ty">string</span>]: <span class="ty">Equation</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt;;
+} &amp; { <span class="prop">_</span>?: <span class="ty">Equation</span>&lt;<span class="ty">N</span>, <span class="ty">V</span>&gt; };
+
+<span class="cm">// ── The two-input spec ──</span>
+<span class="kw">interface</span> <span class="ty">AGSpec2</span>&lt;<span class="ty">N</span> <span class="kw">extends</span> <span class="ty">object</span>, <span class="ty">R</span> = <span class="ty">unknown</span>&gt; {
+  <span class="prop">name</span>: <span class="ty">string</span>;
+  <span class="prop">declarations</span>: <span class="ty">Record</span>&lt;<span class="ty">string</span>, <span class="ty">AttrDecl</span>&gt;;     <span class="cm">// Input 1: domain</span>
+  <span class="prop">equations</span>: <span class="ty">Record</span>&lt;<span class="ty">string</span>,                  <span class="cm">// Input 2: rules</span>
+    <span class="ty">Equation</span> | <span class="ty">InhEquation</span> | <span class="ty">ProductionRules</span>&gt;;
+  <span class="prop">deps</span>?: <span class="ty">string</span>[];
+  <span class="prop">project</span>?: (<span class="attr">root</span>: <span class="ty">N</span>) =&gt; <span class="ty">R</span>;
+}</code></pre>
+    </div>
+
+    <div class="tab-panel" id="defusion-before">
+      <h4 style="color: var(--accent-red); margin-bottom: 0.5rem;">Current: fused AttributeDef</h4>
+      <p>Domain and rules are entangled inside factory closures:</p>
+      <pre><code><span class="cm">// The binder: domain is implicit, rules are sealed</span>
+<span class="kw">const</span> <span class="attr">kindDefs</span> = <span class="fn">match</span>&lt;<span class="ty">KSNode</span>, <span class="ty">KindDefinition</span>[]&gt;(<span class="str">'kind'</span>, {
+  CompilationUnit: (<span class="attr">cu</span>) =&gt; { <span class="cm">/* extract defs */</span> },
+  _: () =&gt; [],
+});
+
+<span class="kw">const</span> <span class="attr">defEnv</span> = <span class="fn">inh</span>&lt;<span class="ty">KSNode</span>, <span class="ty">Map</span>&gt;(
+  (<span class="attr">root</span>) =&gt; buildMap(root),
+);
+
+<span class="kw">const</span> <span class="attr">defLookup</span> = <span class="fn">syn</span>&lt;<span class="ty">KSNode</span>, <span class="ty">Function</span>&gt;(
+  (<span class="attr">node</span>) =&gt; (<span class="attr">name</span>) =&gt; node.defEnv.get(name),
+);
+
+<span class="kw">return</span> {
+  <span class="prop">name</span>: <span class="str">'ksc-binder'</span>,
+  <span class="prop">attributes</span>: { kindDefs, defEnv, defLookup }, <span class="cm">// fused blob</span>
+};</code></pre>
+      <p style="color: var(--accent-red);">Problems: Can't inspect declarations without running code. Can't extend equations. Can't check completeness. Can't add collection attributes.</p>
+    </div>
+
+    <div class="tab-panel" id="defusion-after">
+      <h4 style="color: var(--accent-green); margin-bottom: 0.5rem;">Proposed: separated domain + rules</h4>
+      <pre><code><span class="kw">const</span> <span class="attr">binderSpec</span>: <span class="ty">AGSpec2</span>&lt;<span class="ty">KSNode</span>&gt; = {
+  <span class="prop">name</span>: <span class="str">'ksc-binder'</span>,
+
+  <span class="cm">// Input 1: DOMAIN — what gets computed</span>
+  <span class="prop">declarations</span>: {
+    <span class="attr">kindDefs</span>:  { <span class="prop">direction</span>: <span class="str">'syn'</span> },
+    <span class="attr">defEnv</span>:    { <span class="prop">direction</span>: <span class="str">'inh'</span>, <span class="prop">initial</span>: (<span class="attr">root</span>) =&gt; buildMap(root) },
+    <span class="attr">defLookup</span>: { <span class="prop">direction</span>: <span class="str">'syn'</span> },
+  },
+
+  <span class="cm">// Input 2: RULES — how each production computes it</span>
+  <span class="prop">equations</span>: {
+    <span class="attr">kindDefs</span>: {
+      CompilationUnit: (<span class="attr">cu</span>) =&gt; { <span class="cm">/* extract defs */</span> },
+      _: () =&gt; [],
+    },
+    <span class="attr">defEnv</span>: <span class="kw">undefined</span>,  <span class="cm">// auto-propagate (no eq needed)</span>
+    <span class="attr">defLookup</span>: (<span class="attr">node</span>) =&gt; (<span class="attr">name</span>) =&gt; node.defEnv.get(name),
+  },
+};
+
+<span class="cm">// Extensions from another module — impossible with fused design:</span>
+binderSpec.<span class="prop">equations</span>.<span class="attr">kindDefs</span>.<span class="prop">ModuleDeclaration</span> = (<span class="attr">mod</span>) =&gt; {
+  <span class="cm">/* extract defs from module syntax */</span>
+};</code></pre>
+      <p style="color: var(--accent-green);">Declarations are inspectable data. Equations are extensible. Collection attributes become possible. Completeness is checkable.</p>
+    </div>
+
+    <div class="tab-panel" id="defusion-phases">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">Implementation phases</h4>
+
+      <table>
+        <tr>
+          <th style="width: 8%;">Phase</th>
+          <th style="width: 22%;">What</th>
+          <th style="width: 40%;">Details</th>
+          <th style="width: 30%;">Unlocks</th>
+        </tr>
+        <tr>
+          <td><strong>1</strong></td>
+          <td>AttrDecl types</td>
+          <td>Define <code class="inline-code">SynDecl</code>, <code class="inline-code">InhDecl</code>, <code class="inline-code">CircularDecl</code> interfaces. Add <code class="inline-code">declarations</code> + <code class="inline-code">equations</code> to <code class="inline-code">AGSpec2</code>. Keep old <code class="inline-code">AGSpecInput</code> working via adapter.</td>
+          <td>Static introspection of attribute structure without running code</td>
+        </tr>
+        <tr>
+          <td><strong>2</strong></td>
+          <td>Compile step</td>
+          <td><code class="inline-code">grammar.compile(spec)</code> reads declarations + equations, validates completeness (every declared attr has equations for required productions), and produces an internal <code class="inline-code">AttributeMap</code>. Replace <code class="inline-code">evaluateAll</code>'s ad-hoc validation.</td>
+          <td>Equation completeness checking at "compile time"</td>
+        </tr>
+        <tr>
+          <td><strong>3</strong></td>
+          <td>Open equations</td>
+          <td>Production rules are a <code class="inline-code">Map</code> that can be extended after initial spec creation. <code class="inline-code">spec.addEquation('kindDefs', 'NewProd', fn)</code>. Compile step merges all contributions.</td>
+          <td>Extensibility / aspect weaving without replacing entire match()</td>
+        </tr>
+        <tr>
+          <td><strong>4</strong></td>
+          <td>Collection attributes</td>
+          <td>Add <code class="inline-code">CollectionDecl</code> with <code class="inline-code">initial</code> + <code class="inline-code">combine</code>. Contribution rules use <code class="inline-code">contribute()</code> instead of <code class="inline-code">eq()</code>. Compile step wires the combiner. Replace <code class="inline-code">allViolations</code> DFS with a proper collection attribute.</td>
+          <td>Silver-style distributed aggregation from any production</td>
+        </tr>
+        <tr>
+          <td><strong>5</strong></td>
+          <td>Migrate KSC specs</td>
+          <td>Convert <code class="inline-code">createBinderSpec()</code> and <code class="inline-code">createCheckerSpec()</code> to <code class="inline-code">AGSpec2</code>. Remove old fused factories or keep as convenience wrappers that produce <code class="inline-code">{ declaration, equation }</code> pairs.</td>
+          <td>Real-world validation of the new API</td>
+        </tr>
+      </table>
+
+      <div class="callout callout-warning" style="margin-top: 1rem;">
+        <div class="callout-title">Migration strategy: adapter, not big bang</div>
+        <p>Each phase should keep existing tests passing. Phase 1 adds new types alongside <code class="inline-code">AGSpecInput</code>. Phase 2 adds a compile step that can accept either format. Only Phase 5 migrates the actual KSC specs. The old <code class="inline-code">syn()</code>/<code class="inline-code">inh()</code>/<code class="inline-code">match()</code> factories can be kept as convenience wrappers that produce a <code class="inline-code">{ decl, eq }</code> pair &mdash; no need to delete them.</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="defusion-enables">
+      <h4 style="color: var(--text-bright); margin-bottom: 0.5rem;">What de-fusion enables</h4>
+
+      <div class="comparison-grid">
+        <div class="comparison-card highlight">
+          <h4>Collection attributes</h4>
+          <pre><code><span class="cm">// Replace manual DFS allViolations:</span>
+<span class="prop">declarations</span>: {
+  <span class="attr">allViolations</span>: {
+    <span class="prop">direction</span>: <span class="str">'collection'</span>,
+    <span class="prop">initial</span>: [],
+    <span class="prop">combine</span>: (<span class="attr">a</span>, <span class="attr">b</span>) =&gt; [...a, ...b],
+  },
+},
+<span class="cm">// Contributions from anywhere:</span>
+<span class="fn">contribute</span>(<span class="str">'allViolations'</span>, <span class="str">'Identifier'</span>,
+  (<span class="attr">n</span>) =&gt; n.importViolation ? [n.importViolation] : []
+);</code></pre>
+          <p>No more manual tree walks. The framework combines contributions using the declared combiner.</p>
+        </div>
+        <div class="comparison-card highlight">
+          <h4>Extensibility</h4>
+          <pre><code><span class="cm">// Base spec:</span>
+<span class="attr">kindDefs</span>: {
+  CompilationUnit: extractFromCU,
+  _: () =&gt; [],
+}
+
+<span class="cm">// Plugin adds equation for new syntax:</span>
+plugin.<span class="fn">addEquation</span>(<span class="str">'kindDefs'</span>,
+  <span class="str">'ModuleDeclaration'</span>, extractFromModule
+);</code></pre>
+          <p>Like JastAdd aspects: extend without modifying the original spec file.</p>
+        </div>
+        <div class="comparison-card highlight">
+          <h4>Completeness checking</h4>
+          <pre><code><span class="cm">// grammar.compile() can detect:</span>
+<span class="cm">// "Attribute 'kindDefs' has no equation</span>
+<span class="cm">//  for production 'ModuleDeclaration'"</span>
+<span class="cm">// (instead of silently falling to _ default)</span></code></pre>
+          <p>Opt-in: mark attributes as <code class="inline-code">exhaustive: true</code> to require equations for all productions.</p>
+        </div>
+        <div class="comparison-card highlight">
+          <h4>Static introspection</h4>
+          <pre><code><span class="cm">// No execution needed:</span>
+<span class="kw">for</span> (<span class="kw">const</span> [<span class="attr">name</span>, <span class="attr">decl</span>] <span class="kw">of</span>
+  Object.entries(spec.<span class="prop">declarations</span>)) {
+  console.log(name, decl.<span class="prop">direction</span>);
+}
+<span class="cm">// "kindDefs syn"</span>
+<span class="cm">// "defEnv inh"</span>
+<span class="cm">// "defLookup syn"</span></code></pre>
+          <p>Dashboard/tooling can enumerate the attribute structure without running any equations.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-key" style="margin-top: 1rem;">
+        <div class="callout-title">The two-input spec is the JastAdd model in TypeScript</div>
+        <p><code class="inline-code">declarations</code> = <code class="inline-code">.jrag</code> attribute declarations (<code class="inline-code">syn Type Node.attr()</code>). <code class="inline-code">equations</code> = <code class="inline-code">.jrag</code> equation blocks (<code class="inline-code">eq Prod.attr() { ... }</code>). <code class="inline-code">Grammar</code> = <code class="inline-code">.ast</code> files. <code class="inline-code">grammar.compile()</code> = the JastAdd compiler. The separation KSC should have had from the start &mdash; now achievable without a code generator, using TypeScript's type system for the compile-time checks JastAdd's DSL provides.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 11: KSC Attribute Dependency Graph -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-depgraph">
+  <div class="section-header" onclick="toggleSection('sec-depgraph')">
+    <span class="chevron">&#9654;</span>
+    <h2>Interactive: KSC Checker Attribute Dependency Graph</h2>
+    <span class="badge badge-insight">Interactive</span>
+  </div>
+  <div class="section-body">
+    <p>Hover over an attribute to see its equation and what it depends on. These edges are automatically discovered by <code class="inline-code">analyzeDeps()</code> (Strategy 5) &mdash; they emerge from the equations, not from declarations.</p>
+
+    <div class="attr-graph" id="dep-graph-container">
+      <svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background -->
+        <rect width="800" height="520" fill="#0d1117" rx="8"/>
+
+        <!-- Layer labels -->
+        <text x="20" y="30" fill="#8b949e" font-size="11" font-weight="600">BINDER</text>
+        <text x="20" y="155" fill="#8b949e" font-size="11" font-weight="600">CHECKER: Fact Collection</text>
+        <text x="20" y="285" fill="#8b949e" font-size="11" font-weight="600">CHECKER: Environment Propagation</text>
+        <text x="20" y="380" fill="#8b949e" font-size="11" font-weight="600">CHECKER: Diagnostic</text>
+        <text x="20" y="460" fill="#8b949e" font-size="11" font-weight="600">CHECKER: Aggregation</text>
+
+        <!-- Dividers -->
+        <line x1="10" y1="140" x2="790" y2="140" stroke="#30363d" stroke-dasharray="4"/>
+        <line x1="10" y1="270" x2="790" y2="270" stroke="#30363d" stroke-dasharray="4"/>
+        <line x1="10" y1="365" x2="790" y2="365" stroke="#30363d" stroke-dasharray="4"/>
+        <line x1="10" y1="445" x2="790" y2="445" stroke="#30363d" stroke-dasharray="4"/>
+
+        <!-- Dependency edges -->
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#30363d"/>
+          </marker>
+          <marker id="arrow-hl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#58a6ff"/>
+          </marker>
+        </defs>
+
+        <!-- kindDefs -> defEnv -->
+        <path d="M 200 80 L 200 95 Q 200 105 210 105 L 300 105" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="kindDefs" data-to="defEnv"/>
+        <!-- defEnv -> defLookup -->
+        <path d="M 420 105 L 550 105" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="defEnv" data-to="defLookup"/>
+
+        <!-- valueImports -> fileImports -->
+        <path d="M 180 210 L 180 300" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="valueImports" data-to="fileImports"/>
+
+        <!-- defLookup -> kindAnnotations -->
+        <path d="M 620 120 L 620 170 Q 620 180 610 180 L 520 180 Q 510 180 510 190 L 510 210" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="defLookup" data-to="kindAnnotations"/>
+
+        <!-- kindAnnotations -> noImportsContext -->
+        <path d="M 510 230 L 510 300" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="kindAnnotations" data-to="noImportsContext"/>
+
+        <!-- noImportsContext -> importViolation -->
+        <path d="M 510 330 L 400 400" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="noImportsContext" data-to="importViolation"/>
+
+        <!-- isReference -> importViolation -->
+        <path d="M 350 230 L 370 400" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="isReference" data-to="importViolation"/>
+
+        <!-- fileImports -> importViolation -->
+        <path d="M 200 330 L 350 400" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="fileImports" data-to="importViolation"/>
+
+        <!-- localBindings -> enclosingLocals -->
+        <path d="M 660 210 L 660 300" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="localBindings" data-to="enclosingLocals"/>
+
+        <!-- enclosingLocals -> importViolation -->
+        <path d="M 660 330 L 430 400" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="enclosingLocals" data-to="importViolation"/>
+
+        <!-- importViolation -> allViolations -->
+        <path d="M 400 430 L 400 475" stroke="#30363d" fill="none" marker-end="url(#arrow)" class="dep-edge" data-from="importViolation" data-to="allViolations"/>
+
+        <!-- Attribute nodes (binder) -->
+        <g class="attr-node" data-attr="kindDefs" onmouseenter="highlightAttr('kindDefs')" onmouseleave="unhighlightAttr()">
+          <rect x="100" y="50" width="160" height="36" rx="6" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+          <text x="180" y="73" text-anchor="middle" fill="#bc8cff" font-size="13" font-weight="600">kindDefs</text>
+          <text x="262" y="73" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <g class="attr-node" data-attr="defEnv" onmouseenter="highlightAttr('defEnv')" onmouseleave="unhighlightAttr()">
+          <rect x="300" y="86" width="120" height="36" rx="6" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+          <text x="360" y="109" text-anchor="middle" fill="#bc8cff" font-size="13" font-weight="600">defEnv</text>
+          <text x="422" y="109" fill="#58a6ff" font-size="10">inh</text>
+        </g>
+
+        <g class="attr-node" data-attr="defLookup" onmouseenter="highlightAttr('defLookup')" onmouseleave="unhighlightAttr()">
+          <rect x="530" y="86" width="140" height="36" rx="6" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+          <text x="600" y="109" text-anchor="middle" fill="#bc8cff" font-size="13" font-weight="600">defLookup</text>
+          <text x="672" y="109" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <!-- Attribute nodes (checker: fact collection) -->
+        <g class="attr-node" data-attr="valueImports" onmouseenter="highlightAttr('valueImports')" onmouseleave="unhighlightAttr()">
+          <rect x="80" y="175" width="180" height="36" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="170" y="198" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="600">valueImports</text>
+          <text x="262" y="198" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <g class="attr-node" data-attr="isReference" onmouseenter="highlightAttr('isReference')" onmouseleave="unhighlightAttr()">
+          <rect x="280" y="195" width="150" height="36" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="355" y="218" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="600">isReference</text>
+          <text x="432" y="218" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <g class="attr-node" data-attr="kindAnnotations" onmouseenter="highlightAttr('kindAnnotations')" onmouseleave="unhighlightAttr()">
+          <rect x="440" y="195" width="180" height="36" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="530" y="218" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="600">kindAnnotations</text>
+          <text x="622" y="218" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <g class="attr-node" data-attr="localBindings" onmouseenter="highlightAttr('localBindings')" onmouseleave="unhighlightAttr()">
+          <rect x="570" y="175" width="170" height="36" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="655" y="198" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="600">localBindings</text>
+          <text x="742" y="198" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <!-- Attribute nodes (checker: env propagation) -->
+        <g class="attr-node" data-attr="fileImports" onmouseenter="highlightAttr('fileImports')" onmouseleave="unhighlightAttr()">
+          <rect x="100" y="295" width="160" height="36" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+          <text x="180" y="318" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="600">fileImports</text>
+          <text x="262" y="318" fill="#58a6ff" font-size="10">inh</text>
+        </g>
+
+        <g class="attr-node" data-attr="noImportsContext" onmouseenter="highlightAttr('noImportsContext')" onmouseleave="unhighlightAttr()">
+          <rect x="420" y="295" width="190" height="36" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+          <text x="515" y="318" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="600">noImportsContext</text>
+          <text x="612" y="318" fill="#58a6ff" font-size="10">inh</text>
+        </g>
+
+        <g class="attr-node" data-attr="enclosingLocals" onmouseenter="highlightAttr('enclosingLocals')" onmouseleave="unhighlightAttr()">
+          <rect x="570" y="295" width="170" height="36" rx="6" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+          <text x="655" y="318" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="600">enclosingLocals</text>
+          <text x="742" y="318" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <!-- Attribute nodes (checker: diagnostic) -->
+        <g class="attr-node" data-attr="importViolation" onmouseenter="highlightAttr('importViolation')" onmouseleave="unhighlightAttr()">
+          <rect x="300" y="390" width="200" height="36" rx="6" fill="#161b22" stroke="#f85149" stroke-width="1.5"/>
+          <text x="400" y="413" text-anchor="middle" fill="#f85149" font-size="13" font-weight="600">importViolation</text>
+          <text x="502" y="413" fill="#3fb950" font-size="10">syn</text>
+        </g>
+
+        <!-- Attribute nodes (checker: aggregation) -->
+        <g class="attr-node" data-attr="allViolations" onmouseenter="highlightAttr('allViolations')" onmouseleave="unhighlightAttr()">
+          <rect x="310" y="470" width="180" height="36" rx="6" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
+          <text x="400" y="493" text-anchor="middle" fill="#d29922" font-size="13" font-weight="600">allViolations</text>
+          <text x="492" y="493" fill="#3fb950" font-size="10">syn</text>
+        </g>
+      </svg>
+    </div>
+
+    <div id="attr-detail" style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-top: 0.5rem; min-height: 60px;">
+      <p style="color: var(--text-muted); font-style: italic;">Hover over an attribute node to see its equation and dependencies.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 10: Flashcards -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-quiz">
+  <div class="section-header" onclick="toggleSection('sec-quiz')">
+    <span class="chevron">&#9654;</span>
+    <h2>Test Your Understanding</h2>
+    <span class="badge badge-insight">Quiz</span>
+  </div>
+  <div class="section-body">
+    <div class="flashcard-container" id="flashcards">
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="flashcard-q">Q: What are the two essential inputs to an attribute grammar?</div>
+        <div class="flashcard-hint">Click to reveal</div>
+        <div class="flashcard-a"><strong>Domain</strong> (attribute declarations: names and types of values at each node) and <strong>Semantic Rules</strong> (attribute equations: local functions computing each attribute from its neighborhood).</div>
+      </div>
+    </div>
+    <div class="flashcard-nav">
+      <button onclick="showFlashcard(-1)">&larr; Prev</button>
+      <button onclick="showFlashcard(1)">Next &rarr;</button>
+    </div>
+    <div class="flashcard-counter" id="fc-counter">1 / 11</div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- SCRIPTS -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Section toggle ──
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ── Tabs ──
+function switchTab(tabGroupId, panelId) {
+  const group = document.getElementById(tabGroupId);
+  const parent = group.parentElement;
+
+  group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  parent.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+  const panels = parent.querySelectorAll('.tab-panel');
+  for (const p of panels) {
+    if (p.id === panelId) p.classList.add('active');
+  }
+  for (const b of group.querySelectorAll('.tab-btn')) {
+    const idx = Array.from(group.children).indexOf(b);
+    const panel = panels[idx];
+    if (panel && panel.id === panelId) b.classList.add('active');
+  }
+}
+
+// ── Tree visualization ──
+const nodeAttrData = {
+  program: [
+    { name: 'defEnv', dir: 'inh', desc: 'Computed from children\'s kindDefs (root equation)' },
+    { name: 'defLookup', dir: 'syn', desc: 'Closure over defEnv.get()' },
+  ],
+  cu: [
+    { name: 'kindDefs', dir: 'syn', desc: 'match: extracts Kind<{...}> type aliases from statements' },
+    { name: 'valueImports', dir: 'syn', desc: 'match: collects value-imported names from ImportDeclarations' },
+    { name: 'defEnv', dir: 'inh', desc: 'Auto-propagated from root (parent\'s value)' },
+    { name: 'fileImports', dir: 'inh', desc: 'Set to this CU\'s own valueImports by parent eq' },
+  ],
+  typealias: [
+    { name: 'kindDefs', dir: 'syn', desc: 'match _: returns [] (only CU extracts defs)' },
+    { name: 'defEnv', dir: 'inh', desc: 'Auto-propagated from CompilationUnit' },
+    { name: 'fileImports', dir: 'inh', desc: 'Auto-propagated from CompilationUnit' },
+  ],
+  vardecl: [
+    { name: 'kindAnnotations', dir: 'syn', desc: 'match: extracts Kind type refs from annotation (e.g., Pure)' },
+    { name: 'noImportsContext', dir: 'inh', desc: 'Parent eq: finds noImports kind in kindAnnotations' },
+    { name: 'defEnv', dir: 'inh', desc: 'Auto-propagated from CompilationUnit' },
+    { name: 'fileImports', dir: 'inh', desc: 'Auto-propagated from CompilationUnit' },
+  ],
+  ident: [
+    { name: 'isReference', dir: 'syn', desc: 'match: checks parent to determine if reference position' },
+    { name: 'importViolation', dir: 'syn', desc: 'match: 4-gate check (context, isRef, imported, not shadowed)' },
+    { name: 'noImportsContext', dir: 'inh', desc: 'Auto-propagated from VarDecl (or null if no annotation)' },
+    { name: 'fileImports', dir: 'inh', desc: 'Auto-propagated: Set{fetch, ...} from CompilationUnit' },
+    { name: 'enclosingLocals', dir: 'syn', desc: 'Walks $parent chain, accumulates localBindings' },
+  ],
+};
+
+function showNodeAttrs(nodeId) {
+  document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('active'));
+  document.getElementById('tn-' + nodeId).classList.add('active');
+
+  const attrs = nodeAttrData[nodeId];
+  const container = document.getElementById('node-attrs');
+  container.innerHTML = attrs.map(a => `
+    <div class="attr-line">
+      <span class="attr-name">${a.name}</span>
+      <span class="attr-dir ${a.dir === 'syn' ? 'syn-dir' : 'inh-dir'}">${a.dir}</span>
+      <span class="attr-value">&larr; ${a.desc}</span>
+    </div>
+  `).join('');
+}
+
+// ── Attribute dependency graph ──
+const attrDetails = {
+  kindDefs: {
+    title: 'kindDefs',
+    type: 'syn (match)',
+    eq: 'On CompilationUnit: extract Kind<{...}> type aliases from child statements. Default: []',
+    deps: ['(reads child statements structurally)'],
+    border: 'binder'
+  },
+  defEnv: {
+    title: 'defEnv',
+    type: 'inh',
+    eq: 'Root: build Map from all CompilationUnit kindDefs. Auto-propagate to all descendants.',
+    deps: ['kindDefs'],
+    border: 'binder'
+  },
+  defLookup: {
+    title: 'defLookup',
+    type: 'syn',
+    eq: 'Creates a closure: (name) => defEnv.get(name)',
+    deps: ['defEnv'],
+    border: 'binder'
+  },
+  valueImports: {
+    title: 'valueImports',
+    type: 'syn (match)',
+    eq: 'On CompilationUnit: collect value-imported names from ImportDeclarations. Default: empty Set',
+    deps: ['(reads child import nodes structurally)'],
+  },
+  isReference: {
+    title: 'isReference',
+    type: 'syn (match)',
+    eq: 'On Identifier: check parent to determine if reference position (not declaration, property, or import). Default: false',
+    deps: ['($parent structural check)'],
+  },
+  kindAnnotations: {
+    title: 'kindAnnotations',
+    type: 'syn (match)',
+    eq: 'On VariableDeclaration: extract Kind type refs from type annotation using defLookup. Default: []',
+    deps: ['defLookup'],
+  },
+  localBindings: {
+    title: 'localBindings',
+    type: 'syn (match)',
+    eq: 'On function nodes: collect parameter names + local variable declarations. Default: empty Set',
+    deps: ['(reads child nodes structurally)'],
+  },
+  fileImports: {
+    title: 'fileImports',
+    type: 'inh',
+    eq: 'Root: empty Set. CompilationUnit parent: return parent.valueImports. Others: auto-propagate.',
+    deps: ['valueImports'],
+  },
+  noImportsContext: {
+    title: 'noImportsContext',
+    type: 'inh',
+    eq: 'Root: null. VariableDeclaration parent: find noImports kind in kindAnnotations. Others: auto-propagate.',
+    deps: ['kindAnnotations'],
+  },
+  enclosingLocals: {
+    title: 'enclosingLocals',
+    type: 'syn',
+    eq: 'Walk $parent chain upward, accumulate localBindings from all enclosing function nodes.',
+    deps: ['localBindings'],
+  },
+  importViolation: {
+    title: 'importViolation',
+    type: 'syn (match)',
+    eq: 'On Identifier: 4-gate check: (1) in noImportsContext, (2) isReference, (3) name in fileImports, (4) not in enclosingLocals. Returns diagnostic or null.',
+    deps: ['noImportsContext', 'isReference', 'fileImports', 'enclosingLocals'],
+  },
+  allViolations: {
+    title: 'allViolations',
+    type: 'syn',
+    eq: 'DFS walk collecting importViolation from every node in subtree.',
+    deps: ['importViolation'],
+  },
+};
+
+function highlightAttr(name) {
+  const detail = attrDetails[name];
+  if (!detail) return;
+
+  const el = document.getElementById('attr-detail');
+  el.innerHTML = `
+    <div style="margin-bottom: 0.5rem;">
+      <strong style="color: var(--text-bright); font-size: 1rem;">${detail.title}</strong>
+      <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">${detail.type}</span>
+      ${detail.border === 'binder' ? '<span style="color: var(--accent-purple); font-size: 0.75rem; margin-left: 0.5rem; border: 1px solid rgba(188,140,255,0.3); padding: 0.1rem 0.4rem; border-radius: 4px;">BINDER</span>' : ''}
+    </div>
+    <div style="color: var(--text); font-size: 0.9rem; margin-bottom: 0.5rem;">${detail.eq}</div>
+    <div style="color: var(--text-muted); font-size: 0.85rem;">Depends on: ${detail.deps.map(d => `<code class="inline-code">${d}</code>`).join(', ')}</div>
+  `;
+
+  // Highlight edges
+  document.querySelectorAll('.dep-edge').forEach(e => {
+    const from = e.getAttribute('data-from');
+    const to = e.getAttribute('data-to');
+    if (from === name || to === name) {
+      e.setAttribute('stroke', '#58a6ff');
+      e.setAttribute('stroke-width', '2');
+      e.setAttribute('marker-end', 'url(#arrow-hl)');
+    }
+  });
+
+  // Highlight node
+  document.querySelectorAll('.attr-node').forEach(g => {
+    if (g.getAttribute('data-attr') === name) {
+      g.querySelector('rect').setAttribute('stroke-width', '2.5');
+    }
+  });
+}
+
+function unhighlightAttr() {
+  document.querySelectorAll('.dep-edge').forEach(e => {
+    e.setAttribute('stroke', '#30363d');
+    e.setAttribute('stroke-width', '1');
+    e.setAttribute('marker-end', 'url(#arrow)');
+  });
+  document.querySelectorAll('.attr-node rect').forEach(r => {
+    r.setAttribute('stroke-width', '1.5');
+  });
+}
+
+// ── Flashcards ──
+const flashcardData = [
+  {
+    q: 'What are the two essential inputs to an attribute grammar?',
+    a: '<strong>Domain</strong> (attribute declarations: names and types of values at each node) and <strong>Semantic Rules</strong> (attribute equations: local functions computing each attribute from its neighborhood).'
+  },
+  {
+    q: 'Where is the "initial state" of a KSC analysis?',
+    a: 'It\'s the root node\'s equation. For example, <code class="inline-code">inh(rootValue)</code> — the first argument is a function that computes the starting inherited value from the root. There\'s no separate "init" concept.'
+  },
+  {
+    q: 'How does KSC\'s inh() auto-propagation work?',
+    a: 'When the <code class="inline-code">eq</code> function returns <code class="inline-code">undefined</code>, the child inherits its parent\'s own value for that attribute. This is equivalent to Silver\'s <code class="inline-code">propagate</code> keyword.'
+  },
+  {
+    q: 'How does JastAdd separate domain from rules?',
+    a: 'JastAdd uses two syntactic forms: <em>declarations</em> (<code class="inline-code">syn Type Node.attr()</code>) for domain and <em>equations</em> (<code class="inline-code">eq Prod.attr() { ... }</code>) for rules. KSC fuses both into <code class="inline-code">AttributeDef</code>.'
+  },
+  {
+    q: 'How did KSC move `children` out of the spec?',
+    a: 'Strategy 7: <code class="inline-code">createGrammar(getChildren)</code> creates a shared Grammar object that owns the tree structure — equivalent to JastAdd\'s <code class="inline-code">.ast</code> files. Specs are now <code class="inline-code">AGSpecInput</code> with no <code class="inline-code">children</code> field. The Grammar\'s <code class="inline-code">evaluateAll()</code> also validates (Strategy 1) and topologically sorts specs before evaluation.'
+  },
+  {
+    q: 'What is Silver\'s "forwarding" and how does it relate to the two inputs?',
+    a: 'Forwarding lets a production delegate undefined attributes to another production\'s tree. It\'s a <em>default equation strategy</em> — a way to write fewer rules. The forwarding target is itself a rule (equation), so it\'s inside the two inputs.'
+  },
+  {
+    q: 'How does KSC handle circular attributes vs JastAdd?',
+    a: 'Both use the Magnusson-Hedin fixed-point algorithm. KSC: <code class="inline-code">circular(init, compute)</code>. JastAdd: <code class="inline-code">syn T Node.a() circular [bottom]</code>. In both, circular is domain (bottom value) + rules (equation), with the evaluator providing convergence iteration.'
+  },
+  {
+    q: 'Why is AttributeDef\'s fusion of domain and rules a problem?',
+    a: 'The fusion is a spectrum, not clean: <code class="inline-code">syn</code> is fully fused, <code class="inline-code">inh</code> partially separates initial state from equation, <code class="inline-code">circular</code> separates bottom/equals (domain) from compute (rule). The sealed fusion prevents: collection attributes (need separate combiner + distributed contributions), extensibility (can\'t add equations from other modules), completeness checking (can\'t detect missing equations), and static introspection (need runtime execution to discover attribute structure).'
+  },
+  {
+    q: 'What does the two-input AGSpec2 separate?',
+    a: '<code class="inline-code">declarations</code> (domain: direction, initial values, combiners — inspectable data) and <code class="inline-code">equations</code> (rules: per-production compute functions — extensible). This mirrors JastAdd\'s <code class="inline-code">syn Type Node.attr()</code> (declaration) + <code class="inline-code">eq Prod.attr() { ... }</code> (equation) separation, enabling collection attributes, aspect weaving, completeness checking, and static introspection.'
+  },
+  {
+    q: 'How does analyzeDeps() discover attribute dependencies at runtime?',
+    a: 'For each target attribute, it creates prototype-chained clones (<code class="inline-code">Object.create(node)</code>) with tracking getters on non-target attributes. It installs the real <code class="inline-code">AttributeDef</code> for the target, triggers it, and records which attributes were accessed. Returns <code class="inline-code">{ deps, order, cycles }</code> — the same dependency graph JastAdd computes statically.'
+  },
+  {
+    q: 'How does MatchEquations provide compile-time equation validation?',
+    a: '<code class="inline-code">MatchEquations&lt;N, V&gt;</code> is a mapped type: <code class="inline-code">{ [K in KindValues&lt;N&gt;]?: (node: Extract&lt;N, {kind:K}&gt;) =&gt; V } &amp; { _?: ... }</code>. It validates equation keys against the node union\'s <code class="inline-code">kind</code> literals (typo protection) and narrows callback parameters (type safety). Zero runtime cost — the TypeScript compiler is the validator.'
+  },
+];
+
+let currentFlashcard = 0;
+
+function renderFlashcard() {
+  const container = document.getElementById('flashcards');
+  const fc = flashcardData[currentFlashcard];
+  container.innerHTML = `
+    <div class="flashcard" onclick="this.classList.toggle('revealed')">
+      <div class="flashcard-q">Q: ${fc.q}</div>
+      <div class="flashcard-hint">Click to reveal</div>
+      <div class="flashcard-a">${fc.a}</div>
+    </div>
+  `;
+  document.getElementById('fc-counter').textContent = `${currentFlashcard + 1} / ${flashcardData.length}`;
+}
+
+function showFlashcard(delta) {
+  currentFlashcard = (currentFlashcard + delta + flashcardData.length) % flashcardData.length;
+  renderFlashcard();
+}
+
+renderFlashcard();
+</script>
+
+</body>
+</html>

@@ -2,7 +2,7 @@
  * Utilities for the compiler dashboard showcase.
  *
  * Handles temp folder lifecycle, data injection into dashboard HTML,
- * and serving via a local HTTP server.
+ * and serving via Vite dev server or legacy HTTP server.
  */
 
 import * as fs from 'node:fs';
@@ -10,7 +10,7 @@ import * as path from 'node:path';
 import * as http from 'node:http';
 import * as readline from 'node:readline';
 import { execSync } from 'node:child_process';
-import type { DashboardExportData } from '../src/export.js';
+import type { DashboardExportData } from '../src/dashboard/export.js';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const TEMP_DIR = path.join(PROJECT_ROOT, '.showcase-tmp');
@@ -110,12 +110,46 @@ export function discoverRootFiles(rootDir: string): string[] {
   return findAllTsFiles(rootDir);
 }
 
-// ── Dashboard serving ───────────────────────────────────────────────────
+// ── Dashboard serving (Vite) ────────────────────────────────────────────
 
-export function serveDashboard(data: DashboardExportData): Promise<http.Server> {
+export async function serveDashboard(data: DashboardExportData): Promise<{ close: () => void }> {
+  // Try Vite-based serving first
+  try {
+    const { createServer } = await import('vite');
+    const configPath = path.join(PROJECT_ROOT, 'vite.config.dashboard.ts');
+
+    const server = await createServer({
+      configFile: configPath,
+      server: { port: 0, open: true },
+      plugins: [{
+        name: 'dashboard-data',
+        configureServer(server) {
+          server.middlewares.use('/__data__', (_req, res) => {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(data));
+          });
+        },
+      }],
+    });
+
+    await server.listen();
+    const addr = server.httpServer?.address();
+    const port = typeof addr === 'object' && addr ? addr.port : 5173;
+    console.log(`  Dashboard running at http://localhost:${port}`);
+    console.log('  Press Ctrl+C to stop.\n');
+
+    return { close: () => server.close() };
+  } catch {
+    // Fallback: legacy HTML injection
+    return serveDashboardLegacy(data);
+  }
+}
+
+// ── Legacy dashboard serving (HTML injection) ───────────────────────────
+
+function serveDashboardLegacy(data: DashboardExportData): Promise<{ close: () => void }> {
   const html = fs.readFileSync(DASHBOARD_HTML, 'utf-8');
 
-  // Replace the data between the markers
   const dataJs = `// __DASHBOARD_DATA_START__\nconst SAMPLE_DATA = ${JSON.stringify(data, null, 2)};\n// __DASHBOARD_DATA_END__`;
   const injected = html.replace(
     /\/\/ __DASHBOARD_DATA_START__[\s\S]*?\/\/ __DASHBOARD_DATA_END__/,
@@ -133,17 +167,14 @@ export function serveDashboard(data: DashboardExportData): Promise<http.Server> 
       const port = typeof addr === 'object' && addr ? addr.port : 3000;
       const url = `http://localhost:${port}`;
 
-      console.log(`  Dashboard running at ${url}`);
+      console.log(`  Dashboard (legacy) running at ${url}`);
       console.log('  Press Ctrl+C to stop.\n');
 
-      // Open browser (macOS)
       try {
         execSync(`open ${url}`, { stdio: 'ignore' });
-      } catch {
-        // Non-macOS or open failed — user can navigate manually
-      }
+      } catch { /* Non-macOS or open failed */ }
 
-      resolve(server);
+      resolve({ close: () => server.close() });
     });
   });
 }

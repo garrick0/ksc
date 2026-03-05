@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finite Inputs, Hyperproperties &amp; Decomposition</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#0e1117;--surface:#161b22;--s2:#1c2129;--border:#30363d;--text:#e6edf3;--muted:#8b949e;
+    --blue:#58a6ff;--purple:#bc8cff;--green:#3fb950;--orange:#f0883e;--pink:#f778ba;--red:#f85149;--cyan:#39d4e0;--yellow:#e3b341}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.75}
+  .container{max-width:740px;margin:0 auto;padding:2.5rem 1.5rem 5rem}
+  h1{font-size:1.85rem;font-weight:700;background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.3rem}
+  .subtitle{color:var(--muted);margin-bottom:2.5rem}
+  h2{font-size:1.25rem;margin:2.8rem 0 .6rem;color:var(--blue);display:flex;align-items:center;gap:.5rem}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--blue);color:var(--bg);font-size:.8rem;font-weight:700;flex-shrink:0}
+  p{margin-bottom:1rem}
+  code{background:rgba(88,166,255,.1);padding:.1rem .4rem;border-radius:4px;font-size:.86em;font-family:'SF Mono','Fira Code',monospace}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;margin:1rem 0}
+  .card.accent{border-left:3px solid var(--purple)}
+  .card.green{border-left:3px solid var(--green)}
+  .card.orange{border-left:3px solid var(--orange)}
+  .card.red{border-left:3px solid var(--red)}
+  .card.cyan{border-left:3px solid var(--cyan)}
+  .key{color:var(--muted);font-style:italic;border-left:3px solid var(--purple);padding-left:1rem;margin:1.25rem 0}
+
+  /* Interactive elements */
+  .tabs{display:flex;gap:4px;margin:.75rem 0 0;flex-wrap:wrap}
+  .tab{padding:.4rem .85rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);
+    color:var(--muted);cursor:pointer;font-size:.8rem;font-weight:600;transition:all .2s}
+  .tab:hover{border-color:var(--blue);color:var(--text)}
+  .tab.active{border-color:var(--purple);background:rgba(188,140,255,.1);color:var(--purple)}
+  .tab-body{min-height:3rem;margin:.5rem 0;font-size:.88rem}
+
+  /* Canvas */
+  canvas{display:block;border-radius:10px;margin:1rem 0;cursor:crosshair}
+
+  /* Hyper sim */
+  .hsim{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin:1rem 0}
+  .hsim-row{display:flex;gap:12px;align-items:stretch;margin:.75rem 0;flex-wrap:wrap}
+  .hsim-run{flex:1;min-width:200px;background:var(--bg);border-radius:8px;padding:.75rem 1rem;font-family:'SF Mono','Fira Code',monospace;font-size:.8rem;line-height:1.6}
+  .hsim-run .label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem;font-family:'Segoe UI',system-ui,sans-serif}
+  .hsim-controls{display:flex;gap:6px;flex-wrap:wrap;margin:.5rem 0}
+  .hsim-btn{padding:.35rem .75rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);
+    color:var(--text);cursor:pointer;font-size:.8rem;transition:all .2s}
+  .hsim-btn:hover{border-color:var(--green)}
+  .hsim-verdict{margin-top:.5rem;font-size:.88rem;min-height:1.5rem}
+
+  /* Decomp viz */
+  .decomp-canvas-wrap{position:relative;width:100%;margin:1rem 0}
+  .decomp-legend{font-size:.78rem;color:var(--muted);margin:.25rem 0}
+
+  /* Axis slider */
+  .axis-demo{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin:1rem 0}
+  .axis-slider-wrap{display:flex;align-items:center;gap:12px;margin:.75rem 0}
+  .axis-slider-wrap label{font-size:.82rem;font-weight:600;min-width:60px}
+  .axis-slider{flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:var(--border);outline:none}
+  .axis-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--blue);cursor:pointer}
+  .axis-val{font-family:'SF Mono',monospace;font-size:.82rem;min-width:40px;text-align:right}
+  .axis-result{margin-top:.75rem;padding:.75rem 1rem;border-radius:8px;background:var(--bg);font-size:.86rem;min-height:3rem}
+
+  /* Type tree */
+  .type-tree{font-family:'SF Mono','Fira Code',monospace;font-size:.82rem;background:var(--bg);padding:1rem;border-radius:8px;margin:.75rem 0;line-height:1.7;overflow-x:auto}
+  .tt-inf{color:var(--red)}
+  .tt-fin{color:var(--green)}
+  .tt-big{color:var(--orange)}
+  .tt-cmt{color:var(--muted);font-style:italic}
+
+  .qopt{display:block;width:100%;text-align:left;padding:.55rem 1rem;margin:.3rem 0;border:1px solid var(--border);
+    border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font-size:.86rem;transition:border-color .2s}
+  .qopt:hover{border-color:var(--blue)}
+  .qopt.correct{border-color:var(--green);background:rgba(63,185,80,.08)}
+  .qopt.wrong{border-color:var(--red);background:rgba(248,81,73,.06)}
+  .qfb{margin-top:.4rem;font-size:.84rem;min-height:1rem}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Three Hard Questions, Answered Visually</h1>
+<p class="subtitle">Are inputs really infinite? What are hyperproperties? And what does "decomposition" actually mean?</p>
+
+<!-- ============================================ -->
+<!-- PART A: FINITE INPUTS? -->
+<!-- ============================================ -->
+<h2><span class="n">A</span> "Aren't inputs always finite in a typed language?"</h2>
+
+<p>Great instinct — and <em>almost</em> right. Let's look at what TypeScript types actually allow:</p>
+
+<div class="type-tree"><span class="tt-cmt">// Finite types — you CAN enumerate all possible values</span>
+<span class="tt-fin">boolean</span>          <span class="tt-cmt">// 2 values: true, false</span>
+<span class="tt-fin">"a" | "b" | "c"</span>  <span class="tt-cmt">// 3 values</span>
+<span class="tt-fin">[boolean, boolean]</span><span class="tt-cmt">// 4 values: [T,T], [T,F], [F,T], [F,F]</span>
+<span class="tt-fin">enum Color { R, G, B }</span> <span class="tt-cmt">// 3 values</span>
+
+<span class="tt-cmt">// HUGE but technically finite types</span>
+<span class="tt-big">number</span>           <span class="tt-cmt">// 2⁶⁴ ≈ 18 quintillion IEEE 754 doubles</span>
+<span class="tt-big">[number, number]</span> <span class="tt-cmt">// 2¹²⁸ ≈ 3.4 × 10³⁸ pairs</span>
+
+<span class="tt-cmt">// ACTUALLY INFINITE types — unbounded size</span>
+<span class="tt-inf">string</span>           <span class="tt-cmt">// any length! "a", "aa", "aaa", ... ∞</span>
+<span class="tt-inf">number[]</span>         <span class="tt-cmt">// any length! [], [1], [1,2], ... ∞</span>
+<span class="tt-inf">Map&lt;string, any&gt;</span><span class="tt-cmt">// any number of entries</span>
+<span class="tt-inf">object</span>           <span class="tt-cmt">// any shape, any depth</span>
+<span class="tt-inf">() => number</span>     <span class="tt-cmt">// functions! uncountably many</span></div>
+
+<div class="card red">
+  <strong>The answer:</strong> Even in TypeScript, most useful types have <em>infinitely many</em> possible values. <code>string</code> is infinite (strings can be any length). <code>number[]</code> is infinite (arrays can be any length). Any recursive or generic type is infinite. Only literal unions and small enums are truly finite.
+</div>
+
+<p>But what about <code>number</code>? Aren't there "only" 2⁶⁴ possible doubles? Yes — but that's still way too many to test exhaustively:</p>
+
+<div class="card orange">
+  <p style="margin:0"><strong>2⁶⁴ ≈ 18,446,744,073,709,551,616 possible <code>number</code> values.</strong><br>
+  At 1 billion tests per second, exhaustive testing would take <strong>585 years</strong>.<br>
+  For <code>f(a: number, b: number)</code>, the input space is 2¹²⁸ — <strong>10²² years</strong>. Longer than the age of the universe.</p>
+</div>
+
+<p>So even "finite" types are <em>practically infinite</em>. And here's the kicker:</p>
+
+<div class="tabs" id="finiteTabs"></div>
+<div class="tab-body" id="finiteBody"></div>
+
+<div class="key">
+  Types don't save you from undecidability — but they DO narrow the space. A function <code>(x: boolean) => boolean</code> has exactly 4 possible behaviors. A function <code>(x: string) => string</code> has infinitely many. The tighter the type, the more tractable the analysis.
+</div>
+
+<!-- ============================================ -->
+<!-- PART B: HYPERPROPERTIES -->
+<!-- ============================================ -->
+<h2><span class="n">B</span> What are hyperproperties, really?</h2>
+
+<p>A regular <strong>trace property</strong> looks at <em>one</em> run of a program and asks "was this run good?" A <strong>hyperproperty</strong> looks at <em>two or more</em> runs and asks "is the <em>relationship</em> between these runs good?"</p>
+
+<p>This is easiest to understand by example. Here's a login function — try running it with different inputs and see why you <em>need</em> two runs to spot the problem:</p>
+
+<div class="hsim" id="hyperSim">
+  <div style="font-size:.85rem;margin-bottom:.75rem"><strong>Scenario:</strong> A login function that checks a password. We want to know: does it <em>leak information</em> about the password through its timing?</div>
+  <div class="hsim-controls">
+    <button class="hsim-btn" onclick="hyperRun('correct','hunter2')">Run: password="hunter2" (correct)</button>
+    <button class="hsim-btn" onclick="hyperRun('wrong_long','xxxxxx')">Run: password="xxxxxx" (wrong, 6 chars)</button>
+    <button class="hsim-btn" onclick="hyperRun('wrong_short','xx')">Run: password="xx" (wrong, 2 chars)</button>
+    <button class="hsim-btn" onclick="hyperRun('wrong_close','hunter3')">Run: password="hunter3" (wrong, close)</button>
+    <button class="hsim-btn" style="border-color:var(--red);color:var(--red)" onclick="hyperCompare()">Compare runs ↔</button>
+    <button class="hsim-btn" style="border-color:var(--muted);color:var(--muted)" onclick="hyperReset()">Reset</button>
+  </div>
+  <div class="hsim-row" id="hyperRuns"></div>
+  <div class="hsim-verdict" id="hyperVerdict"></div>
+</div>
+
+<p>Did you see it? Each <em>individual</em> run looks fine — it returns true or false. No bugs, no crashes. But when you <strong>compare</strong> two runs with different inputs, you discover the timing differs. That leaks information about the password.</p>
+
+<div class="card accent">
+  <strong>This is why hyperproperties exist:</strong> Some bugs are invisible in any single execution. They only appear when you compare multiple executions with different inputs. You literally cannot state "timing doesn't depend on secret input" as a property of one trace — it's inherently a relationship between traces.
+</div>
+
+<p>Here are the levels, from single-trace up:</p>
+
+<div class="tabs" id="hyperTabs"></div>
+<div class="tab-body" id="hyperBody"></div>
+
+<!-- ============================================ -->
+<!-- PART C: DECOMPOSITION -->
+<!-- ============================================ -->
+<h2><span class="n">C</span> What "decomposition" actually means</h2>
+
+<p>Forget the math jargon for a moment. A decomposition theorem says:</p>
+
+<div class="card green">
+  <strong>"Every property in this space can be split into exactly two simpler components along this axis."</strong>
+  <p style="margin:.5rem 0 0">Just like every point on a 2D plane can be split into an x-coordinate and a y-coordinate, every program property can be split along certain fundamental axes. The decomposition is <em>unique</em> and <em>complete</em> — every property splits, and there's only one way to split it.</p>
+</div>
+
+<p>Let me make this concrete. Drag the dot around the property space below — the decomposition shows in real time:</p>
+
+<canvas id="decompCanvas" width="680" height="400"></canvas>
+<div class="decomp-legend" id="decompLegend"></div>
+
+<p>That was one axis: Safety vs Liveness. Now here's the key insight — you need <em>multiple</em> axes because a single axis doesn't capture everything:</p>
+
+<div class="axis-demo" id="axisDemo">
+  <div style="font-size:.88rem;font-weight:600;margin-bottom:.5rem">Build a property from axes</div>
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Each slider represents one decomposition axis. Adjust them to see how they combine to describe a specific property.</div>
+
+  <div class="axis-slider-wrap">
+    <label style="color:var(--green)">Safety ↔ Liveness</label>
+    <input type="range" class="axis-slider" id="ax1" min="0" max="100" value="80" oninput="updateAxes()">
+    <span class="axis-val" id="ax1v">80%</span>
+  </div>
+  <div class="axis-slider-wrap">
+    <label style="color:var(--blue)">Trace ↔ Hyper</label>
+    <input type="range" class="axis-slider" id="ax2" min="0" max="100" value="10" oninput="updateAxes()">
+    <span class="axis-val" id="ax2v">10%</span>
+  </div>
+  <div class="axis-slider-wrap">
+    <label style="color:var(--purple)">Syntactic ↔ Semantic</label>
+    <input type="range" class="axis-slider" id="ax3" min="0" max="100" value="90" oninput="updateAxes()">
+    <span class="axis-val" id="ax3v">90%</span>
+  </div>
+  <div class="axis-slider-wrap">
+    <label style="color:var(--orange)">Boolean ↔ Quantitative</label>
+    <input type="range" class="axis-slider" id="ax4" min="0" max="100" value="5" oninput="updateAxes()">
+    <span class="axis-val" id="ax4v">5%</span>
+  </div>
+
+  <div class="axis-result" id="axisResult"></div>
+</div>
+
+<div class="card accent">
+  <strong>Why RGB is a perfect analogy (and where it breaks down):</strong>
+  <p style="margin:.5rem 0">RGB works because human vision has exactly 3 cone types. Three axes <em>perfectly</em> span all visible colors. But the space of program properties doesn't have a fixed number of "cone types." The arithmetic hierarchy keeps going: Σ₁, Π₁, Σ₂, Π₂, Σ₃, … — infinitely many levels. Each decomposition axis (safety/liveness, trace/hyper, etc.) carves off one dimension, but there are always more dimensions remaining.</p>
+  <p style="margin:0">It's more like: RGB spans all colors you can <em>see</em>. But if you could see infrared, ultraviolet, and X-rays, you'd need more axes. The program-property space is like electromagnetic radiation — it extends beyond any finite number of axes.</p>
+</div>
+
+<p>Here are the decomposition theorems, each visualized as "cutting" the property space along one axis:</p>
+
+<canvas id="cutCanvas" width="680" height="360"></canvas>
+<div class="tabs" id="cutTabs"></div>
+<div class="tab-body" id="cutBody"></div>
+
+<!-- ====== QUIZ ====== -->
+<h2><span class="n">D</span> Quick check</h2>
+
+<div class="card" id="quiz1">
+  <p><strong>A function has type <code>(x: boolean) => boolean</code>. How many possible functions have this type?</strong></p>
+  <button class="qopt" onclick="qz(this,false,1)">2 — true or false</button>
+  <button class="qopt" onclick="qz(this,true,1)">4 — each of the 2 inputs can map to either of 2 outputs</button>
+  <button class="qopt" onclick="qz(this,false,1)">Infinitely many — there are always infinitely many programs</button>
+  <div class="qfb" id="qfb1"></div>
+</div>
+
+<div class="card" id="quiz2">
+  <p><strong>"This encryption function takes the same time regardless of the key" is a:</strong></p>
+  <button class="qopt" onclick="qz(this,false,2)">Trace property — you can check it by running the program once</button>
+  <button class="qopt" onclick="qz(this,true,2)">Hyperproperty — you must compare multiple runs with different keys</button>
+  <button class="qopt" onclick="qz(this,false,2)">Syntactic property — you can check it by reading the code</button>
+  <div class="qfb" id="qfb2"></div>
+</div>
+
+<div class="card" id="quiz3">
+  <p><strong>The Alpern-Schneider decomposition says:</strong></p>
+  <button class="qopt" onclick="qz(this,false,3)">Every property is either safety or liveness, but not both</button>
+  <button class="qopt" onclick="qz(this,true,3)">Every trace property is uniquely the intersection of a safety part and a liveness part</button>
+  <button class="qopt" onclick="qz(this,false,3)">Safety properties are more important than liveness properties</button>
+  <div class="qfb" id="qfb3"></div>
+</div>
+
+</div>
+
+<script>
+// ====== FINITE INPUT TABS ======
+const finiteData = [
+  { name: "Truly finite types", body: "<strong>When inputs are genuinely finite, you CAN check everything.</strong><br><br>A function <code>(x: boolean, y: boolean) => boolean</code> has exactly 4 possible inputs. You can test all of them in microseconds. There are exactly 2⁴ = 16 possible functions of this type. You can enumerate them all and check any property.<br><br>This is why <strong>model checking</strong> works for finite-state systems — if the state space is finite, you exhaustively explore it. Video game logic, hardware circuits, protocol state machines — all naturally finite and fully checkable." },
+  { name: "Practically huge types", body: "<strong><code>number</code> has 2⁶⁴ values — finite but untestable.</strong><br><br>You can't exhaustively test <code>(n: number) => number</code>, but you can use <strong>clever sampling</strong>: test edge cases (0, -0, NaN, Infinity, Number.MAX_SAFE_INTEGER, etc.), random values, and boundary conditions. IEEE 754 doubles have specific gotchas (NaN !== NaN, -0 === 0) that you can target specifically. Property-based testing (fast-check) does this automatically." },
+  { name: "Actually infinite types", body: "<strong><code>string</code>, <code>number[]</code>, nested objects — genuinely infinite.</strong><br><br>A string can be any length. There's no upper bound in the type system. So <code>(s: string) => boolean</code> has truly infinitely many possible inputs. This is where undecidability lives.<br><br>But! In practice, JavaScript strings max out at 2²⁸ characters (due to engine limits), and arrays max out around 2³² elements. So the <em>runtime</em> has finite limits even when the <em>type</em> doesn't. This is a gap between the mathematical model (infinite) and the physical reality (bounded by memory)." },
+  { name: "Functions as input", body: "<strong>Inputs of type <code>(x: A) => B</code> are the killer.</strong><br><br>If your function takes another function as input, the input space is <em>uncountably</em> infinite. There are uncountably many functions from ℕ to ℕ. You can't even enumerate them, let alone test them all.<br><br>Higher-order functions are why even typed languages remain undecidable in general. <code>Array.prototype.sort(compareFn)</code> takes a function — the behavior of <code>sort</code> depends entirely on what <code>compareFn</code> does, and there are infinitely many possible comparators." },
+];
+
+const ftabs = document.getElementById('finiteTabs');
+const fbody = document.getElementById('finiteBody');
+let activeFT = -1;
+finiteData.forEach((d,i) => {
+  const t = document.createElement('div'); t.className = 'tab'; t.textContent = d.name;
+  t.onclick = () => { ftabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); activeFT=i; fbody.innerHTML=d.body; };
+  ftabs.appendChild(t);
+});
+
+// ====== HYPERPROPERTY SIM ======
+const hyperRunsEl = document.getElementById('hyperRuns');
+const hyperVerdictEl = document.getElementById('hyperVerdict');
+let runs = [];
+
+function hyperRun(type, pw) {
+  const correct = 'hunter2';
+  let time, result;
+
+  // Simulate char-by-char comparison (timing side channel)
+  let matchLen = 0;
+  for (let i = 0; i < Math.min(pw.length, correct.length); i++) {
+    if (pw[i] === correct[i]) matchLen++; else break;
+  }
+  time = 2 + matchLen * 3; // ms per matched char
+  result = pw === correct;
+
+  const run = { pw, result, time, matchLen };
+  runs.push(run);
+
+  const div = document.createElement('div');
+  div.className = 'hsim-run';
+  div.innerHTML = `<div class="label" style="color:${result ? 'var(--green)' : 'var(--red)'}">Run #${runs.length}</div>` +
+    `<span style="color:var(--muted)">input:</span>  "${pw}"\n` +
+    `<span style="color:var(--muted)">output:</span> <strong style="color:${result ? 'var(--green)' : 'var(--red)' }">${result}</strong>\n` +
+    `<span style="color:var(--muted)">time:</span>   <strong>${time}ms</strong>`;
+  hyperRunsEl.appendChild(div);
+  hyperVerdictEl.innerHTML = `<span style="color:var(--muted)">Run #${runs.length} completed. Each run looks fine individually. Try clicking <strong>"Compare runs ↔"</strong> to see the hyperproperty.</span>`;
+}
+
+function hyperCompare() {
+  if (runs.length < 2) { hyperVerdictEl.innerHTML = '<span style="color:var(--orange)">Need at least 2 runs to compare. Try running with different passwords.</span>'; return; }
+
+  const times = runs.map(r => r.time);
+  const allSame = times.every(t => t === times[0]);
+
+  if (allSame) {
+    hyperVerdictEl.innerHTML = `<span style="color:var(--green)"><strong>✓ Timing is constant</strong> across runs — no information leak detected (so far).</span>`;
+  } else {
+    const details = runs.map((r,i) => `"${r.pw}" → ${r.time}ms (${r.matchLen} chars matched before mismatch)`).join('<br>');
+    hyperVerdictEl.innerHTML = `<span style="color:var(--red)"><strong>✗ TIMING LEAK DETECTED!</strong> Different passwords take different amounts of time:</span><br>` +
+      `<div style="font-size:.82rem;font-family:monospace;margin-top:.4rem;color:var(--muted)">${details}</div>` +
+      `<div style="margin-top:.5rem;font-size:.85rem">An attacker can guess the password <strong>one character at a time</strong> by measuring response time. This is a <strong>timing side-channel attack</strong> — and it's invisible in any single run. You can ONLY see it by comparing runs. That's why it's a <em>hyperproperty</em>.</div>`;
+  }
+}
+
+function hyperReset() { runs = []; hyperRunsEl.innerHTML = ''; hyperVerdictEl.innerHTML = ''; }
+
+// ====== HYPER LEVEL TABS ======
+const hyperData = [
+  { name: "Trace property", body: "<strong>A property of ONE run.</strong><br><br>\"The program returns a number.\" \"The program doesn't crash.\" \"The program terminates in under 1 second.\"<br><br>You check it by running the program once and observing. The verdict depends only on that single execution. Most properties you normally think about are trace properties." },
+  { name: "2-safety (hyperproperty)", body: "<strong>A property of TWO runs.</strong><br><br>\"If I run the program with the same visible inputs but different <em>secret</em> inputs, the visible output is the same.\" This is <strong>noninterference</strong> — the most important security property. You literally cannot check it with one run. You need two runs that differ only in the secret, then compare their outputs.<br><br>The timing-leak demo above is a 2-safety violation: two runs with different passwords (secret) produce different timing (observable)." },
+  { name: "k-safety", body: "<strong>A property of k runs compared together.</strong><br><br>\"Any k executions satisfy some relationship.\" For example, <strong>monotonicity</strong>: \"if input₁ ≤ input₂, then output₁ ≤ output₂\" — this compares 2 runs. <strong>Transitivity of equivalence</strong> needs 3 runs.<br><br>k-safety properties are still \"safety\" in the sense that a violation can be witnessed by a finite set of k traces." },
+  { name: "Full hyperproperty", body: "<strong>A property of the ENTIRE SET of all possible runs.</strong><br><br>\"For every possible run, there exists another run that…\" This involves quantifying over all possible executions.<br><br><strong>Generalized noninterference (GNI):</strong> \"For every high-security input, every possible low-security output is achievable.\" This isn't just comparing 2 runs — it's making a statement about the <em>entire</em> space of possible executions. The quantifier alternation (∀∃) makes it fundamentally harder than k-safety." },
+];
+
+const htabs = document.getElementById('hyperTabs');
+const hbody = document.getElementById('hyperBody');
+hyperData.forEach((d,i) => {
+  const t = document.createElement('div'); t.className = 'tab'; t.textContent = d.name;
+  t.onclick = () => { htabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); hbody.innerHTML=d.body; };
+  htabs.appendChild(t);
+});
+
+// ====== DECOMPOSITION CANVAS (draggable dot) ======
+const dc = document.getElementById('decompCanvas');
+const dctx = dc.getContext('2d');
+const dleg = document.getElementById('decompLegend');
+let dotX = 480, dotY = 180;
+let dragging = false;
+
+function drawDecomp() {
+  const W = dc.width, H = dc.height;
+  dctx.clearRect(0,0,W,H);
+
+  // Background
+  dctx.fillStyle = '#161b22';
+  dctx.fillRect(0,0,W,H);
+
+  // Safety region (left)
+  const grad1 = dctx.createLinearGradient(0,0,W,0);
+  grad1.addColorStop(0, 'rgba(63,185,80,0.12)');
+  grad1.addColorStop(1, 'rgba(63,185,80,0)');
+  dctx.fillStyle = grad1;
+  dctx.fillRect(0,0,W,H);
+
+  // Liveness region (right)
+  const grad2 = dctx.createLinearGradient(0,0,W,0);
+  grad2.addColorStop(0, 'rgba(88,166,255,0)');
+  grad2.addColorStop(1, 'rgba(88,166,255,0.12)');
+  dctx.fillStyle = grad2;
+  dctx.fillRect(0,0,W,H);
+
+  // Labels
+  dctx.font = 'bold 12px system-ui';
+  dctx.fillStyle = '#3fb950'; dctx.textAlign = 'left';
+  dctx.fillText('SAFETY', 16, 28);
+  dctx.font = '11px system-ui'; dctx.fillStyle = '#8b949e';
+  dctx.fillText('"nothing bad happens"', 16, 46);
+
+  dctx.font = 'bold 12px system-ui';
+  dctx.fillStyle = '#58a6ff'; dctx.textAlign = 'right';
+  dctx.fillText('LIVENESS', W-16, 28);
+  dctx.font = '11px system-ui'; dctx.fillStyle = '#8b949e';
+  dctx.fillText('"something good eventually happens"', W-16, 46);
+
+  // Y axis labels
+  dctx.textAlign = 'left'; dctx.font = '10px system-ui'; dctx.fillStyle = '#8b949e';
+  dctx.save(); dctx.translate(14, H/2); dctx.rotate(-Math.PI/2);
+  dctx.textAlign = 'center'; dctx.fillText('specificity →', 0, 0);
+  dctx.restore();
+
+  // Example properties scattered
+  const examples = [
+    { x: 80, y: 100, label: 'Type safety', col: '#3fb950' },
+    { x: 120, y: 170, label: 'No null deref', col: '#3fb950' },
+    { x: 100, y: 260, label: 'Memory safety', col: '#3fb950' },
+    { x: 200, y: 320, label: 'No deadlock', col: '#4ade80' },
+    { x: 520, y: 120, label: 'Termination', col: '#58a6ff' },
+    { x: 560, y: 200, label: 'Eventual response', col: '#58a6ff' },
+    { x: 480, y: 300, label: 'Fairness', col: '#58a6ff' },
+    { x: 300, y: 140, label: 'Mutex exclusion', col: '#bc8cff' },
+    { x: 350, y: 240, label: 'Request → Response', col: '#bc8cff' },
+    { x: 260, y: 200, label: 'Bounded wait', col: '#f0883e' },
+  ];
+
+  examples.forEach(e => {
+    dctx.beginPath(); dctx.arc(e.x, e.y, 4, 0, Math.PI*2);
+    dctx.fillStyle = e.col + '66'; dctx.fill();
+    dctx.font = '10px system-ui'; dctx.fillStyle = e.col + 'aa'; dctx.textAlign = 'center';
+    dctx.fillText(e.label, e.x, e.y - 10);
+  });
+
+  // Decomposition lines from dot
+  const safetyX = 40;
+  const livenessX = W - 40;
+
+  // Safety projection (horizontal line to left)
+  dctx.setLineDash([4,4]);
+  dctx.beginPath(); dctx.moveTo(dotX, dotY); dctx.lineTo(safetyX, dotY);
+  dctx.strokeStyle = '#3fb95088'; dctx.lineWidth = 1.5; dctx.stroke();
+
+  // Liveness projection (horizontal line to right)
+  dctx.beginPath(); dctx.moveTo(dotX, dotY); dctx.lineTo(livenessX, dotY);
+  dctx.strokeStyle = '#58a6ff88'; dctx.lineWidth = 1.5; dctx.stroke();
+  dctx.setLineDash([]);
+
+  // Safety component marker
+  dctx.beginPath(); dctx.arc(safetyX, dotY, 6, 0, Math.PI*2);
+  dctx.fillStyle = '#3fb950'; dctx.fill();
+
+  // Liveness component marker
+  dctx.beginPath(); dctx.arc(livenessX, dotY, 6, 0, Math.PI*2);
+  dctx.fillStyle = '#58a6ff'; dctx.fill();
+
+  // The dot
+  dctx.beginPath(); dctx.arc(dotX, dotY, 10, 0, Math.PI*2);
+  dctx.fillStyle = '#bc8cff'; dctx.fill();
+  dctx.strokeStyle = '#fff'; dctx.lineWidth = 2; dctx.stroke();
+
+  // Intersection symbol
+  dctx.font = 'bold 13px system-ui'; dctx.fillStyle = '#e6edf3'; dctx.textAlign = 'center';
+  dctx.fillText('P = S ∩ L', dotX, dotY - 18);
+
+  const safetyPct = Math.round((1 - dotX / W) * 100);
+  const livenessPct = Math.round(dotX / W * 100);
+  dleg.innerHTML = `<strong style="color:var(--purple)">Your property P</strong> decomposes into: ` +
+    `<strong style="color:var(--green)">Safety component (${safetyPct}%)</strong> ∩ ` +
+    `<strong style="color:var(--blue)">Liveness component (${livenessPct}%)</strong> — ` +
+    `Drag the purple dot to explore.`;
+}
+
+dc.addEventListener('mousedown', e => { const r = dc.getBoundingClientRect(); const mx = e.clientX-r.left, my = e.clientY-r.top; if (Math.hypot(mx-dotX,my-dotY)<20) dragging=true; });
+dc.addEventListener('mousemove', e => { if(!dragging)return; const r=dc.getBoundingClientRect(); dotX=Math.max(40,Math.min(dc.width-40,e.clientX-r.left)); dotY=Math.max(60,Math.min(dc.height-20,e.clientY-r.top)); drawDecomp(); });
+dc.addEventListener('mouseup', ()=>dragging=false);
+dc.addEventListener('mouseleave', ()=>dragging=false);
+drawDecomp();
+
+// ====== AXIS SLIDERS ======
+function updateAxes() {
+  const a1 = +document.getElementById('ax1').value;
+  const a2 = +document.getElementById('ax2').value;
+  const a3 = +document.getElementById('ax3').value;
+  const a4 = +document.getElementById('ax4').value;
+  document.getElementById('ax1v').textContent = a1 + '%';
+  document.getElementById('ax2v').textContent = a2 + '%';
+  document.getElementById('ax3v').textContent = a3 + '%';
+  document.getElementById('ax4v').textContent = a4 + '%';
+
+  // Find closest known property
+  const properties = [
+    { name: '"No null dereference"', a1:95, a2:5, a3:85, a4:0, desc: 'Almost pure safety, trace-level, mostly syntactic, boolean. A classic decidable safety property — KindScript territory.' },
+    { name: '"Function is pure"', a1:90, a2:5, a3:90, a4:5, desc: 'Safety (no bad effects), trace-level, syntactic (scan for I/O + mutation), boolean. Decidable by AST analysis.' },
+    { name: '"Program terminates"', a1:10, a2:5, a3:20, a4:5, desc: 'Mostly liveness (something good eventually happens: halting!), trace-level, semantic (depends on behavior), boolean. The classic undecidable property.' },
+    { name: '"Noninterference"', a1:80, a2:90, a3:15, a4:5, desc: 'Safety-ish (no information leak), strongly hyper (need 2+ runs), semantic (about behavior), boolean. A 2-safety hyperproperty.' },
+    { name: '"Average response time < 100ms"', a1:40, a2:5, a3:10, a4:95, desc: 'Mix of safety/liveness, trace-level, semantic (need to measure), highly quantitative. Needs runtime measurement.' },
+    { name: '"Uses only these 3 modules"', a1:95, a2:5, a3:98, a4:0, desc: 'Pure safety, trace-level, purely syntactic, boolean. Trivially decidable — just scan imports.' },
+    { name: '"Differential privacy (ε=0.1)"', a1:60, a2:95, a3:10, a4:80, desc: 'Mix of safety/liveness, strongly hyper (relates neighboring inputs), semantic, quantitative (ε parameter). One of the hardest properties to verify.' },
+    { name: '"Idempotent (f(f(x)) = f(x))"', a1:50, a2:80, a3:10, a4:5, desc: 'Between safety/liveness, hyper (compares two calls), deeply semantic (about behavior), boolean. Undecidable in general.' },
+  ];
+
+  let best = null, bestDist = Infinity;
+  properties.forEach(p => {
+    const d = Math.hypot(a1-p.a1, a2-p.a2, a3-p.a3, a4-p.a4);
+    if (d < bestDist) { bestDist = d; best = p; }
+  });
+
+  document.getElementById('axisResult').innerHTML = `<strong style="color:var(--cyan)">Closest known property: ${best.name}</strong><br><span style="color:var(--muted)">${best.desc}</span>`;
+}
+updateAxes();
+
+// ====== CUT CANVAS ======
+const cc = document.getElementById('cutCanvas');
+const cctx = cc.getContext('2d');
+let activeCut = 0;
+
+const cuts = [
+  { name: "Safety ∩ Liveness", desc: "<strong>Alpern-Schneider (1985):</strong> Every trace property = Safety ∩ Liveness.<br><br>Imagine all properties as a blob. This theorem draws a <em>vertical cut</em> through it: the left half is the safety component (what bad things can't happen), the right half is the liveness component (what good things must happen). Every property sits at a unique position along this cut. It's like decomposing a force into horizontal and vertical components — same force, two independent parts.", col1: '#3fb950', col2: '#58a6ff', label1: 'Safety', label2: 'Liveness' },
+  { name: "Trace ∩ Hyper", desc: "<strong>Clarkson-Schneider (2010):</strong> Every hyperproperty = Hypersafety ∩ Hyperliveness.<br><br>This is a <em>horizontal cut</em>: below the line are trace properties (about single runs), above are hyperproperties (relating multiple runs). The Clarkson-Schneider theorem further decomposes the hyper region the same way Alpern-Schneider decomposes traces. It's a fractal-like structure: the same safety/liveness split repeats at each level.", col1: '#bc8cff', col2: '#f778ba', label1: 'Trace', label2: 'Hyper' },
+  { name: "Extensional ∩ Intensional", desc: "<strong>Rice (1953) / Baldan (2021):</strong> Properties split into what a program <em>computes</em> vs how it <em>computes it</em>.<br><br>This is a <em>depth cut</em>: the surface (syntactic/intensional) is decidable — you can check it by reading the code. The deep interior (extensional/semantic) is undecidable — it's about the meaning. KindScript lives near the surface. Full program verification reaches into the depths.", col1: '#39d4e0', col2: '#f0883e', label1: 'Intensional\n(decidable)', label2: 'Extensional\n(undecidable)' },
+  { name: "All axes together", desc: "<strong>Multiple axes at once:</strong><br><br>Each decomposition carves the space along one independent axis. Together they create a coordinate system. Any property can be located by its coordinates: (80% safety / 20% liveness) × (trace, not hyper) × (syntactic) × (boolean). The space is still infinite — you'd need infinitely many axes to cover everything — but these four axes capture the most important distinctions. It's like how latitude + longitude don't describe elevation, but they get you most of the way to locating a point on Earth.", col1: '#e3b341', col2: '#8b949e', label1: 'Known\naxes', label2: 'Remaining\n∞ dimensions' },
+];
+
+function drawCuts() {
+  const W = cc.width, H = cc.height;
+  cctx.clearRect(0,0,W,H);
+  cctx.fillStyle = '#161b22'; cctx.fillRect(0,0,W,H);
+
+  const c = cuts[activeCut];
+  const cx = W/2, cy = H/2;
+
+  if (activeCut < 3) {
+    // Two-region split
+    const isVert = activeCut === 0;
+    const isHoriz = activeCut === 1;
+    const isDiag = activeCut === 2;
+
+    // Region 1
+    cctx.beginPath();
+    if (isVert) { cctx.rect(40, 40, W/2-40, H-80); }
+    else if (isHoriz) { cctx.rect(40, H/2, W-80, H/2-40); }
+    else { cctx.moveTo(40,40); cctx.lineTo(W-40,40); cctx.lineTo(40,H-40); cctx.closePath(); }
+    cctx.fillStyle = c.col1 + '18'; cctx.fill();
+    cctx.strokeStyle = c.col1 + '55'; cctx.lineWidth = 2; cctx.stroke();
+
+    // Region 2
+    cctx.beginPath();
+    if (isVert) { cctx.rect(W/2, 40, W/2-40, H-80); }
+    else if (isHoriz) { cctx.rect(40, 40, W-80, H/2-40); }
+    else { cctx.moveTo(W-40,40); cctx.lineTo(W-40,H-40); cctx.lineTo(40,H-40); cctx.closePath(); }
+    cctx.fillStyle = c.col2 + '18'; cctx.fill();
+    cctx.strokeStyle = c.col2 + '55'; cctx.lineWidth = 2; cctx.stroke();
+
+    // Cut line
+    cctx.setLineDash([6,4]);
+    cctx.beginPath();
+    if (isVert) { cctx.moveTo(W/2, 40); cctx.lineTo(W/2, H-40); }
+    else if (isHoriz) { cctx.moveTo(40, H/2); cctx.lineTo(W-40, H/2); }
+    else { cctx.moveTo(40,40); cctx.lineTo(W-40, H-40); }
+    cctx.strokeStyle = '#fff6'; cctx.lineWidth = 2; cctx.stroke();
+    cctx.setLineDash([]);
+
+    // Labels
+    cctx.font = 'bold 13px system-ui'; cctx.textAlign = 'center';
+    if (isVert) {
+      cctx.fillStyle = c.col1; cctx.fillText(c.label1, W*0.25, H/2);
+      cctx.fillStyle = c.col2; cctx.fillText(c.label2, W*0.75, H/2);
+    } else if (isHoriz) {
+      cctx.fillStyle = c.col1; cctx.fillText(c.label1, W/2, H*0.75);
+      cctx.fillStyle = c.col2; cctx.fillText(c.label2, W/2, H*0.3);
+    } else {
+      cctx.fillStyle = c.col1; cctx.fillText(c.label1.replace('\n',' '), W*0.3, H*0.35);
+      cctx.fillStyle = c.col2; cctx.fillText(c.label2.replace('\n',' '), W*0.7, H*0.7);
+    }
+
+    // Scatter some dots
+    const rng = i => (Math.sin(i*127.1+311.7)*43758.5453) % 1;
+    for (let i = 0; i < 50; i++) {
+      const px = 60 + Math.abs(rng(i)) * (W-120);
+      const py = 60 + Math.abs(rng(i+50)) * (H-120);
+      let inR1;
+      if (isVert) inR1 = px < W/2;
+      else if (isHoriz) inR1 = py > H/2;
+      else inR1 = (px-40)/(W-80) + (py-40)/(H-80) < 1;
+      cctx.beginPath(); cctx.arc(px, py, 3, 0, Math.PI*2);
+      cctx.fillStyle = (inR1 ? c.col1 : c.col2) + '77'; cctx.fill();
+    }
+  } else {
+    // All axes — grid
+    cctx.strokeStyle = '#3fb95044'; cctx.lineWidth = 1.5;
+    cctx.setLineDash([6,4]);
+    cctx.beginPath(); cctx.moveTo(W/2,40); cctx.lineTo(W/2,H-40); cctx.stroke();
+    cctx.strokeStyle = '#bc8cff44';
+    cctx.beginPath(); cctx.moveTo(40,H/2); cctx.lineTo(W-40,H/2); cctx.stroke();
+    cctx.strokeStyle = '#39d4e044';
+    cctx.beginPath(); cctx.moveTo(40,40); cctx.lineTo(W-40,H-40); cctx.stroke();
+    cctx.setLineDash([]);
+
+    // Labels
+    cctx.font = 'bold 11px system-ui'; cctx.textAlign = 'center';
+    cctx.fillStyle = '#3fb950'; cctx.fillText('Safety', W*0.25, 30); cctx.fillText('Liveness', W*0.75, 30);
+    cctx.fillStyle = '#bc8cff'; cctx.fillText('Trace', 55, H/2-10); cctx.fillText('Hyper', 55, H/2+14);
+    cctx.fillStyle = '#39d4e0'; cctx.fillText('Syntactic', W*0.22, H-25); cctx.fillText('Semantic', W*0.78, 58);
+
+    // Example properties in quadrants
+    const pts = [
+      { x: W*0.25, y: H*0.7, label: 'No null deref', col: '#3fb950' },
+      { x: W*0.7, y: H*0.65, label: 'Termination', col: '#58a6ff' },
+      { x: W*0.3, y: H*0.3, label: 'Noninterference', col: '#bc8cff' },
+      { x: W*0.65, y: H*0.25, label: 'GNI', col: '#f778ba' },
+      { x: W*0.2, y: H*0.85, label: 'Uses async', col: '#39d4e0' },
+      { x: W*0.75, y: H*0.45, label: 'Equiv?', col: '#f0883e' },
+    ];
+    pts.forEach(p => {
+      cctx.beginPath(); cctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+      cctx.fillStyle = p.col + '88'; cctx.fill();
+      cctx.font = '10px system-ui'; cctx.fillStyle = p.col; cctx.textAlign = 'center';
+      cctx.fillText(p.label, p.x, p.y - 12);
+    });
+
+    // The "..." region
+    cctx.font = 'bold 16px system-ui'; cctx.fillStyle = '#8b949e44'; cctx.textAlign = 'center';
+    cctx.fillText('∞ more dimensions…', W/2, H - 50);
+  }
+}
+
+const cutTabs = document.getElementById('cutTabs');
+const cutBody = document.getElementById('cutBody');
+cuts.forEach((c,i) => {
+  const t = document.createElement('div'); t.className = 'tab' + (i===0?' active':''); t.textContent = c.name;
+  t.onclick = () => { cutTabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); activeCut=i; drawCuts(); cutBody.innerHTML=c.desc; };
+  cutTabs.appendChild(t);
+});
+cutBody.innerHTML = cuts[0].desc;
+drawCuts();
+
+// ====== QUIZ ======
+const qAnswers = {
+  1: { correct: "Exactly. 2 possible inputs × 2 possible outputs per input = 2² = 4 possible functions: always-true, always-false, identity, negation. When the type is this small, you can exhaustively verify EVERYTHING. This is why precise types make analysis easier.",
+       wrong: "Not quite. With 2 inputs (true, false), each can independently map to true or false, giving 2² = 4 total possible functions." },
+  2: { correct: "Right. You can't express 'same time regardless of key' by looking at one execution — you'd just see one specific time. You need to run it with different keys and compare. That's what makes it a hyperproperty: the property is about the <em>relationship</em> between runs.",
+       wrong: "Not quite. You can measure the time of one run, but 'constant time regardless of input' requires comparing multiple runs with different inputs. That comparison is what makes it a hyperproperty." },
+  3: { correct: "Exactly. The decomposition is like vector decomposition in physics: any force F = Fx + Fy. Any trace property P = Safety(P) ∩ Liveness(P). It's not either/or — it's both simultaneously, and the decomposition is unique.",
+       wrong: "Not quite. The theorem says every property is the INTERSECTION of a safety part and a liveness part — it has both components, not one or the other." },
+};
+
+function qz(btn, correct, n) {
+  const card = btn.closest('.card');
+  card.querySelectorAll('.qopt').forEach(b => { b.disabled = true; b.classList.remove('correct','wrong'); });
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) { const opts = card.querySelectorAll('.qopt'); opts[n===1?1:n===2?1:1].classList.add('correct'); }
+  document.getElementById('qfb'+n).innerHTML = `<span style="color:var(--${correct?'green':'red'})">${correct ? qAnswers[n].correct : qAnswers[n].wrong}</span>`;
+}
+</script>
+</body>
+</html>

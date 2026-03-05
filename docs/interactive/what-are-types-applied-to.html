@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Are Types Applied To?</title>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a2e;
+  --surface3: #222240;
+  --border: #2a2a4a;
+  --text: #e0e0f0;
+  --text-dim: #8888aa;
+  --accent: #7c6ff7;
+  --accent2: #00d4aa;
+  --accent3: #ff6b9d;
+  --accent4: #ffa64d;
+  --accent5: #4dc3ff;
+  --layer1: #ff6b9d;
+  --layer2: #7c6ff7;
+  --layer3: #00d4aa;
+  --ts-color: #3178c6;
+  --ksc-color: #ffa64d;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 1.8em; margin: 40px 0 10px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.3em; margin: 30px 0 12px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { font-size: 1.1em; margin: 18px 0 8px; color: var(--accent2); }
+p { margin: 10px 0; color: var(--text-dim); font-size: 0.95em; }
+pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; font-size: 0.83em; margin: 10px 0; line-height: 1.5; }
+.kw { color: var(--accent3); }
+.tp { color: var(--accent); }
+.fn { color: var(--accent2); }
+.str { color: var(--accent4); }
+.cm { color: var(--text-dim); font-style: italic; }
+
+.hero { text-align: center; padding: 50px 20px 20px; }
+.hero h1 { font-size: 2.2em; margin-bottom: 12px; }
+.hero p { font-size: 1em; max-width: 680px; margin: 0 auto; }
+.subtitle { color: var(--accent3); font-size: 0.85em; margin-top: 10px; letter-spacing: 2px; text-transform: uppercase; }
+
+/* ====== MAIN DIAGRAM ====== */
+.diagram-main { position: relative; margin: 30px 0; }
+
+.layer-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 260px;
+  gap: 0;
+  align-items: stretch;
+  min-height: 120px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.layer-row:hover { background: rgba(255,255,255,0.02); }
+.layer-row.active { background: rgba(124,111,247,0.06); }
+
+.layer-label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px;
+  border-right: 3px solid var(--border);
+  text-align: right;
+}
+.layer-label .num { font-size: 0.7em; color: var(--text-dim); }
+.layer-label .name { font-weight: bold; font-size: 1.05em; }
+
+.layer-content {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.layer-tools {
+  padding: 16px;
+  border-left: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tool-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 0.75em;
+  font-weight: bold;
+}
+.tool-ts { background: rgba(49,120,198,0.2); color: var(--ts-color); border: 1px solid rgba(49,120,198,0.4); }
+.tool-ksc { background: rgba(255,166,77,0.2); color: var(--ksc-color); border: 1px solid rgba(255,166,77,0.4); }
+.tool-both { background: rgba(124,111,247,0.15); color: var(--accent); border: 1px solid rgba(124,111,247,0.3); }
+.tool-rt { background: rgba(0,212,170,0.15); color: var(--accent2); border: 1px solid rgba(0,212,170,0.3); }
+
+.entity-box {
+  display: inline-block;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin: 2px 3px;
+  font-size: 0.82em;
+  transition: all 0.2s;
+}
+.entity-box:hover { border-color: var(--accent); background: var(--surface3); }
+
+.arrow-col {
+  display: grid;
+  grid-template-columns: 150px 1fr 260px;
+  gap: 0;
+  height: 40px;
+}
+.arrow-col .mid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 0.8em;
+  position: relative;
+}
+.arrow-col .mid::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+/* Detail panel */
+.detail-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  display: none;
+}
+.detail-panel.active { display: block; }
+.detail-panel h3 { margin-top: 0; }
+
+/* Side annotations */
+.side-bracket {
+  position: absolute;
+  right: -140px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 0.75em;
+  color: var(--text-dim);
+  border-right: 2px solid;
+  padding-right: 8px;
+}
+
+/* Examples diagram */
+.example-flow {
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr 60px 1fr;
+  align-items: center;
+  gap: 0;
+  margin: 15px 0;
+}
+.example-cell {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.example-cell:hover { border-color: var(--accent); }
+.example-cell.active { border-color: var(--accent); background: var(--surface3); }
+.example-cell .cell-label { font-size: 0.7em; color: var(--text-dim); margin-bottom: 4px; }
+.example-cell .cell-value { font-weight: bold; }
+.example-arrow { text-align: center; color: var(--text-dim); font-size: 1.2em; }
+
+.example-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin: 10px 0;
+  font-size: 0.88em;
+  color: var(--text-dim);
+  display: none;
+}
+.example-detail.active { display: block; }
+
+/* Predicate section */
+.pred-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 15px 0;
+}
+@media (max-width: 700px) {
+  .pred-grid { grid-template-columns: 1fr; }
+  .layer-row { grid-template-columns: 1fr; }
+  .layer-tools { border-left: none; border-top: 1px dashed var(--border); }
+  .layer-label { border-right: none; border-bottom: 2px solid var(--border); text-align: left; }
+  .arrow-col { display: none; }
+  .example-flow { grid-template-columns: 1fr; }
+  .example-arrow { transform: rotate(90deg); padding: 10px; }
+}
+.pred-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.pred-card h4 { color: var(--accent2); margin-bottom: 6px; font-size: 0.95em; }
+
+.callout { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-size: 0.9em; }
+.callout-key { color: var(--accent4); font-weight: bold; }
+
+/* Semantic brackets animation */
+.sem-brackets {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: 1.1em;
+}
+.sem-brackets .bracket { color: var(--accent3); font-size: 1.3em; font-weight: bold; }
+.sem-brackets .expr { color: var(--accent4); padding: 2px 6px; background: var(--surface2); border-radius: 4px; }
+.sem-brackets .equals { color: var(--text-dim); margin: 0 6px; }
+.sem-brackets .result { color: var(--accent2); font-weight: bold; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 15px 0; }
+
+table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.85em; }
+th, td { padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+th { background: var(--surface3); color: var(--accent); }
+td { background: var(--surface); color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <div class="subtitle">Part 17 &mdash; KindScript Research Series</div>
+  <h1>What Are Types Applied To?</h1>
+  <p>The three layers of a programming language, what lives in each, and how TypeScript and KindScript attach predicates to the same underlying entities.</p>
+</div>
+
+<!-- ======================= THE THREE LAYERS ======================= -->
+<h1>The Three Layers</h1>
+
+<p>Every programming language has three distinct layers. TypeScript and KindScript both operate on Layer 1 to make claims about Layer 2. Layer 3 is what actually happens when code runs.</p>
+
+<div class="diagram-main">
+
+  <!-- Layer 1: Syntax -->
+  <div class="layer-row active" onclick="showLayerDetail(0)" id="layer-0">
+    <div class="layer-label" style="border-right-color: var(--layer1)">
+      <div class="num">LAYER 1</div>
+      <div class="name" style="color: var(--layer1)">Syntax</div>
+    </div>
+    <div class="layer-content">
+      <div>
+        <span class="entity-box" style="border-color:var(--layer1)">AST nodes</span>
+        <span class="entity-box" style="border-color:var(--layer1)">Expressions</span>
+        <span class="entity-box" style="border-color:var(--layer1)">Declarations</span>
+        <span class="entity-box" style="border-color:var(--layer1)">Statements</span>
+      </div>
+      <p style="font-size:0.8em;margin:6px 0 0">Text that follows grammar rules. What the parser produces. What the checker traverses.</p>
+    </div>
+    <div class="layer-tools">
+      <span class="tool-badge tool-ts">TypeScript traverses this</span>
+      <span class="tool-badge tool-ksc">KindScript traverses this</span>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="arrow-col">
+    <div></div>
+    <div class="mid" style="font-size:0.75em;color:var(--text-dim)">
+      &nbsp;&nbsp;⟦ · ⟧ &nbsp;denotation function&nbsp;&nbsp;
+    </div>
+    <div></div>
+  </div>
+
+  <!-- Layer 2: Denotation -->
+  <div class="layer-row" onclick="showLayerDetail(1)" id="layer-1">
+    <div class="layer-label" style="border-right-color: var(--layer2)">
+      <div class="num">LAYER 2</div>
+      <div class="name" style="color: var(--layer2)">Denotation</div>
+    </div>
+    <div class="layer-content">
+      <div>
+        <span class="entity-box" style="border-color:var(--layer2)">Numbers</span>
+        <span class="entity-box" style="border-color:var(--layer2)">Strings</span>
+        <span class="entity-box" style="border-color:var(--layer2)">Functions (λ)</span>
+        <span class="entity-box" style="border-color:var(--layer2)">Records</span>
+        <span class="entity-box" style="border-color:var(--layer2)">⊥ (divergence)</span>
+      </div>
+      <p style="font-size:0.8em;margin:6px 0 0">Mathematical objects that expressions refer to. Abstract. Never computed by any tool.</p>
+    </div>
+    <div class="layer-tools">
+      <span class="tool-badge tool-ts">TS predicates target this</span>
+      <span class="tool-badge tool-ksc">KSC predicates target this</span>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="arrow-col">
+    <div></div>
+    <div class="mid" style="font-size:0.75em;color:var(--text-dim)">
+      &nbsp;&nbsp;implementation&nbsp;&nbsp;
+    </div>
+    <div></div>
+  </div>
+
+  <!-- Layer 3: Runtime -->
+  <div class="layer-row" onclick="showLayerDetail(2)" id="layer-2">
+    <div class="layer-label" style="border-right-color: var(--layer3)">
+      <div class="num">LAYER 3</div>
+      <div class="name" style="color: var(--layer3)">Runtime</div>
+    </div>
+    <div class="layer-content">
+      <div>
+        <span class="entity-box" style="border-color:var(--layer3)">V8 values</span>
+        <span class="entity-box" style="border-color:var(--layer3)">Heap objects</span>
+        <span class="entity-box" style="border-color:var(--layer3)">Closures</span>
+        <span class="entity-box" style="border-color:var(--layer3)">Stack frames</span>
+        <span class="entity-box" style="border-color:var(--layer3)">Side effects</span>
+      </div>
+      <p style="font-size:0.8em;margin:6px 0 0">Actual machine-level values. What JavaScript engines produce. What your program observes.</p>
+    </div>
+    <div class="layer-tools">
+      <span class="tool-badge tool-rt">Neither tool operates here</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Layer detail panels -->
+<div class="detail-panel active" id="detail-0">
+  <h3 style="color:var(--layer1)">Layer 1: Syntax (the AST)</h3>
+  <p>This is literally text. The expression <code>2 + 3</code> is a sequence of characters that the parser converts into an AST node:</p>
+  <pre>{
+  <span class="str">"kind"</span>: <span class="str">"BinaryExpression"</span>,
+  <span class="str">"operator"</span>: <span class="str">"+"</span>,
+  <span class="str">"left"</span>:  { <span class="str">"kind"</span>: <span class="str">"NumericLiteral"</span>, <span class="str">"value"</span>: <span class="str">"2"</span> },
+  <span class="str">"right"</span>: { <span class="str">"kind"</span>: <span class="str">"NumericLiteral"</span>, <span class="str">"value"</span>: <span class="str">"3"</span> }
+}</pre>
+  <p>This is what TypeScript and KindScript actually look at. They walk these nodes. Every "type check" or "property check" is an algorithm processing AST nodes.</p>
+  <p><strong>Key point:</strong> <code>2 + 3</code> and <code>4 + 1</code> are <em>different</em> AST nodes. At this layer, they are not the same thing. They are different pieces of syntax that happen to evaluate to the same value.</p>
+</div>
+
+<div class="detail-panel" id="detail-1">
+  <h3 style="color:var(--layer2)">Layer 2: Denotation (the mathematical meaning)</h3>
+  <p>The denotation function ⟦·⟧ maps syntax to math:</p>
+  <div class="sem-brackets">
+    <span class="bracket">⟦</span><span class="expr">2 + 3</span><span class="bracket">⟧</span>
+    <span class="equals">=</span>
+    <span class="result">5</span>
+  </div><br>
+  <div class="sem-brackets">
+    <span class="bracket">⟦</span><span class="expr">"hello"</span><span class="bracket">⟧</span>
+    <span class="equals">=</span>
+    <span class="result">the string hello</span>
+  </div><br>
+  <div class="sem-brackets">
+    <span class="bracket">⟦</span><span class="expr">(x) =&gt; x + 1</span><span class="bracket">⟧</span>
+    <span class="equals">=</span>
+    <span class="result">λx. x + 1</span>
+  </div>
+  <p style="margin-top:12px">These mathematical objects exist independently of any computer. The number 5 is not "computed" &mdash; it simply is. The function λx. x+1 is a mathematical mapping, not a piece of code.</p>
+  <p><strong>Key point:</strong> ⟦<code>2 + 3</code>⟧ = ⟦<code>4 + 1</code>⟧ = 5. Different syntax, same denotation. Types and properties are predicates on <em>these</em> objects.</p>
+  <p><strong>No tool ever computes denotations.</strong> TypeScript and KindScript analyze syntax (Layer 1) to make <em>predictions</em> about denotations (Layer 2). The predictions are the types/properties.</p>
+</div>
+
+<div class="detail-panel" id="detail-2">
+  <h3 style="color:var(--layer3)">Layer 3: Runtime (what actually happens)</h3>
+  <p>When V8 executes <code>2 + 3</code>, it produces a machine-level representation of the number 5 (a 64-bit IEEE 754 double, or a V8 Smi). When it executes <code>(x) => x + 1</code>, it allocates a closure object on the heap with a pointer to the compiled code and captured variables.</p>
+  <p>Runtime values are <em>implementations</em> of denotations in a specific machine. They have properties that denotations don't: memory addresses, garbage collector metadata, hidden class pointers, JIT compilation status.</p>
+  <p><strong>Key point:</strong> Neither TypeScript nor KindScript ever sees runtime values. They are purely static tools. They predict what will happen at Layer 3 by analyzing Layer 1, using Layer 2 as the conceptual framework for those predictions.</p>
+</div>
+
+<!-- ======================= THE CORE MECHANISM ======================= -->
+<h1>The Core Mechanism</h1>
+
+<p>Both TypeScript and KindScript do the same fundamental thing, just asking different questions:</p>
+
+<div class="card" style="text-align:center; padding: 30px;">
+  <div style="font-size:1.1em; margin-bottom: 20px; color: var(--text)">
+    Analyze <strong style="color:var(--layer1)">syntax</strong> &nbsp;→&nbsp; make <strong style="color:var(--accent)">predicates</strong> &nbsp;about&nbsp; <strong style="color:var(--layer2)">denotations</strong>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;text-align:left;max-width:700px;margin:0 auto">
+    <div style="background:var(--surface2);padding:16px;border-radius:8px;border-left:3px solid var(--ts-color)">
+      <div style="color:var(--ts-color);font-weight:bold;margin-bottom:8px">TypeScript asks:</div>
+      <p style="font-size:0.88em">"What <strong>shape</strong> does this denotation have?"</p>
+      <p style="font-size:0.82em;margin-top:8px">→ is it a number? an object with key <code>name</code>? a function from A to B?</p>
+    </div>
+    <div style="background:var(--surface2);padding:16px;border-radius:8px;border-left:3px solid var(--ksc-color)">
+      <div style="color:var(--ksc-color);font-weight:bold;margin-bottom:8px">KindScript asks:</div>
+      <p style="font-size:0.88em">"What <strong>behavior</strong> does this denotation exhibit?"</p>
+      <p style="font-size:0.82em;margin-top:8px">→ does it mutate? perform IO? always terminate? depend only on inputs?</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= CONCRETE EXAMPLES ======================= -->
+<h1>Concrete Examples</h1>
+
+<p>Click any cell to see what exists at each layer:</p>
+
+<!-- Example 1: Simple value -->
+<h3 style="color:var(--text-dim);font-size:0.9em">Example 1: A number</h3>
+<div class="example-flow" id="ex1">
+  <div class="example-cell active" onclick="showExample('ex1', 0)">
+    <div class="cell-label" style="color:var(--layer1)">SYNTAX</div>
+    <div class="cell-value"><code>2 + 3</code></div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex1', 1)">
+    <div class="cell-label" style="color:var(--layer2)">DENOTATION</div>
+    <div class="cell-value">5</div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex1', 2)">
+    <div class="cell-label" style="color:var(--layer3)">RUNTIME</div>
+    <div class="cell-value">0x4014000000000000</div>
+  </div>
+</div>
+<div class="example-detail active" id="ex1-detail" data-details='[
+  "Layer 1 (Syntax): A BinaryExpression AST node with operator \"+\", left=NumericLiteral(2), right=NumericLiteral(3). TypeScript traverses this node, sees both operands are numeric literals, and assigns type \"number\" to the expression. This type is a PREDICATE about Layer 2: \"the denotation of this expression is a member of the set of all numbers.\"",
+  "Layer 2 (Denotation): The mathematical number 5. This is what the expression MEANS. Note: ⟦2 + 3⟧ = ⟦4 + 1⟧ = ⟦5⟧ = 5. Different syntax, same denotation. TypeScript type \"number\" is true of this denotation ✓. KindScript has nothing to say here — 5 is not a function, so behavioral properties do not apply.",
+  "Layer 3 (Runtime): V8 represents this as a Smi (small integer) tagged pointer, or as an IEEE 754 double (0x4014000000000000 = 5.0). It occupies specific memory. It has a hidden class. None of this is visible to TypeScript or KindScript."
+]'></div>
+
+<!-- Example 2: A function -->
+<h3 style="color:var(--text-dim);font-size:0.9em;margin-top:20px">Example 2: A pure function</h3>
+<div class="example-flow" id="ex2">
+  <div class="example-cell active" onclick="showExample('ex2', 0)">
+    <div class="cell-label" style="color:var(--layer1)">SYNTAX</div>
+    <div class="cell-value"><code>(x) =&gt; x + 1</code></div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex2', 1)">
+    <div class="cell-label" style="color:var(--layer2)">DENOTATION</div>
+    <div class="cell-value">λx. x + 1</div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex2', 2)">
+    <div class="cell-label" style="color:var(--layer3)">RUNTIME</div>
+    <div class="cell-value">Closure @ 0x7fa3...</div>
+  </div>
+</div>
+<div class="example-detail active" id="ex2-detail" data-details='[
+  "Layer 1 (Syntax): An ArrowFunction AST node with parameter \"x\" and body BinaryExpression(x, +, 1). TypeScript sees this, infers parameter type from context or annotation, determines return type is \"number\", assigns type (x: number) => number. KindScript sees this: the body contains no IO calls, no mutation, no console — it would assign {pure, noIO, noMutation, noConsole}.",
+  "Layer 2 (Denotation): The mathematical function λx. x + 1, which maps every number to its successor. This is an element of the function space ℤ → ℤ. TypeScript predicate: \"is a function from number to number\" ✓. KindScript predicate: \"is a function whose behavior involves no IO, no mutation, no side effects\" ✓. BOTH predicates describe the SAME mathematical object from different angles.",
+  "Layer 3 (Runtime): V8 allocates a JSFunction object on the heap: a code pointer (to JIT-compiled machine code), a context pointer (captured variables — none here), a feedback vector (for optimization). The closure occupies ~64 bytes. This is invisible to both type checkers."
+]'></div>
+
+<!-- Example 3: An impure function -->
+<h3 style="color:var(--text-dim);font-size:0.9em;margin-top:20px">Example 3: An impure function</h3>
+<div class="example-flow" id="ex3">
+  <div class="example-cell active" onclick="showExample('ex3', 0)">
+    <div class="cell-label" style="color:var(--layer1)">SYNTAX</div>
+    <div class="cell-value"><code>(x) =&gt; { console.log(x); return x + 1; }</code></div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex3', 1)">
+    <div class="cell-label" style="color:var(--layer2)">DENOTATION</div>
+    <div class="cell-value">λx. print(x); x + 1</div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex3', 2)">
+    <div class="cell-label" style="color:var(--layer3)">RUNTIME</div>
+    <div class="cell-value">Closure @ 0x7fb1...</div>
+  </div>
+</div>
+<div class="example-detail active" id="ex3-detail" data-details='[
+  "Layer 1 (Syntax): ArrowFunction with body containing ExpressionStatement(CallExpression(console.log, x)) and ReturnStatement(x + 1). TypeScript sees the same type as Example 2: (x: number) => number. To TypeScript, examples 2 and 3 are INDISTINGUISHABLE. KindScript sees the console.log call and assigns different properties: {noMutation} but NOT {pure, noIO, noConsole}.",
+  "Layer 2 (Denotation): This is a DIFFERENT mathematical object from Example 2. The denotation is not just a function from numbers to numbers — it is a function that ALSO performs a side effect (printing). In denotational semantics, you would model this as a function into a monad or as an element of a different domain. The key: TypeScript predicate says SAME thing about both (both are number → number). KindScript predicate DISTINGUISHES them (one is pure, the other is not).",
+  "Layer 3 (Runtime): Another V8 closure, but when called, it triggers the console IO subsystem, which writes to stdout via the operating system. The closure object itself looks structurally identical to Example 2. The difference is only visible during execution."
+]'></div>
+
+<!-- Example 4: An object -->
+<h3 style="color:var(--text-dim);font-size:0.9em;margin-top:20px">Example 4: An object</h3>
+<div class="example-flow" id="ex4">
+  <div class="example-cell active" onclick="showExample('ex4', 0)">
+    <div class="cell-label" style="color:var(--layer1)">SYNTAX</div>
+    <div class="cell-value"><code>{ name: "Alice", age: 30 }</code></div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex4', 1)">
+    <div class="cell-label" style="color:var(--layer2)">DENOTATION</div>
+    <div class="cell-value">{name ↦ "Alice", age ↦ 30}</div>
+  </div>
+  <div class="example-arrow">→</div>
+  <div class="example-cell" onclick="showExample('ex4', 2)">
+    <div class="cell-label" style="color:var(--layer3)">RUNTIME</div>
+    <div class="cell-value">JSObject @ 0x3c2a...</div>
+  </div>
+</div>
+<div class="example-detail active" id="ex4-detail" data-details='[
+  "Layer 1 (Syntax): An ObjectLiteralExpression with two PropertyAssignment nodes. TypeScript sees the keys and their initializer expressions, assigns type { name: string; age: number }. This type is a predicate: \"the denotation is a record with key name mapping to a string and key age mapping to a number.\"",
+  "Layer 2 (Denotation): A mathematical record (finite partial function from keys to values). {name ↦ \"Alice\", age ↦ 30}. TypeScript predicate: \"has key name of type string and key age of type number\" ✓. KindScript: objects are not the primary target of behavioral properties — but if this object had methods, those methods would be function denotations with their own behavioral properties.",
+  "Layer 3 (Runtime): V8 allocates a JSObject with a HiddenClass (Map) describing the shape (property order, types). Properties stored in-object or in a backing store. Has prototype chain pointer, elements array (for indexed properties). Roughly ~80 bytes for this small object."
+]'></div>
+
+<!-- ======================= WHAT CAN EACH SAY ======================= -->
+<h1>What Can Each Tool Say?</h1>
+
+<p>The predicate language each tool has available — the vocabulary of claims they can make about denotations:</p>
+
+<div class="pred-grid">
+  <div class="pred-card" style="border-left: 3px solid var(--ts-color)">
+    <h4 style="color:var(--ts-color)">TypeScript's Predicates (Shape)</h4>
+    <table>
+      <tr><th>Entity</th><th>What TS Can Assert</th></tr>
+      <tr><td>Primitive</td><td>belongs to base type, literal type, or union</td></tr>
+      <tr><td>Object</td><td>has keys K₁..Kₙ with types T₁..Tₙ; readonly; optional; index sig</td></tr>
+      <tr><td>Function</td><td>accepts params T₁..Tₙ; returns R; overloads; this type</td></tr>
+      <tr><td>Array</td><td>elements have type T; or positional tuple types</td></tr>
+      <tr><td>Class</td><td>all of Object + nominal identity + visibility modifiers</td></tr>
+    </table>
+  </div>
+  <div class="pred-card" style="border-left: 3px solid var(--ksc-color)">
+    <h4 style="color:var(--ksc-color)">KindScript's Predicates (Behavior)</h4>
+    <table>
+      <tr><th>Entity</th><th>What KSC Can Assert</th></tr>
+      <tr><td>Function</td><td>noIO, noMutation, noConsole, noImports, noSideEffects, pure, static, immutable</td></tr>
+      <tr><td>Function</td><td>(future) total, noExceptions, deterministic, noAllocation</td></tr>
+      <tr><td>Module</td><td>noImports, immutable (all exports)</td></tr>
+      <tr><td>Primitive</td><td>(not applicable — values don't have behavior)</td></tr>
+      <tr><td>Object</td><td>immutable (all properties readonly + deep)</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="callout-key">Same entities, different questions.</span> TypeScript and KindScript both make claims about the denotations of expressions. TypeScript's predicate language talks about <em>structure</em>: "what members does this have?" KindScript's predicate language talks about <em>behavior</em>: "what effects does this perform?" Both analyze syntax. Both target denotations. They're orthogonal dimensions of the same underlying objects.
+</div>
+
+<!-- ======================= THE KEY DIAGRAM ======================= -->
+<h1>How It All Fits Together</h1>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  <canvas id="mainCanvas" width="1060" height="520" style="width:100%;display:block;cursor:pointer"></canvas>
+</div>
+<p style="font-size:0.8em;text-align:center;color:var(--text-dim)">Click regions of the diagram to highlight relationships</p>
+
+<!-- ======================= FOR KINDSCRIPT ======================= -->
+<h1>What This Means for KindScript</h1>
+
+<div class="card" style="border-left: 3px solid var(--ksc-color)">
+  <h3>Your property primitives are atomic predicates on function denotations</h3>
+  <p>Just as TypeScript's primitive types (<code>number</code>, <code>string</code>, <code>boolean</code>) are the atomic predicates on value denotations, KindScript's property primitives should be the atomic predicates on behavioral denotations of functions.</p>
+
+  <p style="margin-top: 12px">The criteria for a good primitive:</p>
+  <pre><span class="cm">// 1. COMPOSITIONAL — composes at boundaries without looking inside</span>
+<span class="cm">//    If f is noIO and g is noIO, then g∘f is noIO ✓</span>
+
+<span class="cm">// 2. EXTENSIONAL — part of the interface, not implementation detail</span>
+<span class="cm">//    Callers can rely on it without reading the source ✓</span>
+
+<span class="cm">// 3. APPROXIMABLE — can be verified by syntactic analysis</span>
+<span class="cm">//    Walking the AST gives a sound (maybe conservative) answer ✓</span>
+
+<span class="cm">// 4. INDEPENDENT — not derivable from other primitives</span>
+<span class="cm">//    noIO and noMutation say different things ✓</span>
+
+<span class="cm">// 5. USEFUL — programmers actually care about this distinction</span>
+<span class="cm">//    "Can I call this in a React render?" = noSideEffects ✓</span></pre>
+
+  <p style="margin-top: 12px">The parallel to TypeScript is exact:</p>
+  <table>
+    <tr><th></th><th>TypeScript</th><th>KindScript</th></tr>
+    <tr><td>Atomic predicates</td><td>number, string, boolean, ...</td><td>noIO, noMutation, noExceptions, ...</td></tr>
+    <tr><td>Composition</td><td>Union (|), Intersection (&amp;)</td><td>Conjunction (AND), property sets</td></tr>
+    <tr><td>Compound predicates</td><td>{ name: string; age: number }</td><td>pure = noIO ∧ noMutation ∧ noSideEffects</td></tr>
+    <tr><td>Verified by</td><td>Analyzing syntax (AST)</td><td>Analyzing syntax (AST)</td></tr>
+    <tr><td>Claims about</td><td>Denotations (shape)</td><td>Denotations (behavior)</td></tr>
+    <tr><td>Consumers use</td><td>Type signatures</td><td>Property annotations</td></tr>
+  </table>
+</div>
+
+<div style="text-align:center;padding:40px 0 20px;color:var(--text-dim);font-size:0.85em;">
+  Part 17 of the KindScript Research Series
+</div>
+
+</div><!-- /container -->
+
+<script>
+// Layer detail panels
+function showLayerDetail(index) {
+  document.querySelectorAll('.layer-row').forEach((r, i) => r.classList.toggle('active', i === index));
+  document.querySelectorAll('.detail-panel').forEach((p, i) => p.classList.toggle('active', i === index));
+}
+
+// Example flow details
+function showExample(exId, cellIndex) {
+  const container = document.getElementById(exId);
+  const cells = container.querySelectorAll('.example-cell');
+  cells.forEach((c, i) => c.classList.toggle('active', i === cellIndex));
+
+  const detailEl = document.getElementById(exId + '-detail');
+  const details = JSON.parse(detailEl.dataset.details);
+  detailEl.textContent = details[cellIndex];
+  detailEl.classList.add('active');
+}
+
+// Initialize example details
+document.querySelectorAll('.example-detail').forEach(el => {
+  const details = JSON.parse(el.dataset.details);
+  el.textContent = details[0];
+});
+
+// Main canvas diagram
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const W = 1060, H = 520;
+
+let highlight = -1; // -1 = none, 0 = syntax, 1 = denotation, 2 = runtime, 3 = TS, 4 = KSC
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const y = (e.clientY - rect.top) * (H / rect.height);
+
+  // Hit regions
+  if (x >= 80 && x <= 380 && y >= 60 && y <= 200) highlight = highlight === 0 ? -1 : 0;
+  else if (x >= 380 && x <= 680 && y >= 60 && y <= 200) highlight = highlight === 1 ? -1 : 1;
+  else if (x >= 680 && x <= 980 && y >= 60 && y <= 200) highlight = highlight === 2 ? -1 : 2;
+  else if (x >= 130 && x <= 480 && y >= 300 && y <= 460) highlight = highlight === 3 ? -1 : 3;
+  else if (x >= 530 && x <= 880 && y >= 300 && y <= 460) highlight = highlight === 4 ? -1 : 4;
+  else highlight = -1;
+
+  drawDiagram();
+});
+
+function drawDiagram() {
+  ctx.clearRect(0, 0, W, H);
+
+  const dim = 0.3;
+  const syntaxAlpha = (highlight === -1 || highlight === 0 || highlight === 3 || highlight === 4) ? 1 : dim;
+  const denotAlpha = (highlight === -1 || highlight === 1 || highlight === 3 || highlight === 4) ? 1 : dim;
+  const runtimeAlpha = (highlight === -1 || highlight === 2) ? 1 : dim;
+  const tsAlpha = (highlight === -1 || highlight === 3) ? 1 : dim;
+  const kscAlpha = (highlight === -1 || highlight === 4) ? 1 : dim;
+
+  // === TOP ROW: Three layers ===
+  // Syntax box
+  ctx.globalAlpha = syntaxAlpha;
+  roundRect(80, 60, 280, 140, 12, 'rgba(255,107,157,0.12)', 'rgba(255,107,157,0.5)');
+  ctx.fillStyle = '#ff6b9d';
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText('LAYER 1', 170, 85);
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('Syntax', 170, 115);
+  ctx.font = '12px monospace';
+  ctx.fillStyle = '#8888aa';
+  ctx.fillText('AST nodes, expressions,', 110, 145);
+  ctx.fillText('declarations, statements', 108, 163);
+  ctx.fillText('(what tools traverse)', 118, 181);
+
+  // Denotation box
+  ctx.globalAlpha = denotAlpha;
+  roundRect(390, 60, 280, 140, 12, 'rgba(124,111,247,0.12)', 'rgba(124,111,247,0.5)');
+  ctx.fillStyle = '#7c6ff7';
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText('LAYER 2', 480, 85);
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('Denotation', 462, 115);
+  ctx.font = '12px monospace';
+  ctx.fillStyle = '#8888aa';
+  ctx.fillText('Mathematical objects:', 430, 145);
+  ctx.fillText('numbers, functions (λ),', 425, 163);
+  ctx.fillText('records, ⊥ (divergence)', 423, 181);
+
+  // Runtime box
+  ctx.globalAlpha = runtimeAlpha;
+  roundRect(700, 60, 280, 140, 12, 'rgba(0,212,170,0.12)', 'rgba(0,212,170,0.5)');
+  ctx.fillStyle = '#00d4aa';
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText('LAYER 3', 790, 85);
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('Runtime', 793, 115);
+  ctx.font = '12px monospace';
+  ctx.fillStyle = '#8888aa';
+  ctx.fillText('V8 heap objects,', 755, 145);
+  ctx.fillText('closures, stack frames,', 737, 163);
+  ctx.fillText('actual side effects', 750, 181);
+
+  // Arrows between layers
+  ctx.globalAlpha = Math.max(syntaxAlpha, denotAlpha) * 0.6;
+  drawArrow(365, 130, 387, 130, '#8888aa');
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#8888aa';
+  ctx.fillText('⟦·⟧', 370, 122);
+
+  ctx.globalAlpha = Math.max(denotAlpha, runtimeAlpha) * 0.6;
+  drawArrow(674, 130, 696, 130, '#8888aa');
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#8888aa';
+  ctx.fillText('impl', 674, 122);
+
+  // === BOTTOM ROW: Tools ===
+  // TypeScript
+  ctx.globalAlpha = tsAlpha;
+  roundRect(130, 300, 340, 160, 12, 'rgba(49,120,198,0.12)', 'rgba(49,120,198,0.5)');
+  ctx.fillStyle = '#3178c6';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('TypeScript', 240, 335);
+  ctx.font = '12px monospace';
+  ctx.fillStyle = '#8888aa';
+  ctx.fillText('Predicate language for SHAPE:', 165, 365);
+  ctx.fillStyle = '#3178c6';
+  ctx.font = '11px monospace';
+  ctx.fillText('"is a number"', 200, 390);
+  ctx.fillText('"has key name of type string"', 170, 408);
+  ctx.fillText('"is a function A → B"', 190, 426);
+  ctx.fillText('"is in union X | Y"', 195, 444);
+
+  // KindScript
+  ctx.globalAlpha = kscAlpha;
+  roundRect(540, 300, 340, 160, 12, 'rgba(255,166,77,0.12)', 'rgba(255,166,77,0.5)');
+  ctx.fillStyle = '#ffa64d';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('KindScript', 652, 335);
+  ctx.font = '12px monospace';
+  ctx.fillStyle = '#8888aa';
+  ctx.fillText('Predicate language for BEHAVIOR:', 570, 365);
+  ctx.fillStyle = '#ffa64d';
+  ctx.font = '11px monospace';
+  ctx.fillText('"performs no IO"', 610, 390);
+  ctx.fillText('"mutates no state"', 600, 408);
+  ctx.fillText('"depends only on inputs"', 585, 426);
+  ctx.fillText('"always terminates"', 600, 444);
+
+  // === CONNECTING ARROWS: tools → layers ===
+  // TS analyzes syntax
+  ctx.globalAlpha = tsAlpha * 0.7;
+  drawCurveArrow(220, 300, 200, 204, '#3178c6');
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#3178c6';
+  ctx.globalAlpha = tsAlpha * 0.9;
+  ctx.fillText('analyzes', 145, 258);
+
+  // TS predicates about denotation
+  ctx.globalAlpha = tsAlpha * 0.7;
+  drawCurveArrow(380, 300, 490, 204, '#3178c6');
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#3178c6';
+  ctx.globalAlpha = tsAlpha * 0.9;
+  ctx.fillText('predicates about', 385, 258);
+
+  // KSC analyzes syntax
+  ctx.globalAlpha = kscAlpha * 0.7;
+  drawCurveArrow(630, 300, 320, 204, '#ffa64d');
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#ffa64d';
+  ctx.globalAlpha = kscAlpha * 0.9;
+  ctx.fillText('analyzes', 440, 275);
+
+  // KSC predicates about denotation
+  ctx.globalAlpha = kscAlpha * 0.7;
+  drawCurveArrow(790, 300, 570, 204, '#ffa64d');
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#ffa64d';
+  ctx.globalAlpha = kscAlpha * 0.9;
+  ctx.fillText('predicates about', 665, 258);
+
+  // Neither touches runtime
+  ctx.globalAlpha = 0.25;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = '#555';
+  ctx.beginPath();
+  ctx.moveTo(840, 220);
+  ctx.lineTo(840, 280);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#555';
+  ctx.fillText('neither touches', 760, 240);
+  ctx.fillText('runtime directly', 758, 254);
+
+  ctx.globalAlpha = 1;
+
+  // Labels
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#555';
+  ctx.fillText('click regions to highlight relationships', 370, 505);
+}
+
+function roundRect(x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawArrow(x1, y1, x2, y2, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  // arrowhead
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8 * Math.cos(angle - 0.4), y2 - 8 * Math.sin(angle - 0.4));
+  ctx.lineTo(x2 - 8 * Math.cos(angle + 0.4), y2 - 8 * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawCurveArrow(x1, y1, x2, y2, color) {
+  const cpx = (x1 + x2) / 2;
+  const cpy = y1 - 30;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.quadraticCurveTo(cpx, cpy, x2, y2);
+  ctx.stroke();
+  // arrowhead
+  const t = 0.95;
+  const tx = 2*(1-t)*(cpx-x1) + 2*t*(x2-cpx);
+  const ty = 2*(1-t)*(cpy-y1) + 2*t*(y2-cpy);
+  const angle = Math.atan2(ty, tx);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8 * Math.cos(angle - 0.4), y2 - 8 * Math.sin(angle - 0.4));
+  ctx.lineTo(x2 - 8 * Math.cos(angle + 0.4), y2 - 8 * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+drawDiagram();
+</script>
+</body>
+</html>

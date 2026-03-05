@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { defineConfig, isCompositeEntry } from '../src/config.js';
+import { defineConfig } from '../src/api/config.js';
 
 describe('defineConfig', () => {
   it('returns the same config object', () => {
-    const config = { domain: { path: './src/domain', rules: { pure: true as const } } };
+    const config = { strict: true };
     const result = defineConfig(config);
     expect(result).toBe(config);
   });
@@ -13,33 +13,12 @@ describe('defineConfig', () => {
     expect(config).toEqual({});
   });
 
-  it('accepts composite entries', () => {
+  it('accepts include/exclude patterns', () => {
     const config = defineConfig({
-      app: {
-        members: {
-          domain: { path: './src/domain', rules: { pure: true } },
-          infra: { path: './src/infra' },
-        },
-        rules: {
-          noDependency: [['domain', 'infra']],
-        },
-      },
+      include: ['src/**/*.ts'],
+      exclude: ['**/*.test.ts'],
     });
-    expect(config.app).toBeDefined();
-  });
-});
-
-describe('isCompositeEntry', () => {
-  it('returns true for composite entries', () => {
-    expect(isCompositeEntry({
-      members: { a: { path: './a' } },
-    })).toBe(true);
-  });
-
-  it('returns false for target entries', () => {
-    expect(isCompositeEntry({
-      path: './src/domain',
-      rules: { pure: true },
-    })).toBe(false);
+    expect(config.include).toEqual(['src/**/*.ts']);
+    expect(config.exclude).toEqual(['**/*.test.ts']);
   });
 });

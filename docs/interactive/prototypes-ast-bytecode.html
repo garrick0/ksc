@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prototypes, AST Comparison & V8 Bytecode Deep Dive</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a2e;--surface3:#222240;--border:#2a2a4a;--text:#e0e0f0;--text-dim:#8888aa;--accent:#7c6ff7;--accent2:#00d4aa;--accent3:#ff6b9d;--accent4:#ffa64d;--accent5:#4dc3ff;--error:#ff4466;--success:#44ff88;--warning:#ffcc44}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'SF Mono','Fira Code','JetBrains Mono',monospace;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+h1{font-size:1.8em;margin:40px 0 10px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.3em;margin:32px 0 12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+h3{font-size:1.08em;margin:16px 0 8px;color:var(--accent2)}
+p{margin:10px 0;color:var(--text-dim);font-size:0.93em}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:0.82em;margin:10px 0;line-height:1.5}
+.kw{color:var(--accent3)}.tp{color:var(--accent)}.fn{color:var(--accent2)}.str{color:var(--accent4)}.cm{color:var(--text-dim);font-style:italic}.ok{color:var(--success)}.err{color:var(--error)}.num{color:var(--accent5)}
+
+.hero{text-align:center;padding:50px 20px 20px}
+.hero h1{font-size:2.1em;margin-bottom:12px}
+.hero p{font-size:1em;max-width:720px;margin:0 auto}
+.subtitle{color:var(--accent3);font-size:0.85em;margin-top:10px;letter-spacing:2px;text-transform:uppercase}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin:15px 0}
+.card-accent{border-left:3px solid var(--accent)}
+.card-green{border-left:3px solid var(--accent2)}
+.card-pink{border-left:3px solid var(--accent3)}
+.card-orange{border-left:3px solid var(--accent4)}
+.card-blue{border-left:3px solid var(--accent5)}
+
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin:15px 0 0}
+.tab-btn{padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px 8px 0 0;cursor:pointer;color:var(--text-dim);font-size:0.8em;font-family:inherit;transition:all 0.2s}
+.tab-btn:hover{color:var(--text);background:var(--surface3)}
+.tab-btn.active{color:var(--accent);background:var(--surface3);border-bottom-color:var(--surface3)}
+.tab-content{display:none;background:var(--surface3);border:1px solid var(--border);border-radius:0 8px 8px 8px;padding:20px}
+.tab-content.active{display:block}
+
+.step-container{display:flex;flex-direction:column;gap:8px;margin:15px 0}
+.step{padding:12px 16px;background:var(--surface2);border-left:3px solid var(--border);border-radius:0 8px 8px 0;cursor:pointer;transition:all 0.3s}
+.step:hover{background:var(--surface3)}
+.step.active{border-left-color:var(--accent);background:var(--surface3)}
+.step-num{color:var(--accent);font-weight:bold;margin-right:8px}
+.step-detail{display:none;margin-top:8px;padding:10px;background:var(--surface);border-radius:6px;color:var(--text-dim);font-size:0.9em}
+.step.active .step-detail{display:block}
+
+table{width:100%;border-collapse:collapse;margin:15px 0;font-size:0.83em}
+th,td{padding:9px 12px;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface3);color:var(--accent)}
+td{background:var(--surface);color:var(--text-dim)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+@media(max-width:700px){.grid-2{grid-template-columns:1fr}}
+
+.callout{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin:12px 0;font-size:0.9em}
+.callout-key{color:var(--accent4);font-weight:bold}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75em;font-weight:bold}
+.badge-v8{background:rgba(0,212,170,0.15);color:var(--accent2);border:1px solid rgba(0,212,170,0.3)}
+.badge-ts{background:rgba(49,120,198,0.2);color:#3178c6;border:1px solid rgba(49,120,198,0.4)}
+.badge-both{background:rgba(124,111,247,0.15);color:var(--accent);border:1px solid rgba(124,111,247,0.3)}
+
+/* Chain diagram */
+.chain{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:12px 0}
+.chain-obj{background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:8px 14px;text-align:center;min-width:100px;cursor:pointer;transition:all 0.3s;font-size:0.85em}
+.chain-obj:hover,.chain-obj.active{border-color:var(--accent);background:var(--surface3)}
+.chain-obj .obj-name{font-weight:bold;color:var(--accent2)}
+.chain-obj .obj-props{font-size:0.8em;color:var(--text-dim)}
+.chain-arrow{color:var(--accent3);font-size:1.1em;font-weight:bold}
+.chain-detail{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin:8px 0;font-size:0.88em;display:none}
+.chain-detail.active{display:block}
+
+/* Bytecode viewer */
+.bc-line{display:flex;gap:12px;padding:4px 8px;border-bottom:1px solid rgba(42,42,74,0.5);font-size:0.82em;cursor:pointer;transition:background 0.2s}
+.bc-line:hover{background:var(--surface3)}
+.bc-line.active{background:rgba(124,111,247,0.1);border-left:2px solid var(--accent)}
+.bc-addr{color:var(--text-dim);min-width:40px;text-align:right}
+.bc-op{color:var(--accent2);font-weight:bold;min-width:160px}
+.bc-args{color:var(--accent4)}
+.bc-comment{color:var(--text-dim);font-style:italic;margin-left:auto}
+.bc-explain{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;margin:6px 0;font-size:0.88em;color:var(--text-dim);display:none}
+.bc-explain.active{display:block}
+
+/* Machine comparison */
+.machine-demo{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin:10px 0}
+.machine-state{display:flex;gap:20px;flex-wrap:wrap;margin:8px 0}
+.register{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:0.82em}
+.register .reg-name{color:var(--accent5);font-weight:bold}
+.register .reg-val{color:var(--accent2)}
+.stack-vis{display:flex;flex-direction:column-reverse;gap:2px;min-width:80px}
+.stack-cell{background:var(--surface2);border:1px solid var(--border);padding:4px 10px;text-align:center;font-size:0.82em;border-radius:3px}
+.stack-cell.top{border-color:var(--accent);background:rgba(124,111,247,0.15)}
+
+.quiz{margin:20px 0}
+.quiz-q{font-weight:bold;color:var(--text);margin-bottom:10px}
+.quiz-opts label{display:block;padding:8px 14px;margin:4px 0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.9em;transition:all 0.2s}
+.quiz-opts label:hover{background:var(--surface3)}
+.quiz-opts input{margin-right:8px}
+.quiz-result{margin-top:10px;padding:10px 14px;border-radius:6px;display:none;font-size:0.9em}
+.quiz-result.correct{display:block;background:rgba(68,255,136,0.1);border:1px solid var(--success);color:var(--success)}
+.quiz-result.wrong{display:block;background:rgba(255,68,102,0.1);border:1px solid var(--error);color:var(--error)}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <div class="subtitle">Part 19 &mdash; KindScript Research Series</div>
+  <h1>Prototypes, AST Comparison & V8 Bytecode</h1>
+  <p>How [[Prototype]] chains work, how V8's AST differs from TypeScript's, how V8 walks the tree to emit bytecode, and what register machines and accumulators actually are.</p>
+</div>
+
+<!-- ============ PART 1: PROTOTYPE CHAIN ============ -->
+<h1>1. The [[Prototype]] Chain</h1>
+
+<div class="card card-green">
+<p><strong>Every JavaScript object has a hidden internal slot called <code>[[Prototype]]</code></strong>. It's a pointer to another object (or <code>null</code>). When you access a property that doesn't exist on the object itself, the engine follows this pointer to look on the next object in the chain. It keeps following pointers until it either finds the property or reaches <code>null</code>.</p>
+</div>
+
+<h2>1.1 [[Prototype]] vs .prototype</h2>
+
+<p>These are two completely different things, and the naming is confusing:</p>
+
+<div class="grid-2">
+  <div class="card card-accent">
+    <h3><code>[[Prototype]]</code> (internal slot)</h3>
+    <p>Every object has this. It's the actual link in the chain. You can't access it directly &mdash; it's an engine-internal slot, not a JavaScript property.</p>
+    <pre><span class="kw">const</span> obj = { x: 1 };
+
+<span class="cm">// obj.[[Prototype]] points to Object.prototype</span>
+<span class="cm">// You can READ it via:</span>
+<span class="fn">Object.getPrototypeOf</span>(obj)
+<span class="cm">// → Object.prototype</span>
+
+<span class="cm">// Or the deprecated accessor:</span>
+obj.__proto__
+<span class="cm">// → same thing (don't use this)</span></pre>
+  </div>
+  <div class="card card-pink">
+    <h3><code>.prototype</code> (regular property)</h3>
+    <p>Only functions have this. It's a normal property that holds the object that will become the <code>[[Prototype]]</code> of instances created with <code>new</code>.</p>
+    <pre><span class="kw">function</span> <span class="fn">Dog</span>(name) {
+  <span class="kw">this</span>.name = name;
+}
+<span class="fn">Dog</span>.prototype.bark = <span class="kw">function</span>() {
+  <span class="kw">return</span> <span class="str">"Woof!"</span>;
+};
+
+<span class="kw">const</span> d = <span class="kw">new</span> <span class="fn">Dog</span>(<span class="str">"Rex"</span>);
+<span class="cm">// d.[[Prototype]] === Dog.prototype</span>
+<span class="cm">// d.bark() → follows [[Prototype]] → "Woof!"</span></pre>
+  </div>
+</div>
+
+<h2>1.2 Property Lookup: Walking the Chain</h2>
+
+<p>Click each object in the chain to see what happens when you access <code>dog.toString()</code>:</p>
+
+<div class="chain" id="proto-chain">
+  <div class="chain-obj active" onclick="showChainDetail(0)">
+    <div class="obj-name">dog</div>
+    <div class="obj-props">{ name: "Rex" }</div>
+  </div>
+  <span class="chain-arrow">→ [[Prototype]] →</span>
+  <div class="chain-obj" onclick="showChainDetail(1)">
+    <div class="obj-name">Dog.prototype</div>
+    <div class="obj-props">{ bark: fn }</div>
+  </div>
+  <span class="chain-arrow">→ [[Prototype]] →</span>
+  <div class="chain-obj" onclick="showChainDetail(2)">
+    <div class="obj-name">Object.prototype</div>
+    <div class="obj-props">{ toString, hasOwnProperty, ... }</div>
+  </div>
+  <span class="chain-arrow">→ [[Prototype]] →</span>
+  <div class="chain-obj" onclick="showChainDetail(3)">
+    <div class="obj-name" style="color:var(--error)">null</div>
+    <div class="obj-props">end of chain</div>
+  </div>
+</div>
+
+<div class="chain-detail active" id="chain-detail-0">
+  <strong>Step 1: Check <code>dog</code> itself.</strong> Does <code>dog</code> have an own property called <code>toString</code>? No &mdash; <code>dog</code> only has <code>{ name: "Rex" }</code>. Follow <code>dog.[[Prototype]]</code> to the next object.
+</div>
+<div class="chain-detail" id="chain-detail-1">
+  <strong>Step 2: Check <code>Dog.prototype</code>.</strong> Does it have <code>toString</code>? No &mdash; it only has <code>{ bark: fn }</code>. Follow <code>Dog.prototype.[[Prototype]]</code> to the next object.
+</div>
+<div class="chain-detail" id="chain-detail-2">
+  <strong>Step 3: Check <code>Object.prototype</code>.</strong> Does it have <code>toString</code>? <span class="ok">Yes!</span> Found it. Return <code>Object.prototype.toString</code>. This is where built-in methods like <code>toString</code>, <code>hasOwnProperty</code>, and <code>valueOf</code> live. Every object inherits them because every chain eventually reaches here.
+</div>
+<div class="chain-detail" id="chain-detail-3">
+  <strong>End: <code>null</code>.</strong> If the engine reaches <code>null</code>, the property doesn't exist anywhere in the chain. Return <code>undefined</code>. <code>null</code> is the sentinel that terminates every prototype chain. <code>Object.prototype.[[Prototype]]</code> is always <code>null</code>.
+</div>
+
+<div class="callout">
+  <span class="callout-key">Classes are sugar for this.</span> When you write <code>class Dog extends Animal</code>, JavaScript sets <code>Dog.prototype.[[Prototype]] = Animal.prototype</code>. That's it. No special class machinery. The chain does all the work.
+</div>
+
+<!-- ============ PART 2: V8 AST vs TS AST ============ -->
+<h1>2. V8's AST vs TypeScript's AST</h1>
+
+<div class="card card-orange">
+<p><strong>They're both ASTs of the same language, but designed for different purposes.</strong> V8's AST is optimized for fast bytecode generation and is discarded immediately after. TypeScript's AST is designed for rich analysis, type checking, and tooling &mdash; it preserves far more information and lives longer.</p>
+</div>
+
+<h2>2.1 Side-by-Side Comparison</h2>
+
+<p>For the code: <code>function add(a: number, b: number): number { return a + b; }</code></p>
+
+<div class="grid-2">
+  <div class="card" style="border-left:3px solid var(--accent2)">
+    <h3><span class="badge badge-v8">V8 AST</span></h3>
+    <pre><span class="cm">// V8's internal AST (C++ structs)</span>
+FunctionLiteral {
+  name: "add"
+  params: [Variable("a"), Variable("b")]
+  body: ReturnStatement {
+    expression: BinaryOperation {
+      op: Token::ADD
+      left: VariableProxy("a")
+      right: VariableProxy("b")
+    }
+  }
+  <span class="cm">// NO type annotations</span>
+  <span class="cm">// NO decorators</span>
+  <span class="cm">// NO generics</span>
+  <span class="cm">// Minimal source positions</span>
+}</pre>
+    <p style="font-size:0.85em">Stripped down. Only what's needed to emit bytecode. Type annotations are syntax errors in V8 (it parses JS, not TS).</p>
+  </div>
+  <div class="card" style="border-left:3px solid #3178c6">
+    <h3><span class="badge badge-ts">TypeScript AST</span></h3>
+    <pre><span class="cm">// TypeScript's AST (ts.Node objects)</span>
+FunctionDeclaration {
+  name: Identifier("add")
+  parameters: [
+    Parameter {
+      name: Identifier("a")
+      <span class="tp">type: TypeReference("number")</span>
+    },
+    Parameter {
+      name: Identifier("b")
+      <span class="tp">type: TypeReference("number")</span>
+    }
+  ]
+  <span class="tp">returnType: TypeReference("number")</span>
+  body: Block {
+    statements: [ReturnStatement {
+      expression: BinaryExpression {
+        operator: PlusToken
+        left: Identifier("a")
+        right: Identifier("b")
+      }
+    }]
+  }
+  <span class="tp">modifiers: []</span>
+  <span class="tp">typeParameters: undefined</span>
+  <span class="cm">// Full source positions for every node</span>
+  <span class="cm">// Trivia (comments, whitespace)</span>
+}</pre>
+    <p style="font-size:0.85em">Rich. Preserves types, modifiers, generics, comments, exact positions. Designed for analysis, not execution.</p>
+  </div>
+</div>
+
+<h2>2.2 Key Differences</h2>
+
+<table>
+  <tr><th>Aspect</th><th><span class="badge badge-v8">V8</span></th><th><span class="badge badge-ts">TypeScript</span></th></tr>
+  <tr><td>Format</td><td>Proprietary C++ structs</td><td>TypeScript <code>ts.Node</code> objects</td></tr>
+  <tr><td>Standard</td><td>Not ESTree (internal only)</td><td>Not ESTree (custom format)</td></tr>
+  <tr><td>Type annotations</td><td>Not present (syntax error)</td><td>Full type nodes preserved</td></tr>
+  <tr><td>Generics</td><td>Not present</td><td>TypeParameterDeclaration nodes</td></tr>
+  <tr><td>Interfaces</td><td>Not present (TS-only concept)</td><td>InterfaceDeclaration nodes</td></tr>
+  <tr><td>Decorators</td><td>Not present (proposal stage)</td><td>Decorator nodes preserved</td></tr>
+  <tr><td>Access modifiers</td><td>Not present</td><td>public/private/protected flags</td></tr>
+  <tr><td>Comments</td><td>Discarded</td><td>Preserved as trivia</td></tr>
+  <tr><td>Source positions</td><td>Minimal (start only)</td><td>Full ranges (start, end, width)</td></tr>
+  <tr><td>Lifetime</td><td>Discarded after bytecode gen</td><td>Kept alive for Language Service</td></tr>
+  <tr><td>Purpose</td><td>Emit bytecode as fast as possible</td><td>Type checking, refactoring, tooltips</td></tr>
+</table>
+
+<div class="callout">
+  <span class="callout-key">Neither uses ESTree.</span> ESTree is a community standard used by ESLint, Babel, Acorn, etc. V8 has its own internal C++ AST. TypeScript has its own <code>ts.SyntaxKind</code>-based AST. KindScript uses TypeScript's AST via <code>ts.createProgram()</code> &mdash; it gets the same rich nodes that the TS checker uses.
+</div>
+
+<!-- ============ PART 3: HOW V8 WALKS THE AST ============ -->
+<h1>3. How V8 Walks the AST</h1>
+
+<div class="card card-accent">
+<p><strong>V8's <code>BytecodeGenerator</code></strong> is an AST visitor (like TypeScript's <code>forEachChild</code>) that does a <strong>single-pass depth-first traversal</strong>. As it visits each node, it emits bytecode instructions directly. The AST goes in, bytecode comes out, and the AST is discarded.</p>
+</div>
+
+<h2>3.1 The Walk, Step by Step</h2>
+
+<p>For: <code>function add(a, b) { return a + b; }</code></p>
+
+<div class="step-container" id="walk-steps">
+  <div class="step active" onclick="toggleStep(this)">
+    <span class="step-num">1</span> Visit <code>FunctionLiteral</code>
+    <div class="step-detail">
+      The BytecodeGenerator sees a function. It allocates a register file (slots for local variables and temporaries) and starts a new bytecode sequence. Parameters <code>a</code> and <code>b</code> are assigned to argument registers <code>a0</code> and <code>a1</code>.
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">2</span> Visit <code>ReturnStatement</code>
+    <div class="step-detail">
+      The generator sees a return. It needs the return value, so it recurses into the expression child. After the expression is generated, it will emit a <code>Return</code> instruction.
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">3</span> Visit <code>BinaryOperation(ADD)</code>
+    <div class="step-detail">
+      The generator sees <code>a + b</code>. It needs both operands. It recurses: first visit the left child (<code>a</code>), then the right child (<code>b</code>), then emit the add.
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">4</span> Visit <code>VariableProxy("a")</code> &mdash; emit <code>Ldar a0</code>
+    <div class="step-detail">
+      The generator resolves <code>a</code> to argument register <code>a0</code> and emits <code>Ldar a0</code> (Load Register into Accumulator). The accumulator now holds the value of <code>a</code>.
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">5</span> Back in BinaryOperation &mdash; emit <code>Add a1, [0]</code>
+    <div class="step-detail">
+      The left operand is in the accumulator. The right operand (<code>b</code>) is in register <code>a1</code>. Emit <code>Add a1, [0]</code> which adds <code>a1</code> to the accumulator. <code>[0]</code> is the feedback slot index for type profiling. Result stays in the accumulator.
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">6</span> Back in ReturnStatement &mdash; emit <code>Return</code>
+    <div class="step-detail">
+      The return value is in the accumulator (result of the add). Emit <code>Return</code>, which returns whatever is in the accumulator. Done. The bytecode for this function is complete.
+    </div>
+  </div>
+</div>
+
+<h2>3.2 V8's Walk vs TypeScript's Walk</h2>
+
+<table>
+  <tr><th></th><th><span class="badge badge-v8">V8 BytecodeGenerator</span></th><th><span class="badge badge-ts">TS Type Checker</span></th></tr>
+  <tr><td>Pattern</td><td>Visitor with <code>Visit*</code> methods</td><td><code>ts.forEachChild</code> callbacks</td></tr>
+  <tr><td>Passes</td><td>Single pass</td><td>Multiple passes (bind, check)</td></tr>
+  <tr><td>Direction</td><td>Depth-first, left-to-right</td><td>Depth-first, multiple traversals</td></tr>
+  <tr><td>Output</td><td>Bytecode instructions (emitted inline)</td><td>Type assignments on nodes</td></tr>
+  <tr><td>State</td><td>Register allocator, bytecode array</td><td>Type environment, symbol table</td></tr>
+  <tr><td>AST after</td><td>Discarded</td><td>Kept alive (Language Service)</td></tr>
+  <tr><td>Speed priority</td><td>Extremely fast (blocks execution)</td><td>Can be slower (runs in editor bg)</td></tr>
+</table>
+
+<div class="callout">
+  <span class="callout-key">Single-pass matters.</span> V8 can't afford multiple passes because parsing + bytecode generation happens on the main thread <em>before</em> any code can run. Every millisecond of parsing is startup latency. That's why V8 uses lazy parsing (only fully parse functions when called) and single-pass bytecode generation. TypeScript can afford multiple passes because it runs as a build step or background process.
+</div>
+
+<!-- ============ PART 4: V8 BYTECODE DEEP DIVE ============ -->
+<h1>4. V8 Bytecode Deep Dive</h1>
+
+<h2>4.1 Is V8 Bytecode Universal?</h2>
+
+<div class="card card-pink">
+<p><strong>No.</strong> V8 bytecode is proprietary to V8. It's not standardized, not versioned for compatibility, and changes between V8 releases. SpiderMonkey has its own bytecode. JavaScriptCore has its own. Python has its own. Java has its own (.class files). None of them are interchangeable.</p>
+</div>
+
+<table>
+  <tr><th>Bytecode</th><th>Engine / VM</th><th>Portable?</th><th>Standardized?</th></tr>
+  <tr><td style="color:var(--accent2)">V8 Bytecode</td><td>V8 (Chrome, Node)</td><td>Across OS/CPU within same V8 version</td><td>No &mdash; changes between releases</td></tr>
+  <tr><td style="color:var(--accent4)">Java Bytecode</td><td>JVM (any impl)</td><td>Yes &mdash; "write once, run anywhere"</td><td>Yes &mdash; JVM spec</td></tr>
+  <tr><td style="color:var(--accent)">CIL / .NET IL</td><td>.NET CLR</td><td>Yes &mdash; across .NET implementations</td><td>Yes &mdash; ECMA-335</td></tr>
+  <tr><td style="color:var(--accent3)">Python Bytecode</td><td>CPython</td><td>Same CPython version only</td><td>No &mdash; CPython internal</td></tr>
+  <tr><td style="color:var(--accent5)">WebAssembly</td><td>Any browser / runtime</td><td>Yes &mdash; designed for portability</td><td>Yes &mdash; W3C standard</td></tr>
+</table>
+
+<p>V8 bytecode IS portable across operating systems and CPU architectures <em>within the same V8 version</em>, because it runs in V8's virtual machine, not on bare hardware. But unlike Java bytecode or WebAssembly, it's not designed to be distributed — it's an internal representation that V8 generates fresh from source each time.</p>
+
+<h2>4.2 Register Machine vs Stack Machine</h2>
+
+<div class="tabs" id="machine-tabs">
+  <button class="tab-btn active" onclick="switchTab('machine',0)">Stack Machine</button>
+  <button class="tab-btn" onclick="switchTab('machine',1)">Register Machine</button>
+  <button class="tab-btn" onclick="switchTab('machine',2)">Accumulator</button>
+  <button class="tab-btn" onclick="switchTab('machine',3)">Comparison</button>
+</div>
+<div class="tab-content active" data-group="machine">
+  <h3>Stack Machine (JVM, Python, .NET)</h3>
+  <p>Operands live on a stack. Instructions pop inputs and push results.</p>
+  <pre><span class="cm">// Computing: a + b (stack machine)</span>
+
+<span class="fn">iload</span> 0     <span class="cm">// push a onto stack          stack: [a]</span>
+<span class="fn">iload</span> 1     <span class="cm">// push b onto stack          stack: [a, b]</span>
+<span class="fn">iadd</span>        <span class="cm">// pop two, push sum          stack: [a+b]</span>
+<span class="fn">ireturn</span>     <span class="cm">// pop and return             stack: []</span></pre>
+  <div class="machine-demo">
+    <p style="font-size:0.85em;color:var(--text)">After <code>iload 0; iload 1</code>:</p>
+    <div class="stack-vis">
+      <div class="stack-cell top">b &nbsp; ← top</div>
+      <div class="stack-cell">a</div>
+    </div>
+    <p style="font-size:0.82em;margin-top:8px">After <code>iadd</code>: stack = [a+b]. The ADD instruction implicitly knows its operands are the top two stack values.</p>
+  </div>
+  <p><strong>Advantage:</strong> Instructions are small (no operand encoding needed &mdash; everything is implicit "top of stack"). Bytecode is compact.</p>
+  <p><strong>Disadvantage:</strong> Lots of push/pop overhead. Values get shuffled on and off the stack constantly. More memory traffic.</p>
+</div>
+<div class="tab-content" data-group="machine">
+  <h3>Register Machine (Lua, Dalvik)</h3>
+  <p>Operands live in numbered registers. Instructions name their operands explicitly.</p>
+  <pre><span class="cm">// Computing: a + b (pure register machine)</span>
+
+<span class="fn">ADD</span>  r2, r0, r1     <span class="cm">// r2 = r0 + r1  (a + b)</span>
+<span class="fn">RET</span>  r2              <span class="cm">// return r2</span></pre>
+  <div class="machine-demo">
+    <p style="font-size:0.85em;color:var(--text)">Register state:</p>
+    <div class="machine-state">
+      <div class="register"><span class="reg-name">r0</span> = <span class="reg-val">a</span></div>
+      <div class="register"><span class="reg-name">r1</span> = <span class="reg-val">b</span></div>
+      <div class="register"><span class="reg-name">r2</span> = <span class="reg-val">a+b</span></div>
+    </div>
+    <p style="font-size:0.82em;margin-top:8px">The ADD instruction explicitly names all three operands. No stack, no push/pop, no implicit state.</p>
+  </div>
+  <p><strong>Advantage:</strong> Fewer instructions needed. Values stay in registers (fast). Less memory traffic.</p>
+  <p><strong>Disadvantage:</strong> Each instruction is larger (must encode register names). More bytes per instruction.</p>
+</div>
+<div class="tab-content" data-group="machine">
+  <h3>Accumulator Machine (V8's Choice)</h3>
+  <p>A hybrid: one implicit register (the accumulator) + explicit register operands. Most instructions implicitly read/write the accumulator.</p>
+  <pre><span class="cm">// Computing: a + b (V8's accumulator style)</span>
+
+<span class="fn">Ldar</span>  a0       <span class="cm">// Load a into accumulator      acc = a</span>
+<span class="fn">Add</span>   a1, [0]  <span class="cm">// acc = acc + a1               acc = a+b</span>
+<span class="fn">Return</span>         <span class="cm">// Return accumulator           return a+b</span></pre>
+  <div class="machine-demo">
+    <p style="font-size:0.85em;color:var(--text)">After <code>Ldar a0</code>:</p>
+    <div class="machine-state">
+      <div class="register"><span class="reg-name">acc</span> = <span class="reg-val">a</span></div>
+      <div class="register"><span class="reg-name">a0</span> = <span class="reg-val">a</span></div>
+      <div class="register"><span class="reg-name">a1</span> = <span class="reg-val">b</span></div>
+    </div>
+    <p style="font-size:0.82em;margin-top:8px"><code>Add a1, [0]</code> means "add a1 to the accumulator." Only one operand is explicit. The other (acc) is implicit. This saves ~25-50% bytecode size compared to pure register encoding.</p>
+  </div>
+  <p><strong>Why V8 chose this:</strong> Bytecode size matters for memory and cache. The accumulator pattern keeps most instructions to 1-2 bytes of operands instead of 3. Since expressions naturally flow left-to-right (each sub-expression produces a result used by the next), the accumulator maps naturally to expression evaluation.</p>
+</div>
+<div class="tab-content" data-group="machine">
+  <h3>Comparison: The Same Operation</h3>
+  <pre><span class="cm">// Expression: (a + b) * (c - d)</span>
+
+<span class="cm">═══ STACK MACHINE (JVM-like) ═══</span>
+<span class="fn">iload</span> 0       <span class="cm">// push a</span>
+<span class="fn">iload</span> 1       <span class="cm">// push b</span>
+<span class="fn">iadd</span>          <span class="cm">// pop 2, push a+b</span>
+<span class="fn">iload</span> 2       <span class="cm">// push c</span>
+<span class="fn">iload</span> 3       <span class="cm">// push d</span>
+<span class="fn">isub</span>          <span class="cm">// pop 2, push c-d</span>
+<span class="fn">imul</span>          <span class="cm">// pop 2, push (a+b)*(c-d)</span>
+<span class="cm">// 7 instructions, each 1-2 bytes</span>
+
+<span class="cm">═══ REGISTER MACHINE (Lua-like) ═══</span>
+<span class="fn">ADD</span> r4, r0, r1   <span class="cm">// r4 = a+b</span>
+<span class="fn">SUB</span> r5, r2, r3   <span class="cm">// r5 = c-d</span>
+<span class="fn">MUL</span> r6, r4, r5   <span class="cm">// r6 = (a+b)*(c-d)</span>
+<span class="cm">// 3 instructions, each 3-4 bytes</span>
+
+<span class="cm">═══ ACCUMULATOR (V8-like) ═══</span>
+<span class="fn">Ldar</span>  a0         <span class="cm">// acc = a</span>
+<span class="fn">Add</span>   a1, [0]    <span class="cm">// acc = a+b</span>
+<span class="fn">Star</span>  r0         <span class="cm">// r0 = acc (save temp)</span>
+<span class="fn">Ldar</span>  a2         <span class="cm">// acc = c</span>
+<span class="fn">Sub</span>   a3, [1]    <span class="cm">// acc = c-d</span>
+<span class="fn">Mul</span>   r0, [2]    <span class="cm">// acc = (a+b) * (c-d)</span>
+<span class="cm">// 6 instructions, each 1-3 bytes</span></pre>
+  <p>Stack: most instructions, smallest per instruction. Register: fewest instructions, largest per instruction. Accumulator: in between on both axes. V8 chose the accumulator because for JavaScript's typical expression patterns, it gives the best overall bytecode density and dispatch efficiency.</p>
+</div>
+
+<h2>4.3 V8 Bytecode Instruction Set</h2>
+
+<p>V8 has ~200-250 bytecode instructions. Click each category to see examples:</p>
+
+<div class="step-container" id="bc-cats">
+  <div class="step active" onclick="toggleStep(this)">
+    <span class="step-num">Ld*</span> Load instructions &mdash; get values into the accumulator
+    <div class="step-detail">
+      <pre><span class="fn">LdaSmi</span> [42]           <span class="cm">// acc = 42 (small integer literal)</span>
+<span class="fn">LdaConstant</span> [3]       <span class="cm">// acc = constant_pool[3] (string, big number, etc.)</span>
+<span class="fn">LdaUndefined</span>          <span class="cm">// acc = undefined</span>
+<span class="fn">LdaNull</span>               <span class="cm">// acc = null</span>
+<span class="fn">LdaTrue</span>               <span class="cm">// acc = true</span>
+<span class="fn">LdaZero</span>               <span class="cm">// acc = 0</span>
+<span class="fn">Ldar</span> r3               <span class="cm">// acc = register r3</span>
+<span class="fn">LdaGlobal</span> [0]         <span class="cm">// acc = global variable (by feedback slot)</span>
+<span class="fn">LdaNamedProperty</span> r1, [0], [1]  <span class="cm">// acc = r1.propertyName</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">St*</span> Store instructions &mdash; save the accumulator somewhere
+    <div class="step-detail">
+      <pre><span class="fn">Star</span> r0                <span class="cm">// r0 = acc (save to register)</span>
+<span class="fn">StaNamedProperty</span> r1, [0], [1]  <span class="cm">// r1.propertyName = acc</span>
+<span class="fn">StaGlobal</span> [0]          <span class="cm">// global variable = acc</span>
+<span class="fn">StaKeyedProperty</span> r1, r2, [0]  <span class="cm">// r1[r2] = acc</span>
+<span class="fn">StaCurrentContextSlot</span> [3]     <span class="cm">// closure slot 3 = acc</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">Math</span> Arithmetic &mdash; operate on accumulator
+    <div class="step-detail">
+      <pre><span class="fn">Add</span> r1, [0]       <span class="cm">// acc = acc + r1  (feedback slot [0])</span>
+<span class="fn">Sub</span> r1, [0]       <span class="cm">// acc = acc - r1</span>
+<span class="fn">Mul</span> r1, [0]       <span class="cm">// acc = acc * r1</span>
+<span class="fn">Div</span> r1, [0]       <span class="cm">// acc = acc / r1</span>
+<span class="fn">Mod</span> r1, [0]       <span class="cm">// acc = acc % r1</span>
+<span class="fn">BitwiseAnd</span> r1,[0] <span class="cm">// acc = acc & r1</span>
+<span class="fn">ShiftLeft</span> r1, [0]  <span class="cm">// acc = acc << r1</span>
+<span class="fn">Negate</span> [0]         <span class="cm">// acc = -acc</span>
+<span class="fn">Inc</span> [0]            <span class="cm">// acc = acc + 1</span></pre>
+      <p style="margin-top:8px">Every arithmetic instruction has a feedback slot <code>[n]</code>. The interpreter records: "at this instruction, I've seen numbers / strings / mixed." The JIT uses this to specialize.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">Cmp</span> Comparisons &mdash; test accumulator against something
+    <div class="step-detail">
+      <pre><span class="fn">TestEqual</span> r1, [0]          <span class="cm">// acc = (acc == r1)</span>
+<span class="fn">TestStrictEqual</span> r1, [0]    <span class="cm">// acc = (acc === r1)</span>
+<span class="fn">TestLessThan</span> r1, [0]       <span class="cm">// acc = (acc < r1)</span>
+<span class="fn">TestGreaterThan</span> r1, [0]    <span class="cm">// acc = (acc > r1)</span>
+<span class="fn">TestInstanceOf</span> r1, [0]     <span class="cm">// acc = (acc instanceof r1)</span>
+<span class="fn">TestTypeOf</span> [0]             <span class="cm">// acc = (typeof acc === literal)</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">Jump</span> Control flow &mdash; branches and loops
+    <div class="step-detail">
+      <pre><span class="fn">Jump</span> @target           <span class="cm">// unconditional jump</span>
+<span class="fn">JumpIfTrue</span> @target      <span class="cm">// if acc is truthy, jump</span>
+<span class="fn">JumpIfFalse</span> @target     <span class="cm">// if acc is falsy, jump</span>
+<span class="fn">JumpIfNull</span> @target      <span class="cm">// if acc === null, jump</span>
+<span class="fn">JumpIfUndefined</span> @target <span class="cm">// if acc === undefined, jump</span>
+<span class="fn">JumpLoop</span> @header, [0]   <span class="cm">// jump backward (loop back-edge)</span>
+                         <span class="cm">// [0] = loop nesting depth</span></pre>
+      <p style="margin-top:8px"><code>JumpLoop</code> is special: it includes the loop depth, which tells V8 when to consider OSR (On-Stack Replacement — promoting a running loop to optimized code mid-execution).</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">Call</span> Function calls
+    <div class="step-detail">
+      <pre><span class="fn">CallUndefinedReceiver</span> r1, r2-r3, [0]
+  <span class="cm">// Call function in r1 with args r2..r3</span>
+  <span class="cm">// 'this' is undefined (not a method call)</span>
+
+<span class="fn">CallProperty</span> r1, r2, r3-r4, [0]
+  <span class="cm">// Call method: r1 is receiver (this), r2 is function</span>
+  <span class="cm">// r3..r4 are arguments</span>
+
+<span class="fn">CallRuntime</span> [kCreateArrayLiteral], r1-r2
+  <span class="cm">// Call a V8 internal runtime function</span>
+  <span class="cm">// (not user-visible, engine internals)</span>
+
+<span class="fn">Construct</span> r1, r2-r3, [0]
+  <span class="cm">// 'new r1(r2..r3)' — constructor call</span></pre>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">Scope</span> Closures and context
+    <div class="step-detail">
+      <pre><span class="fn">CreateClosure</span> [0], [1], #flags
+  <span class="cm">// Create a new closure (function value)</span>
+  <span class="cm">// [0] = SharedFunctionInfo index</span>
+  <span class="cm">// [1] = feedback slot</span>
+
+<span class="fn">CreateBlockContext</span> [0]
+  <span class="cm">// Push a new context for a block scope</span>
+
+<span class="fn">PushContext</span> r1
+  <span class="cm">// Push context from r1 onto the context chain</span>
+
+<span class="fn">PopContext</span> r1
+  <span class="cm">// Pop current context, restore previous to r1</span>
+
+<span class="fn">LdaCurrentContextSlot</span> [3]
+  <span class="cm">// acc = current context slot 3 (closure variable)</span>
+
+<span class="fn">LdaImmutableCurrentContextSlot</span> [3]
+  <span class="cm">// Same, but V8 knows it won't change (const)</span></pre>
+    </div>
+  </div>
+</div>
+
+<h2>4.4 Complete Bytecode Examples</h2>
+
+<p>Click each example to see the full bytecode with line-by-line explanation:</p>
+
+<div class="tabs" id="example-tabs">
+  <button class="tab-btn active" onclick="switchTab('example',0)">If/Else</button>
+  <button class="tab-btn" onclick="switchTab('example',1)">Loop</button>
+  <button class="tab-btn" onclick="switchTab('example',2)">Property Access</button>
+  <button class="tab-btn" onclick="switchTab('example',3)">Closure</button>
+</div>
+<div class="tab-content active" data-group="example">
+  <h3><code>function abs(x) { if (x >= 0) return x; else return -x; }</code></h3>
+  <pre>    <span class="fn">Ldar</span>             a0            <span class="cm">// acc = x</span>
+    <span class="fn">TestGreaterThanOrEqual</span> <span class="fn">Smi</span>(0), [0]  <span class="cm">// acc >= 0 ?</span>
+    <span class="fn">JumpIfFalse</span>      @else         <span class="cm">// if not, jump to else</span>
+    <span class="fn">Ldar</span>             a0            <span class="cm">// acc = x (true branch)</span>
+    <span class="fn">Return</span>                          <span class="cm">// return x</span>
+  @else:
+    <span class="fn">Ldar</span>             a0            <span class="cm">// acc = x</span>
+    <span class="fn">Negate</span>           [1]           <span class="cm">// acc = -x</span>
+    <span class="fn">Return</span>                          <span class="cm">// return -x</span></pre>
+  <p>The if/else becomes <code>JumpIfFalse</code>. True branch falls through (no jump). False branch jumps to a label. Both branches end with <code>Return</code>.</p>
+</div>
+<div class="tab-content" data-group="example">
+  <h3><code>function sum(n) { let s = 0; for (let i = 0; i < n; i++) s += i; return s; }</code></h3>
+  <pre>    <span class="fn">LdaZero</span>                        <span class="cm">// acc = 0</span>
+    <span class="fn">Star</span>            r0             <span class="cm">// s = 0</span>
+    <span class="fn">LdaZero</span>                        <span class="cm">// acc = 0</span>
+    <span class="fn">Star</span>            r1             <span class="cm">// i = 0</span>
+  @loop_header:
+    <span class="fn">Ldar</span>            r1             <span class="cm">// acc = i</span>
+    <span class="fn">TestLessThan</span>    a0, [0]        <span class="cm">// acc = (i < n)</span>
+    <span class="fn">JumpIfFalse</span>     @loop_end      <span class="cm">// if not, exit loop</span>
+    <span class="fn">Ldar</span>            r0             <span class="cm">// acc = s</span>
+    <span class="fn">Add</span>             r1, [1]        <span class="cm">// acc = s + i</span>
+    <span class="fn">Star</span>            r0             <span class="cm">// s = acc</span>
+    <span class="fn">Ldar</span>            r1             <span class="cm">// acc = i</span>
+    <span class="fn">Inc</span>             [2]            <span class="cm">// acc = i + 1</span>
+    <span class="fn">Star</span>            r1             <span class="cm">// i = acc</span>
+    <span class="fn">JumpLoop</span>        @loop_header, [0] <span class="cm">// back to test</span>
+  @loop_end:
+    <span class="fn">Ldar</span>            r0             <span class="cm">// acc = s</span>
+    <span class="fn">Return</span>                          <span class="cm">// return s</span></pre>
+  <p><code>JumpLoop</code> creates the back-edge. V8 uses this to detect hot loops for OSR (On-Stack Replacement) — promoting a loop to optimized code while it's still running.</p>
+</div>
+<div class="tab-content" data-group="example">
+  <h3><code>function getName(obj) { return obj.name; }</code></h3>
+  <pre>    <span class="fn">LdaNamedProperty</span>  a0, [0], [1]  <span class="cm">// acc = a0.name</span>
+                                     <span class="cm">// [0] = constant "name"</span>
+                                     <span class="cm">// [1] = IC feedback slot</span>
+    <span class="fn">Return</span>                           <span class="cm">// return acc</span></pre>
+  <p>Just two instructions! <code>LdaNamedProperty</code> does the full property lookup (check hidden class, find offset, load). The feedback slot <code>[1]</code> caches the hidden class and offset for inline caching. On subsequent calls with the same-shaped object, this is one comparison + one memory read.</p>
+</div>
+<div class="tab-content" data-group="example">
+  <h3><code>function outer(x) { return function inner() { return x; }; }</code></h3>
+  <pre><span class="cm">// outer's bytecode:</span>
+    <span class="fn">CreateClosure</span>    [0], [0], #pretenured
+                              <span class="cm">// Create inner function</span>
+                              <span class="cm">// [0] = SharedFunctionInfo for inner</span>
+                              <span class="cm">// Captures current context (has x)</span>
+    <span class="fn">Return</span>                     <span class="cm">// Return the closure</span>
+
+<span class="cm">// inner's bytecode:</span>
+    <span class="fn">LdaCurrentContextSlot</span>  [2]  <span class="cm">// acc = context slot 2</span>
+                                <span class="cm">// (x is in slot 2 of the captured context)</span>
+    <span class="fn">Return</span>                      <span class="cm">// return x</span></pre>
+  <p><code>CreateClosure</code> allocates a new function object that captures the current scope context. <code>LdaCurrentContextSlot</code> reads the captured variable by its pre-computed slot index — no name lookup, no chain walking. The compiler already resolved <code>x</code> to slot 2 at bytecode generation time.</p>
+</div>
+
+<!-- ============ SECTION 5: THE FEEDBACK LOOP ============ -->
+<h1>5. The Feedback Loop: Runtime Type Inference</h1>
+
+<div class="card card-accent">
+<p>Every arithmetic, comparison, property access, and call instruction has a <strong>feedback slot</strong> — a small data structure where the interpreter records what types it actually sees at runtime. This is the bridge between interpretation and JIT compilation.</p>
+</div>
+
+<div class="step-container" id="feedback-steps">
+  <div class="step active" onclick="toggleStep(this)">
+    <span class="step-num">1</span> Interpreter executes <code>Add a1, [0]</code> with values 2 and 3
+    <div class="step-detail">
+      Feedback slot [0] records: <code>{ type: Smi, count: 1 }</code>. "I've seen small integers here."
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">2</span> Called 100 more times, always with integers
+    <div class="step-detail">
+      Feedback slot [0]: <code>{ type: Smi, count: 101 }</code>. Monomorphic. "This is always integers."
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">3</span> Maglev/TurboFan reads feedback, compiles specialized code
+    <div class="step-detail">
+      <pre><span class="cm">// TurboFan generates:</span>
+<span class="fn">CheckSmi</span>(a)    <span class="cm">// assert a is Smi, deopt if not</span>
+<span class="fn">CheckSmi</span>(b)    <span class="cm">// assert b is Smi, deopt if not</span>
+<span class="fn">Int32Add</span>(a, b) <span class="cm">// raw integer add (no type dispatch)</span>
+<span class="fn">CheckOverflow</span>  <span class="cm">// deopt if overflow</span></pre>
+      <p>The feedback told TurboFan "always Smi", so it generates code that assumes Smi and inserts guards. If the assumption holds (which it will 99.9% of the time), execution is as fast as C.</p>
+    </div>
+  </div>
+  <div class="step" onclick="toggleStep(this)">
+    <span class="step-num">4</span> Suddenly called with a string &mdash; deoptimize
+    <div class="step-detail">
+      <code>CheckSmi</code> fails. TurboFan discards the machine code. V8 falls back to interpreter bytecode. Feedback slot updates: <code>{ type: Smi|String, count: 102 }</code>. Now polymorphic. If recompiled, TurboFan will generate code that handles both types.
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="callout-key">This is runtime type inference.</span> V8 does what TypeScript does (figure out what types flow where), but at runtime through observation instead of at compile time through analysis. TypeScript says "I analyzed the code and this is always a number." V8 says "I ran the code 100 times and it was always a number." Same conclusion, different method. KindScript could do the same for behavioral properties.
+</div>
+
+<!-- ============ QUIZZES ============ -->
+<h2>Test Your Understanding</h2>
+
+<div class="quiz card">
+  <div class="quiz-q">Q1: What is [[Prototype]]?</div>
+  <div class="quiz-opts" id="q1">
+    <label onclick="checkQuiz('q1',this,false)"><input type="radio" name="q1"> The .prototype property on constructor functions</label>
+    <label onclick="checkQuiz('q1',this,true)"><input type="radio" name="q1"> A hidden internal slot on every object that points to another object (or null), forming the inheritance chain</label>
+    <label onclick="checkQuiz('q1',this,false)"><input type="radio" name="q1"> A JavaScript method for creating objects</label>
+    <label onclick="checkQuiz('q1',this,false)"><input type="radio" name="q1"> The __proto__ accessor property</label>
+  </div>
+  <div class="quiz-result" id="q1-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q2: Why doesn't V8 use ESTree or TypeScript's AST format?</div>
+  <div class="quiz-opts" id="q2">
+    <label onclick="checkQuiz('q2',this,false)"><input type="radio" name="q2"> V8 was built before ESTree existed</label>
+    <label onclick="checkQuiz('q2',this,true)"><input type="radio" name="q2"> V8's AST is optimized for fast bytecode generation and is discarded immediately — it doesn't need the extra information TS/ESTree preserve</label>
+    <label onclick="checkQuiz('q2',this,false)"><input type="radio" name="q2"> ESTree can't represent JavaScript syntax</label>
+    <label onclick="checkQuiz('q2',this,false)"><input type="radio" name="q2"> V8 doesn't use an AST at all</label>
+  </div>
+  <div class="quiz-result" id="q2-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q3: What is V8's accumulator?</div>
+  <div class="quiz-opts" id="q3">
+    <label onclick="checkQuiz('q3',this,false)"><input type="radio" name="q3"> A stack that grows and shrinks as operations execute</label>
+    <label onclick="checkQuiz('q3',this,true)"><input type="radio" name="q3"> An implicit register that most instructions read from and write to, reducing bytecode size by not encoding one operand</label>
+    <label onclick="checkQuiz('q3',this,false)"><input type="radio" name="q3"> A buffer that accumulates all function return values</label>
+    <label onclick="checkQuiz('q3',this,false)"><input type="radio" name="q3"> A garbage collection mechanism</label>
+  </div>
+  <div class="quiz-result" id="q3-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q4: Can V8 bytecode run on any JavaScript engine?</div>
+  <div class="quiz-opts" id="q4">
+    <label onclick="checkQuiz('q4',this,false)"><input type="radio" name="q4"> Yes, bytecode is standardized like WebAssembly</label>
+    <label onclick="checkQuiz('q4',this,false)"><input type="radio" name="q4"> Yes, all JS engines use the same bytecode format</label>
+    <label onclick="checkQuiz('q4',this,true)"><input type="radio" name="q4"> No — V8 bytecode is proprietary and changes between V8 versions; each engine has its own format</label>
+    <label onclick="checkQuiz('q4',this,false)"><input type="radio" name="q4"> No, bytecode can only run on the same OS it was generated on</label>
+  </div>
+  <div class="quiz-result" id="q4-result"></div>
+</div>
+
+<div class="quiz card">
+  <div class="quiz-q">Q5: What are feedback slots in V8 bytecode?</div>
+  <div class="quiz-opts" id="q5">
+    <label onclick="checkQuiz('q5',this,false)"><input type="radio" name="q5"> Comments that help developers debug</label>
+    <label onclick="checkQuiz('q5',this,false)"><input type="radio" name="q5"> Error handling mechanisms for exceptions</label>
+    <label onclick="checkQuiz('q5',this,true)"><input type="radio" name="q5"> Data structures where the interpreter records observed types, enabling the JIT to generate type-specialized machine code</label>
+    <label onclick="checkQuiz('q5',this,false)"><input type="radio" name="q5"> Memory addresses for function arguments</label>
+  </div>
+  <div class="quiz-result" id="q5-result"></div>
+</div>
+
+<div style="text-align:center;padding:40px 0 20px;color:var(--text-dim);font-size:0.85em">
+  Part 19 of the KindScript Research Series
+</div>
+
+</div><!-- /container -->
+
+<script>
+function switchTab(g,i){document.querySelectorAll(`#${g}-tabs .tab-btn`).forEach((b,j)=>b.classList.toggle('active',j===i));document.querySelectorAll(`.tab-content[data-group="${g}"]`).forEach((c,j)=>c.classList.toggle('active',j===i))}
+function toggleStep(el){const w=el.classList.contains('active');el.parentElement.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));if(!w)el.classList.add('active')}
+
+function showChainDetail(i){
+  document.querySelectorAll('#proto-chain .chain-obj').forEach((o,j)=>o.classList.toggle('active',j===i));
+  for(let j=0;j<4;j++)document.getElementById('chain-detail-'+j).classList.toggle('active',j===i);
+}
+
+function checkQuiz(qId,label,correct){
+  const r=document.getElementById(qId+'-result');
+  r.className='quiz-result '+(correct?'correct':'wrong');
+  r.textContent=correct?'✓ Correct!':'✗ Not quite — try again.';
+  label.style.borderColor=correct?'var(--success)':'var(--error)';
+}
+</script>
+</body>
+</html>

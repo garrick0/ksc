@@ -22,8 +22,8 @@ import {
   serveDashboard,
 } from './showcase-utils.js';
 import { createProgram } from '../src/program.js';
-import { defineConfig } from '../src/config.js';
-import { exportDashboardData } from '../src/export.js';
+import { defineConfig } from '../src/api/config.js';
+import { exportDashboardData } from '../src/dashboard/export.js';
 
 const { values } = parseArgs({
   options: {
@@ -61,27 +61,10 @@ async function main() {
     process.exit(1);
   }
 
-  // Compile with architectural rules targeting src/
+  // Compile with targets pointing at src/
   console.log('  Compiling...');
   const config = defineConfig({
-    // Pure data modules — should be free of mutations and console usage
-    types:  { path: './src/types.ts',  rules: { noMutation: true, noConsole: true } },
-    config: { path: './src/config.ts', rules: { noMutation: true, noConsole: true } },
-
-    // Compiler phases — grouped as a composite with cycle detection
-    compiler: {
-      members: {
-        binder:  { path: './src/binder.ts',  rules: { noMutation: true } },
-        checker: { path: './src/checker.ts',  rules: { noConsole: true } },
-        program: { path: './src/program.ts',  rules: { noMutation: true } },
-      },
-      rules: {
-        noCycles: ['binder', 'checker', 'program'],
-      },
-    },
-
-    // Export module — check for mutations
-    export: { path: './src/export.ts', rules: { noMutation: true } },
+    strict: true,
   });
   const program = createProgram(rootFiles, config, {
     strict: true,
@@ -95,8 +78,7 @@ async function main() {
   });
 
   console.log(`  Parse: ${data.parse.sourceFiles.length} source files`);
-  console.log(`  Bind:  ${data.bind.symbols.length} kind symbols`);
-  console.log(`  Check: ${data.check.diagnostics.length} diagnostics\n`);
+  console.log(`  Kinds: ${data.kinds.definitions.length} definitions\n`);
 
   // Serve
   const server = await serveDashboard(data);

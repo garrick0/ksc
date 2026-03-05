@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Effect-TS vs KindScript — Two Roads to Program Properties</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3348;
+  --text: #e2e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4ecdc4;
+  --accent3: #ff6b9d;
+  --green: #4ecdc4;
+  --yellow: #ffd93d;
+  --orange: #ff8c42;
+  --red: #ff6b6b;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --effect-color: #a78bfa;
+  --ksc-color: #4ecdc4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;line-height:1.7;padding:2rem;max-width:1150px;margin:0 auto}
+h1{font-size:2rem;margin-bottom:.3rem;background:linear-gradient(135deg,var(--effect-color),var(--accent),var(--ksc-color));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.4rem;color:var(--accent);margin:2.5rem 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+h3{font-size:1.08rem;color:var(--accent2);margin:1.4rem 0 .5rem}
+p,li{color:var(--text2);margin-bottom:.7rem}
+.sub{color:var(--text2);font-size:1.02rem;margin-bottom:2rem}
+code{background:var(--surface2);padding:.15rem .4rem;border-radius:4px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85rem;color:var(--accent)}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;overflow-x:auto;margin:.8rem 0 1.2rem;line-height:1.5}
+pre code{background:none;padding:0;color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin:.8rem 0;transition:all .3s}
+.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin:1rem 0}
+.card h4{color:var(--accent);margin-bottom:.4rem;font-size:1rem}
+.tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.72rem;margin-right:.3rem;margin-bottom:.3rem}
+.tag-green{background:rgba(78,205,196,.15);color:var(--green)}
+.tag-yellow{background:rgba(255,217,61,.15);color:var(--yellow)}
+.tag-red{background:rgba(255,107,107,.15);color:var(--red)}
+.tag-purple{background:rgba(167,139,250,.15);color:var(--purple)}
+.tag-blue{background:rgba(108,140,255,.15);color:var(--accent)}
+.tag-orange{background:rgba(255,140,66,.15);color:var(--orange)}
+.tag-cyan{background:rgba(34,211,238,.15);color:var(--cyan)}
+.tabs{display:flex;gap:0;margin:1.2rem 0 0;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.tab{padding:.55rem 1rem;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;font-size:.85rem}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none;padding:1.2rem;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:1rem}
+.tab-content.active{display:block}
+.kw{color:var(--purple)}
+.str{color:var(--green)}
+.num{color:var(--orange)}
+.cmt{color:#555b70;font-style:italic}
+.typ{color:var(--cyan)}
+.fn{color:var(--yellow)}
+
+/* Comparison columns */
+.vs-grid{display:grid;grid-template-columns:1fr 60px 1fr;gap:0;margin:1rem 0;align-items:start}
+.vs-col{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem}
+.vs-col.effect{border-color:rgba(167,139,250,.3)}
+.vs-col.ksc{border-color:rgba(78,205,196,.3)}
+.vs-label{text-align:center;font-size:1.5rem;color:var(--text2);padding-top:1.5rem;font-weight:700}
+.vs-col h4{margin-bottom:.6rem;font-size:.95rem}
+.vs-col.effect h4{color:var(--effect-color)}
+.vs-col.ksc h4{color:var(--ksc-color)}
+
+/* Flow diagrams */
+.flow{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.8rem 0;padding:.8rem;background:var(--surface2);border-radius:8px}
+.flow-box{padding:.4rem .7rem;border-radius:6px;font-size:.8rem;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.flow-arrow{color:var(--text2);font-size:.9rem}
+.flow-effect{background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:var(--effect-color)}
+.flow-ksc{background:rgba(78,205,196,.15);border:1px solid rgba(78,205,196,.3);color:var(--ksc-color)}
+.flow-ts{background:rgba(108,140,255,.15);border:1px solid rgba(108,140,255,.3);color:var(--accent)}
+.flow-neutral{background:var(--surface);border:1px solid var(--border);color:var(--text2)}
+
+/* Interactive demo */
+.demo-box{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1rem 0;position:relative}
+.demo-box h4{margin-bottom:1rem}
+.demo-btn{padding:.5rem 1rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:.82rem;font-family:inherit;transition:all .2s;margin:.2rem}
+.demo-btn:hover{border-color:var(--accent);background:rgba(108,140,255,.1)}
+.demo-btn.active{border-color:var(--accent);background:rgba(108,140,255,.15);color:var(--accent)}
+.demo-output{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-top:.8rem;font-family:'JetBrains Mono',monospace;font-size:.82rem;min-height:100px;line-height:1.6;white-space:pre-wrap}
+
+/* Expandable */
+.expand{cursor:pointer;user-select:none}
+.expand-header{display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:var(--surface2);border-radius:6px;margin:.4rem 0;transition:background .2s}
+.expand-header:hover{background:rgba(108,140,255,.08)}
+.expand-arrow{transition:transform .2s;font-size:.7rem;color:var(--text2)}
+.expand-arrow.open{transform:rotate(90deg)}
+.expand-body{display:none;padding:.6rem .8rem .8rem 1.8rem;font-size:.9rem}
+.expand-body.open{display:block}
+
+/* Confidence meter */
+.meter{height:6px;background:var(--surface2);border-radius:3px;margin:.3rem 0;overflow:hidden}
+.meter-fill{height:100%;border-radius:3px;transition:width .5s}
+
+/* Quiz */
+.quiz{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.5rem 0}
+.quiz h4{color:var(--yellow);margin-bottom:1rem}
+.quiz-option{display:block;width:100%;text-align:left;padding:.65rem 1rem;margin:.3rem 0;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .2s}
+.quiz-option:hover{border-color:var(--accent)}
+.quiz-feedback{margin-top:.8rem;padding:.8rem;border-radius:6px;display:none;font-size:.9rem}
+.quiz-feedback.correct{display:block;background:rgba(78,205,196,.1);border:1px solid rgba(78,205,196,.3);color:var(--green)}
+.quiz-feedback.wrong{display:block;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);color:var(--red)}
+</style>
+</head>
+<body>
+
+<h1>Effect-TS vs KindScript</h1>
+<p class="sub">Two fundamentally different approaches to the same goal: knowing what your TypeScript programs actually do.</p>
+
+<!-- ========================================= -->
+<h2>1. The Core Question</h2>
+<!-- ========================================= -->
+
+<p>Both Effect-TS and KindScript care about <em>program properties</em> — purity, effects, safety, mutation. But they answer the question in opposite directions:</p>
+
+<div class="vs-grid">
+  <div class="vs-col effect">
+    <h4>Effect-TS: Encode & Trust</h4>
+    <p style="font-size:.9rem">Make the programmer <strong>describe</strong> effects in the type system via monadic wrappers. Trust that they always use the wrappers. TypeScript's type checker does the rest.</p>
+    <div style="margin-top:.6rem">
+      <span class="tag tag-purple">Library</span>
+      <span class="tag tag-purple">Runtime</span>
+      <span class="tag tag-purple">Voluntary</span>
+    </div>
+  </div>
+  <div class="vs-label">vs</div>
+  <div class="vs-col ksc">
+    <h4>KindScript: Analyze & Verify</h4>
+    <p style="font-size:.9rem">Walk the actual AST of ordinary TypeScript code and <strong>check</strong> whether declared properties hold. No wrappers needed. The analyzer does the work.</p>
+    <div style="margin-top:.6rem">
+      <span class="tag tag-green">Analyzer</span>
+      <span class="tag tag-green">Static</span>
+      <span class="tag tag-green">Enforced</span>
+    </div>
+  </div>
+</div>
+
+<p>This is the difference between a <strong>library convention</strong> and a <strong>compiler guarantee</strong>. Let's see exactly how each one works under the hood.</p>
+
+<!-- ========================================= -->
+<h2>2. How Effect-TS Actually Works</h2>
+<!-- ========================================= -->
+
+<div class="tabs" id="effect-tabs">
+  <div class="tab active" onclick="switchTab('effect-tabs','effect-content',0)">Effect&lt;R,E,A&gt;</div>
+  <div class="tab" onclick="switchTab('effect-tabs','effect-content',1)">Effects as Values</div>
+  <div class="tab" onclick="switchTab('effect-tabs','effect-content',2)">Fiber Runtime</div>
+  <div class="tab" onclick="switchTab('effect-tabs','effect-content',3)">Layers &amp; R</div>
+  <div class="tab" onclick="switchTab('effect-tabs','effect-content',4)">Error Tracking</div>
+  <div class="tab" onclick="switchTab('effect-tabs','effect-content',5)">The Escape Hatches</div>
+</div>
+
+<div id="effect-content">
+  <!-- Tab 0: Effect<R,E,A> -->
+  <div class="tab-content active">
+    <h3>What is <code>Effect&lt;R, E, A&gt;</code>?</h3>
+    <p>It's a <strong>lazy description</strong> of a computation. Not a function. Not a promise. A plain immutable data structure — a tagged union of primitive instructions that the runtime pattern-matches on later.</p>
+    <pre><code><span class="cmt">// This does NOT execute anything. It builds a data structure.</span>
+<span class="kw">const</span> <span class="fn">getUser</span> = Effect.flatMap(
+  Effect.service(Database),       <span class="cmt">// instruction: "get Database from context"</span>
+  (db) => Effect.tryPromise(      <span class="cmt">// instruction: "run this async thunk"</span>
+    () => db.query(<span class="str">"SELECT ..."</span>)
+  )
+);
+
+<span class="cmt">// Type: Effect&lt;Database, UnknownException, User&gt;</span>
+<span class="cmt">//              ^R           ^E               ^A</span>
+<span class="cmt">//         needs this    might throw this   returns this</span></code></pre>
+
+    <p>The three type parameters:</p>
+    <div class="card-grid">
+      <div class="card">
+        <h4 style="color:var(--cyan)">R — Requirements</h4>
+        <p>Services this effect needs. Uses TypeScript's <strong>intersection types</strong> — composing two effects unions their R's: <code>Database & Logger</code>.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--red)">E — Errors</h4>
+        <p>What can go wrong. Uses <strong>union types</strong> — composing two effects unions their E's: <code>DbError | TimeoutError</code>.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--green)">A — Success</h4>
+        <p>The value produced on success. Threaded through via <code>map</code> and <code>flatMap</code>, like Promise but with full type tracking.</p>
+      </div>
+    </div>
+
+    <h3>What TypeScript tricks make this work?</h3>
+    <p>Effect-TS uses <strong>no compiler plugins, no AST analysis, no custom transforms</strong>. It's pure TypeScript generics:</p>
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Variance annotations</strong> (TypeScript 4.7+)</div>
+      <div class="expand-body">
+        <pre><code><span class="cmt">// Simplified — Effect's actual signature uses variance modifiers:</span>
+<span class="kw">interface</span> <span class="typ">Effect</span>&lt;<span class="kw">out</span> R, <span class="kw">out</span> E, <span class="kw">out</span> A&gt; {
+  <span class="cmt">// 'out' = covariant: subtypes widen</span>
+  <span class="cmt">// R: covariant — can have fewer requirements</span>
+  <span class="cmt">// E: covariant — can fail with fewer errors</span>
+  <span class="cmt">// A: covariant — can return subtypes</span>
+}</code></pre>
+        <p>This means <code>Effect&lt;never, never, string&gt;</code> (no requirements, no errors) is assignable to <code>Effect&lt;Database, Error, string&gt;</code>. Variance makes composition type-safe.</p>
+      </div>
+    </div>
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Branded types</strong></div>
+      <div class="expand-body">
+        <pre><code><span class="cmt">// Brand.nominal prevents structural confusion:</span>
+<span class="kw">type</span> <span class="typ">UserId</span> = <span class="kw">string</span> & Brand.Brand&lt;<span class="str">"UserId"</span>&gt;
+<span class="kw">type</span> <span class="typ">OrderId</span> = <span class="kw">string</span> & Brand.Brand&lt;<span class="str">"OrderId"</span>&gt;
+<span class="cmt">// Both are strings, but TypeScript won't let you mix them</span></code></pre>
+      </div>
+    </div>
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Generic inference in <code>pipe</code></strong></div>
+      <div class="expand-body">
+        <pre><code><span class="cmt">// pipe is overloaded with ~20 signatures:</span>
+<span class="kw">function</span> <span class="fn">pipe</span>&lt;A&gt;(a: A): A
+<span class="kw">function</span> <span class="fn">pipe</span>&lt;A,B&gt;(a: A, ab: (a:A)=>B): B
+<span class="kw">function</span> <span class="fn">pipe</span>&lt;A,B,C&gt;(a: A, ab: (a:A)=>B, bc: (b:B)=>C): C
+<span class="cmt">// ...TypeScript infers each step's types through the chain</span></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 1: Effects as Values -->
+  <div class="tab-content">
+    <h3>"Effects are Values" — What Does This Actually Mean?</h3>
+    <p>In most TypeScript, calling a function <em>does the thing</em>:</p>
+    <pre><code><span class="cmt">// This EXECUTES immediately — side effect happens NOW</span>
+<span class="kw">const</span> data = <span class="kw">await</span> fetch(<span class="str">"/api/users"</span>);  <span class="cmt">// network request fires</span>
+console.log(<span class="str">"hello"</span>);                    <span class="cmt">// prints immediately</span>
+fs.writeFileSync(<span class="str">"f.txt"</span>, <span class="str">"data"</span>);      <span class="cmt">// writes immediately</span></code></pre>
+
+    <p>In Effect-TS, nothing executes until you explicitly run it:</p>
+    <pre><code><span class="cmt">// This DESCRIBES what to do — nothing happens yet</span>
+<span class="kw">const</span> program = pipe(
+  Effect.tryPromise(() => fetch(<span class="str">"/api/users"</span>)),
+  Effect.flatMap(res => Effect.tryPromise(() => res.json())),
+  Effect.tap(data => Effect.log(<span class="str">`Got ${data.length} users`</span>)),
+);
+<span class="cmt">// program is just a VALUE. A data structure. An inert description.</span>
+<span class="cmt">// You can store it, pass it around, compose it, test it.</span>
+
+<span class="cmt">// Only THIS executes it:</span>
+<span class="kw">await</span> Effect.runPromise(program);</code></pre>
+
+    <p>Think of it like the difference between a <strong>recipe</strong> and <strong>cooking</strong>. The Effect is the recipe — you can read it, combine it with other recipes, photocopy it. Only <code>runPromise</code> actually turns on the stove.</p>
+
+    <h3>Why does this matter?</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>Referential Transparency</h4>
+        <p><code>program</code> above always means the same thing. You can substitute it anywhere. No hidden state changes.</p>
+      </div>
+      <div class="card">
+        <h4>Composability</h4>
+        <p>Since effects are values, you can <code>map</code>, <code>flatMap</code>, <code>zip</code>, <code>race</code>, <code>retry</code> them — just like arrays.</p>
+      </div>
+      <div class="card">
+        <h4>Testability</h4>
+        <p>You can inspect the description without running it. Swap real services for mocks via Layers.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Fiber Runtime -->
+  <div class="tab-content">
+    <h3>The Fiber Runtime</h3>
+    <p>When you call <code>Effect.runPromise(program)</code>, the fiber runtime takes over. It's a <strong>continuation-passing interpreter</strong> — essentially a virtual machine for your Effect programs.</p>
+
+    <div class="flow">
+      <div class="flow-box flow-effect">Effect value</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-effect">FiberRuntime</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-neutral">instruction loop</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-neutral">continuation stack</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-effect">Exit&lt;A, E&gt;</div>
+    </div>
+
+    <p>The runtime maintains an <strong>explicit continuation stack</strong> instead of using JavaScript's call stack. This gives it:</p>
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Stack safety</strong> — deep recursion doesn't overflow</div>
+      <div class="expand-body">
+        <p>Like a trampoline. When <code>flatMap</code> completes, the runtime pops the next continuation from its own stack instead of returning through JavaScript frames. This means you can nest thousands of <code>flatMap</code>s without stack overflow — the runtime yields and reschedules itself.</p>
+      </div>
+    </div>
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Fibers</strong> — lightweight green threads</div>
+      <div class="expand-body">
+        <p>A fiber is a lightweight thread managed by Effect's scheduler, not the OS. You can create thousands of them. <code>Effect.fork(program)</code> starts a fiber. Fibers can be interrupted, joined, raced. The scheduler uses work-stealing queues for concurrency.</p>
+      </div>
+    </div>
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Structured concurrency</strong> — resources always cleaned up</div>
+      <div class="expand-body">
+        <p>When a parent fiber completes or is interrupted, all child fibers are automatically interrupted too. Combined with <code>Scope</code> (resource management), this means database connections, file handles, etc. are always released — even if an error occurs.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Layers -->
+  <div class="tab-content">
+    <h3>The Layer System — Dependency Injection via Types</h3>
+    <p>The <code>R</code> parameter in <code>Effect&lt;R, E, A&gt;</code> tracks what services your effect needs. Layers are <strong>recipes for building those services</strong>:</p>
+
+    <pre><code><span class="cmt">// 1. Define a service tag</span>
+<span class="kw">class</span> <span class="typ">Database</span> <span class="kw">extends</span> Context.Tag(<span class="str">"Database"</span>)&lt;
+  Database, { query: (sql: <span class="kw">string</span>) => Effect&lt;<span class="kw">never</span>, DbError, Row[]&gt; }
+&gt;() {}
+
+<span class="cmt">// 2. Define a layer that builds it</span>
+<span class="kw">const</span> <span class="fn">DatabaseLive</span> = Layer.scoped(
+  Database,
+  Effect.gen(<span class="kw">function</span>*() {
+    <span class="kw">const</span> pool = <span class="kw">yield</span>* acquirePool(<span class="str">"postgres://..."</span>);
+    <span class="kw">return</span> { query: (sql) => Effect.tryPromise(() => pool.query(sql)) };
+  })
+);
+
+<span class="cmt">// 3. Use it — R tracks the requirement</span>
+<span class="kw">const</span> <span class="fn">getUsers</span>: Effect&lt;<span class="typ">Database</span>, DbError, User[]&gt; =
+  Effect.flatMap(
+    Effect.service(Database),
+    db => db.query(<span class="str">"SELECT * FROM users"</span>)
+  );
+
+<span class="cmt">// 4. Provide the layer — R becomes 'never' (satisfied)</span>
+<span class="kw">const</span> <span class="fn">runnable</span> = getUsers.pipe(Effect.provide(DatabaseLive));
+<span class="cmt">// Type: Effect&lt;never, DbError, User[]&gt;  — no more requirements</span></code></pre>
+
+    <p>Key insight: <strong>layers compose</strong>. <code>Layer.merge(DatabaseLive, LoggerLive)</code> builds both. Layers are memoized — each service is constructed exactly once. For testing, swap <code>DatabaseLive</code> for <code>DatabaseTest</code>.</p>
+  </div>
+
+  <!-- Tab 4: Error tracking -->
+  <div class="tab-content">
+    <h3>Error Tracking via the E Parameter</h3>
+    <p>In normal TypeScript, errors are invisible in types:</p>
+    <pre><code><span class="cmt">// What errors can this throw? Who knows!</span>
+<span class="kw">async function</span> <span class="fn">getUser</span>(id: <span class="kw">string</span>): Promise&lt;User&gt; {
+  <span class="kw">const</span> res = <span class="kw">await</span> fetch(<span class="str">`/api/users/${id}`</span>);  <span class="cmt">// NetworkError?</span>
+  <span class="kw">if</span> (!res.ok) <span class="kw">throw new</span> Error(<span class="str">"Not found"</span>);   <span class="cmt">// Invisible in type</span>
+  <span class="kw">return</span> res.json();                           <span class="cmt">// ParseError?</span>
+}</code></pre>
+
+    <p>In Effect-TS, errors are <strong>union-tracked in E</strong>:</p>
+    <pre><code><span class="kw">const</span> <span class="fn">getUser</span> = (id: <span class="kw">string</span>): Effect&lt;<span class="typ">HttpClient</span>, <span class="typ">NetworkError | NotFoundError | ParseError</span>, User&gt; =>
+  pipe(
+    HttpClient.get(<span class="str">`/api/users/${id}`</span>),  <span class="cmt">// E includes NetworkError</span>
+    Effect.filterOrFail(                    <span class="cmt">// E adds NotFoundError</span>
+      res => res.status === <span class="num">200</span>,
+      () => <span class="kw">new</span> NotFoundError(id)
+    ),
+    Effect.flatMap(res => parseJson(res)),  <span class="cmt">// E adds ParseError</span>
+  );
+<span class="cmt">// TypeScript enforces you handle ALL of these before 'running'</span></code></pre>
+
+    <p>You handle errors with typed combinators instead of try/catch:</p>
+    <pre><code>pipe(
+  getUser(<span class="str">"123"</span>),
+  Effect.catchTag(<span class="str">"NotFoundError"</span>, () => Effect.succeed(defaultUser)),
+  <span class="cmt">// E is now: NetworkError | ParseError  (NotFoundError handled)</span>
+)</code></pre>
+  </div>
+
+  <!-- Tab 5: Escape hatches -->
+  <div class="tab-content">
+    <h3>The Escape Hatches — Where Guarantees Break</h3>
+    <p>Effect-TS is a <strong>convention</strong>, not a <strong>cage</strong>. Here's where it leaks:</p>
+
+    <div class="card" style="border-color:rgba(255,107,107,.3)">
+      <h4 style="color:var(--red)">1. Raw side effects bypass tracking</h4>
+      <pre><code><span class="kw">const</span> <span class="fn">sneaky</span> = Effect.sync(() => {
+  console.log(<span class="str">"This side effect is invisible to the type"</span>);
+  fs.writeFileSync(<span class="str">"/tmp/oops"</span>, <span class="str">"data"</span>);
+  <span class="kw">return</span> <span class="num">42</span>;
+});
+<span class="cmt">// Type: Effect&lt;never, never, number&gt;</span>
+<span class="cmt">// Claims: no requirements, no errors, pure number</span>
+<span class="cmt">// Reality: does I/O and console logging</span></code></pre>
+    </div>
+    <div class="card" style="border-color:rgba(255,107,107,.3)">
+      <h4 style="color:var(--red)">2. <code>as any</code> breaks everything</h4>
+      <pre><code><span class="kw">const</span> lie = someEffect <span class="kw">as any as</span> Effect&lt;<span class="kw">never</span>, <span class="kw">never</span>, <span class="kw">string</span>&gt;;</code></pre>
+    </div>
+    <div class="card" style="border-color:rgba(255,107,107,.3)">
+      <h4 style="color:var(--red)">3. Mixing Effect and non-Effect code</h4>
+      <p>If half your codebase uses Effect wrappers and half doesn't, the boundary is unpoliced. Nothing stops a colleague from writing <code>fetch()</code> directly.</p>
+    </div>
+    <div class="card" style="border-color:rgba(255,107,107,.3)">
+      <h4 style="color:var(--red)">4. Effect.runSync can throw at runtime</h4>
+      <p>If you <code>runSync</code> an async effect, it throws at runtime — the types don't prevent this.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================= -->
+<h2>3. How KindScript Actually Works</h2>
+<!-- ========================================= -->
+
+<div class="tabs" id="ksc-tabs">
+  <div class="tab active" onclick="switchTab('ksc-tabs','ksc-content',0)">Architecture</div>
+  <div class="tab" onclick="switchTab('ksc-tabs','ksc-content',1)">The Pipeline</div>
+  <div class="tab" onclick="switchTab('ksc-tabs','ksc-content',2)">AST Walking</div>
+  <div class="tab" onclick="switchTab('ksc-tabs','ksc-content',3)">Property Checks</div>
+  <div class="tab" onclick="switchTab('ksc-tabs','ksc-content',4)">What It Catches</div>
+</div>
+
+<div id="ksc-content">
+  <!-- Tab 0: Architecture -->
+  <div class="tab-content active">
+    <h3>KindScript is a Compiler Extension, Not a Library</h3>
+    <p>KindScript follows TypeScript's own multi-phase compiler pattern. It delegates parsing to <code>ts.createProgram()</code>, then runs its own bind → link → check phases on top:</p>
+
+    <div class="flow">
+      <div class="flow-box flow-ts">ts.createProgram()</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-ts">ts.SourceFile[]</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-ksc">ksBind(config)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-ksc">ksLink(symbols, tsProgram)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-ksc">ksCheck(resolved)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box flow-neutral">KSDiagnostic[]</div>
+    </div>
+
+    <p>The key files:</p>
+    <div class="card-grid">
+      <div class="card"><h4>config.ts</h4><p>Type definitions + <code>defineConfig()</code> helper. Properties are declared here as plain objects.</p></div>
+      <div class="card"><h4>binder.ts</h4><p>Converts config entries into <code>KindSymbol[]</code> — internal representations of analysis targets.</p></div>
+      <div class="card"><h4>linker.ts</h4><p>Maps KindSymbols to actual <code>ts.SourceFile</code> objects by matching paths to files on disk.</p></div>
+      <div class="card"><h4>checker.ts</h4><p>The heavy lifting (~520 lines). Walks ASTs using <code>ts.forEachChild()</code>, runs property checks, emits diagnostics.</p></div>
+      <div class="card"><h4>program.ts</h4><p>Top-level coordinator. Creates the TS program, runs binder/linker/checker.</p></div>
+      <div class="card"><h4>types.ts</h4><p>The type system: <code>PropertySpec</code>, <code>KindSymbol</code>, <code>KSDiagnostic</code>, etc.</p></div>
+    </div>
+  </div>
+
+  <!-- Tab 1: Pipeline -->
+  <div class="tab-content">
+    <h3>The Four-Phase Pipeline</h3>
+
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Phase 1: Parse</strong> — delegated entirely to TypeScript</div>
+      <div class="expand-body">
+        <pre><code><span class="kw">const</span> tsProgram = ts.createProgram(rootNames, options);
+<span class="cmt">// TypeScript does: scan → parse → bind → type-check</span>
+<span class="cmt">// KindScript gets: ts.SourceFile[] + ts.TypeChecker</span></code></pre>
+        <p>KindScript doesn't re-parse anything. It piggybacks on TypeScript's full AST.</p>
+      </div>
+    </div>
+
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Phase 2: Bind</strong> — config → symbols</div>
+      <div class="expand-body">
+        <pre><code><span class="cmt">// Input: your kindscript.config.ts</span>
+<span class="kw">export default</span> defineConfig({
+  domain: {
+    path: <span class="str">'./src/domain'</span>,
+    rules: { pure: <span class="kw">true</span>, noImports: <span class="kw">true</span> }
+  },
+  infra: {
+    path: <span class="str">'./src/infra'</span>,
+    rules: { noIO: <span class="kw">true</span> }
+  }
+});
+
+<span class="cmt">// Output: KindSymbol[]</span>
+<span class="cmt">// [</span>
+<span class="cmt">//   { id:0, name:"domain", path:"./src/domain",</span>
+<span class="cmt">//     declaredProperties: { pure:true, noImports:true } },</span>
+<span class="cmt">//   { id:1, name:"infra", path:"./src/infra",</span>
+<span class="cmt">//     declaredProperties: { noIO:true } }</span>
+<span class="cmt">// ]</span></code></pre>
+      </div>
+    </div>
+
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Phase 3: Link</strong> — symbols + files → resolved targets</div>
+      <div class="expand-body">
+        <pre><code><span class="cmt">// For each symbol, find matching ts.SourceFiles</span>
+<span class="cmt">// "domain" with path "./src/domain" → all .ts files under src/domain/</span>
+<span class="cmt">// "infra" with path "./src/infra/db.ts" → exactly that one file</span>
+<span class="cmt">//</span>
+<span class="cmt">// Output: ResolvedSymbol[]</span>
+<span class="cmt">// { symbol, sourceFiles: ts.SourceFile[], members? }</span></code></pre>
+        <p>This is where config paths become real files. The linker handles file vs directory matching, composite members, and declaration file filtering.</p>
+      </div>
+    </div>
+
+    <div class="expand" onclick="toggleExpand(this)">
+      <div class="expand-header"><span class="expand-arrow">▶</span> <strong>Phase 4: Check</strong> — walk ASTs, compare properties, emit diagnostics</div>
+      <div class="expand-body">
+        <pre><code><span class="cmt">// For each resolved symbol → for each source file → for each declared property:</span>
+<span class="kw">const</span> check = intrinsicChecks.get(propertyName);
+<span class="kw">const</span> result = check(sourceFile, tsChecker);
+<span class="kw">if</span> (!result.ok) {
+  diagnostics.push(createDiagnostic(prop, sourceFile, result.violations[<span class="num">0</span>]));
+}</code></pre>
+        <p>The checker uses a <strong>registry pattern</strong>: each property is an independent function <code>(node, checker) → { ok, violations[] }</code>. Diagnostics match TypeScript's format (file, start, length, message, code).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: AST Walking -->
+  <div class="tab-content">
+    <h3>How AST Walking Works</h3>
+    <p>KindScript uses TypeScript's own AST traversal. Here's what happens when you declare <code>noMutation: true</code>:</p>
+
+    <pre><code><span class="kw">function</span> <span class="fn">checkNoMutation</span>(node: ts.Node): { ok: <span class="kw">boolean</span>; violations: PropertyViolation[] } {
+  <span class="kw">const</span> violations: PropertyViolation[] = [];
+
+  <span class="kw">function</span> <span class="fn">visit</span>(n: ts.Node) {
+    <span class="cmt">// Catch: x = 1, x += 1, obj.prop = val</span>
+    <span class="kw">if</span> (ts.isBinaryExpression(n)) {
+      <span class="kw">const</span> op = n.operatorToken.kind;
+      <span class="kw">if</span> (op === ts.SyntaxKind.EqualsToken ||
+          op === ts.SyntaxKind.PlusEqualsToken || <span class="cmt">/* ... */</span>) {
+        violations.push({ property: <span class="str">'noMutation'</span>, node: n, message: <span class="str">`Assignment`</span> });
+      }
+    }
+    <span class="cmt">// Catch: x++, x--</span>
+    <span class="kw">if</span> (ts.isPostfixUnaryExpression(n) || ts.isPrefixUnaryExpression(n)) {
+      violations.push({ property: <span class="str">'noMutation'</span>, node: n, message: <span class="str">`Increment/decrement`</span> });
+    }
+    <span class="cmt">// Catch: delete obj.prop</span>
+    <span class="kw">if</span> (ts.isDeleteExpression(n)) {
+      violations.push({ property: <span class="str">'noMutation'</span>, node: n, message: <span class="str">`Delete expression`</span> });
+    }
+
+    ts.forEachChild(n, visit);  <span class="cmt">// recurse into children</span>
+  }
+
+  visit(node);
+  <span class="kw">return</span> { ok: violations.length === <span class="num">0</span>, violations };
+}</code></pre>
+
+    <p>This is direct pattern matching on the AST. No monads, no wrappers — KindScript reads your actual source code and checks what it does.</p>
+  </div>
+
+  <!-- Tab 3: Property Checks -->
+  <div class="tab-content">
+    <h3>The Property Registry</h3>
+    <p>Every property is an independent check function registered in a map:</p>
+    <pre><code><span class="kw">const</span> intrinsicChecks = <span class="kw">new</span> Map&lt;<span class="kw">string</span>, IntrinsicCheckFn&gt;([
+  [<span class="str">'noImports'</span>,     checkNoImports],     <span class="cmt">// import/require statements</span>
+  [<span class="str">'noConsole'</span>,     checkNoConsole],     <span class="cmt">// console.* access</span>
+  [<span class="str">'immutable'</span>,     checkImmutable],     <span class="cmt">// let/var at module scope</span>
+  [<span class="str">'static'</span>,        checkStatic],        <span class="cmt">// dynamic import()</span>
+  [<span class="str">'noSideEffects'</span>, checkNoSideEffects], <span class="cmt">// top-level non-declarations</span>
+  [<span class="str">'noMutation'</span>,    checkNoMutation],    <span class="cmt">// assignment, ++, delete</span>
+  [<span class="str">'noIO'</span>,          checkNoIO],          <span class="cmt">// fs/net/http imports</span>
+  [<span class="str">'pure'</span>,          checkPure],          <span class="cmt">// composite: noIO ∧ noMutation ∧ noSideEffects</span>
+]);</code></pre>
+    <p>This is exactly the <strong>pluggable axis</strong> pattern from the previous doc — each property is independent, composable, and the registry is extensible.</p>
+
+    <h3>Satisfaction Check</h3>
+    <pre><code><span class="cmt">// Declared: { pure: true, noIO: true }  ← what you claim</span>
+<span class="cmt">// Computed: { pure: false, noIO: true }  ← what the AST shows</span>
+<span class="cmt">// Result:   pure: false ⊇ true → VIOLATION!</span>
+<span class="cmt">//           noIO: true ⊇ true  → OK</span></code></pre>
+  </div>
+
+  <!-- Tab 4: What it catches -->
+  <div class="tab-content">
+    <h3>What KindScript Actually Catches</h3>
+    <div id="ksc-demo" class="demo-box">
+      <h4>Click a scenario to see KindScript's analysis:</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.5rem">
+        <button class="demo-btn active" onclick="showKscDemo(0)">Pure violation</button>
+        <button class="demo-btn" onclick="showKscDemo(1)">IO violation</button>
+        <button class="demo-btn" onclick="showKscDemo(2)">Mutation</button>
+        <button class="demo-btn" onclick="showKscDemo(3)">All clean</button>
+      </div>
+      <div class="demo-output" id="ksc-demo-output"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================= -->
+<h2>4. The Fundamental Difference</h2>
+<!-- ========================================= -->
+
+<div class="demo-box">
+  <h4>The Same Code, Two Perspectives</h4>
+  <pre><code><span class="cmt">// src/domain/user.ts</span>
+<span class="kw">export function</span> <span class="fn">processUser</span>(user: User): Result {
+  console.log(<span class="str">`Processing ${user.name}`</span>);     <span class="cmt">// side effect</span>
+  <span class="kw">const</span> data = <span class="kw">await</span> fetch(<span class="str">"/api/save"</span>);    <span class="cmt">// I/O</span>
+  user.processed = <span class="kw">true</span>;                     <span class="cmt">// mutation</span>
+  <span class="kw">return</span> { ok: <span class="kw">true</span> };
+}</code></pre>
+
+  <div class="vs-grid" style="margin-top:1rem">
+    <div class="vs-col effect">
+      <h4>Effect-TS says...</h4>
+      <p style="font-size:.88rem"><strong>Nothing.</strong> This is plain TypeScript. Effect-TS doesn't exist in this code. It only knows about code that uses Effect wrappers. This function is invisible to it.</p>
+      <p style="font-size:.88rem">To get Effect-TS tracking, you'd need to <em>rewrite</em> the function:</p>
+      <pre><code style="font-size:.78rem"><span class="kw">const</span> processUser = (user: User) =>
+  pipe(
+    Effect.log(<span class="str">`Processing...`</span>),
+    Effect.flatMap(() =>
+      HttpClient.post(<span class="str">"/api/save"</span>)),
+    Effect.map(() => ({ok:<span class="kw">true</span>}))
+  );</code></pre>
+    </div>
+    <div class="vs-label">vs</div>
+    <div class="vs-col ksc">
+      <h4>KindScript says...</h4>
+      <p style="font-size:.88rem"><strong>Three violations</strong> (if <code>pure: true</code> is declared for this path):</p>
+      <pre><code style="font-size:.78rem"><span class="red" style="color:var(--red)">KS70003</span> Pure violation: console.log
+  → src/domain/user.ts:2:3
+
+<span style="color:var(--red)">KS70007</span> No-IO violation: fetch
+  → src/domain/user.ts:3:22
+
+<span style="color:var(--red)">KS70013</span> Mutation violation: assignment
+  → src/domain/user.ts:4:3</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================= -->
+<h2>5. What Each Approach Can and Can't Do</h2>
+<!-- ========================================= -->
+
+<div class="tabs" id="cap-tabs">
+  <div class="tab active" onclick="switchTab('cap-tabs','cap-content',0)">Capabilities Grid</div>
+  <div class="tab" onclick="switchTab('cap-tabs','cap-content',1)">Depth vs Breadth</div>
+  <div class="tab" onclick="switchTab('cap-tabs','cap-content',2)">The Composability Gap</div>
+</div>
+
+<div id="cap-content">
+  <div class="tab-content active">
+    <h3>What Can Each System Tell You?</h3>
+    <div id="cap-grid"></div>
+  </div>
+
+  <div class="tab-content">
+    <h3>Depth vs Breadth</h3>
+    <div class="vs-grid">
+      <div class="vs-col effect">
+        <h4>Effect-TS: Deep on Effects</h4>
+        <p>Within code that uses Effect wrappers, you get an extraordinarily rich picture: every dependency tracked, every error typed, concurrency managed, resources scoped, retries declarative.</p>
+        <p>But it covers <strong>only one axis</strong> (Effects/Purity) and only for code that opts in.</p>
+        <div class="meter"><div class="meter-fill" style="width:95%;background:var(--effect-color)"></div></div>
+        <p style="font-size:.8rem;color:var(--effect-color)">Depth on effects axis: 95%</p>
+        <div class="meter"><div class="meter-fill" style="width:15%;background:var(--effect-color)"></div></div>
+        <p style="font-size:.8rem;color:var(--effect-color)">Breadth across codebase: varies (only wrapped code)</p>
+      </div>
+      <div class="vs-label">vs</div>
+      <div class="vs-col ksc">
+        <h4>KindScript: Broad Across Properties</h4>
+        <p>Covers the entire codebase — every file in the declared paths is checked. Covers multiple property axes (purity, mutation, IO, imports, side effects, fan-out).</p>
+        <p>But each check is currently <strong>shallow</strong> — syntactic pattern matching, no transitive call graph, no deep semantic analysis.</p>
+        <div class="meter"><div class="meter-fill" style="width:40%;background:var(--ksc-color)"></div></div>
+        <p style="font-size:.8rem;color:var(--ksc-color)">Depth on effects axis: 40% (syntactic)</p>
+        <div class="meter"><div class="meter-fill" style="width:95%;background:var(--ksc-color)"></div></div>
+        <p style="font-size:.8rem;color:var(--ksc-color)">Breadth across codebase: 95% (all declared paths)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content">
+    <h3>The Composability Gap</h3>
+    <p>This is where "effects as values" gives Effect-TS something KindScript currently can't match:</p>
+
+    <div class="card" style="border-color:rgba(167,139,250,.3)">
+      <h4 style="color:var(--effect-color)">Effect-TS: Composition IS the Program</h4>
+      <p>Because effects are values, you compose them with <code>pipe</code>, <code>flatMap</code>, <code>zip</code>, <code>race</code>. The types flow through composition automatically. If <code>A</code> requires <code>Database</code> and <code>B</code> requires <code>Logger</code>, composing them gives <code>A & B</code> requiring <code>Database & Logger</code>. This is <strong>compositional reasoning</strong> — the properties of the whole follow from the properties of the parts, by construction.</p>
+    </div>
+
+    <div class="card" style="border-color:rgba(78,205,196,.3)">
+      <h4 style="color:var(--ksc-color)">KindScript: Analysis After the Fact</h4>
+      <p>KindScript checks properties of code that's already written. It can see that function <code>A</code> is pure, and function <code>B</code> has mutation. But it doesn't currently track what happens when <code>A</code> calls <code>B</code>. There's no <strong>transitive property propagation</strong> yet — no call graph that says "A calls B which calls C which does IO, therefore A is impure."</p>
+      <p style="margin-top:.5rem">This is the <strong>next frontier</strong> for KindScript: building a call graph and propagating properties through it, so that a <code>pure</code> annotation on a function actually checks that nothing it transitively calls violates purity.</p>
+    </div>
+
+    <h3>What "Effects as Values" Gives You (That Static Analysis Doesn't)</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>Runtime Power</h4>
+        <p>Retry, timeout, race, fork, interrupt, scope — these are <em>runtime behaviors</em> that static analysis can describe but not implement. Effect-TS gives you both the tracking and the execution.</p>
+      </div>
+      <div class="card">
+        <h4>First-Class Error Handling</h4>
+        <p>Effect-TS makes errors visible <em>and</em> provides typed combinators to handle them. KindScript can tell you something might throw, but doesn't give you structured error handling.</p>
+      </div>
+    </div>
+
+    <h3>What Static Analysis Gives You (That Effect-TS Doesn't)</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>Zero Code Changes</h4>
+        <p>KindScript analyzes code as-is. No rewriting, no wrappers. Works on existing codebases immediately.</p>
+      </div>
+      <div class="card">
+        <h4>Verification of Claims</h4>
+        <p>KindScript checks whether code <em>actually</em> is pure, not whether the programmer <em>said</em> it was pure. Effect-TS trusts the wrapper; KindScript reads the code.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================= -->
+<h2>6. Where They Could Converge</h2>
+<!-- ========================================= -->
+
+<p>The interesting question is: what if KindScript understood Effect-TS code? Or what if they worked together?</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4 style="color:var(--yellow)">Option 1: KindScript Verifies Effect-TS</h4>
+    <p>KindScript could check that code inside <code>Effect.sync(() => ...)</code> actually matches what the Effect type claims. If <code>Effect&lt;never, never, number&gt;</code> contains a <code>console.log</code>, KindScript flags it. This bridges the trust gap.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--yellow)">Option 2: KindScript Generates Effect Types</h4>
+    <p>After AST analysis, KindScript could emit inferred effect signatures. "This function does IO and mutation" → automatically generate <code>Effect&lt;FileSystem, IOError, Result&gt;</code> type annotations or documentation.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--yellow)">Option 3: Effect-TS as KindScript's Runtime Layer</h4>
+    <p>KindScript handles static verification. Effect-TS handles runtime execution. Together: statically verified effects with a production-ready runtime.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--yellow)">Option 4: KindScript Adopts Compositional Tracking</h4>
+    <p>Build a call graph, propagate properties transitively, and achieve the same compositional reasoning that Effect-TS gets from monadic composition — but through analysis rather than encoding.</p>
+  </div>
+</div>
+
+<!-- ========================================= -->
+<h2>7. Interactive Comparison</h2>
+<!-- ========================================= -->
+
+<div class="demo-box">
+  <h4>Click a code pattern to see how each system handles it:</h4>
+  <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.8rem">
+    <button class="demo-btn active" onclick="showComparison(0)">Pure function</button>
+    <button class="demo-btn" onclick="showComparison(1)">Fetch + parse</button>
+    <button class="demo-btn" onclick="showComparison(2)">Mutation inside closure</button>
+    <button class="demo-btn" onclick="showComparison(3)">Error-prone pipeline</button>
+    <button class="demo-btn" onclick="showComparison(4)">Hidden side effect</button>
+  </div>
+  <div id="comparison-output"></div>
+</div>
+
+<!-- ========================================= -->
+<h2>8. Summary Table</h2>
+<!-- ========================================= -->
+
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0">
+<thead>
+<tr style="border-bottom:2px solid var(--border)">
+  <th style="text-align:left;padding:.6rem;color:var(--text)">Dimension</th>
+  <th style="text-align:left;padding:.6rem;color:var(--effect-color)">Effect-TS</th>
+  <th style="text-align:left;padding:.6rem;color:var(--ksc-color)">KindScript</th>
+</tr>
+</thead>
+<tbody id="summary-table">
+</tbody>
+</table>
+</div>
+
+<!-- ========================================= -->
+<h2>9. Check Your Understanding</h2>
+<!-- ========================================= -->
+
+<div class="quiz" id="quiz1">
+  <h4>Q1: If you write <code>Effect.sync(() => fs.writeFileSync("x","y"))</code>, does Effect-TS know about the IO?</h4>
+  <button class="quiz-option" onclick="checkQuiz('quiz1',false)">Yes — Effect tracks all side effects in the E parameter</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz1',true)">No — the IO is invisible; the type says Effect&lt;never, never, void&gt;</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz1',false)">Yes — the fiber runtime intercepts the fs call</button>
+  <div class="quiz-feedback" id="quiz1-feedback"></div>
+</div>
+
+<div class="quiz" id="quiz2">
+  <h4>Q2: Does KindScript use the TypeScript Compiler API?</h4>
+  <button class="quiz-option" onclick="checkQuiz('quiz2',true)">Yes — it uses ts.createProgram, ts.forEachChild, ts.SyntaxKind, etc.</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz2',false)">No — it parses TypeScript files with its own parser</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz2',false)">Partially — it only reads .ts files as text and uses regex</button>
+  <div class="quiz-feedback" id="quiz2-feedback"></div>
+</div>
+
+<div class="quiz" id="quiz3">
+  <h4>Q3: What does "effects are values" mean in Effect-TS?</h4>
+  <button class="quiz-option" onclick="checkQuiz('quiz3',false)">Side effects return values instead of void</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz3',true)">An Effect is a lazy data structure describing a computation — it doesn't execute until you explicitly run it</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz3',false)">All values in Effect-TS have associated effects</button>
+  <div class="quiz-feedback" id="quiz3-feedback"></div>
+</div>
+
+<div class="quiz" id="quiz4">
+  <h4>Q4: What can KindScript do that Effect-TS cannot?</h4>
+  <button class="quiz-option" onclick="checkQuiz('quiz4',false)">Track error types through composition</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz4',false)">Provide a fiber-based runtime with structured concurrency</button>
+  <button class="quiz-option" onclick="checkQuiz('quiz4',true)">Verify properties of ordinary TypeScript code without requiring any wrappers or rewrites</button>
+  <div class="quiz-feedback" id="quiz4-feedback"></div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(tabsId, contentId, index) {
+  const tabs = document.getElementById(tabsId).children;
+  const contents = document.getElementById(contentId).children;
+  for (let i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', i === index);
+    contents[i].classList.toggle('active', i === index);
+  }
+}
+
+// Expandable sections
+function toggleExpand(el) {
+  const arrow = el.querySelector('.expand-arrow');
+  const body = el.querySelector('.expand-body');
+  arrow.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// KSC demo
+const kscDemos = [
+  {
+    code: `// src/domain/calculator.ts  (declared: pure: true)
+export function add(a: number, b: number) {
+  console.log(\`Adding \${a} + \${b}\`);  // ← VIOLATION
+  return a + b;
+}`,
+    output: `<span style="color:var(--red)">error</span> <span style="color:var(--text2)">KS70003</span>: Pure violation: console.log property access
+  → src/domain/calculator.ts:2:3
+
+  2 |   console.log(\`Adding \${a} + \${b}\`);
+        ~~~~~~~~~~~
+
+<span style="color:var(--text2)">Found 1 violation in domain (declared: pure)</span>`
+  },
+  {
+    code: `// src/domain/repo.ts  (declared: noIO: true)
+import fs from 'fs';           // ← VIOLATION
+import { Database } from 'pg'; // ← VIOLATION
+
+export function loadConfig() {
+  return fs.readFileSync('./config.json');
+}`,
+    output: `<span style="color:var(--red)">error</span> <span style="color:var(--text2)">KS70007</span>: No-IO violation: Import from IO module 'fs'
+  → src/domain/repo.ts:1:1
+
+<span style="color:var(--red)">error</span> <span style="color:var(--text2)">KS70007</span>: No-IO violation: Import from IO module 'pg'
+  → src/domain/repo.ts:2:1
+
+<span style="color:var(--text2)">Found 2 violations in domain (declared: noIO)</span>`
+  },
+  {
+    code: `// src/domain/state.ts  (declared: noMutation: true)
+let counter = 0;              // (let is fine for noMutation — that's 'immutable')
+export function increment() {
+  counter++;                   // ← VIOLATION (postfix unary)
+  counter = counter + 1;       // ← VIOLATION (assignment)
+  delete (globalThis as any).x;// ← VIOLATION (delete)
+}`,
+    output: `<span style="color:var(--red)">error</span> <span style="color:var(--text2)">KS70013</span>: Mutation violation: Increment/decrement operator
+  → src/domain/state.ts:3:3
+
+<span style="color:var(--red)">error</span> <span style="color:var(--text2)">KS70013</span>: Mutation violation: Assignment operator
+  → src/domain/state.ts:4:3
+
+<span style="color:var(--red)">error</span> <span style="color:var(--text2)">KS70013</span>: Mutation violation: Delete expression
+  → src/domain/state.ts:5:3
+
+<span style="color:var(--text2)">Found 3 violations in domain (declared: noMutation)</span>`
+  },
+  {
+    code: `// src/domain/math.ts  (declared: pure: true)
+export function add(a: number, b: number): number {
+  return a + b;
+}
+export function multiply(a: number, b: number): number {
+  return a * b;
+}
+export const PI = 3.14159;`,
+    output: `<span style="color:var(--green)">✓</span> src/domain/math.ts — all checks passed
+
+  <span style="color:var(--green)">✓</span> pure: no IO, no mutation, no side effects
+  <span style="color:var(--green)">✓</span> noImports: no import declarations
+  <span style="color:var(--green)">✓</span> immutable: only const at module scope
+
+<span style="color:var(--green)">0 violations found</span>`
+  }
+];
+
+function showKscDemo(i) {
+  const btns = document.querySelectorAll('#ksc-demo .demo-btn');
+  btns.forEach((b,j) => b.classList.toggle('active', i===j));
+  const out = document.getElementById('ksc-demo-output');
+  out.innerHTML = `<span style="color:var(--text2)">${escapeHtml(kscDemos[i].code)}</span>\n\n<span style="color:var(--accent)">── ksc check output ──────────────────────</span>\n\n${kscDemos[i].output}`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Comparison demo
+const comparisons = [
+  {
+    title: 'Pure arithmetic function',
+    code: `function add(a: number, b: number): number {\n  return a + b;\n}`,
+    effect: `<span style="color:var(--effect-color)">Effect-TS:</span> Not an Effect — invisible. Effect-TS only tracks \ncode written with Effect wrappers. This function exists \noutside its world entirely.\n\nTo track it: rewrite as\n  const add = (a: number, b: number) => Effect.succeed(a + b)\n  // Type: Effect<never, never, number>`,
+    ksc: `<span style="color:var(--ksc-color)">KindScript:</span> If declared pure: true for this path:\n  <span style="color:var(--green)">✓ pure</span> — no IO, mutation, or side effects detected\n  <span style="color:var(--green)">✓ noMutation</span> — no assignments or deletions\n  <span style="color:var(--green)">✓ noIO</span> — no IO module imports\n\nNo code changes needed. Analyzed as-is.`
+  },
+  {
+    title: 'Fetch + JSON parse',
+    code: `async function getUser(id: string): Promise<User> {\n  const res = await fetch(\`/api/\${id}\`);\n  if (!res.ok) throw new Error("not found");\n  return res.json();\n}`,
+    effect: `<span style="color:var(--effect-color)">Effect-TS:</span> Not an Effect. To get tracking, rewrite:\n  const getUser = (id: string) => pipe(\n    HttpClient.get(\`/api/\${id}\`),\n    Effect.filterOrFail(r => r.ok, () => new NotFound(id)),\n    Effect.flatMap(r => HttpClient.json(r)),\n  )\n  // Type: Effect<HttpClient, NotFound | RequestError, User>\n  //       ^^^^^ dep tracked  ^^^^^^^^^^^^^^^^^^^^^^ errors tracked`,
+    ksc: `<span style="color:var(--ksc-color)">KindScript:</span> If declared noIO: true:\n  <span style="color:var(--red)">✗ noIO</span> — fetch is a network call (detected as side effect)\n\nIf declared pure: true:\n  <span style="color:var(--red)">✗ pure</span> — fetch detected, throw detected\n\nKindScript sees the IO. But it can't tell you the error\ntypes or give you structured error handling.`
+  },
+  {
+    title: 'Mutation inside closure',
+    code: `function makeCounter() {\n  let count = 0;\n  return {\n    inc: () => { count++; },\n    get: () => count\n  };\n}`,
+    effect: `<span style="color:var(--effect-color)">Effect-TS:</span> Not an Effect — invisible. The mutation (count++)\nis completely untracked. Even if you wrapped makeCounter\nin Effect.sync, the type would be:\n  Effect<never, never, {inc: ()=>void, get: ()=>number}>\n  — claims no effects, but inc() mutates closed-over state.`,
+    ksc: `<span style="color:var(--ksc-color)">KindScript:</span> If declared noMutation: true:\n  <span style="color:var(--red)">✗ noMutation</span> — count++ is a postfix unary mutation\n  The AST walker finds the ++ operator inside the closure.\n\nKindScript catches this even though it's hidden inside\na closure — it walks the entire AST tree recursively.`
+  },
+  {
+    title: 'Error-prone data pipeline',
+    code: `function process(data: unknown): Result {\n  const parsed = JSON.parse(data as string);\n  const validated = schema.parse(parsed);\n  return transform(validated);\n}`,
+    effect: `<span style="color:var(--effect-color)">Effect-TS:</span> Not an Effect — invisible. Rewritten:\n  const process = (data: unknown) => pipe(\n    Effect.try(() => JSON.parse(data as string)),\n    Effect.flatMap(p => Effect.try(() => schema.parse(p))),\n    Effect.flatMap(v => transform(v)),\n  )\n  // Type: Effect<never, UnknownException, Result>\n  // Every failure point is captured in E. You're forced\n  // to handle UnknownException before running.`,
+    ksc: `<span style="color:var(--ksc-color)">KindScript:</span> If declared pure: true:\n  <span style="color:var(--green)">✓ pure</span> — no IO, mutation, or console detected\n  (JSON.parse looks pure to the AST — it's a function call,\n  not an import from an IO module)\n\nKindScript doesn't currently know that JSON.parse can throw.\nThis is a depth limitation: it checks syntax patterns,\nnot semantic behaviors like "can throw."`
+  },
+  {
+    title: 'Hidden side effect in Effect.sync',
+    code: `const sneaky = Effect.sync(() => {\n  globalThis.secretCounter++;\n  fs.appendFileSync("/tmp/log", "tracked");\n  return 42;\n});`,
+    effect: `<span style="color:var(--effect-color)">Effect-TS:</span>\n  Type: Effect<never, never, number>\n  Claims: no requirements, no errors, returns number.\n  <span style="color:var(--red)">LIES.</span> The callback mutates global state and does IO.\n  Effect-TS trusts the wrapper — it cannot see inside.`,
+    ksc: `<span style="color:var(--ksc-color)">KindScript:</span> If declared pure: true or noMutation: true:\n  <span style="color:var(--red)">✗ noMutation</span> — globalThis.secretCounter++ detected\n  <span style="color:var(--red)">✗ noIO</span> — import of 'fs' module detected\n\nKindScript catches BOTH violations by walking the AST.\nIt doesn't care that the code is inside an Effect.sync\ncallback — it sees the actual operations.`
+  }
+];
+
+function showComparison(i) {
+  const btns = document.querySelectorAll('#comparison-output').closest('.demo-box').querySelectorAll('.demo-btn');
+  btns.forEach((b,j) => b.classList.toggle('active', i===j));
+  const c = comparisons[i];
+  document.getElementById('comparison-output').innerHTML = `
+    <div style="margin-bottom:.8rem;font-size:.9rem;color:var(--yellow)">▸ ${c.title}</div>
+    <pre><code>${escapeHtml(c.code)}</code></pre>
+    <div class="vs-grid" style="margin-top:1rem">
+      <div class="vs-col effect"><div class="demo-output" style="margin:0;min-height:auto">${c.effect}</div></div>
+      <div class="vs-label" style="font-size:1.2rem">vs</div>
+      <div class="vs-col ksc"><div class="demo-output" style="margin:0;min-height:auto">${c.ksc}</div></div>
+    </div>`;
+}
+
+// Summary table
+const summaryRows = [
+  ['What it is', 'Runtime library (npm package)', 'Static analyzer (compiler extension)'],
+  ['How it works', 'Monadic wrappers + TypeScript generics', 'AST walking via ts.forEachChild()'],
+  ['Uses TS Compiler API?', 'No — pure library, no compiler access', 'Yes — ts.createProgram, ts.SyntaxKind, etc.'],
+  ['Code changes needed?', 'Total rewrite into Effect wrappers', 'Zero — analyzes existing code as-is'],
+  ['Enforcement', 'Voluntary — team must use wrappers', 'Mandatory — analyzer checks all declared paths'],
+  ['Effect tracking', 'Deep: R, E, A parameters propagate', 'Shallow: syntactic pattern matching'],
+  ['Error handling', 'Typed combinators (catchTag, catchAll)', 'Reports violations; no error handling tools'],
+  ['Composability', 'Built-in: pipe, flatMap, zip, race', 'Not yet — no transitive call graph'],
+  ['Runtime features', 'Fibers, retry, timeout, scope, race', 'None — pure static analysis'],
+  ['Trust model', 'Trust the programmer to always wrap', 'Trust the analyzer to always check'],
+  ['Config location', 'In the code (Effect types)', 'In kindscript.config.ts (external)'],
+  ['Output', 'Executable Effect programs', 'Diagnostics (like tsc errors)'],
+  ['Escape hatches', 'Raw JS, as any, Effect.sync(() => sideEffect)', 'None (but checks are currently shallow)'],
+];
+
+const tbody = document.getElementById('summary-table');
+summaryRows.forEach(([dim, eff, ksc]) => {
+  const tr = document.createElement('tr');
+  tr.style.borderBottom = '1px solid var(--border)';
+  tr.innerHTML = `<td style="padding:.5rem .6rem;color:var(--text);font-weight:500">${dim}</td><td style="padding:.5rem .6rem;color:var(--text2)">${eff}</td><td style="padding:.5rem .6rem;color:var(--text2)">${ksc}</td>`;
+  tbody.appendChild(tr);
+});
+
+// Capabilities grid
+const capabilities = [
+  ['Detect pure functions', true, true, 'Effect wraps; KSC walks AST'],
+  ['Detect IO operations', true, true, 'Effect: via service tags. KSC: via import analysis'],
+  ['Detect mutation', false, true, 'Effect doesn\'t track mutation inside sync. KSC finds ++, =, delete'],
+  ['Track error types', true, false, 'Effect: E parameter. KSC: not yet'],
+  ['Transitive property propagation', true, false, 'Effect: via monadic composition. KSC: planned, not implemented'],
+  ['Dependency injection', true, false, 'Effect: Layer system. KSC: not in scope'],
+  ['Analyze existing TS code', false, true, 'Effect needs rewrites. KSC works on vanilla TS'],
+  ['Verify wrapper correctness', false, true, 'KSC could check inside Effect.sync callbacks'],
+  ['Runtime retry/timeout/race', true, false, 'Effect is also a runtime. KSC is analysis-only'],
+  ['Architectural constraints', false, true, 'KSC: noImports, maxFanOut, composites, noCycles'],
+  ['Works without opt-in', false, true, 'Effect requires using its API. KSC checks all files'],
+  ['Structured concurrency', true, false, 'Effect fibers with scoped resources'],
+];
+
+const capDiv = document.getElementById('cap-grid');
+let capHtml = '<table style="width:100%;border-collapse:collapse;font-size:.85rem">';
+capHtml += '<tr style="border-bottom:2px solid var(--border)"><th style="text-align:left;padding:.5rem">Capability</th><th style="padding:.5rem;color:var(--effect-color);text-align:center">Effect-TS</th><th style="padding:.5rem;color:var(--ksc-color);text-align:center">KindScript</th><th style="text-align:left;padding:.5rem">Notes</th></tr>';
+capabilities.forEach(([cap, eff, ksc, note]) => {
+  capHtml += `<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:.45rem .5rem;color:var(--text)">${cap}</td>
+    <td style="padding:.45rem;text-align:center">${eff ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
+    <td style="padding:.45rem;text-align:center">${ksc ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
+    <td style="padding:.45rem .5rem;color:var(--text2);font-size:.8rem">${note}</td>
+  </tr>`;
+});
+capHtml += '</table>';
+capDiv.innerHTML = capHtml;
+
+// Quiz
+function checkQuiz(quizId, correct) {
+  const fb = document.getElementById(quizId + '-feedback');
+  if (correct) {
+    fb.className = 'quiz-feedback correct';
+    fb.textContent = quizId === 'quiz1' ? 'Correct! Effect.sync wraps a callback but doesn\'t inspect it. The type parameters come from the wrapper signature, not from analyzing the callback\'s contents. Any side effect inside is invisible to the type system.' :
+      quizId === 'quiz2' ? 'Correct! KindScript delegates parsing to ts.createProgram() and then walks the resulting AST using ts.forEachChild(), ts.isBinaryExpression(), ts.SyntaxKind, etc. It\'s deeply integrated with the TS compiler.' :
+      quizId === 'quiz3' ? 'Correct! An Effect is a lazy data structure — like a recipe vs cooking. You can store it, pass it, compose it. Nothing happens until you call Effect.runPromise() or Effect.runSync().' :
+      'Correct! KindScript walks the AST of ordinary TypeScript code. No wrappers, no rewrites, no opt-in required. Effect-TS only knows about code that uses its API.';
+  } else {
+    fb.className = 'quiz-feedback wrong';
+    fb.textContent = quizId === 'quiz1' ? 'Not quite. Effect.sync takes a callback but doesn\'t analyze what\'s inside it. The type says Effect<never, never, void> regardless of what side effects the callback contains.' :
+      quizId === 'quiz2' ? 'Not quite. KindScript heavily uses the TypeScript Compiler API — ts.createProgram for parsing, ts.forEachChild for AST traversal, and ts.SyntaxKind for node matching.' :
+      quizId === 'quiz3' ? 'Not quite. "Effects as values" means the Effect itself is a data structure that describes a computation without executing it — like a recipe you can pass around.' :
+      'Not quite. The unique thing KindScript does is analyze ordinary TypeScript code without requiring any Effect wrappers or rewrites.';
+  }
+}
+
+// Initialize
+showKscDemo(0);
+showComparison(0);
+</script>
+
+</body>
+</html>

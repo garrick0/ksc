@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KindScript Properties at Every Syntactic Level</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a2e;--surface3:#222240;--border:#2a2a4a;--text:#e0e0f0;--text-dim:#8888aa;--accent:#7c6ff7;--accent2:#00d4aa;--accent3:#ff6b9d;--accent4:#ffa64d;--accent5:#4dc3ff;--error:#ff4466;--success:#44ff88;--warning:#ffcc44}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'SF Mono','Fira Code','JetBrains Mono',monospace;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+h1{font-size:1.8em;margin:40px 0 10px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.3em;margin:32px 0 12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+h3{font-size:1.08em;margin:16px 0 8px;color:var(--accent2)}
+p{margin:10px 0;color:var(--text-dim);font-size:0.93em}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:0.82em;margin:10px 0;line-height:1.5}
+.kw{color:var(--accent3)}.tp{color:var(--accent)}.fn{color:var(--accent2)}.str{color:var(--accent4)}.cm{color:var(--text-dim);font-style:italic}.ok{color:var(--success)}.err{color:var(--error)}.num{color:var(--accent5)}.prop{color:var(--warning);font-weight:bold}
+
+.hero{text-align:center;padding:50px 20px 20px}
+.hero h1{font-size:2.1em;margin-bottom:12px}
+.hero p{font-size:1em;max-width:720px;margin:0 auto}
+.subtitle{color:var(--accent3);font-size:0.85em;margin-top:10px;letter-spacing:2px;text-transform:uppercase}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin:15px 0}
+.card-accent{border-left:3px solid var(--accent)}
+.card-green{border-left:3px solid var(--accent2)}
+.card-pink{border-left:3px solid var(--accent3)}
+.card-orange{border-left:3px solid var(--accent4)}
+.card-blue{border-left:3px solid var(--accent5)}
+.card-yellow{border-left:3px solid var(--warning)}
+
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin:15px 0 0}
+.tab-btn{padding:8px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px 8px 0 0;cursor:pointer;color:var(--text-dim);font-size:0.8em;font-family:inherit;transition:all 0.2s}
+.tab-btn:hover{color:var(--text);background:var(--surface3)}
+.tab-btn.active{color:var(--accent);background:var(--surface3);border-bottom-color:var(--surface3)}
+.tab-content{display:none;background:var(--surface3);border:1px solid var(--border);border-radius:0 8px 8px 8px;padding:20px}
+.tab-content.active{display:block}
+
+.step{padding:12px 16px;background:var(--surface2);border-left:3px solid var(--border);border-radius:0 8px 8px 0;cursor:pointer;transition:all 0.3s;margin:6px 0}
+.step:hover{background:var(--surface3)}
+.step.active{border-left-color:var(--accent);background:var(--surface3)}
+.step-num{color:var(--accent);font-weight:bold;margin-right:8px}
+.step-detail{display:none;margin-top:8px;padding:10px;background:var(--surface);border-radius:6px;color:var(--text-dim);font-size:0.9em}
+.step.active .step-detail{display:block}
+
+table{width:100%;border-collapse:collapse;margin:15px 0;font-size:0.83em}
+th,td{padding:9px 12px;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface3);color:var(--accent)}
+td{background:var(--surface);color:var(--text-dim)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+.callout{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin:12px 0;font-size:0.9em}
+.callout-key{color:var(--accent4);font-weight:bold}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75em;font-weight:bold}
+.badge-expr{background:rgba(0,212,170,0.15);color:var(--accent2);border:1px solid rgba(0,212,170,0.3)}
+.badge-stmt{background:rgba(255,107,157,0.15);color:var(--accent3);border:1px solid rgba(255,107,157,0.3)}
+.badge-decl{background:rgba(124,111,247,0.15);color:var(--accent);border:1px solid rgba(124,111,247,0.3)}
+.badge-pat{background:rgba(255,166,77,0.15);color:var(--accent4);border:1px solid rgba(255,166,77,0.3)}
+.badge-type{background:rgba(77,195,255,0.15);color:var(--accent5);border:1px solid rgba(77,195,255,0.3)}
+.badge-mod{background:rgba(255,204,68,0.15);color:var(--warning);border:1px solid rgba(255,204,68,0.3)}
+.badge-prop{background:rgba(255,166,77,0.2);color:var(--accent4);border:1px solid rgba(255,166,77,0.4)}
+
+/* Level cards for the overview */
+.level-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:all 0.3s}
+.level-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.level-card.active{border-color:var(--accent);background:var(--surface3);box-shadow:0 0 20px rgba(124,111,247,0.15)}
+.level-card h4{margin-bottom:6px}
+.level-card .level-props{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+
+/* Property pill */
+.prop-pill{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.72em;font-weight:bold;border:1px solid}
+.prop-pill.p-pure{background:rgba(0,212,170,0.12);color:var(--accent2);border-color:rgba(0,212,170,0.3)}
+.prop-pill.p-det{background:rgba(124,111,247,0.12);color:var(--accent);border-color:rgba(124,111,247,0.3)}
+.prop-pill.p-total{background:rgba(77,195,255,0.12);color:var(--accent5);border-color:rgba(77,195,255,0.3)}
+.prop-pill.p-term{background:rgba(255,204,68,0.12);color:var(--warning);border-color:rgba(255,204,68,0.3)}
+.prop-pill.p-const{background:rgba(255,107,157,0.12);color:var(--accent3);border-color:rgba(255,107,157,0.3)}
+.prop-pill.p-imm{background:rgba(255,166,77,0.12);color:var(--accent4);border-color:rgba(255,166,77,0.3)}
+.prop-pill.p-send{background:rgba(68,255,136,0.12);color:var(--success);border-color:rgba(68,255,136,0.3)}
+.prop-pill.p-exh{background:rgba(200,180,255,0.12);color:#c8b4ff;border-color:rgba(200,180,255,0.3)}
+
+/* Composition lattice */
+.lattice{display:flex;flex-direction:column;align-items:center;gap:4px;margin:15px 0}
+.lattice-row{display:flex;gap:8px;align-items:center;font-size:0.85em}
+.lattice-node{padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;text-align:center;min-width:80px}
+.lattice-node.top{border-color:var(--success);color:var(--success)}
+.lattice-node.bot{border-color:var(--error);color:var(--error)}
+.lattice-arrow{color:var(--text-dim)}
+
+/* Flow diagram */
+.flow-container{position:relative;padding:20px 0}
+.flow-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:8px 0}
+.flow-box{padding:10px 16px;border-radius:8px;font-size:0.82em;font-weight:bold;text-align:center;min-width:120px}
+.flow-arrow{font-size:1.2em;color:var(--text-dim)}
+.flow-label{font-size:0.72em;color:var(--text-dim);text-align:center}
+
+/* Value meter */
+.meter{height:8px;border-radius:4px;background:var(--surface2);margin:6px 0;overflow:hidden}
+.meter-fill{height:100%;border-radius:4px;transition:width 0.5s}
+.meter-high{background:linear-gradient(90deg,var(--accent2),var(--success))}
+.meter-med{background:linear-gradient(90deg,var(--accent4),var(--warning))}
+.meter-low{background:linear-gradient(90deg,var(--accent3),var(--error))}
+
+/* Quiz */
+.quiz-q{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin:12px 0}
+.quiz-q p{color:var(--text);font-weight:bold;font-size:0.95em}
+.quiz-opts{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.quiz-opt{padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.85em;font-family:inherit;color:var(--text-dim);text-align:left;transition:all 0.2s}
+.quiz-opt:hover{border-color:var(--accent);color:var(--text)}
+.quiz-opt.correct{border-color:var(--success);background:rgba(68,255,136,0.08);color:var(--success)}
+.quiz-opt.wrong{border-color:var(--error);background:rgba(255,68,102,0.08);color:var(--error)}
+.quiz-explain{display:none;margin-top:8px;padding:10px;background:var(--surface2);border-radius:6px;font-size:0.85em;color:var(--text-dim)}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <h1>Properties at Every Syntactic Level</h1>
+  <p>KindScript currently assigns properties to function declarations. But what if we could assign properties to <em>every</em> syntactic category — expressions, statements, patterns, types, modules? What would that look like, and what would it buy us?</p>
+  <div class="subtitle">Part 21 — KindScript Research Series</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- OVERVIEW -->
+<!-- ============================================================ -->
+
+<h1>1. The Vision: A Property for Every Level</h1>
+<p>TypeScript assigns <strong>types</strong> to expressions and <strong>symbols</strong> to declarations. KindScript could assign <strong>behavioral properties</strong> at every level of the syntax tree, creating a parallel property environment that flows alongside the type environment.</p>
+
+<div class="card card-accent">
+<pre><span class="cm">// Today: KindScript assigns properties to declarations</span>
+<span class="cm">// @ksc pure, noIO</span>
+<span class="kw">function</span> <span class="fn">add</span>(a: <span class="tp">number</span>, b: <span class="tp">number</span>): <span class="tp">number</span> {
+  <span class="kw">return</span> a + b;
+}
+
+<span class="cm">// The vision: properties at EVERY level</span>
+<span class="cm">// Module:      [pure, treeshakeable, noSideEffectsOnImport]</span>
+<span class="cm">// Declaration: [pure, noIO, immutable, total]</span>
+<span class="cm">// Statement:   [effect-free, terminates]</span>
+<span class="cm">// Expression:  [pure, deterministic, constant]</span>
+<span class="cm">// Pattern:     [irrefutable, exhaustive]</span>
+<span class="cm">// Type:        [serializable, sendable, comparable]</span></pre>
+</div>
+
+<p>Click each level to explore what properties make sense, how they compose, and what practical value they deliver:</p>
+
+<div class="grid-3">
+  <div class="level-card" onclick="showLevel('expr')" id="lc-expr">
+    <h4><span class="badge badge-expr">Expression</span></h4>
+    <p style="font-size:0.8em;color:var(--text-dim)">Properties of individual computations</p>
+    <div class="level-props">
+      <span class="prop-pill p-pure">pure</span>
+      <span class="prop-pill p-det">deterministic</span>
+      <span class="prop-pill p-total">total</span>
+      <span class="prop-pill p-const">constant</span>
+    </div>
+  </div>
+  <div class="level-card" onclick="showLevel('stmt')" id="lc-stmt">
+    <h4><span class="badge badge-stmt">Statement</span></h4>
+    <p style="font-size:0.8em;color:var(--text-dim)">Properties of state transformations</p>
+    <div class="level-props">
+      <span class="prop-pill p-term">terminates</span>
+      <span class="prop-pill p-pure">effect-free</span>
+      <span class="prop-pill p-exh">exhaustive</span>
+      <span class="prop-pill p-imm">idempotent</span>
+    </div>
+  </div>
+  <div class="level-card" onclick="showLevel('decl')" id="lc-decl">
+    <h4><span class="badge badge-decl">Declaration</span></h4>
+    <p style="font-size:0.8em;color:var(--text-dim)">Properties of bindings</p>
+    <div class="level-props">
+      <span class="prop-pill p-imm">immutable</span>
+      <span class="prop-pill p-pure">pure</span>
+      <span class="prop-pill p-const">const</span>
+      <span class="prop-pill p-term">bounded</span>
+    </div>
+  </div>
+  <div class="level-card" onclick="showLevel('pat')" id="lc-pat">
+    <h4><span class="badge badge-pat">Pattern</span></h4>
+    <p style="font-size:0.8em;color:var(--text-dim)">Properties of destructuring</p>
+    <div class="level-props">
+      <span class="prop-pill p-exh">exhaustive</span>
+      <span class="prop-pill p-total">irrefutable</span>
+      <span class="prop-pill p-det">non-overlapping</span>
+    </div>
+  </div>
+  <div class="level-card" onclick="showLevel('typ')" id="lc-typ">
+    <h4><span class="badge badge-type">Type</span></h4>
+    <p style="font-size:0.8em;color:var(--text-dim)">Properties of value classifiers</p>
+    <div class="level-props">
+      <span class="prop-pill p-send">sendable</span>
+      <span class="prop-pill p-pure">serializable</span>
+      <span class="prop-pill p-det">comparable</span>
+      <span class="prop-pill p-const">sized</span>
+    </div>
+  </div>
+  <div class="level-card" onclick="showLevel('mod')" id="lc-mod">
+    <h4><span class="badge badge-mod">Module</span></h4>
+    <p style="font-size:0.8em;color:var(--text-dim)">Properties of scope boundaries</p>
+    <div class="level-props">
+      <span class="prop-pill p-pure">pure</span>
+      <span class="prop-pill p-imm">treeshakeable</span>
+      <span class="prop-pill p-det">deterministic-init</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- EXPRESSION LEVEL -->
+<!-- ============================================================ -->
+
+<div class="level-detail" id="detail-expr" style="display:none">
+<h1>2. Expression-Level Properties</h1>
+<p>This is the <strong>most fundamental level</strong> — the atomic building blocks from which all higher-level properties are derived. Every expression in the program gets a property set.</p>
+
+<h2>2.1 The Properties</h2>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟦⟧</span> <strong>pure</strong> — No observable side effects
+  <div class="step-detail">
+    <p>A pure expression computes a value without reading or writing external state, performing I/O, or modifying anything beyond its return value.</p>
+<pre><span class="fn">Math</span>.<span class="fn">sin</span>(x)          <span class="cm">// <span class="prop">[pure]</span> — computes, returns, nothing else</span>
+a + b                  <span class="cm">// <span class="prop">[pure]</span> — arithmetic is pure</span>
+[...arr].<span class="fn">sort</span>()       <span class="cm">// <span class="prop">[pure]</span> — spread creates new array, sort is on the copy</span>
+arr.<span class="fn">sort</span>()             <span class="cm">// <span class="prop">[impure]</span> — mutates arr in place!</span>
+<span class="fn">console</span>.<span class="fn">log</span>(x)        <span class="cm">// <span class="prop">[impure]</span> — I/O side effect</span>
+<span class="fn">fetch</span>(<span class="str">"/api"</span>)          <span class="cm">// <span class="prop">[impure]</span> — network I/O</span>
+<span class="fn">Date</span>.<span class="fn">now</span>()             <span class="cm">// <span class="prop">[impure]</span> — reads global clock state</span></pre>
+    <p><strong>Bugs caught:</strong> Unintended mutations in map/filter callbacks, side effects in constructors, I/O in pure computation paths.</p>
+    <p><strong>Optimizations:</strong> Common subexpression elimination, memoization, parallel evaluation, dead code elimination (if result unused and expression is pure, the entire expression can be removed).</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟦⟧</span> <strong>deterministic</strong> — Same inputs always produce same output
+  <div class="step-detail">
+    <p>Deterministic expressions produce identical results when called with identical arguments. Note: deterministic ≠ pure. A function that logs AND returns a value is impure but deterministic (in its return value).</p>
+<pre><span class="fn">Math</span>.<span class="fn">sqrt</span>(<span class="num">4</span>)           <span class="cm">// <span class="prop">[deterministic]</span> — always 2</span>
+<span class="str">"hello"</span>.<span class="fn">toUpperCase</span>()  <span class="cm">// <span class="prop">[deterministic]</span> — always "HELLO"</span>
+<span class="fn">JSON</span>.<span class="fn">parse</span>(s)          <span class="cm">// <span class="prop">[deterministic]</span> — same string → same object</span>
+<span class="fn">Math</span>.<span class="fn">random</span>()           <span class="cm">// <span class="prop">[non-deterministic]</span> — different each call</span>
+<span class="fn">Date</span>.<span class="fn">now</span>()              <span class="cm">// <span class="prop">[non-deterministic]</span> — depends on when called</span>
+<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"/api"</span>)    <span class="cm">// <span class="prop">[non-deterministic]</span> — server may return different data</span></pre>
+    <p><strong>Bugs caught:</strong> Using Math.random() where determinism is required (tests, reproducible builds), cache key mismatches.</p>
+    <p><strong>Optimizations:</strong> Safe memoization (only deterministic functions can be memoized), test reproducibility guarantees.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟦⟧</span> <strong>total</strong> — Never throws or fails
+  <div class="step-detail">
+    <p>A total expression always returns a value — it never throws an exception, never returns undefined unexpectedly, never panics. The opposite is partial: it may fail for some inputs.</p>
+<pre>a + b                       <span class="cm">// <span class="prop">[total]</span> — arithmetic never throws</span>
+arr.<span class="fn">length</span>                  <span class="cm">// <span class="prop">[total]</span> — always a number</span>
+<span class="fn">JSON</span>.<span class="fn">parse</span>(userInput)       <span class="cm">// <span class="prop">[partial]</span> — throws on invalid JSON!</span>
+obj.deeply.nested.prop      <span class="cm">// <span class="prop">[partial]</span> — throws if any level is null</span>
+arr[<span class="fn">getIndex</span>()]             <span class="cm">// <span class="prop">[partial]</span> — may be out of bounds</span>
+<span class="kw">new</span> <span class="tp">Map</span>().<span class="fn">get</span>(<span class="str">"key"</span>)!     <span class="cm">// <span class="prop">[partial]</span> — non-null assertion may lie</span></pre>
+    <p><strong>Bugs caught:</strong> Uncaught exceptions in production, null pointer errors, array out-of-bounds, JSON parse failures.</p>
+    <p><strong>Optimizations:</strong> Remove try/catch overhead when all expressions in the block are total.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟦⟧</span> <strong>constant</strong> — Value known at compile time
+  <div class="step-detail">
+    <p>A constant expression can be fully evaluated during compilation. Rust calls this <code>const fn</code> — expressions that are "promotable" to compile-time evaluation.</p>
+<pre><span class="num">42</span>                         <span class="cm">// <span class="prop">[constant]</span> — literal</span>
+<span class="num">2</span> + <span class="num">3</span> * <span class="num">4</span>                   <span class="cm">// <span class="prop">[constant]</span> — arithmetic on constants</span>
+<span class="str">"hello"</span> + <span class="str">" world"</span>         <span class="cm">// <span class="prop">[constant]</span> — string concat on constants</span>
+<span class="fn">config</span>.<span class="fn">MAX_RETRIES</span>         <span class="cm">// <span class="prop">[non-constant]</span> — runtime value</span>
+<span class="fn">arr</span>.<span class="fn">length</span>                  <span class="cm">// <span class="prop">[non-constant]</span> — depends on runtime state</span></pre>
+    <p><strong>Optimizations:</strong> Constant folding, dead branch elimination (<code>if (false)</code> → removed), precomputed lookup tables, zero-cost configuration.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟦⟧</span> <strong>referentially transparent</strong> — Can be replaced by its value
+  <div class="step-detail">
+    <p>The strongest property: the expression can be substituted with its result everywhere it appears, without changing program behavior. This implies pure + deterministic + total.</p>
+<pre><span class="cm">// Referentially transparent: these are interchangeable</span>
+<span class="kw">const</span> x = <span class="fn">add</span>(<span class="num">2</span>, <span class="num">3</span>);
+<span class="fn">use</span>(x, x);
+<span class="cm">// ≡ (equivalent to)</span>
+<span class="fn">use</span>(<span class="fn">add</span>(<span class="num">2</span>, <span class="num">3</span>), <span class="fn">add</span>(<span class="num">2</span>, <span class="num">3</span>));
+
+<span class="cm">// NOT referentially transparent:</span>
+<span class="kw">const</span> y = <span class="fn">readLine</span>();
+<span class="fn">use</span>(y, y);
+<span class="cm">// ≢ (NOT equivalent to)</span>
+<span class="fn">use</span>(<span class="fn">readLine</span>(), <span class="fn">readLine</span>()); <span class="cm">// reads TWO lines!</span></pre>
+    <p><strong>Why this matters:</strong> Enables equational reasoning about programs. You can understand code by substitution, just like algebra. This is the holy grail of program reasoning.</p>
+  </div>
+</div>
+
+<h2>2.2 Expression Property Composition</h2>
+<p>When expressions combine, their properties compose via <strong>lattice intersection</strong> — the result has only the properties that ALL sub-expressions share:</p>
+
+<div class="card card-green">
+<pre><span class="cm">// Property composition rules:</span>
+<span class="prop">pure</span>    + <span class="prop">pure</span>    = <span class="ok">pure</span>           <span class="cm">// both pure → result pure</span>
+<span class="prop">pure</span>    + <span class="prop">impure</span>  = <span class="err">impure</span>         <span class="cm">// one impure → result impure</span>
+<span class="prop">total</span>   + <span class="prop">total</span>   = <span class="ok">total</span>          <span class="cm">// both total → result total</span>
+<span class="prop">total</span>   + <span class="prop">partial</span> = <span class="err">partial</span>        <span class="cm">// one partial → result partial</span>
+<span class="prop">const</span>   + <span class="prop">const</span>   = <span class="ok">const</span>          <span class="cm">// both const → result const</span>
+<span class="prop">const</span>   + <span class="prop">runtime</span> = <span class="err">runtime</span>        <span class="cm">// one runtime → result runtime</span>
+<span class="prop">determ.</span> + <span class="prop">determ.</span> = <span class="ok">determ.</span>        <span class="cm">// both deterministic → result det.</span>
+
+<span class="cm">// In practice:</span>
+<span class="fn">Math</span>.<span class="fn">sin</span>(x) + <span class="fn">Math</span>.<span class="fn">cos</span>(x)  <span class="cm">// [pure, deterministic, total, !constant]</span>
+<span class="fn">Math</span>.<span class="fn">sin</span>(x) + <span class="fn">Date</span>.<span class="fn">now</span>()   <span class="cm">// [impure, non-deterministic, total, !constant]</span>
+<span class="num">2</span> + <span class="num">3</span>                        <span class="cm">// [pure, deterministic, total, constant] = ref. transparent</span></pre>
+</div>
+
+<div class="callout"><span class="callout-key">The lattice:</span> Each property forms a two-element lattice with ⊤ (has property) and ⊥ (doesn't). Composition is <code>meet</code> (∧). This means <strong>impurity is infectious</strong> — one impure sub-expression contaminates the whole expression. Same for partiality, non-determinism, and non-constancy.</div>
+
+<h2>2.3 Practical Value Assessment</h2>
+<table>
+  <tr><th>Metric</th><th>Rating</th><th>Notes</th></tr>
+  <tr><td>Bugs caught</td><td><div class="meter"><div class="meter-fill meter-high" style="width:85%"></div></div></td><td>Mutation bugs, uncaught exceptions, race conditions, incorrect memoization</td></tr>
+  <tr><td>Optimizations</td><td><div class="meter"><div class="meter-fill meter-high" style="width:90%"></div></div></td><td>CSE, constant folding, dead code, parallelization, memoization</td></tr>
+  <tr><td>Ease of implementation</td><td><div class="meter"><div class="meter-fill meter-med" style="width:55%"></div></div></td><td>Purity analysis is tractable; totality is harder; constancy requires eval</td></tr>
+  <tr><td>False positive risk</td><td><div class="meter"><div class="meter-fill meter-med" style="width:60%"></div></div></td><td>Strict purity checking over-reports; need escape hatch for FFI</td></tr>
+  <tr><td>Developer value</td><td><div class="meter"><div class="meter-fill meter-high" style="width:95%"></div></div></td><td>Foundational — all other levels derive from this</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<!-- STATEMENT LEVEL -->
+<!-- ============================================================ -->
+
+<div class="level-detail" id="detail-stmt" style="display:none">
+<h1>3. Statement-Level Properties</h1>
+<p>Statements don't produce values — they transform state. Their properties describe <strong>how</strong> they transform state and what guarantees hold about the transformation.</p>
+
+<h2>3.1 The Properties</h2>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">→</span> <strong>effect-free</strong> — This block doesn't modify external state
+  <div class="step-detail">
+<pre><span class="cm">// Effect-free: no observable state changes</span>
+<span class="kw">if</span> (x > <span class="num">5</span>) {
+  <span class="kw">const</span> y = x * <span class="num">2</span>;    <span class="cm">// local binding only</span>
+  <span class="kw">return</span> y + <span class="num">1</span>;        <span class="cm">// return is control flow, not mutation</span>
+}
+
+<span class="cm">// NOT effect-free:</span>
+<span class="kw">if</span> (x > <span class="num">5</span>) {
+  globalCount++;        <span class="cm">// <span class="err">modifies external state</span></span>
+  <span class="fn">console</span>.<span class="fn">log</span>(x);       <span class="cm">// <span class="err">I/O side effect</span></span>
+  arr.<span class="fn">push</span>(x);          <span class="cm">// <span class="err">mutates arr (from outer scope)</span></span>
+}</pre>
+    <p><strong>What it catches:</strong> Accidental mutations in branches that should be read-only, I/O in computation-only paths. Enables reasoning about what a branch <em>does</em> vs what it <em>computes</em>.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">→</span> <strong>terminates</strong> — This loop is guaranteed to finish
+  <div class="step-detail">
+<pre><span class="cm">// Terminates: i decreases toward 0</span>
+<span class="kw">for</span> (<span class="kw">let</span> i = n; i > <span class="num">0</span>; i--) { <span class="cm">// <span class="prop">[terminates]</span> — i strictly decreases</span>
+  <span class="fn">process</span>(i);
+}
+
+<span class="cm">// Terminates: array is finite, forEach visits each once</span>
+items.<span class="fn">forEach</span>(item => <span class="fn">process</span>(item)); <span class="cm">// <span class="prop">[terminates]</span></span>
+
+<span class="cm">// MAY NOT TERMINATE:</span>
+<span class="kw">while</span> (<span class="kw">true</span>) {                          <span class="cm">// <span class="err">[may-diverge]</span></span>
+  <span class="kw">if</span> (<span class="fn">shouldStop</span>()) <span class="kw">break</span>;             <span class="cm">// depends on external state</span>
+}
+
+<span class="cm">// Dafny-style annotation for KindScript:</span>
+<span class="cm">// @ksc terminates(decreases: arr.length - i)</span>
+<span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < arr.<span class="fn">length</span>; i++) { ... }</pre>
+    <p><strong>What it catches:</strong> Infinite loops, accidental server-blocking loops, unbounded recursion in rendering loops.</p>
+    <p><strong>How Dafny does it:</strong> Require a "decreases expression" — a value that gets strictly smaller each iteration and is bounded below. If the analysis can verify the decrease, termination is proven. Common patterns (for-i, forEach, map, reduce) can be auto-proven.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">→</span> <strong>exhaustive</strong> — All cases handled
+  <div class="step-detail">
+<pre><span class="cm">// Exhaustive: all cases of the discriminated union handled</span>
+<span class="kw">type</span> <span class="tp">Shape</span> = { kind: <span class="str">"circle"</span> } | { kind: <span class="str">"square"</span> } | { kind: <span class="str">"triangle"</span> };
+
+<span class="kw">switch</span> (shape.kind) {                <span class="cm">// <span class="prop">[exhaustive]</span></span>
+  <span class="kw">case</span> <span class="str">"circle"</span>: <span class="kw">return</span> ...;
+  <span class="kw">case</span> <span class="str">"square"</span>: <span class="kw">return</span> ...;
+  <span class="kw">case</span> <span class="str">"triangle"</span>: <span class="kw">return</span> ...;
+}
+
+<span class="cm">// NOT exhaustive:</span>
+<span class="kw">switch</span> (shape.kind) {                <span class="cm">// <span class="err">[non-exhaustive]</span></span>
+  <span class="kw">case</span> <span class="str">"circle"</span>: <span class="kw">return</span> ...;
+  <span class="kw">case</span> <span class="str">"square"</span>: <span class="kw">return</span> ...;
+  <span class="cm">// Missing "triangle"! Falls through silently.</span>
+}</pre>
+    <p><strong>What it catches:</strong> Missing cases after adding a new variant to a union type — the classic "I added a new enum value but forgot to update 15 switch statements" bug.</p>
+    <p><strong>Note:</strong> TypeScript already checks this with <code>never</code> in the default branch, but only if you opt in. KindScript could make it a first-class property.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">→</span> <strong>idempotent</strong> — Executing twice = executing once
+  <div class="step-detail">
+<pre><span class="cm">// Idempotent: running again has no additional effect</span>
+user.active = <span class="kw">true</span>;              <span class="cm">// <span class="prop">[idempotent]</span> — already true? no change</span>
+element.classList.<span class="fn">add</span>(<span class="str">"open"</span>); <span class="cm">// <span class="prop">[idempotent]</span> — add is set-like</span>
+cache.<span class="fn">set</span>(key, value);           <span class="cm">// <span class="prop">[idempotent]</span> — same key+value → no change</span>
+
+<span class="cm">// NOT idempotent:</span>
+counter++;                        <span class="cm">// <span class="err">[non-idempotent]</span> — each run adds 1</span>
+arr.<span class="fn">push</span>(item);                  <span class="cm">// <span class="err">[non-idempotent]</span> — each run adds element</span>
+<span class="fn">sendEmail</span>(to, body);             <span class="cm">// <span class="err">[non-idempotent]</span> — sends AGAIN</span></pre>
+    <p><strong>What it catches:</strong> Double-execution bugs in retry logic, React useEffect running twice in StrictMode, duplicate API calls, double-counting in analytics.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">→</span> <strong>commutative</strong> — Order doesn't matter
+  <div class="step-detail">
+<pre><span class="cm">// Commutative: these can be reordered safely</span>
+<span class="kw">const</span> x = <span class="fn">computeA</span>();   <span class="cm">// independent</span>
+<span class="kw">const</span> y = <span class="fn">computeB</span>();   <span class="cm">// independent — can run in any order (or parallel!)</span>
+
+<span class="cm">// NOT commutative:</span>
+<span class="kw">const</span> x = <span class="fn">readLine</span>();   <span class="cm">// order matters!</span>
+<span class="kw">const</span> y = <span class="fn">readLine</span>();   <span class="cm">// this reads the SECOND line, not the first</span></pre>
+    <p><strong>What it enables:</strong> Automatic parallelization — if two statements are commutative, they can run on separate threads. Also enables statement reordering for cache optimization.</p>
+  </div>
+</div>
+
+<h2>3.2 Practical Value Assessment</h2>
+<table>
+  <tr><th>Metric</th><th>Rating</th><th>Notes</th></tr>
+  <tr><td>Bugs caught</td><td><div class="meter"><div class="meter-fill meter-high" style="width:75%"></div></div></td><td>Infinite loops, missing cases, double-execution, mutation in wrong branch</td></tr>
+  <tr><td>Optimizations</td><td><div class="meter"><div class="meter-fill meter-med" style="width:60%"></div></div></td><td>Loop unrolling, parallelization, dead branch elimination</td></tr>
+  <tr><td>Ease of implementation</td><td><div class="meter"><div class="meter-fill meter-low" style="width:35%"></div></div></td><td>Termination is undecidable; idempotence needs semantic analysis</td></tr>
+  <tr><td>False positive risk</td><td><div class="meter"><div class="meter-fill meter-med" style="width:50%"></div></div></td><td>Termination over-reports; exhaustiveness is exact</td></tr>
+  <tr><td>Developer value</td><td><div class="meter"><div class="meter-fill meter-high" style="width:70%"></div></div></td><td>High for exhaustiveness and termination; lower for commutativity</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<!-- DECLARATION LEVEL -->
+<!-- ============================================================ -->
+
+<div class="level-detail" id="detail-decl" style="display:none">
+<h1>4. Declaration-Level Properties</h1>
+<p>This is where KindScript <strong>already operates</strong> — annotating function declarations with properties. But the space is much richer than just <code>@ksc pure</code>.</p>
+
+<h2>4.1 The Properties</h2>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">≡</span> <strong>immutable</strong> — Binding never changes after initialization
+  <div class="step-detail">
+<pre><span class="kw">const</span> x = <span class="num">5</span>;                    <span class="cm">// <span class="prop">[immutable]</span> — const keyword</span>
+<span class="kw">const</span> obj = { a: <span class="num">1</span> };            <span class="cm">// <span class="err">[NOT deeply immutable]</span> — obj.a can change!</span>
+<span class="kw">const</span> obj = { a: <span class="num">1</span> } <span class="kw">as const</span>;  <span class="cm">// <span class="prop">[deeply immutable]</span> — readonly + literal types</span>
+
+<span class="cm">// KindScript could distinguish:</span>
+<span class="cm">// @ksc immutable         — shallow (binding doesn't change)</span>
+<span class="cm">// @ksc deeplyImmutable   — deep (nothing reachable changes)</span>
+<span class="cm">// @ksc frozen            — Object.freeze verified at compile time</span></pre>
+    <p><strong>What it catches:</strong> Accidental reassignment, property mutation of "constant" objects, shared mutable state between modules.</p>
+    <p><strong>Rust parallel:</strong> Rust's default is immutable (<code>let x = 5</code>). You must opt into mutability (<code>let mut x = 5</code>). KindScript could enforce this convention.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">≡</span> <strong>pure</strong> — Function has no side effects (the current KindScript property)
+  <div class="step-detail">
+<pre><span class="cm">// @ksc pure</span>
+<span class="kw">function</span> <span class="fn">add</span>(a: <span class="tp">number</span>, b: <span class="tp">number</span>): <span class="tp">number</span> { <span class="cm">// <span class="prop">[pure]</span></span>
+  <span class="kw">return</span> a + b;
+}
+
+<span class="cm">// With expression-level properties, the checker verifies:</span>
+<span class="cm">// 1. Every expression in the body is [pure]</span>
+<span class="cm">// 2. No expression reads/writes external state</span>
+<span class="cm">// 3. No expression calls impure functions</span>
+<span class="cm">// If all pass → declaration gets [pure]</span></pre>
+    <p>The key insight: <strong>declaration purity is derived from expression purity</strong>. A function is pure iff every expression in its body is pure. This is where the multi-level system pays off — you don't need separate logic for declaration-level purity, you just aggregate expression-level purity.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">≡</span> <strong>local</strong> — Binding doesn't escape its scope
+  <div class="step-detail">
+<pre><span class="kw">function</span> <span class="fn">process</span>() {
+  <span class="kw">const</span> temp = [];              <span class="cm">// <span class="prop">[local]</span> — never returned, never assigned out</span>
+  temp.<span class="fn">push</span>(<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>);
+  <span class="kw">return</span> temp.<span class="fn">reduce</span>((a,b) => a+b); <span class="cm">// returns a number, not temp itself</span>
+}
+
+<span class="kw">let</span> leaked;
+<span class="kw">function</span> <span class="fn">leaky</span>() {
+  <span class="kw">const</span> data = <span class="fn">createData</span>();    <span class="cm">// <span class="err">[escapes]</span> — assigned to outer scope below</span>
+  leaked = data;
+}</pre>
+    <p><strong>What it enables:</strong> If a mutable binding is local, mutations are invisible outside the function — meaning the function can still be considered "externally pure" even with internal mutation. This is exactly how Haskell's ST monad works.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">≡</span> <strong>bounded-recursion</strong> — Recursive function has bounded call depth
+  <div class="step-detail">
+<pre><span class="cm">// Bounded: depth limited by input size</span>
+<span class="kw">function</span> <span class="fn">factorial</span>(n: <span class="tp">number</span>): <span class="tp">number</span> { <span class="cm">// <span class="prop">[bounded(n)]</span></span>
+  <span class="kw">if</span> (n <= <span class="num">1</span>) <span class="kw">return</span> <span class="num">1</span>;
+  <span class="kw">return</span> n * <span class="fn">factorial</span>(n - <span class="num">1</span>);  <span class="cm">// n strictly decreases each call</span>
+}
+
+<span class="cm">// Unbounded: no clear termination</span>
+<span class="kw">function</span> <span class="fn">collatz</span>(n: <span class="tp">number</span>): <span class="tp">number</span> { <span class="cm">// <span class="err">[unbounded?]</span></span>
+  <span class="kw">if</span> (n === <span class="num">1</span>) <span class="kw">return</span> <span class="num">0</span>;
+  <span class="kw">if</span> (n % <span class="num">2</span> === <span class="num">0</span>) <span class="kw">return</span> <span class="num">1</span> + <span class="fn">collatz</span>(n / <span class="num">2</span>);
+  <span class="kw">return</span> <span class="num">1</span> + <span class="fn">collatz</span>(<span class="num">3</span> * n + <span class="num">1</span>); <span class="cm">// increases before decreasing!</span>
+}</pre>
+    <p><strong>What it catches:</strong> Stack overflows from unbounded recursion, accidental infinite recursion in tree traversals.</p>
+  </div>
+</div>
+
+<h2>4.2 Practical Value Assessment</h2>
+<table>
+  <tr><th>Metric</th><th>Rating</th><th>Notes</th></tr>
+  <tr><td>Bugs caught</td><td><div class="meter"><div class="meter-fill meter-high" style="width:80%"></div></div></td><td>Mutation bugs, stack overflow, scope leaks, impure functions</td></tr>
+  <tr><td>Optimizations</td><td><div class="meter"><div class="meter-fill meter-high" style="width:75%"></div></div></td><td>Inlining, dead code elimination, escape analysis</td></tr>
+  <tr><td>Ease of implementation</td><td><div class="meter"><div class="meter-fill meter-high" style="width:80%"></div></div></td><td>KindScript already does this! Extending is incremental</td></tr>
+  <tr><td>False positive risk</td><td><div class="meter"><div class="meter-fill meter-med" style="width:40%"></div></div></td><td>Low — conservative analysis is safe for declarations</td></tr>
+  <tr><td>Developer value</td><td><div class="meter"><div class="meter-fill meter-high" style="width:90%"></div></div></td><td>Highest immediate value — this is KindScript's core</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<!-- PATTERN LEVEL -->
+<!-- ============================================================ -->
+
+<div class="level-detail" id="detail-pat" style="display:none">
+<h1>5. Pattern-Level Properties</h1>
+<p>Patterns deconstruct values. Their properties describe <strong>coverage</strong> (do you handle all cases?) and <strong>reliability</strong> (does the pattern always match?).</p>
+
+<h2>5.1 The Properties</h2>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟨⟩</span> <strong>exhaustive</strong> — All possible values handled
+  <div class="step-detail">
+<pre><span class="kw">type</span> <span class="tp">Result</span>&lt;<span class="tp">T</span>&gt; =
+  | { ok: <span class="kw">true</span>; value: <span class="tp">T</span> }
+  | { ok: <span class="kw">false</span>; error: <span class="tp">string</span> };
+
+<span class="cm">// Exhaustive handling:</span>
+<span class="kw">function</span> <span class="fn">handle</span>&lt;<span class="tp">T</span>&gt;(r: <span class="tp">Result</span>&lt;<span class="tp">T</span>&gt;) {    <span class="cm">// <span class="prop">[exhaustive]</span></span>
+  <span class="kw">if</span> (r.ok) <span class="kw">return</span> r.value;
+  <span class="kw">else</span> <span class="kw">throw</span> <span class="kw">new</span> <span class="tp">Error</span>(r.error);
+}
+
+<span class="cm">// Non-exhaustive — what if someone adds { ok: "pending" }?</span>
+<span class="kw">function</span> <span class="fn">handle</span>(r: <span class="tp">Result</span>&lt;<span class="tp">T</span>&gt;) {       <span class="cm">// <span class="err">[non-exhaustive]</span></span>
+  <span class="kw">if</span> (r.ok) <span class="kw">return</span> r.value;
+  <span class="cm">// implicit undefined return for error case!</span>
+}</pre>
+    <p><strong>Why this is high-value:</strong> Exhaustiveness checking is one of ML/Rust's greatest features. When you add a new variant to a union, the compiler tells you every place that needs updating. TypeScript's <code>never</code> trick approximates this, but KindScript could make it first-class.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟨⟩</span> <strong>irrefutable</strong> — Pattern always matches
+  <div class="step-detail">
+<pre><span class="cm">// Irrefutable: always succeeds</span>
+<span class="kw">const</span> { x, y } = point;          <span class="cm">// <span class="prop">[irrefutable]</span> if point: { x: T, y: T }</span>
+<span class="kw">const</span> [first, ...rest] = arr;    <span class="cm">// <span class="prop">[irrefutable]</span> (rest may be empty)</span>
+
+<span class="cm">// Refutable: may fail</span>
+<span class="kw">const</span> { data } = <span class="kw">await</span> <span class="fn">response</span>.<span class="fn">json</span>(); <span class="cm">// <span class="err">[refutable]</span> if response is opaque</span>
+<span class="kw">const</span> [a, b] = <span class="fn">getItems</span>();       <span class="cm">// <span class="err">[refutable]</span> array may have &lt; 2 items</span></pre>
+    <p><strong>What it catches:</strong> Runtime destructuring failures, undefined values from incomplete patterns.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">⟨⟩</span> <strong>non-overlapping</strong> — No redundant cases
+  <div class="step-detail">
+<pre><span class="cm">// Overlapping: first case catches everything, rest is dead code</span>
+<span class="kw">switch</span> (action.type) {
+  <span class="kw">default</span>: <span class="kw">return</span> state;            <span class="cm">// catches everything!</span>
+  <span class="kw">case</span> <span class="str">"increment"</span>: <span class="kw">return</span> ...;    <span class="cm">// <span class="err">[unreachable]</span> — dead code</span>
+  <span class="kw">case</span> <span class="str">"decrement"</span>: <span class="kw">return</span> ...;    <span class="cm">// <span class="err">[unreachable]</span> — dead code</span>
+}</pre>
+    <p><strong>What it catches:</strong> Dead code in switch/case, accidentally broad patterns hiding specific cases, order-dependent bugs in conditional chains.</p>
+  </div>
+</div>
+
+<h2>5.2 Practical Value Assessment</h2>
+<table>
+  <tr><th>Metric</th><th>Rating</th><th>Notes</th></tr>
+  <tr><td>Bugs caught</td><td><div class="meter"><div class="meter-fill meter-high" style="width:85%"></div></div></td><td>Missing cases, dead code, destructuring failures</td></tr>
+  <tr><td>Optimizations</td><td><div class="meter"><div class="meter-fill meter-med" style="width:40%"></div></div></td><td>Jump table generation, dead branch removal</td></tr>
+  <tr><td>Ease of implementation</td><td><div class="meter"><div class="meter-fill meter-high" style="width:85%"></div></div></td><td>Well-studied algorithms; TS already does some of this</td></tr>
+  <tr><td>False positive risk</td><td><div class="meter"><div class="meter-fill meter-high" style="width:95%"></div></div></td><td>Nearly zero — exhaustiveness algorithms are complete</td></tr>
+  <tr><td>Developer value</td><td><div class="meter"><div class="meter-fill meter-high" style="width:80%"></div></div></td><td>High for union-heavy codebases (Redux, state machines)</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<!-- TYPE LEVEL -->
+<!-- ============================================================ -->
+
+<div class="level-detail" id="detail-typ" style="display:none">
+<h1>6. Type-Level Properties</h1>
+<p>This is the most speculative level for KindScript — assigning properties to <strong>types themselves</strong>, not just the values they classify. Rust does this with marker traits (Send, Sync, Copy). Haskell does it with type classes (Eq, Ord, Show).</p>
+
+<h2>6.1 The Properties</h2>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">:</span> <strong>serializable</strong> — Values of this type can be JSON.stringify'd
+  <div class="step-detail">
+<pre><span class="cm">// Serializable types:</span>
+<span class="tp">number</span>                    <span class="cm">// <span class="prop">[serializable]</span></span>
+<span class="tp">string</span>                    <span class="cm">// <span class="prop">[serializable]</span></span>
+{ x: <span class="tp">number</span>, y: <span class="tp">string</span> }  <span class="cm">// <span class="prop">[serializable]</span> — all fields serializable</span>
+<span class="tp">number</span>[]                  <span class="cm">// <span class="prop">[serializable]</span> — array of serializable</span>
+
+<span class="cm">// NOT serializable:</span>
+(x: <span class="tp">number</span>) => <span class="tp">number</span>    <span class="cm">// <span class="err">[non-serializable]</span> — functions can't be serialized</span>
+<span class="tp">Map</span>&lt;<span class="tp">string</span>, <span class="tp">number</span>&gt;      <span class="cm">// <span class="err">[non-serializable]</span> — Map serializes to {}</span>
+<span class="tp">Set</span>&lt;<span class="tp">number</span>&gt;              <span class="cm">// <span class="err">[non-serializable]</span> — Set serializes to {}</span>
+{ handler: () => <span class="tp">void</span> }   <span class="cm">// <span class="err">[non-serializable]</span> — contains function</span>
+
+<span class="cm">// KindScript could verify API boundaries:</span>
+<span class="cm">// @ksc serializable</span>
+<span class="kw">type</span> <span class="tp">ApiResponse</span> = {
+  data: <span class="tp">UserData</span>,          <span class="cm">// checker verifies UserData is serializable</span>
+  meta: <span class="tp">Metadata</span>,          <span class="cm">// checker verifies Metadata is serializable</span>
+};</pre>
+    <p><strong>Huge practical value:</strong> Any type that crosses a serialization boundary (API response, localStorage, postMessage, worker communication) MUST be serializable. Catching a function in an API response type at compile time prevents silent data loss at runtime.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">:</span> <strong>sendable</strong> — Safe to transfer across worker/thread boundaries
+  <div class="step-detail">
+<pre><span class="cm">// Sendable (safe for postMessage / worker transfer):</span>
+<span class="tp">number</span>, <span class="tp">string</span>, <span class="tp">boolean</span>      <span class="cm">// primitives are always sendable</span>
+<span class="tp">ArrayBuffer</span>                    <span class="cm">// transferable (moves, doesn't copy)</span>
+{ x: <span class="tp">number</span>, y: <span class="tp">number</span> }      <span class="cm">// plain objects with sendable fields</span>
+
+<span class="cm">// NOT sendable:</span>
+<span class="tp">HTMLElement</span>                     <span class="cm">// DOM nodes can't cross worker boundary</span>
+() => <span class="tp">void</span>                     <span class="cm">// closures capture scope, not transferable</span>
+<span class="tp">WeakRef</span>&lt;<span class="tp">T</span>&gt;                    <span class="cm">// weak references are thread-local</span>
+
+<span class="cm">// Rust parallel: Send trait</span>
+<span class="cm">// In Rust: T: Send means T can be transferred to another thread</span>
+<span class="cm">// KindScript: @ksc sendable on a type means it can cross worker boundaries</span></pre>
+    <p><strong>What it catches:</strong> Passing DOM nodes to workers (crashes), closures in postMessage (silent serialization to null), shared mutable state across workers.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">:</span> <strong>comparable</strong> — Supports meaningful equality
+  <div class="step-detail">
+<pre><span class="cm">// Comparable: === gives meaningful results</span>
+<span class="tp">number</span>    <span class="cm">// <span class="prop">[comparable]</span> — value equality</span>
+<span class="tp">string</span>    <span class="cm">// <span class="prop">[comparable]</span> — value equality</span>
+<span class="kw">enum</span> <span class="tp">Color</span> { Red, Green }  <span class="cm">// <span class="prop">[comparable]</span> — enum equality</span>
+
+<span class="cm">// NOT meaningfully comparable:</span>
+{ x: <span class="num">1</span> } === { x: <span class="num">1</span> }     <span class="cm">// <span class="err">false</span>! reference equality, not structural</span>
+[<span class="num">1</span>, <span class="num">2</span>] === [<span class="num">1</span>, <span class="num">2</span>]         <span class="cm">// <span class="err">false</span>! same problem</span>
+<span class="fn">NaN</span> === <span class="fn">NaN</span>               <span class="cm">// <span class="err">false</span>! NaN is not equal to itself</span>
+
+<span class="cm">// KindScript could warn when using === on non-comparable types:</span>
+<span class="kw">if</span> (objA === objB) { ... } <span class="cm">// ⚠️ reference equality on objects — intended?</span></pre>
+    <p><strong>What it catches:</strong> Object equality bugs (the #1 source of subtle bugs in React), NaN comparison traps, comparing objects by reference when structural comparison is intended.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">:</span> <strong>sized</strong> — Has a known maximum memory footprint
+  <div class="step-detail">
+<pre><span class="cm">// Sized: known memory usage</span>
+<span class="tp">number</span>                   <span class="cm">// <span class="prop">[sized: 8 bytes]</span></span>
+{ x: <span class="tp">number</span>, y: <span class="tp">number</span> } <span class="cm">// <span class="prop">[sized: ~32 bytes + overhead]</span></span>
+[<span class="tp">number</span>, <span class="tp">number</span>]         <span class="cm">// <span class="prop">[sized: fixed tuple]</span></span>
+
+<span class="cm">// Unsized / unbounded:</span>
+<span class="tp">number</span>[]                 <span class="cm">// <span class="err">[unsized]</span> — array can grow</span>
+<span class="tp">string</span>                   <span class="cm">// <span class="err">[unsized]</span> — strings can be any length</span>
+<span class="tp">Map</span>&lt;<span class="tp">string</span>, <span class="tp">T</span>&gt;          <span class="cm">// <span class="err">[unsized]</span> — map can grow</span></pre>
+    <p><strong>What it enables:</strong> Memory budget enforcement, stack allocation guarantees (sized values can go on the stack), embedded/IoT constraints.</p>
+  </div>
+</div>
+
+<h2>6.2 Auto-Derivation</h2>
+<p>Like Rust's auto-traits, type properties could be <strong>automatically derived</strong> from structure:</p>
+<div class="card card-green">
+<pre><span class="cm">// Composition rules (like Rust's auto-trait derivation):</span>
+<span class="cm">// A type is [serializable] if ALL its fields are [serializable]</span>
+<span class="cm">// A type is [sendable] if ALL its fields are [sendable]</span>
+<span class="cm">// A type is [comparable] if ALL its fields are [comparable]</span>
+<span class="cm">// A type is [sized] if ALL its fields are [sized]</span>
+
+<span class="kw">type</span> <span class="tp">Point</span> = { x: <span class="tp">number</span>, y: <span class="tp">number</span> };
+<span class="cm">// Auto-derived: [serializable, sendable, comparable, sized]</span>
+<span class="cm">// Because number has all four properties</span>
+
+<span class="kw">type</span> <span class="tp">Handler</span> = { name: <span class="tp">string</span>, fn: () => <span class="tp">void</span> };
+<span class="cm">// Auto-derived: [NOT serializable, NOT sendable]</span>
+<span class="cm">// Because () => void is not serializable or sendable</span></pre>
+</div>
+
+<h2>6.3 Practical Value Assessment</h2>
+<table>
+  <tr><th>Metric</th><th>Rating</th><th>Notes</th></tr>
+  <tr><td>Bugs caught</td><td><div class="meter"><div class="meter-fill meter-high" style="width:90%"></div></div></td><td>Serialization failures, worker crashes, equality bugs</td></tr>
+  <tr><td>Optimizations</td><td><div class="meter"><div class="meter-fill meter-med" style="width:45%"></div></div></td><td>Stack allocation, transfer optimization for workers</td></tr>
+  <tr><td>Ease of implementation</td><td><div class="meter"><div class="meter-fill meter-high" style="width:75%"></div></div></td><td>Recursive structural check — relatively straightforward</td></tr>
+  <tr><td>False positive risk</td><td><div class="meter"><div class="meter-fill meter-high" style="width:90%"></div></div></td><td>Very low — structural derivation is sound</td></tr>
+  <tr><td>Developer value</td><td><div class="meter"><div class="meter-fill meter-high" style="width:85%"></div></div></td><td>Serializable alone would prevent thousands of real bugs</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE LEVEL -->
+<!-- ============================================================ -->
+
+<div class="level-detail" id="detail-mod" style="display:none">
+<h1>7. Module-Level Properties</h1>
+<p>Module properties describe the behavior of <strong>entire files</strong>. These are the highest-level properties and the ones most directly useful for architectural enforcement and build optimization.</p>
+
+<h2>7.1 The Properties</h2>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">{ }</span> <strong>pure</strong> — No side effects on import
+  <div class="step-detail">
+<pre><span class="cm">// Pure module: importing it does nothing except make bindings available</span>
+<span class="cm">// @ksc pure</span>
+<span class="kw">export function</span> <span class="fn">add</span>(a: <span class="tp">number</span>, b: <span class="tp">number</span>) { <span class="kw">return</span> a + b; }
+<span class="kw">export function</span> <span class="fn">mul</span>(a: <span class="tp">number</span>, b: <span class="tp">number</span>) { <span class="kw">return</span> a * b; }
+<span class="kw">export const</span> PI = <span class="num">3.14159</span>;
+<span class="cm">// No top-level code that "does stuff"</span>
+
+<span class="cm">// IMPURE module: importing has side effects</span>
+<span class="fn">registerPlugin</span>(<span class="str">"my-plugin"</span>);           <span class="cm">// <span class="err">runs on import!</span></span>
+<span class="fn">polyfill</span>(globalThis);                   <span class="cm">// <span class="err">modifies global!</span></span>
+<span class="kw">export const</span> db = <span class="fn">createConnection</span>();  <span class="cm">// <span class="err">I/O on import!</span></span></pre>
+    <p><strong>Massive practical value:</strong> Pure modules are safe to tree-shake (bundlers can remove unused exports), safe to lazy-load (importing at any time is safe), safe to re-order (import order doesn't matter). This is exactly what webpack's <code>"sideEffects": false</code> flag means, but verified at compile time instead of declared manually.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">{ }</span> <strong>treeshakeable</strong> — Exports are independently importable
+  <div class="step-detail">
+<pre><span class="cm">// Treeshakeable: each export is independent</span>
+<span class="cm">// @ksc treeshakeable</span>
+<span class="kw">export function</span> <span class="fn">sort</span>(arr) { ... }    <span class="cm">// independent</span>
+<span class="kw">export function</span> <span class="fn">filter</span>(arr) { ... }  <span class="cm">// independent</span>
+<span class="kw">export function</span> <span class="fn">map</span>(arr) { ... }     <span class="cm">// independent</span>
+
+<span class="cm">// NOT treeshakeable: exports have hidden coupling</span>
+<span class="kw">const</span> shared = <span class="fn">createSharedState</span>();     <span class="cm">// shared state!</span>
+<span class="kw">export function</span> <span class="fn">increment</span>() { shared.count++; }
+<span class="kw">export function</span> <span class="fn">getCount</span>() { <span class="kw">return</span> shared.count; }
+<span class="cm">// Can't tree-shake increment without breaking getCount!</span></pre>
+    <p><strong>What it catches:</strong> Hidden coupling between exports through shared module-level state, which defeats tree-shaking and creates subtle ordering dependencies.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">{ }</span> <strong>deterministic-init</strong> — Module initialization is deterministic
+  <div class="step-detail">
+<pre><span class="cm">// Deterministic: same result every time the module loads</span>
+<span class="kw">export const</span> CONFIG = {
+  maxRetries: <span class="num">3</span>,
+  timeout: <span class="num">5000</span>,
+};
+
+<span class="cm">// Non-deterministic: result depends on when/how module loads</span>
+<span class="kw">export const</span> startTime = <span class="fn">Date</span>.<span class="fn">now</span>();     <span class="cm">// different each load!</span>
+<span class="kw">export const</span> id = <span class="fn">crypto</span>.<span class="fn">randomUUID</span>();  <span class="cm">// different each load!</span>
+<span class="kw">export const</span> env = process.env.NODE_ENV; <span class="cm">// depends on environment</span></pre>
+    <p><strong>What it enables:</strong> Safe module caching, reproducible builds, predictable hot module replacement.</p>
+  </div>
+</div>
+
+<div class="step" onclick="toggleStep(this)">
+  <span class="step-num">{ }</span> <strong>self-contained</strong> — No imports from outside the project
+  <div class="step-detail">
+<pre><span class="cm">// Self-contained: only uses language builtins</span>
+<span class="cm">// @ksc selfContained</span>
+<span class="kw">export function</span> <span class="fn">deepClone</span>&lt;<span class="tp">T</span>&gt;(obj: <span class="tp">T</span>): <span class="tp">T</span> {
+  <span class="kw">return</span> <span class="fn">JSON</span>.<span class="fn">parse</span>(<span class="fn">JSON</span>.<span class="fn">stringify</span>(obj));
+}
+
+<span class="cm">// NOT self-contained:</span>
+<span class="kw">import</span> _ <span class="kw">from</span> <span class="str">'lodash'</span>;              <span class="cm">// external dependency!</span>
+<span class="kw">export const</span> <span class="fn">clone</span> = _.<span class="fn">cloneDeep</span>;</pre>
+    <p><strong>What it enables:</strong> Dependency auditing, security boundary enforcement, identifying which modules can be extracted into standalone packages.</p>
+  </div>
+</div>
+
+<h2>7.2 Practical Value Assessment</h2>
+<table>
+  <tr><th>Metric</th><th>Rating</th><th>Notes</th></tr>
+  <tr><td>Bugs caught</td><td><div class="meter"><div class="meter-fill meter-high" style="width:70%"></div></div></td><td>Side-effect-on-import, hidden coupling, non-deterministic init</td></tr>
+  <tr><td>Optimizations</td><td><div class="meter"><div class="meter-fill meter-high" style="width:95%"></div></div></td><td>Tree-shaking, lazy loading, parallel module loading, bundle size</td></tr>
+  <tr><td>Ease of implementation</td><td><div class="meter"><div class="meter-fill meter-high" style="width:70%"></div></div></td><td>Top-level statement analysis is tractable</td></tr>
+  <tr><td>False positive risk</td><td><div class="meter"><div class="meter-fill meter-med" style="width:50%"></div></div></td><td>Side effects in module init are common and sometimes intentional</td></tr>
+  <tr><td>Developer value</td><td><div class="meter"><div class="meter-fill meter-high" style="width:85%"></div></div></td><td>Architectural enforcement, build optimization, dependency auditing</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION: CROSS-LEVEL FLOW -->
+<!-- ============================================================ -->
+
+<h1 id="flow-section">8. Cross-Level Property Flow</h1>
+<p>The real power of multi-level properties is how they <strong>flow between levels</strong>. Properties propagate in two directions:</p>
+
+<h2>8.1 Bottom-Up Inference</h2>
+<p>Expression properties bubble up to determine higher-level properties automatically:</p>
+
+<div class="card card-green">
+<pre><span class="cm">// Bottom-up: expression → declaration → module</span>
+
+<span class="cm">// Expression level: each sub-expression gets properties</span>
+<span class="kw">export function</span> <span class="fn">distance</span>(a: <span class="tp">Point</span>, b: <span class="tp">Point</span>): <span class="tp">number</span> {
+  <span class="kw">const</span> dx = a.x - b.x;            <span class="cm">// expr: [pure, det, total, !const]</span>
+  <span class="kw">const</span> dy = a.y - b.y;            <span class="cm">// expr: [pure, det, total, !const]</span>
+  <span class="kw">return</span> <span class="fn">Math</span>.<span class="fn">sqrt</span>(dx*dx + dy*dy); <span class="cm">// expr: [pure, det, total, !const]</span>
+}
+<span class="cm">// Declaration level (inferred): [pure, deterministic, total]</span>
+<span class="cm">//   ↑ because ALL expressions in body have these properties</span>
+
+<span class="kw">export const</span> ORIGIN: <span class="tp">Point</span> = { x: <span class="num">0</span>, y: <span class="num">0</span> };
+<span class="cm">// Declaration level: [immutable, constant]</span>
+
+<span class="cm">// Module level (inferred): [pure, treeshakeable, deterministic-init]</span>
+<span class="cm">//   ↑ because ALL declarations are pure and all top-level code is constant</span></pre>
+</div>
+
+<div class="flow-row">
+  <div class="flow-box" style="background:rgba(0,212,170,0.15);border:2px solid var(--accent2);color:var(--accent2)">Expression Props</div>
+  <span class="flow-arrow">→ aggregate →</span>
+  <div class="flow-box" style="background:rgba(124,111,247,0.15);border:2px solid var(--accent);color:var(--accent)">Declaration Props</div>
+  <span class="flow-arrow">→ aggregate →</span>
+  <div class="flow-box" style="background:rgba(255,204,68,0.15);border:2px solid var(--warning);color:var(--warning)">Module Props</div>
+</div>
+<div class="flow-label">Properties flow upward through aggregation: if all sub-components have a property, the container has it too</div>
+
+<h2>8.2 Top-Down Annotation</h2>
+<p>Annotations at higher levels propagate <strong>requirements</strong> downward:</p>
+
+<div class="card card-pink">
+<pre><span class="cm">// Top-down: module annotation → declaration requirement → expression check</span>
+
+<span class="cm">// @ksc pure                          ← MODULE-LEVEL annotation</span>
+<span class="cm">//   ↓ means: every export must be pure</span>
+
+<span class="kw">export function</span> <span class="fn">add</span>(a: <span class="tp">number</span>, b: <span class="tp">number</span>) {
+  <span class="cm">// ↓ means: every expression must be pure</span>
+  <span class="kw">return</span> a + b;                    <span class="cm">// ✓ pure expression</span>
+}
+
+<span class="kw">export function</span> <span class="fn">logAndAdd</span>(a: <span class="tp">number</span>, b: <span class="tp">number</span>) {
+  <span class="fn">console</span>.<span class="fn">log</span>(a, b);                <span class="cm">// <span class="err">✗ IMPURE expression!</span></span>
+  <span class="cm">// Error: module is annotated @ksc pure but logAndAdd</span>
+  <span class="cm">// contains impure expression console.log() at line N</span>
+  <span class="kw">return</span> a + b;
+}</pre>
+</div>
+
+<div class="flow-row">
+  <div class="flow-box" style="background:rgba(255,204,68,0.15);border:2px solid var(--warning);color:var(--warning)">Module Annotation</div>
+  <span class="flow-arrow">→ requires →</span>
+  <div class="flow-box" style="background:rgba(124,111,247,0.15);border:2px solid var(--accent);color:var(--accent)">Declaration Check</div>
+  <span class="flow-arrow">→ requires →</span>
+  <div class="flow-box" style="background:rgba(0,212,170,0.15);border:2px solid var(--accent2);color:var(--accent2)">Expression Check</div>
+</div>
+<div class="flow-label">Annotations flow downward through requirements: a module-level annotation means every sub-component must satisfy it</div>
+
+<h2>8.3 The Dual-Flow System</h2>
+<p>In practice, both flows operate simultaneously:</p>
+
+<div class="card card-orange">
+<pre><span class="cm">// The full picture: annotation + inference working together</span>
+
+<span class="cm">// @ksc pure                         ← top-down: sets requirement</span>
+<span class="kw">export function</span> <span class="fn">transform</span>(data: <span class="tp">Data</span>[]): <span class="tp">Data</span>[] {
+  <span class="kw">return</span> data
+    .<span class="fn">filter</span>(d => d.active)          <span class="cm">// ← bottom-up: [pure] ✓</span>
+    .<span class="fn">map</span>(d => ({                     <span class="cm">// ← bottom-up: [pure] ✓</span>
+      ...d,
+      score: <span class="fn">computeScore</span>(d)        <span class="cm">// ← bottom-up: is computeScore [pure]?</span>
+    }))                               <span class="cm">//   → look up computeScore's declaration</span>
+    .<span class="fn">sort</span>((a, b) => b.score - a.score); <span class="cm">// ← ⚠️ sort creates new array via spread?</span>
+}                                     <span class="cm">//   actually .sort() mutates! but we're on</span>
+                                      <span class="cm">//   a chain from .filter() which creates a</span>
+                                      <span class="cm">//   new array, so the mutation is local.</span>
+
+<span class="cm">// The checker needs to determine:</span>
+<span class="cm">// 1. [top-down] module says pure → transform must be pure</span>
+<span class="cm">// 2. [bottom-up] .filter() creates new array → local mutation OK</span>
+<span class="cm">// 3. [cross-reference] computeScore must be [pure] → check its declaration</span>
+<span class="cm">// 4. [bottom-up] all expressions check out → transform is [pure] ✓</span></pre>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION: PRIORITY MATRIX -->
+<!-- ============================================================ -->
+
+<h1>9. Implementation Priority Matrix</h1>
+<p>Not all levels and properties are equal. Here's a prioritized view based on <strong>value delivered per implementation effort</strong>:</p>
+
+<h2>9.1 The Priority Tiers</h2>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab(this,'tier1')">Tier 1: Implement Now</button>
+  <button class="tab-btn" onclick="showTab(this,'tier2')">Tier 2: High Value</button>
+  <button class="tab-btn" onclick="showTab(this,'tier3')">Tier 3: Ambitious</button>
+  <button class="tab-btn" onclick="showTab(this,'tier4')">Tier 4: Research</button>
+</div>
+<div class="tab-content active" id="tier1">
+  <h3>Tier 1 — Implement Now (High value, tractable implementation)</h3>
+  <table>
+    <tr><th>Level</th><th>Property</th><th>Why Now</th></tr>
+    <tr><td><span class="badge badge-decl">Declaration</span></td><td><span class="prop-pill p-pure">pure</span></td><td>Already implemented in KindScript. The foundation.</td></tr>
+    <tr><td><span class="badge badge-decl">Declaration</span></td><td><span class="prop-pill p-imm">immutable</span></td><td>Shallow: just check const. Deep: check all reachable properties.</td></tr>
+    <tr><td><span class="badge badge-mod">Module</span></td><td><span class="prop-pill p-pure">pure</span></td><td>Check top-level statements for side effects. Enables tree-shaking verification.</td></tr>
+    <tr><td><span class="badge badge-type">Type</span></td><td><span class="prop-pill p-pure">serializable</span></td><td>Recursive structural check. Prevents real bugs at API boundaries.</td></tr>
+    <tr><td><span class="badge badge-expr">Expression</span></td><td><span class="prop-pill p-pure">pure</span></td><td>Foundation for declaration-level purity. Needed for accurate bottom-up inference.</td></tr>
+  </table>
+  <div class="callout"><span class="callout-key">Strategy:</span> These five properties form a coherent core. Expression purity enables declaration purity which enables module purity. Serializable catches a completely different class of bugs. Immutability complements purity.</div>
+</div>
+<div class="tab-content" id="tier2">
+  <h3>Tier 2 — High Value (Worth building next)</h3>
+  <table>
+    <tr><th>Level</th><th>Property</th><th>Why Valuable</th></tr>
+    <tr><td><span class="badge badge-expr">Expression</span></td><td><span class="prop-pill p-total">total</span></td><td>Catches uncaught exceptions. Requires tracking which functions throw.</td></tr>
+    <tr><td><span class="badge badge-expr">Expression</span></td><td><span class="prop-pill p-det">deterministic</span></td><td>Enables safe memoization. Relatively easy — track known non-det sources.</td></tr>
+    <tr><td><span class="badge badge-pat">Pattern</span></td><td><span class="prop-pill p-exh">exhaustive</span></td><td>Well-studied algorithm. TS does some of this; KSC could make it stricter.</td></tr>
+    <tr><td><span class="badge badge-type">Type</span></td><td><span class="prop-pill p-send">sendable</span></td><td>Critical for worker-heavy apps. Similar structural recursion to serializable.</td></tr>
+    <tr><td><span class="badge badge-mod">Module</span></td><td><span class="prop-pill p-imm">treeshakeable</span></td><td>Verify no hidden coupling between exports. High build-tool value.</td></tr>
+    <tr><td><span class="badge badge-decl">Declaration</span></td><td><span class="prop-pill p-term">bounded-recursion</span></td><td>Catches stack overflows. Auto-detect common patterns.</td></tr>
+  </table>
+</div>
+<div class="tab-content" id="tier3">
+  <h3>Tier 3 — Ambitious (Significant engineering, high payoff)</h3>
+  <table>
+    <tr><th>Level</th><th>Property</th><th>Challenge</th></tr>
+    <tr><td><span class="badge badge-stmt">Statement</span></td><td><span class="prop-pill p-term">terminates</span></td><td>Undecidable in general. Need Dafny-style annotations or restrict to common patterns.</td></tr>
+    <tr><td><span class="badge badge-stmt">Statement</span></td><td><span class="prop-pill p-imm">idempotent</span></td><td>Requires semantic analysis of state transformations. Hard to automate.</td></tr>
+    <tr><td><span class="badge badge-expr">Expression</span></td><td><span class="prop-pill p-const">constant</span></td><td>Needs compile-time evaluation or restricted expression subset (like Rust const fn).</td></tr>
+    <tr><td><span class="badge badge-type">Type</span></td><td><span class="prop-pill p-det">comparable</span></td><td>Need to model JS equality semantics precisely (=== vs structural).</td></tr>
+  </table>
+</div>
+<div class="tab-content" id="tier4">
+  <h3>Tier 4 — Research (Explore feasibility)</h3>
+  <table>
+    <tr><th>Level</th><th>Property</th><th>Open Question</th></tr>
+    <tr><td><span class="badge badge-stmt">Statement</span></td><td>commutative</td><td>Requires dependency analysis between statements. Useful for auto-parallelization.</td></tr>
+    <tr><td><span class="badge badge-stmt">Statement</span></td><td>reversible</td><td>Transaction-like semantics. Useful for undo systems but very hard to verify.</td></tr>
+    <tr><td><span class="badge badge-type">Type</span></td><td><span class="prop-pill p-const">sized</span></td><td>JS doesn't expose memory layout. Could only approximate via structural analysis.</td></tr>
+    <tr><td><span class="badge badge-decl">Declaration</span></td><td>local (escape analysis)</td><td>Need to track all reference paths. Rust does this with lifetimes; TS has no equivalent.</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION: THE BIG PICTURE -->
+<!-- ============================================================ -->
+
+<h1>10. The Big Picture: KindScript's Property Universe</h1>
+
+<div class="card card-accent">
+<pre style="font-size:0.78em;line-height:1.6"><span class="cm">                    ┌─────────────────────────────────────────┐</span>
+<span class="cm">                    │          Module Properties               │</span>
+<span class="cm">                    │  pure, treeshakeable, deterministic-init │</span>
+<span class="cm">                    │  self-contained                         │</span>
+<span class="cm">                    └───────────────┬─────────────────────────┘</span>
+<span class="cm">                                    │ contains</span>
+<span class="cm">              ┌─────────────────────┼──────────────────────┐</span>
+<span class="cm">              ▼                     ▼                      ▼</span>
+<span class="cm">  ┌───────────────────┐ ┌───────────────────┐ ┌──────────────────┐</span>
+<span class="cm">  │ Declaration Props  │ │  Type Properties   │ │  Pattern Props   │</span>
+<span class="cm">  │ pure, immutable,   │ │ serializable,      │ │ exhaustive,      │</span>
+<span class="cm">  │ bounded-recursion, │ │ sendable,          │ │ irrefutable,     │</span>
+<span class="cm">  │ local, constant    │ │ comparable, sized  │ │ non-overlapping  │</span>
+<span class="cm">  └────────┬──────────┘ └───────────────────┘ └──────────────────┘</span>
+<span class="cm">           │ body contains</span>
+<span class="cm">     ┌─────┴──────┐</span>
+<span class="cm">     ▼            ▼</span>
+<span class="cm">  ┌──────────┐ ┌──────────────┐</span>
+<span class="cm">  │ Statement │ │  Expression   │</span>
+<span class="cm">  │ Props     │ │  Properties   │</span>
+<span class="cm">  │ effect-   │ │ pure, determ. │</span>
+<span class="cm">  │ free,     │ │ total, const, │</span>
+<span class="cm">  │ terminates│ │ ref-transp.   │</span>
+<span class="cm">  │ exhaustive│ │               │</span>
+<span class="cm">  │ idempotent│ │  ← FOUNDATION │</span>
+<span class="cm">  └──────────┘ └──────────────┘</span></pre>
+</div>
+
+<div class="callout"><span class="callout-key">The key insight:</span> Expression properties are the <strong>foundation</strong>. Everything above is derived. Declaration properties aggregate expression properties. Module properties aggregate declaration properties. Type properties are orthogonal — they describe the <em>data</em> rather than the <em>computation</em>. Pattern properties are structural — they describe <em>coverage</em> of case analysis.</div>
+
+<!-- ============================================================ -->
+<!-- QUIZZES -->
+<!-- ============================================================ -->
+
+<h2>Test Your Understanding</h2>
+
+<div class="quiz-q">
+  <p>1. If a function contains 10 pure expressions and 1 impure expression, what is the function's purity?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Mostly pure (90%)</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Impure — one impure sub-expression contaminates the whole function</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Depends on which expression is impure</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Pure if the impure expression is in a dead branch</button>
+  </div>
+  <div class="quiz-explain">Properties compose via lattice meet (∧). Pure ∧ impure = impure. One impure expression makes the entire function impure. (The dead branch case is interesting — if the impure expression is provably unreachable, you could argue the function is effectively pure, but conservatively it's marked impure.)</div>
+</div>
+
+<div class="quiz-q">
+  <p>2. Which property level would catch the bug: "I passed a function closure to a Web Worker via postMessage and it silently became null"?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Expression-level: purity check on postMessage</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Type-level: the sendable property would flag function types as non-sendable</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Module-level: worker modules should be pure</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Declaration-level: the function should be immutable</button>
+  </div>
+  <div class="quiz-explain">This is a type-level property. The sendable property, auto-derived structurally, would flag any type containing functions as non-sendable. When you call postMessage(value), KindScript would check that the value's type is [sendable] and report an error if it contains function types, DOM references, or other non-transferable values.</div>
+</div>
+
+<div class="quiz-q">
+  <p>3. What is the relationship between module-level "pure" and webpack's "sideEffects: false"?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">They're unrelated — webpack deals with bundling, not type checking</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">sideEffects: false is stricter — it also checks runtime behavior</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Same concept, but sideEffects: false is a manual assertion while KindScript would verify it statically</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">KindScript's pure is weaker — it only checks function purity, not module-level effects</button>
+  </div>
+  <div class="quiz-explain">They express the same semantic property: "importing this module has no observable side effects." The difference is enforcement. webpack's sideEffects: false is a manual assertion in package.json that developers can get wrong (marking an impure module as side-effect-free breaks tree-shaking). KindScript's module-level pure would actually verify this by checking all top-level statements for side effects.</div>
+</div>
+
+<div class="quiz-q">
+  <p>4. In the bottom-up inference model, how does KindScript determine if a module is "pure"?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Check if the module file has any import statements</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Check if all exported functions are annotated @ksc pure</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Check that all top-level statements are effect-free, which requires checking that all top-level expressions are pure</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">A module is pure if it has no default export</button>
+  </div>
+  <div class="quiz-explain">Module purity flows bottom-up: expression-level purity → statement-level effect-freedom → module-level purity. The checker walks all top-level code (not inside functions, just the module body) and verifies that every statement is effect-free, which means every expression within those statements must be pure. Function declarations are fine (they don't execute on import). Calls to impure functions at the top level would fail the check.</div>
+</div>
+
+<div class="quiz-q">
+  <p>5. Why is "serializable" on types potentially more impactful than "pure" on expressions?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because serialization is more common than function calls</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Because serialization failures are silent (data becomes null/undefined/{}), making them much harder to debug than purity violations</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because every type needs to be serializable</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">It's not — purity is always more important</button>
+  </div>
+  <div class="quiz-explain">Serialization bugs are insidious because they fail silently. JSON.stringify on a Map returns "{}". A function in an object becomes undefined. Dates become strings. These bugs cross system boundaries (API responses, localStorage, worker messages) where they're hardest to trace. A type-level serializable check catches them at compile time, at the exact boundary where the type crosses a serialization point.</div>
+</div>
+
+<div class="card" style="text-align:center;margin-top:40px;padding:30px">
+  <p style="color:var(--text)">
+    Part 21 of the KindScript Research Series
+  </p>
+  <p style="font-size:0.8em">References: Koka effect system (Leijen 2014), Rust marker traits, Dafny termination proofs, Haskell type classes, webpack tree-shaking</p>
+</div>
+
+</div><!-- /container -->
+
+<script>
+function showLevel(id) {
+  document.querySelectorAll('.level-card').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.level-detail').forEach(d => d.style.display = 'none');
+  document.getElementById('lc-' + id).classList.add('active');
+  const detail = document.getElementById('detail-' + id);
+  if (detail) detail.style.display = 'block';
+  // Also show the flow section and priority section always
+  document.getElementById('flow-section')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function showTab(btn, id) {
+  const tabGroup = btn.parentElement;
+  tabGroup.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let sibling = tabGroup.nextElementSibling;
+  while (sibling && sibling.classList.contains('tab-content')) {
+    sibling.classList.remove('active');
+    sibling = sibling.nextElementSibling;
+  }
+  document.getElementById(id).classList.add('active');
+}
+
+function toggleStep(el) {
+  el.classList.toggle('active');
+}
+
+function checkQuiz(btn, correct) {
+  const opts = btn.parentElement.querySelectorAll('.quiz-opt');
+  opts.forEach(o => { o.disabled = true; o.style.pointerEvents = 'none'; });
+  if (correct) {
+    btn.classList.add('correct');
+    btn.parentElement.nextElementSibling.style.display = 'block';
+  } else {
+    btn.classList.add('wrong');
+  }
+}
+
+// Show expression level by default
+document.addEventListener('DOMContentLoaded', () => {
+  showLevel('expr');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Language KindScript — Extending KSC Beyond TypeScript</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Hero ── */
+.hero {
+  text-align: center; padding: 80px 24px 60px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #181b2a 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 3rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.15rem; color: var(--text-dim); max-width: 680px; margin: 0 auto 24px; }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.ts { border-color: #3178c6; color: #3178c6; }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+.badge.yellow { border-color: var(--yellow); color: var(--yellow); }
+.badge.pink { border-color: var(--pink); color: var(--pink); }
+
+/* ── Navigation ── */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+/* ── Sections ── */
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+h2 .num {
+  display: inline-block; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  text-align: center; line-height: 38px; margin-right: 12px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 12px; }
+
+p { margin-bottom: 16px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.84em;
+  line-height: 1.6; margin: 16px 0 20px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+/* Syntax highlighting */
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.number-lit { color: var(--orange); }
+.fn-name { color: var(--yellow); }
+.param { color: var(--pink); }
+.decorator { color: var(--orange); }
+
+/* ── Insight ── */
+.insight {
+  background: rgba(108,140,255,0.06); border-left: 3px solid var(--accent);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { background: rgba(251,146,60,0.06); border-left-color: var(--orange); }
+.insight.green { background: rgba(74,222,128,0.06); border-left-color: var(--green); }
+.insight.red { background: rgba(248,113,113,0.06); border-left-color: var(--red); }
+.insight strong { color: var(--text); }
+
+/* ── Tables ── */
+table {
+  width: 100%; border-collapse: collapse; margin: 16px 0 24px;
+  font-size: 0.88rem;
+}
+th {
+  text-align: left; padding: 10px 14px; background: var(--surface);
+  border-bottom: 2px solid var(--border); font-weight: 700; color: var(--accent);
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.4px;
+}
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+td:first-child { color: var(--text); font-weight: 600; }
+tr:hover td { background: var(--surface); }
+
+/* ── Pipeline stepper ── */
+.pipeline-stepper {
+  display: flex; gap: 2px; margin-bottom: 4px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.step-btn {
+  flex: 1; padding: 12px 8px; border: none; background: var(--surface);
+  color: var(--text-dim); font-weight: 700; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  letter-spacing: 0.5px; font-family: var(--mono);
+}
+.step-btn:hover { background: var(--surface2); color: var(--text); }
+.step-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+}
+.step-content { display: none; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+.step-content.active { display: block; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; margin-bottom: 0; flex-wrap: wrap; }
+.tab {
+  padding: 10px 20px; background: var(--surface); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim); font-weight: 600; font-size: 0.82rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { box-shadow: inset 0 2px 0 var(--accent); color: var(--text); background: var(--surface2); }
+.tab-content { display: none; padding: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 var(--radius) var(--radius) var(--radius); }
+.tab-content.active { display: block; }
+
+/* ── Collapsible stages ── */
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 4px; overflow: hidden;
+  cursor: pointer; transition: all 0.2s;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+}
+.df-stage-title { font-weight: 700; font-size: 0.95rem; }
+.df-num {
+  display: inline-flex; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: white; font-size: 0.75rem;
+  align-items: center; justify-content: center; font-weight: 800;
+  margin-right: 10px;
+}
+.df-expand { font-size: 0.7rem; color: var(--text-dim); transition: transform 0.3s; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail { display: none; padding: 0 20px 16px; font-size: 0.9rem; color: var(--text-dim); }
+.df-stage.active .df-detail { display: block; }
+.df-connector { height: 16px; width: 2px; background: var(--border); margin: 0 auto; }
+
+/* ── Cards grid ── */
+.constraint-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px; margin: 20px 0;
+}
+.constraint-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; cursor: pointer; transition: all 0.2s;
+}
+.constraint-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.constraint-card.selected { border-color: var(--accent); background: var(--surface2); }
+.cc-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+.cc-scope { font-size: 0.75rem; color: var(--accent2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.cc-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
+.constraint-detail {
+  display: none; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; margin-top: 12px; font-size: 0.9rem;
+}
+.constraint-detail.active { display: block; }
+
+/* ── Coupling meter ── */
+.coupling-meter {
+  display: flex; align-items: center; gap: 12px; margin: 8px 0;
+}
+.meter-bar {
+  flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden;
+}
+.meter-fill {
+  height: 100%; border-radius: 4px; transition: width 0.5s ease;
+}
+.meter-fill.high { background: linear-gradient(90deg, var(--red), var(--orange)); }
+.meter-fill.medium { background: linear-gradient(90deg, var(--orange), var(--yellow)); }
+.meter-fill.low { background: linear-gradient(90deg, var(--green), var(--cyan)); }
+.meter-fill.none { background: var(--green); }
+.meter-label { font-size: 0.78rem; font-weight: 600; min-width: 80px; }
+.meter-value { font-size: 0.78rem; color: var(--text-dim); min-width: 40px; text-align: right; }
+
+/* ── Architecture diagram ── */
+.arch-diagram {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 20px 0; font-family: var(--mono); font-size: 0.8rem;
+  line-height: 1.8; overflow-x: auto; color: var(--text-dim);
+}
+.arch-diagram .ts-color { color: #3178c6; font-weight: 700; }
+.arch-diagram .ag-color { color: var(--accent2); font-weight: 700; }
+.arch-diagram .ks-color { color: var(--cyan); font-weight: 700; }
+.arch-diagram .py-color { color: var(--yellow); font-weight: 700; }
+.arch-diagram .go-color { color: var(--cyan); font-weight: 700; }
+.arch-diagram .rs-color { color: var(--orange); font-weight: 700; }
+.arch-diagram .universal { color: var(--green); font-weight: 700; }
+
+/* ── Score grid ── */
+.score-grid {
+  display: grid; grid-template-columns: 140px repeat(4, 1fr);
+  gap: 1px; background: var(--border); border-radius: var(--radius);
+  overflow: hidden; margin: 20px 0; font-size: 0.82rem;
+}
+.score-cell {
+  background: var(--surface); padding: 12px; display: flex;
+  align-items: center; justify-content: center; text-align: center;
+}
+.score-cell.header { background: var(--surface2); font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.3px; font-size: 0.75rem; }
+.score-cell.axis { background: var(--surface2); font-weight: 600; color: var(--text); justify-content: flex-start; }
+.score-cell .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 2px; }
+.dot.filled { background: var(--accent); }
+.dot.empty { background: var(--surface2); border: 1px solid var(--border); }
+.dot.green-fill { background: var(--green); }
+.dot.yellow-fill { background: var(--yellow); }
+.dot.orange-fill { background: var(--orange); }
+
+/* ── Recommendation banner ── */
+.rec-banner {
+  background: linear-gradient(135deg, rgba(108,140,255,0.08), rgba(167,139,250,0.08));
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 24px; margin: 24px 0;
+}
+.rec-banner h4 { color: var(--accent); font-size: 1rem; margin-bottom: 8px; }
+.rec-banner p { margin-bottom: 8px; font-size: 0.92rem; }
+
+/* ── Phase timeline ── */
+.phase-timeline { margin: 24px 0; }
+.phase-item {
+  display: flex; gap: 20px; padding: 16px 0;
+  border-left: 2px solid var(--border); margin-left: 14px; padding-left: 24px;
+  position: relative;
+}
+.phase-item::before {
+  content: attr(data-phase); position: absolute; left: -15px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.75rem;
+  font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.phase-item.p2::before { background: var(--accent2); }
+.phase-item.p3::before { background: var(--green); }
+.phase-item.p4::before { background: var(--cyan); }
+.phase-content h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+.phase-content p { font-size: 0.88rem; color: var(--text-dim); margin-bottom: 0; }
+
+/* ── CLI Simulator ── */
+.cli-sim {
+  background: #1a1d27; border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; margin: 16px 0;
+}
+.cli-sim-bar {
+  background: var(--surface2); padding: 8px 12px; display: flex; gap: 6px;
+}
+.cli-sim-dot { width: 10px; height: 10px; border-radius: 50%; }
+.cli-sim-body {
+  padding: 16px 20px; font-family: var(--mono); font-size: 0.82em; line-height: 1.8;
+}
+.cli-prompt { color: var(--green); font-weight: 700; }
+.cli-output { color: var(--text-dim); }
+.cli-highlight { color: var(--cyan); font-weight: 600; }
+.cli-error { color: var(--red); }
+.cli-warn { color: var(--orange); }
+
+/* ── Status pill ── */
+.status { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.status.dead { background: rgba(248,113,113,0.15); color: var(--red); }
+.status.active { background: rgba(74,222,128,0.15); color: var(--green); }
+.status.mature { background: rgba(108,140,255,0.15); color: var(--accent); }
+.status.niche { background: rgba(251,146,60,0.15); color: var(--orange); }
+
+/* ── Flashcard ── */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .constraint-grid { grid-template-columns: 1fr; }
+  .score-grid { font-size: 0.72rem; grid-template-columns: 100px repeat(4, 1fr); }
+  .score-cell { padding: 8px; }
+  .pipeline-stepper { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<div class="hero">
+  <h1>Multi-Language KindScript</h1>
+  <p class="subtitle">How to extend KSC's architectural property enforcement beyond TypeScript to Python, Go, Rust, and any language with an AST.</p>
+  <div class="badge-row">
+    <span class="badge ts">TypeScript</span>
+    <span class="badge yellow">Python</span>
+    <span class="badge cyan">Go</span>
+    <span class="badge orange">Rust</span>
+    <span class="badge purple">Attribute Grammars</span>
+    <span class="badge green">tree-sitter</span>
+    <span class="badge pink">Semgrep</span>
+  </div>
+</div>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#coupling">Coupling</a>
+    <a class="toc-link" href="#ir-problem">The IR Problem</a>
+    <a class="toc-link" href="#existing-asts">Existing Universal ASTs</a>
+    <a class="toc-link" href="#annotations">Annotations</a>
+    <a class="toc-link" href="#properties">Properties</a>
+    <a class="toc-link" href="#options">Options</a>
+    <a class="toc-link" href="#comparison">Comparison</a>
+    <a class="toc-link" href="#recommendation">Recommendation</a>
+    <a class="toc-link" href="#code-examples">Code</a>
+    <a class="toc-link" href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- ═══════════════ 01 COUPLING ANALYSIS ═══════════════ -->
+<section id="coupling">
+<div class="container">
+  <h2><span class="num">01</span>TypeScript Coupling Analysis</h2>
+  <p class="section-sub">Before designing multi-language support, we need to understand exactly where KindScript is coupled to TypeScript and where it's already language-agnostic.</p>
+
+  <p>KindScript's current architecture has four distinct layers, each with different levels of TypeScript coupling. The key insight is that the <em>property concepts</em> are universal, but the <em>extraction machinery</em> is deeply TS-specific.</p>
+
+  <h3>Layer-by-Layer Coupling</h3>
+
+  <div style="margin: 24px 0;">
+    <div class="coupling-meter">
+      <span class="meter-label">Scanner/Parser</span>
+      <div class="meter-bar"><div class="meter-fill high" style="width:100%"></div></div>
+      <span class="meter-value" style="color: var(--red);">100%</span>
+    </div>
+    <div style="font-size:0.82rem; color:var(--text-dim); margin: 2px 0 16px 0;">
+      Entirely delegated to <code>ts.createProgram()</code>. Zero custom scanning or parsing.
+    </div>
+
+    <div class="coupling-meter">
+      <span class="meter-label">AST Conversion</span>
+      <div class="meter-bar"><div class="meter-fill high" style="width:90%"></div></div>
+      <span class="meter-value" style="color: var(--orange);">90%</span>
+    </div>
+    <div style="font-size:0.82rem; color:var(--text-dim); margin: 2px 0 16px 0;">
+      <code>convert.ts</code> maps every <code>ts.SyntaxKind</code> to a <code>KSNode</code> variant. 60+ specific converters reference TS-specific node types.
+    </div>
+
+    <div class="coupling-meter">
+      <span class="meter-label">KSNode IR</span>
+      <div class="meter-bar"><div class="meter-fill medium" style="width:75%"></div></div>
+      <span class="meter-value" style="color: var(--yellow);">75%</span>
+    </div>
+    <div style="font-size:0.82rem; color:var(--text-dim); margin: 2px 0 16px 0;">
+      The <code>KSNode</code> union type is a <strong>direct mirror of TypeScript's AST</strong>. Node types like <code>KSTypeAliasDeclaration</code>, <code>KSAsExpression</code>, <code>KSArrowFunction</code> are TypeScript-specific constructs with no equivalents in Python or Go.
+    </div>
+
+    <div class="coupling-meter">
+      <span class="meter-label">Binder</span>
+      <div class="meter-bar"><div class="meter-fill medium" style="width:65%"></div></div>
+      <span class="meter-value" style="color: var(--yellow);">65%</span>
+    </div>
+    <div style="font-size:0.82rem; color:var(--text-dim); margin: 2px 0 16px 0;">
+      Searches for <code>type X = Kind&lt;{...}&gt;</code> patterns. The algorithm is generic; the pattern matching is TS-specific.
+    </div>
+
+    <div class="coupling-meter">
+      <span class="meter-label">AG Library</span>
+      <div class="meter-bar"><div class="meter-fill none" style="width:0%"></div></div>
+      <span class="meter-value" style="color: var(--green);">0%</span>
+    </div>
+    <div style="font-size:0.82rem; color:var(--text-dim); margin: 2px 0 16px 0;">
+      Completely language-agnostic. <code>createTree()</code>, <code>syn()</code>, <code>inh()</code>, <code>circular()</code> all work with any tree.
+    </div>
+
+    <div class="coupling-meter">
+      <span class="meter-label">Property Concepts</span>
+      <div class="meter-bar"><div class="meter-fill none" style="width:0%"></div></div>
+      <span class="meter-value" style="color: var(--green);">0%</span>
+    </div>
+    <div style="font-size:0.82rem; color:var(--text-dim); margin: 2px 0 16px 0;">
+      <code>noImports</code>, <code>noMutation</code>, <code>pure</code> etc. are universal programming concepts.
+    </div>
+  </div>
+
+  <div class="insight green">
+    <strong>Key takeaway:</strong> KindScript's core value proposition &mdash; "define behavioral properties, check them at compile time" &mdash; is inherently language-agnostic. The <code>libs/ag</code> infrastructure and property concepts are ready for multi-language use. But the IR layer presents a significant challenge.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 02 THE IR PROBLEM ═══════════════ -->
+<section id="ir-problem">
+<div class="container">
+  <h2><span class="num">02</span>The IR Problem: KSNode is a TS Mirror</h2>
+  <p class="section-sub">The current <code>KSNode</code> intermediate representation looks language-neutral at first glance, but it's actually a 1:1 copy of TypeScript's AST shape. This creates fundamental problems for multi-language support.</p>
+
+  <h3>TS-Specific Constructs in KSNode</h3>
+  <p>Many <code>KSNode</code> variants have <strong>no equivalent</strong> in other languages:</p>
+
+  <table>
+    <tr><th>KSNode Type</th><th>TS-Specific?</th><th>Problem for Other Languages</th></tr>
+    <tr><td><code>KSTypeAliasDeclaration</code></td><td style="color:var(--red)">Yes</td><td>Python/Go/Rust have no type aliases of this form. This is the <em>Kind&lt;{}&gt;</em> carrier.</td></tr>
+    <tr><td><code>KSAsExpression</code></td><td style="color:var(--red)">Yes</td><td>TypeScript's <code>x as T</code> syntax. No equivalent in Python or Go.</td></tr>
+    <tr><td><code>KSArrowFunction</code></td><td style="color:var(--orange)">Partially</td><td>Python has <code>lambda</code>, Go has func literals, Rust has closures &mdash; but all have different semantics.</td></tr>
+    <tr><td><code>KSEnumDeclaration</code></td><td style="color:var(--orange)">Partially</td><td>Rust has enums (but algebraic). Python has <code>enum.Enum</code>. Go uses <code>iota</code>. All differ.</td></tr>
+    <tr><td><code>KSInterfaceDeclaration</code></td><td style="color:var(--orange)">Partially</td><td>Go has interfaces but they're structural. Python uses <code>Protocol</code>/<code>ABC</code>. Rust uses traits.</td></tr>
+    <tr><td><code>KSImportDeclaration</code></td><td style="color:var(--green)">Universal</td><td>All languages have imports, but the syntax differs wildly.</td></tr>
+    <tr><td><code>KSFunctionDeclaration</code></td><td style="color:var(--green)">Universal</td><td>All languages have function declarations.</td></tr>
+  </table>
+
+  <h3>The Mapping Challenge</h3>
+  <p>Where does a Python <code>decorated_definition</code> go? What about Go's <code>goroutine</code> (<code>go func()</code>)? Rust's lifetime annotations (<code>&amp;'a T</code>)? The current <code>KSNode</code> has no home for these. You'd need to either:</p>
+  <ol style="margin: 8px 0 16px 24px; color: var(--text-dim);">
+    <li>Force everything into the TS-shaped mold (lossy, awkward)</li>
+    <li>Add language-specific node types to KSNode (combinatorial explosion)</li>
+    <li>Design a genuinely universal IR from scratch</li>
+  </ol>
+
+  <div class="insight red">
+    <strong>The core problem:</strong> KSNode's node names sound generic (<code>FunctionDeclaration</code>, <code>ImportDeclaration</code>) but their <em>fields</em> are TypeScript-shaped. <code>KSFunctionDeclaration</code> has <code>asteriskToken</code> (generators), <code>typeParameters</code>, and <code>modifiers</code> &mdash; concepts that don't map cleanly to <code>def</code> in Python or <code>func</code> in Go. Using this IR for other languages would mean either leaving fields empty/undefined or shoehorning foreign concepts into TS-shaped holes.
+  </div>
+
+  <h3>What We Actually Need</h3>
+  <p>A truly universal IR for KindScript doesn't need to represent <em>every</em> syntactic construct in every language. It only needs to represent constructs that are <strong>relevant to property checking</strong>: imports, function boundaries, variable declarations, mutation operators, I/O calls, and module structure. Everything else can be a generic "opaque node" that property checking traverses but doesn't inspect.</p>
+
+</div>
+</section>
+
+<!-- ═══════════════ 03 EXISTING UNIVERSAL ASTs ═══════════════ -->
+<section id="existing-asts">
+<div class="container">
+  <h2><span class="num">03</span>Existing Universal AST Formats</h2>
+  <p class="section-sub">Others have tried solving the multi-language AST problem. Here's what exists, what works, and what we can learn from.</p>
+
+  <div class="data-flow">
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Semgrep's AST_generic <span class="status active">Production</span></span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>The most proven universal AST in existence.</strong> Semgrep uses tree-sitter to parse 35+ languages, then maps each language's CST to a shared <code>AST_generic</code> representation. Core categories:</p>
+        <ul style="margin: 8px 0 8px 20px;">
+          <li><code>stmt</code> &mdash; statements (<code>ExprStmt</code>, <code>Block</code>, <code>DefStmt</code>)</li>
+          <li><code>expr</code> &mdash; expressions (<code>Call</code>, <code>N</code> (name), <code>L</code> (literal))</li>
+          <li><code>definition</code> &mdash; definitions (<code>FuncDef</code>, <code>VarDef</code>, <code>ClassDef</code>)</li>
+          <li><code>name</code> / <code>tok</code> &mdash; identifiers and tokens with location info</li>
+        </ul>
+        <p style="margin-top:8px">Each language has a dedicated mapper (e.g., <code>python_to_generic.ml</code>) that converts tree-sitter output to <code>AST_generic</code>. Language-specific constructs that don't fit the generic model are either mapped to the closest equivalent or wrapped in a language-specific extension node.</p>
+        <p style="margin-top:8px"><strong>Relevance to KSC:</strong> This is exactly the pattern KSC needs. A slim generic IR focused on the constructs that matter for analysis, with per-language mappers from tree-sitter CSTs.</p>
+        <p style="margin-top:8px; color:var(--orange)"><strong>Limitation:</strong> Written in OCaml. No JS/TS library to import the AST_generic types directly. KSC would need to design its own IR inspired by this approach.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Tree-sitter Node Types <span class="status mature">Ubiquitous</span></span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Critical finding: tree-sitter node types are NOT standardized across languages.</strong> Each grammar defines its own names independently:</p>
+        <table style="margin: 12px 0;">
+          <tr><th>Construct</th><th>Python</th><th>TypeScript</th><th>Go</th><th>Rust</th></tr>
+          <tr><td>Function</td><td><code>function_definition</code></td><td><code>function_declaration</code></td><td><code>function_declaration</code></td><td><code>function_item</code></td></tr>
+          <tr><td>Import</td><td><code>import_statement</code></td><td><code>import_statement</code></td><td><code>import_declaration</code></td><td><code>use_declaration</code></td></tr>
+          <tr><td>Class</td><td><code>class_definition</code></td><td><code>class_declaration</code></td><td><code>type_declaration</code></td><td><code>struct_item</code></td></tr>
+          <tr><td>Variable</td><td><code>assignment</code></td><td><code>lexical_declaration</code></td><td><code>var_declaration</code></td><td><code>let_declaration</code></td></tr>
+          <tr><td>If</td><td><code>if_statement</code></td><td><code>if_statement</code></td><td><code>if_statement</code></td><td><code>if_expression</code></td></tr>
+        </table>
+        <p><strong>Implication:</strong> You cannot write a single tree-sitter query that matches "function definitions" across languages. Each grammar's <code>node-types.json</code> is independently authored. You <em>must</em> build a mapping layer on top.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Babelfish UAST <span class="status dead">Archived 2020</span></span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Source{d}'s Universal AST used a two-tier approach: raw language-specific nodes annotated with ~120 universal "roles" (Identifier, Expression, Statement, Function, Import, etc.), plus a higher-level "semantic UAST" that normalized common constructs into language-independent types.</p>
+        <p style="margin-top:8px"><strong>Key design:</strong> Semantic node types included <code>Identifier</code>, <code>QualifiedIdentifier</code>, <code>Import</code>, <code>Function</code>, <code>FunctionType</code>, <code>Argument</code>, <code>Block</code>, <code>Alias</code>, <code>Comment</code>, <code>String</code>. Language-specific constructs (like Python decorators) remained as annotated native nodes.</p>
+        <p style="margin-top:8px; color:var(--red)"><strong>Status:</strong> Project archived. But the <em>design</em> is instructive &mdash; especially the roles-based annotation approach where you don't try to normalize everything.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> CodeQL, Joern, ast-grep <span class="status active">Active</span></span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>CodeQL</strong> (GitHub): Uses <em>language-specific</em> AST representations per language. Cross-language sharing happens at the <em>analysis</em> level (DataFlow, TaintTracking libraries), not the AST level. Each language has its own <code>.dbscheme</code>.</p>
+        <p style="margin-top:8px"><strong>Joern / CPG</strong>: Merges AST + control-flow + program-dependence into a unified "Code Property Graph" with standardized node types across languages. Supports C/C++, Java, Python, JS/TS, Kotlin, Rust. JVM-based (Scala).</p>
+        <p style="margin-top:8px"><strong>ast-grep</strong>: A high-level TypeScript API over tree-sitter with pattern matching. Does not normalize node types &mdash; you write language-specific patterns. But it's the best JS/TS tool for tree-sitter-based code search.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">5</span> SrcML, unist, CQFN <span class="status niche">Niche</span></span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>SrcML</strong>: XML-based AST for C/C++/C#/Java/Python. Uses shared tag names where constructs overlap (<code>&lt;function&gt;</code>, <code>&lt;if&gt;</code>, <code>&lt;import&gt;</code>). Lossless (preserves whitespace/comments). C++ CLI tool.</p>
+        <p style="margin-top:8px"><strong>unist</strong> (unified.js): Not for programming languages, but its architecture &mdash; shared node interface (<code>type</code>, <code>children</code>, <code>position</code>), pluggable parsers, unified traversal &mdash; is an excellent <em>design reference</em> for a JS/TS-native universal AST. 30M monthly npm downloads.</p>
+        <p style="margin-top:8px"><strong>CQFN UAST</strong>: Academic project classifying nodes as "green" (universal: conditionals, functions, loops) or "red" (language-specific: Java's <code>synchronized</code>, Python's slice syntax). Inactive since 2021, but the green/red taxonomy is a useful mental model.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>The consensus across all these projects:</strong> Nobody has succeeded at creating a single universal AST that perfectly represents all languages. The approaches that <em>work in production</em> (Semgrep, CodeQL) either (a) build a slim generic IR covering only common constructs and accept some loss, or (b) keep language-specific ASTs and share analysis libraries. For KSC's purposes &mdash; where we only need to detect structural properties &mdash; option (a) is the right fit.
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════ 04 KIND ANNOTATIONS ═══════════════ -->
+<section id="annotations">
+<div class="container">
+  <h2><span class="num">04</span>Kind Annotations Across Languages</h2>
+  <p class="section-sub">TypeScript uses phantom types for kind annotations. Other languages need different mechanisms.</p>
+
+  <div class="tabs" id="anno-tabs">
+    <button class="tab active" onclick="switchTab('anno-container','anno-ts')">TypeScript</button>
+    <button class="tab" onclick="switchTab('anno-container','anno-py')">Python</button>
+    <button class="tab" onclick="switchTab('anno-container','anno-go')">Go</button>
+    <button class="tab" onclick="switchTab('anno-container','anno-rs')">Rust</button>
+    <button class="tab" onclick="switchTab('anno-container','anno-cfg')">Config File</button>
+  </div>
+  <div id="anno-container">
+    <div class="tab-content active" id="anno-ts">
+      <h3>Current: Phantom Type Approach</h3>
+      <pre><code><span class="keyword">import type</span> { <span class="type-name">Kind</span>, <span class="type-name">PropertySet</span> } <span class="keyword">from</span> <span class="string-lit">'kindscript'</span>;
+
+<span class="keyword">type</span> <span class="type-name">Pure</span> = <span class="type-name">Kind</span>&lt;{ <span class="param">noImports</span>: <span class="keyword">true</span> }&gt;;
+
+<span class="keyword">const</span> <span class="fn-name">add</span>: <span class="type-name">Pure</span> & ((<span class="param">a</span>: <span class="type-name">number</span>, <span class="param">b</span>: <span class="type-name">number</span>) =&gt; <span class="type-name">number</span>) = (<span class="param">a</span>, <span class="param">b</span>) =&gt; a + b;</code></pre>
+      <p><strong>Strengths:</strong> Zero runtime cost, IDE autocomplete. <strong>Weakness:</strong> TS-only.</p>
+    </div>
+    <div class="tab-content" id="anno-py">
+      <h3>Decorator Annotations (Recommended)</h3>
+      <pre><code><span class="keyword">from</span> kindscript <span class="keyword">import</span> <span class="fn-name">kind</span>
+
+<span class="decorator">@kind</span>(<span class="string-lit">"Pure"</span>, no_imports=<span class="keyword">True</span>)
+<span class="keyword">def</span> <span class="fn-name">add</span>(<span class="param">a</span>: <span class="type-name">int</span>, <span class="param">b</span>: <span class="type-name">int</span>) -> <span class="type-name">int</span>:
+    <span class="keyword">return</span> a + b</code></pre>
+      <p>Decorators are idiomatic Python and easy to detect in any AST (tree-sitter: <code>decorated_definition</code>).</p>
+    </div>
+    <div class="tab-content" id="anno-go">
+      <h3>Comment Directive Annotations</h3>
+      <pre><code><span class="comment">//kindscript:kind Pure {noImports: true}</span>
+<span class="keyword">func</span> <span class="fn-name">Add</span>(<span class="param">a</span>, <span class="param">b</span> <span class="type-name">int</span>) <span class="type-name">int</span> {
+    <span class="keyword">return</span> a + b
+}</code></pre>
+      <p>Follows Go conventions (<code>//go:generate</code>, <code>//go:embed</code>).</p>
+    </div>
+    <div class="tab-content" id="anno-rs">
+      <h3>Attribute Macro Annotations</h3>
+      <pre><code><span class="decorator">#[kind(Pure, no_imports = true)]</span>
+<span class="keyword">fn</span> <span class="fn-name">add</span>(<span class="param">a</span>: <span class="type-name">i32</span>, <span class="param">b</span>: <span class="type-name">i32</span>) -> <span class="type-name">i32</span> {
+    a + b
+}</code></pre>
+      <p>Rust's attribute macros are the natural annotation mechanism.</p>
+    </div>
+    <div class="tab-content" id="anno-cfg">
+      <h3>External Configuration (Any Language)</h3>
+      <pre><code><span class="comment"># kindscript.yaml - works for any language</span>
+<span class="param">kinds</span>:
+  <span class="type-name">Pure</span>:
+    <span class="param">noImports</span>: <span class="keyword">true</span>
+<span class="param">rules</span>:
+  <span class="string-lit">"src/core/**"</span>:
+    <span class="param">kind</span>: <span class="type-name">Pure</span></code></pre>
+      <p>Language-agnostic. Coarser granularity (file/directory level).</p>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Design decision:</strong> These approaches aren't mutually exclusive. Config-file definitions work universally, while each language frontend adds idiomatic in-code annotations as an overlay.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 05 PROPERTY MAPPING ═══════════════ -->
+<section id="properties">
+<div class="container">
+  <h2><span class="num">05</span>Property Mapping Across Languages</h2>
+  <p class="section-sub">Each KindScript property has a universal semantic meaning but language-specific detection rules.</p>
+
+  <div class="constraint-grid" id="prop-grid">
+    <div class="constraint-card" onclick="selectCard(this, 'prop-noImports')">
+      <div class="cc-name">noImports</div>
+      <div class="cc-scope">Module Boundary</div>
+      <div class="cc-desc">No import/include/require statements in scope</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'prop-noConsole')">
+      <div class="cc-name">noConsole</div>
+      <div class="cc-scope">Output Control</div>
+      <div class="cc-desc">No stdout/stderr output operations</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'prop-noMutation')">
+      <div class="cc-name">noMutation</div>
+      <div class="cc-scope">Immutability</div>
+      <div class="cc-desc">No reassignment or in-place modification</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'prop-noIO')">
+      <div class="cc-name">noIO</div>
+      <div class="cc-scope">Side Effects</div>
+      <div class="cc-desc">No file, network, or system I/O</div>
+    </div>
+  </div>
+
+  <div class="constraint-detail" id="prop-noImports">
+    <h3>noImports &mdash; Detection Rules by Language</h3>
+    <table>
+      <tr><th>Language</th><th>Pattern to Detect</th><th>Notes</th></tr>
+      <tr><td>TypeScript</td><td><code>import</code> declarations, <code>import()</code>, <code>require()</code></td><td>Type-only imports may be excluded</td></tr>
+      <tr><td>Python</td><td><code>import x</code>, <code>from x import y</code></td><td>tree-sitter: <code>import_statement</code>, <code>import_from_statement</code></td></tr>
+      <tr><td>Go</td><td><code>import "pkg"</code>, <code>import (...)</code></td><td>tree-sitter: <code>import_declaration</code></td></tr>
+      <tr><td>Rust</td><td><code>use crate::x</code>, <code>extern crate</code></td><td>tree-sitter: <code>use_declaration</code></td></tr>
+    </table>
+  </div>
+
+  <div class="constraint-detail" id="prop-noConsole">
+    <h3>noConsole &mdash; Detection Rules by Language</h3>
+    <table>
+      <tr><th>Language</th><th>Pattern to Detect</th><th>Notes</th></tr>
+      <tr><td>TypeScript</td><td><code>console.log/warn/error</code></td><td>Property access on <code>console</code></td></tr>
+      <tr><td>Python</td><td><code>print()</code>, <code>sys.stdout.write()</code></td><td>tree-sitter: <code>call</code> with function <code>identifier</code> = "print"</td></tr>
+      <tr><td>Go</td><td><code>fmt.Print*</code>, <code>log.Print*</code></td><td>Package-qualified function calls</td></tr>
+      <tr><td>Rust</td><td><code>println!</code>, <code>eprintln!</code>, <code>dbg!</code></td><td>tree-sitter: <code>macro_invocation</code></td></tr>
+    </table>
+  </div>
+
+  <div class="constraint-detail" id="prop-noMutation">
+    <h3>noMutation &mdash; Detection Rules by Language</h3>
+    <table>
+      <tr><th>Language</th><th>Pattern to Detect</th><th>Notes</th></tr>
+      <tr><td>TypeScript</td><td><code>=</code>, <code>+=</code>, <code>++</code>, <code>--</code>, <code>delete</code></td><td>Assignment and update operators</td></tr>
+      <tr><td>Python</td><td><code>=</code>, <code>+=</code>, <code>del</code>, <code>.append()</code>, <code>.pop()</code></td><td>Must track mutating methods on builtins</td></tr>
+      <tr><td>Go</td><td><code>=</code>, <code>:=</code>, <code>++</code>, <code>--</code></td><td>Short variable declarations count</td></tr>
+      <tr><td>Rust</td><td><code>let mut</code>, <code>&amp;mut</code></td><td>Ownership system makes this easy</td></tr>
+    </table>
+  </div>
+
+  <div class="constraint-detail" id="prop-noIO">
+    <h3>noIO &mdash; Detection Rules by Language</h3>
+    <table>
+      <tr><th>Language</th><th>Pattern to Detect</th><th>Notes</th></tr>
+      <tr><td>TypeScript</td><td><code>fs.*</code>, <code>fetch</code>, <code>net.*</code></td><td>Known IO module imports</td></tr>
+      <tr><td>Python</td><td><code>open()</code>, <code>os.*</code>, <code>socket.*</code>, <code>requests.*</code></td><td>Builtin + known library detection</td></tr>
+      <tr><td>Go</td><td><code>os.*</code>, <code>io.*</code>, <code>net.*</code></td><td>Package import analysis</td></tr>
+      <tr><td>Rust</td><td><code>std::fs</code>, <code>std::net</code>, <code>std::io</code></td><td>Module path detection</td></tr>
+    </table>
+  </div>
+
+  <div class="insight warn">
+    <strong>Language-specific nuance:</strong> Property semantics vary subtly. Python's <code>noMutation</code> must track mutating method calls since Python lacks immutable collection types. Rust's <code>noMutation</code> is nearly free because of the ownership system. The universal IR must represent enough detail for each language's property adapter to work.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 06 ARCHITECTURE OPTIONS ═══════════════ -->
+<section id="options">
+<div class="container">
+  <h2><span class="num">06</span>Architecture Options</h2>
+  <p class="section-sub">Four approaches, from reusing the existing TS-shaped IR to designing a new Semgrep-inspired generic AST.</p>
+
+  <div class="data-flow">
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">A</span> Shoehorn into Current KSNode</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Reuse the existing <code>KSNode</code> union as-is. Force Python/Go/Rust constructs into the TS-shaped node types. Map <code>def add()</code> to <code>KSFunctionDeclaration</code>, <code>import os</code> to <code>KSImportDeclaration</code>, etc.</p>
+        <p style="margin-top:12px"><strong>Problems:</strong></p>
+        <ul style="margin: 8px 0 8px 20px; color: var(--text-dim);">
+          <li>Many fields will be <code>undefined</code> (Python functions have no <code>asteriskToken</code> or <code>typeParameters</code>)</li>
+          <li>TS-specific nodes like <code>KSAsExpression</code>, <code>KSTypeAliasDeclaration</code> are unused by other languages</li>
+          <li>Python decorators, Go goroutines, Rust lifetimes have nowhere to live</li>
+          <li>Back-reference <code>tsNode: ts.Node</code> on every node makes no sense for non-TS code</li>
+        </ul>
+        <p style="margin-top:12px; color:var(--red);"><strong>Verdict:</strong> Not recommended. Quick to start but creates a fragile, confusing codebase.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">B</span> Language Adapter Pattern (No Shared IR)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Skip the shared IR entirely. Define a <code>LanguageAdapter</code> interface where each language implements parsing, kind discovery, and property checking against its own native AST (tree-sitter nodes).</p>
+        <pre style="margin: 12px 0;"><code><span class="keyword">interface</span> <span class="type-name">LanguageAdapter</span> {
+  <span class="fn-name">parse</span>(<span class="param">files</span>: <span class="type-name">string</span>[]): <span class="type-name">ParsedProgram</span>;
+  <span class="fn-name">findKindAnnotations</span>(<span class="param">program</span>: <span class="type-name">ParsedProgram</span>): <span class="type-name">KindAnnotation</span>[];
+  <span class="fn-name">checkProperty</span>(<span class="param">node</span>: <span class="type-name">SyntaxNode</span>, <span class="param">prop</span>: <span class="type-name">string</span>): <span class="type-name">boolean</span>;
+}</code></pre>
+        <p style="margin-top:8px"><strong>Pro:</strong> Lowest effort to add a new language. No IR design needed.</p>
+        <p><strong>Con:</strong> Every property check is duplicated per language. Doesn't leverage <code>libs/ag</code>. Adapters diverge over time.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">C</span> Tree-sitter Queries Only (No IR)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Use tree-sitter for all languages and write property checks as tree-sitter queries (S-expression patterns). No intermediate representation at all. Each property has per-language query files.</p>
+        <pre style="margin: 12px 0;"><code><span class="comment">; noImports.py.scm</span>
+(import_statement) @violation
+(import_from_statement) @violation
+
+<span class="comment">; noImports.ts.scm</span>
+(import_statement) @violation
+(import_clause) @violation
+
+<span class="comment">; noImports.go.scm</span>
+(import_declaration) @violation</code></pre>
+        <p style="margin-top:8px"><strong>Pro:</strong> Tree-sitter queries are fast and declarative. Low per-language effort for simple properties.</p>
+        <p><strong>Con:</strong> Queries can't express complex analysis (transitive purity, call graph). Doesn't use <code>libs/ag</code>. Still duplicates queries per language (different node names).</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage active" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">D</span> New Generic IR (Semgrep-Inspired) <span class="status active" style="margin-left:8px">Recommended</span></span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Design a purpose-built universal IR</strong> inspired by Semgrep's <code>AST_generic</code> and CQFN's green/red taxonomy. The IR covers only constructs relevant to property checking. Each language gets a tree-sitter frontend that maps to this IR. TypeScript can optionally retain <code>ts.createProgram()</code> for type-level analysis.</p>
+        <p style="margin-top:12px"><strong>The IR design (sketch):</strong></p>
+        <pre style="margin: 12px 0;"><code><span class="comment">// Universal node types — only what property checking needs</span>
+<span class="keyword">type</span> <span class="type-name">KSGenericNode</span> =
+  | { <span class="param">kind</span>: <span class="string-lit">'Program'</span>; <span class="param">units</span>: <span class="type-name">KSGenericNode</span>[] }
+  | { <span class="param">kind</span>: <span class="string-lit">'Module'</span>; <span class="param">name</span>: <span class="type-name">string</span>; <span class="param">body</span>: <span class="type-name">KSGenericNode</span>[] }
+  | { <span class="param">kind</span>: <span class="string-lit">'Import'</span>; <span class="param">source</span>: <span class="type-name">string</span>; <span class="param">names</span>: <span class="type-name">string</span>[] }
+  | { <span class="param">kind</span>: <span class="string-lit">'FuncDef'</span>; <span class="param">name</span>: <span class="type-name">string</span>; <span class="param">params</span>: <span class="type-name">KSGenericNode</span>[]; <span class="param">body</span>: <span class="type-name">KSGenericNode</span> }
+  | { <span class="param">kind</span>: <span class="string-lit">'ClassDef'</span>; <span class="param">name</span>: <span class="type-name">string</span>; <span class="param">members</span>: <span class="type-name">KSGenericNode</span>[] }
+  | { <span class="param">kind</span>: <span class="string-lit">'VarDef'</span>; <span class="param">name</span>: <span class="type-name">string</span>; <span class="param">mutable</span>: <span class="type-name">boolean</span>; <span class="param">init</span>?: <span class="type-name">KSGenericNode</span> }
+  | { <span class="param">kind</span>: <span class="string-lit">'Call'</span>; <span class="param">target</span>: <span class="type-name">KSGenericNode</span>; <span class="param">args</span>: <span class="type-name">KSGenericNode</span>[] }
+  | { <span class="param">kind</span>: <span class="string-lit">'MemberAccess'</span>; <span class="param">object</span>: <span class="type-name">KSGenericNode</span>; <span class="param">member</span>: <span class="type-name">string</span> }
+  | { <span class="param">kind</span>: <span class="string-lit">'Assignment'</span>; <span class="param">target</span>: <span class="type-name">KSGenericNode</span>; <span class="param">value</span>: <span class="type-name">KSGenericNode</span> }
+  | { <span class="param">kind</span>: <span class="string-lit">'Name'</span>; <span class="param">id</span>: <span class="type-name">string</span> }
+  | { <span class="param">kind</span>: <span class="string-lit">'Literal'</span>; <span class="param">value</span>: <span class="type-name">string</span> }
+  | { <span class="param">kind</span>: <span class="string-lit">'Block'</span>; <span class="param">stmts</span>: <span class="type-name">KSGenericNode</span>[] }
+  | { <span class="param">kind</span>: <span class="string-lit">'Annotation'</span>; <span class="param">name</span>: <span class="type-name">string</span>; <span class="param">args</span>: <span class="type-name">Record</span>&lt;<span class="type-name">string</span>, <span class="type-name">unknown</span>&gt; }
+  | { <span class="param">kind</span>: <span class="string-lit">'Other'</span>; <span class="param">lang</span>: <span class="type-name">string</span>; <span class="param">type</span>: <span class="type-name">string</span>; <span class="param">children</span>: <span class="type-name">KSGenericNode</span>[] };</code></pre>
+        <p style="margin-top:12px">The <code>Other</code> node is the "red" escape hatch &mdash; any language-specific construct that doesn't fit the generic model gets preserved with its original type name. Property checking traverses through <code>Other</code> nodes but doesn't pattern-match on them.</p>
+        <p style="margin-top:8px"><strong>Pro:</strong> Clean IR designed for the problem at hand. Full <code>libs/ag</code> integration. Write each property check once. Each language adds only a mapper (~200-400 lines).</p>
+        <p><strong>Con:</strong> Requires upfront IR design work. Must maintain mappers per language.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 07 COMPARISON ═══════════════ -->
+<section id="comparison">
+<div class="container">
+  <h2><span class="num">07</span>Deep Comparison</h2>
+  <p class="section-sub">Head-to-head evaluation across key dimensions.</p>
+
+  <div class="score-grid">
+    <div class="score-cell header">Axis</div>
+    <div class="score-cell header">A: Shoehorn</div>
+    <div class="score-cell header">B: Adapters</div>
+    <div class="score-cell header">C: TS Queries</div>
+    <div class="score-cell header">D: Generic IR</div>
+
+    <div class="score-cell axis">Impl. Effort</div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot filled"></span><span class="dot filled"></span><span class="dot filled"></span><span class="dot empty"></span></div>
+
+    <div class="score-cell axis">Analysis Depth</div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span></div>
+
+    <div class="score-cell axis">Code Reuse</div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot orange-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot orange-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span></div>
+
+    <div class="score-cell axis">Correctness</div>
+    <div class="score-cell"><span class="dot orange-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span></div>
+
+    <div class="score-cell axis">AG Integration</div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot orange-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot orange-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span></div>
+
+    <div class="score-cell axis">Maintainability</div>
+    <div class="score-cell"><span class="dot orange-fill"></span><span class="dot empty"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot empty"></span></div>
+    <div class="score-cell"><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span><span class="dot green-fill"></span></div>
+  </div>
+
+  <table>
+    <tr><th>Option</th><th>Best For</th><th>Biggest Risk</th></tr>
+    <tr><td>A: Shoehorn</td><td>Quick prototype, TS-only projects</td><td>Fragile, undefined fields everywhere, back-reference <code>tsNode</code> on non-TS code</td></tr>
+    <tr><td>B: Adapters</td><td>Few languages with very different analysis needs</td><td>Property logic duplicated N times, doesn't use AG library</td></tr>
+    <tr><td>C: TS Queries</td><td>Simple properties (noImports, noConsole) only</td><td>Queries can't express complex analysis, still per-language</td></tr>
+    <tr><td>D: Generic IR</td><td>Long-term multi-language platform</td><td>Upfront IR design effort, must maintain per-language mappers</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ═══════════════ 08 RECOMMENDATION ═══════════════ -->
+<section id="recommendation">
+<div class="container">
+  <h2><span class="num">08</span>Recommendation</h2>
+  <p class="section-sub">A purpose-built generic IR with tree-sitter frontends, following the proven Semgrep pattern.</p>
+
+  <div class="rec-banner">
+    <h4>Recommended: Option D &mdash; New Generic IR (Semgrep-Inspired) + tree-sitter frontends</h4>
+    <p>Design a slim, purpose-built <code>KSGenericNode</code> IR covering only property-relevant constructs (~15 node types). Use tree-sitter to parse all languages, with per-language mappers (~200-400 lines each) from tree-sitter CST to the generic IR. TypeScript optionally retains <code>ts.createProgram()</code> for type-level properties. All property checking and attribute grammar analysis operates on the generic IR.</p>
+  </div>
+
+  <h3>Why Not Reuse KSNode?</h3>
+  <p>The current <code>KSNode</code> has 60+ node types that are 1:1 copies of TypeScript's AST. Forcing Python's <code>def</code> into <code>KSFunctionDeclaration</code> (which has <code>asteriskToken</code>, <code>typeParameters</code>, and <code>modifiers</code>) would leave most fields <code>undefined</code> and create confusing, error-prone code. A generic IR designed from scratch for property checking is smaller (~15 types vs 60+), cleaner, and avoids this mismatch.</p>
+
+  <h3>Phased Rollout</h3>
+  <div class="phase-timeline">
+    <div class="phase-item" data-phase="1">
+      <div class="phase-content">
+        <h4>Phase 1: Design the Generic IR</h4>
+        <p>Define <code>KSGenericNode</code> with ~15 universal node types: <code>Program</code>, <code>Module</code>, <code>Import</code>, <code>FuncDef</code>, <code>ClassDef</code>, <code>VarDef</code>, <code>Call</code>, <code>MemberAccess</code>, <code>Assignment</code>, <code>Name</code>, <code>Literal</code>, <code>Block</code>, <code>Annotation</code>, <code>Other</code>. Integrate with <code>libs/ag</code>'s <code>createTree()</code>.</p>
+      </div>
+    </div>
+    <div class="phase-item p2" data-phase="2">
+      <div class="phase-content">
+        <h4>Phase 2: TypeScript Mapper + Migrated Binder</h4>
+        <p>Write the TS mapper (from existing <code>convert.ts</code> or from tree-sitter-typescript). Port the binder to operate on <code>KSGenericNode</code>. Verify existing tests still pass. The old <code>KSNode</code> can be kept alongside during migration.</p>
+      </div>
+    </div>
+    <div class="phase-item p3" data-phase="3">
+      <div class="phase-content">
+        <h4>Phase 3: Python Frontend</h4>
+        <p>Write <code>map-python.ts</code> (~300 lines) using tree-sitter-python. Map <code>function_definition</code> &rarr; <code>FuncDef</code>, <code>import_statement</code> &rarr; <code>Import</code>, <code>decorated_definition</code> &rarr; <code>Annotation</code> + wrapped node. Implement <code>noImports</code> and <code>noConsole</code> checks on the generic IR.</p>
+      </div>
+    </div>
+    <div class="phase-item p4" data-phase="4">
+      <div class="phase-content">
+        <h4>Phase 4: Go, Rust, and Beyond</h4>
+        <p>Add more language mappers. Each is a self-contained ~200-400 line file. All property checking is already written against the generic IR and works automatically for new languages.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Why This Approach Wins</h3>
+  <table>
+    <tr><th>Factor</th><th>Rationale</th></tr>
+    <tr><td>Semgrep proves it</td><td>Semgrep's <code>AST_generic</code> uses this exact pattern in production across 35+ languages. The approach works at scale.</td></tr>
+    <tr><td>Slim IR</td><td>~15 node types vs KSNode's 60+. Less surface area, easier to understand, fewer mapping decisions.</td></tr>
+    <tr><td>The <code>Other</code> escape hatch</td><td>Language-specific constructs are preserved as <code>Other</code> nodes. Nothing is lost; property checking just traverses through them.</td></tr>
+    <tr><td>tree-sitter is proven</td><td>100+ languages with maintained grammars. Used by GitHub, Neovim, Zed, Helix.</td></tr>
+    <tr><td>Write once, check everywhere</td><td>A <code>noImports</code> check on the generic IR ("walk children, find <code>Import</code> nodes") works identically for TS, Python, Go, Rust.</td></tr>
+    <tr><td>AG library unchanged</td><td><code>libs/ag</code>'s <code>createTree()</code>, <code>syn()</code>, <code>inh()</code> work with any tree. Zero changes needed.</td></tr>
+  </table>
+
+  <div class="insight green">
+    <strong>The core insight:</strong> KindScript doesn't need a universal AST that represents <em>everything</em> about every language. It needs one that represents enough for <em>property checking</em>: "where are the imports?", "where are the function boundaries?", "where are the mutation operators?". A slim, purpose-built IR does this better than a 60-type TS mirror ever could.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 09 CODE EXAMPLES ═══════════════ -->
+<section id="code-examples">
+<div class="container">
+  <h2><span class="num">09</span>Code Examples</h2>
+  <p class="section-sub">What the recommended architecture looks like in practice.</p>
+
+  <h3>The Generic IR + Mapper Pattern</h3>
+  <div class="arch-diagram">
+<pre style="background:none; border:none; padding:0; margin:0; color: var(--text-dim);">
+  <span class="ts-color">*.ts files</span>         <span class="py-color">*.py files</span>         <span class="go-color">*.go files</span>        <span class="rs-color">*.rs files</span>
+      |                    |                    |                   |
+      v                    v                    v                   v
+ <span class="ts-color">tree-sitter-ts</span>    <span class="py-color">tree-sitter-py</span>    <span class="go-color">tree-sitter-go</span>   <span class="rs-color">tree-sitter-rs</span>
+      |                    |                    |                   |
+      v                    v                    v                   v
+  <span class="ts-color">map-ts.ts</span>          <span class="py-color">map-py.ts</span>         <span class="go-color">map-go.ts</span>        <span class="rs-color">map-rs.ts</span>
+  (~400 lines)        (~300 lines)       (~250 lines)      (~300 lines)
+      |                    |                    |                   |
+      +--------+-----------+-----------+--------+-------------------+
+               |
+               v
+        <span class="universal">KSGenericNode</span> (universal IR, ~15 node types)
+               |
+               v
+        <span class="ag-color">libs/ag createTree()</span>
+               |
+               v
+        <span class="ks-color">Property Checking Attributes</span>
+        (written ONCE, works for ALL languages)
+               |
+               v
+        <span class="universal">Diagnostics / Dashboard</span>
+</pre>
+  </div>
+
+  <h3>Mapper Example: Python</h3>
+  <pre><code><span class="comment">// src/frontends/map-python.ts — ~300 lines total</span>
+<span class="keyword">function</span> <span class="fn-name">mapNode</span>(<span class="param">node</span>: <span class="type-name">SyntaxNode</span>): <span class="type-name">KSGenericNode</span> {
+  <span class="keyword">switch</span> (node.type) {
+    <span class="keyword">case</span> <span class="string-lit">'function_definition'</span>:
+      <span class="keyword">return</span> {
+        kind: <span class="string-lit">'FuncDef'</span>,
+        name: node.<span class="fn-name">childForFieldName</span>(<span class="string-lit">'name'</span>)?.text ?? <span class="string-lit">''</span>,
+        params: <span class="fn-name">mapChildren</span>(node.<span class="fn-name">childForFieldName</span>(<span class="string-lit">'parameters'</span>)),
+        body: <span class="fn-name">mapNode</span>(node.<span class="fn-name">childForFieldName</span>(<span class="string-lit">'body'</span>)!),
+      };
+    <span class="keyword">case</span> <span class="string-lit">'import_statement'</span>:
+    <span class="keyword">case</span> <span class="string-lit">'import_from_statement'</span>:
+      <span class="keyword">return</span> {
+        kind: <span class="string-lit">'Import'</span>,
+        source: <span class="fn-name">extractImportSource</span>(node),
+        names: <span class="fn-name">extractImportNames</span>(node),
+      };
+    <span class="keyword">case</span> <span class="string-lit">'decorated_definition'</span>:
+      <span class="keyword">return</span> {
+        kind: <span class="string-lit">'Annotation'</span>,
+        name: <span class="fn-name">extractDecoratorName</span>(node),
+        args: <span class="fn-name">extractDecoratorArgs</span>(node),
+      };
+    <span class="keyword">case</span> <span class="string-lit">'call'</span>:
+      <span class="keyword">return</span> {
+        kind: <span class="string-lit">'Call'</span>,
+        target: <span class="fn-name">mapNode</span>(node.<span class="fn-name">childForFieldName</span>(<span class="string-lit">'function'</span>)!),
+        args: <span class="fn-name">mapChildren</span>(node.<span class="fn-name">childForFieldName</span>(<span class="string-lit">'arguments'</span>)),
+      };
+    <span class="keyword">default</span>:
+      <span class="keyword">return</span> {
+        kind: <span class="string-lit">'Other'</span>, lang: <span class="string-lit">'python'</span>,
+        type: node.type, children: <span class="fn-name">mapChildren</span>(node),
+      };
+  }
+}</code></pre>
+
+  <h3>Unified CLI Output</h3>
+  <div class="cli-sim">
+    <div class="cli-sim-bar">
+      <span class="cli-sim-dot" style="background:#ff5f57"></span>
+      <span class="cli-sim-dot" style="background:#ffbd2e"></span>
+      <span class="cli-sim-dot" style="background:#28c840"></span>
+    </div>
+    <div class="cli-sim-body">
+      <span class="cli-prompt">$ </span>ksc check src/<br><br>
+      <span class="cli-output">Scanning 3 languages: TypeScript (12 files), Python (8 files), Go (4 files)</span><br><br>
+      <span class="cli-highlight">Kind: Pure</span><br>
+      <span class="cli-output">&nbsp;&nbsp;src/core/math.ts      </span><span class="cli-highlight">OK</span> <span class="cli-output">noImports</span><br>
+      <span class="cli-output">&nbsp;&nbsp;src/core/utils.py     </span><span class="cli-highlight">OK</span> <span class="cli-output">noImports</span><br>
+      <span class="cli-output">&nbsp;&nbsp;src/core/calc.go      </span><span class="cli-highlight">OK</span> <span class="cli-output">noImports</span><br><br>
+      <span class="cli-highlight">Kind: Isolated</span><br>
+      <span class="cli-output">&nbsp;&nbsp;src/transform/clean.py</span> <span class="cli-error">FAIL</span> <span class="cli-output">noConsole</span><br>
+      <span class="cli-error">&nbsp;&nbsp;&nbsp;&nbsp;Line 14: print(f"Processing {item}")</span><br>
+      <span class="cli-output">&nbsp;&nbsp;src/transform/filter.ts</span> <span class="cli-highlight">OK</span> <span class="cli-output">noConsole, noImports</span><br><br>
+      <span class="cli-warn">1 violation found across 24 files in 3 languages</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 10 KNOWLEDGE CHECK ═══════════════ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">10</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why can't the current <code>KSNode</code> IR be reused as-is for Python and Go?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>KSNode</code> is a 1:1 mirror of TypeScript's AST. Its node types have TS-specific fields (<code>KSFunctionDeclaration</code> has <code>asteriskToken</code>, <code>typeParameters</code>) and back-references (<code>tsNode: ts.Node</code>). Many nodes like <code>KSAsExpression</code> and <code>KSTypeAliasDeclaration</code> have no equivalents in other languages. Mapping Python/Go into this shape would leave most fields <code>undefined</code>.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Are tree-sitter node type names standardized across languages? Give an example.</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>No.</strong> Each grammar defines its own names independently. For example, a function definition is called <code>function_definition</code> in Python, <code>function_declaration</code> in TypeScript/Go, and <code>function_item</code> in Rust. A mapping layer is required on top of tree-sitter to normalize these.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is Semgrep's <code>AST_generic</code> and why is it relevant to KindScript?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Semgrep's <code>AST_generic</code> is the most production-proven universal AST, used across 35+ languages. It uses tree-sitter for parsing, then per-language mappers convert CSTs to a shared generic representation with types like <code>stmt</code>, <code>expr</code>, <code>FuncDef</code>, <code>Call</code>. KSC should follow this same pattern: tree-sitter parsing + per-language mappers + slim generic IR.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the purpose of the <code>Other</code> node type in the proposed generic IR?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>Other</code> is the "red" escape hatch for language-specific constructs that don't fit the generic model (Python's <code>with</code> statement, Go's <code>go</code> keyword, Rust's lifetime annotations). The construct is preserved with its original type name and children. Property checking traverses through <code>Other</code> nodes but doesn't pattern-match on them, so no information is lost.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why does the recommended approach use ~15 generic node types instead of KSNode's ~60?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>KindScript only needs to detect constructs relevant to property checking: imports, function boundaries, variable declarations, mutation operators, I/O calls, and module structure. Everything else can be an <code>Other</code> node that is traversed but not inspected. A slim IR is easier to map to, easier to understand, and reduces the per-language mapper from 1000+ lines to ~200-400 lines.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Which layer of KindScript's architecture has zero coupling to TypeScript and requires no changes for multi-language support?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The <code>libs/ag</code> attribute grammar library. Functions like <code>createTree()</code>, <code>syn()</code>, <code>inh()</code>, and <code>circular()</code> work with any tree of any node type. They have no imports from the <code>typescript</code> package and can be used directly with the new generic IR.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What approach did Babelfish (UAST) take for language-specific constructs, and what can KSC learn from it?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Babelfish used a two-tier approach: raw language-specific AST nodes annotated with ~120 universal "roles" (Function, Import, Assignment, etc.), plus a higher-level "semantic UAST" normalizing common constructs. Language-specific constructs remained as annotated native nodes. KSC's <code>Other</code> node with <code>lang</code> and <code>type</code> fields follows a similar philosophy &mdash; preserving what you can't normalize.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is checking <code>noMutation</code> harder in Python than in Rust, and how does the generic IR handle this?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Rust's ownership system makes mutation explicit (<code>let mut</code>, <code>&amp;mut</code>), so the mapper can set <code>VarDef.mutable = true</code> directly. Python has no immutability primitives and uses mutating methods (<code>.append()</code>) that the Python mapper must recognize as <code>Call</code> nodes targeting known mutating methods. The generic IR's <code>Call</code> + <code>MemberAccess</code> nodes provide enough structure for this analysis, but the property checker needs a per-language list of mutating builtins.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<script>
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabsEl = container.previousElementSibling;
+  tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function toggleStage(el) {
+  el.classList.toggle('active');
+}
+
+function showStep(stepId) {
+  const stepper = document.getElementById('pipe-stepper');
+  stepper.parentElement.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+  stepper.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function selectCard(cardEl, detailId) {
+  const grid = cardEl.closest('.constraint-grid');
+  grid.querySelectorAll('.constraint-card').forEach(c => c.classList.remove('selected'));
+  cardEl.classList.add('selected');
+  const section = cardEl.closest('section');
+  section.querySelectorAll('.constraint-detail').forEach(d => d.classList.remove('active'));
+  const detail = document.getElementById(detailId);
+  if (detail) detail.classList.add('active');
+}
+
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+</body>
+</html>
