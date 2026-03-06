@@ -6,7 +6,7 @@ import { createBinderSpec } from '../src/pipeline/binder.js';
 import { createGrammar } from '../libs/ag/src/grammar.js';
 import { createSemantics } from '../libs/ag/src/semantics.js';
 import { interpret } from '../libs/ag/src/interpret.js';
-import { getChildren } from '../src/pipeline/ast.js';
+import { getChildren } from '../src/pipeline/node-defs.js';
 import type { KSCompilationUnit } from '../src/pipeline/ast.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');

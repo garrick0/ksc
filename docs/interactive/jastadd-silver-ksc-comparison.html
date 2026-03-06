@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JastAdd vs Silver vs KSC: Algebraic Foundations Compared</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --text-bright: #e6edf3;
+    --accent: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-yellow: #d29922;
+    --accent-orange: #db6d28;
+    --accent-red: #f85149;
+    --accent-purple: #bc8cff;
+    --accent-pink: #f778ba;
+    --jastadd: #f0883e;
+    --silver: #58a6ff;
+    --ksc: #3fb950;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1e2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+  }
+  .hero h1 { font-size: 1.9rem; color: var(--text-bright); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+  .hero .subtitle { font-size: 1.05rem; color: var(--text-muted); max-width: 850px; margin: 0 auto 1.5rem; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  .section { margin-bottom: 2rem; }
+  .section-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { border-color: var(--accent); }
+  .section-header h2 { font-size: 1.15rem; color: var(--text-bright); flex: 1; }
+  .chevron { color: var(--accent); font-size: 0.75rem; transition: transform 0.2s; }
+  .section-header.open .chevron { transform: rotate(90deg); }
+  .section-body {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 8px 8px;
+    padding: 1.5rem; display: none;
+  }
+  .section-header.open + .section-body { display: block; }
+  .badge {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge-compare { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .badge-math { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+  .badge-arch { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .badge-quiz { background: rgba(247,120,186,0.15); color: var(--accent-pink); }
+  .badge-diverge { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+
+  .card {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .card h4 { color: var(--accent); font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .card.hl { border-color: var(--accent); border-width: 2px; }
+  .card.hl-green { border-color: var(--accent-green); border-width: 2px; }
+  .card.hl-purple { border-color: var(--accent-purple); border-width: 2px; }
+  .card.hl-orange { border-color: var(--accent-orange); border-width: 2px; }
+  .card.hl-jastadd { border-color: var(--jastadd); border-width: 2px; }
+  .card.hl-silver { border-color: var(--silver); border-width: 2px; }
+  .card.hl-ksc { border-color: var(--ksc); border-width: 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 0; }
+  .tab-btn {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    padding: 6px 14px; color: var(--text-muted); cursor: pointer;
+    font-size: 0.85rem; font-weight: 500;
+  }
+  .tab-btn.active { background: var(--bg-secondary); color: var(--accent); border-color: var(--accent); }
+  .tab-panel { display: none; padding: 1rem 0; }
+  .tab-panel.active { display: block; }
+
+  pre {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1rem; overflow-x: auto;
+    font-size: 0.85rem; line-height: 1.5; margin: 0.75rem 0;
+  }
+  code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+  .ic { background: rgba(88,166,255,0.1); color: var(--accent); padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  .kw { color: var(--accent-purple); }
+  .fn { color: #d2a8ff; }
+  .ty { color: var(--accent-green); }
+  .str { color: #a5d6ff; }
+  .cm { color: var(--text-muted); }
+  .prop { color: #79c0ff; }
+  .attr { color: var(--accent-yellow); }
+
+  .diagram {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.5rem; margin: 1rem 0;
+    font-family: 'SF Mono', monospace; font-size: 0.82rem;
+    line-height: 1.7; white-space: pre; overflow-x: auto;
+    color: var(--text);
+  }
+  .diagram .d-label { color: var(--accent); font-weight: 600; }
+  .diagram .d-arrow { color: var(--accent-yellow); }
+  .diagram .d-type { color: var(--accent-green); }
+  .diagram .d-comment { color: var(--text-muted); font-style: italic; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+  th { background: var(--bg-tertiary); color: var(--accent); text-align: left; padding: 8px 12px; border: 1px solid var(--border); font-weight: 600; }
+  td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(88,166,255,0.04); }
+  .col-jastadd { color: var(--jastadd); }
+  .col-silver { color: var(--silver); }
+  .col-ksc { color: var(--ksc); }
+
+  .math-block {
+    background: rgba(188,140,255,0.06); border: 1px solid rgba(188,140,255,0.2);
+    border-radius: 8px; padding: 1.25rem; margin: 1rem 0;
+    font-family: 'SF Mono', monospace; font-size: 0.88rem;
+    line-height: 1.8;
+  }
+  .math-block .math-label {
+    color: var(--accent-purple); font-weight: 700;
+    font-size: 0.78rem; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 0.5rem; display: block;
+  }
+
+  .flashcard {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  .flashcard:hover { border-color: var(--accent-pink); }
+  .flashcard .q { color: var(--accent-pink); font-weight: 600; font-size: 0.9rem; }
+  .flashcard .a { color: var(--text); margin-top: 0.75rem; display: none; font-size: 0.88rem; }
+  .flashcard.open .a { display: block; }
+  .flashcard .hint { color: var(--text-muted); font-size: 0.78rem; margin-top: 0.25rem; }
+
+  .sys-label {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 700; margin-right: 4px;
+  }
+  .sys-jastadd { background: rgba(240,136,62,0.2); color: var(--jastadd); }
+  .sys-silver { background: rgba(88,166,255,0.2); color: var(--silver); }
+  .sys-ksc { background: rgba(63,185,80,0.2); color: var(--ksc); }
+
+  p { margin-bottom: 0.75rem; }
+  ul, ol { margin: 0.5rem 0 0.75rem 1.5rem; }
+  li { margin-bottom: 0.35rem; }
+  h3 { color: var(--text-bright); margin: 1rem 0 0.5rem; font-size: 1.05rem; }
+  strong { color: var(--text-bright); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>JastAdd vs Silver vs KSC</h1>
+  <p class="subtitle">How three attribute grammar systems map to algebraic foundations &mdash; and where they diverge</p>
+  <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:1rem;">
+    <span class="sys-label sys-jastadd">JastAdd</span>
+    <span class="sys-label sys-silver">Silver</span>
+    <span class="sys-label sys-ksc">KSC</span>
+    <span class="badge badge-math">Category Theory</span>
+    <span class="badge badge-compare">Comparison</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ================================================================= -->
+<!-- SECTION 1: THE THREE SYSTEMS AT A GLANCE -->
+<!-- ================================================================= -->
+<div class="section" id="sec-overview">
+  <div class="section-header open" onclick="toggleSection('sec-overview')">
+    <span class="chevron">&#9654;</span>
+    <h2>The Three Systems at a Glance</h2>
+    <span class="badge badge-compare">Overview</span>
+  </div>
+  <div class="section-body">
+
+    <div class="grid-3">
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span> Generator (Java)</h4>
+        <p><strong>Approach:</strong> Code generator. Takes <code class="ic">.ast</code> + <code class="ic">.jrag/.jadd</code> files, weaves them into Java classes with demand-driven evaluation, caching, and circular attribute support baked in.</p>
+        <p><strong>Key innovation:</strong> Reference Attributed Grammars (RAGs) &mdash; attributes can reference arbitrary nodes in the tree, not just ancestors/descendants.</p>
+        <p><strong>Math stance:</strong> Pragmatic. Not explicitly algebraic. Built from compiler engineering principles with the Magnusson-Hedin fixpoint algorithm bolted on.</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Hedin et al., Lund University. Since ~2003.</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span> Extensible AG Language</h4>
+        <p><strong>Approach:</strong> A full language for writing AGs. Silver compiles to Java. Self-hosted (Silver is written in Silver).</p>
+        <p><strong>Key innovation:</strong> <em>Forwarding</em> &mdash; extension productions delegate to host-language trees for undefined attributes, solving the expression problem. <em>Modular well-definedness</em> guarantees safe composition.</p>
+        <p><strong>Math stance:</strong> More formal. Decorated/undecorated distinction is functorial. Forwarding has a formal semantics (Van Wyk, de Moor, Backhouse 2002). Modular analysis has proof-theoretic foundations.</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Van Wyk et al., U. Minnesota MELT group. Since ~2006.</p>
+      </div>
+      <div class="card hl-ksc">
+        <h4><span class="sys-label sys-ksc">KSC</span> TypeScript Library</h4>
+        <p><strong>Approach:</strong> Pure library. Three-object architecture: <code class="ic">Grammar</code> (functor), <code class="ic">Semantics</code> (product algebra), <code class="ic">interpret()</code> (catamorphism). Runtime compilation via <code class="ic">compile(decl, eq)</code>.</p>
+        <p><strong>Key innovation:</strong> De-fusion of declarations from equations. Runtime dependency analysis. Collection attributes with monoid semantics. All at library level, no code generation.</p>
+        <p><strong>Math stance:</strong> Explicitly algebraic. Grammar = endofunctor, Semantics = product of F-algebras, interpret = catamorphism over Inh&rarr;Syn. Zipper construction via stampTree.</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">libs/ag/ in KSC. TypeScript. 2024&ndash;.</p>
+      </div>
+    </div>
+
+    <h3>Fundamental Architecture Comparison</h3>
+    <table>
+      <tr>
+        <th></th>
+        <th class="col-jastadd">JastAdd</th>
+        <th class="col-silver">Silver</th>
+        <th class="col-ksc">KSC</th>
+      </tr>
+      <tr>
+        <td><strong>Implementation</strong></td>
+        <td>Code generator &rarr; Java</td>
+        <td>AG language &rarr; Java</td>
+        <td>TypeScript library (runtime)</td>
+      </tr>
+      <tr>
+        <td><strong>Grammar definition</strong></td>
+        <td><code class="ic">.ast</code> files (class hierarchy)</td>
+        <td><code class="ic">nonterminal</code> + <code class="ic">abstract production</code></td>
+        <td><code class="ic">createGrammar(getChildren)</code></td>
+      </tr>
+      <tr>
+        <td><strong>Attribute definitions</strong></td>
+        <td><code class="ic">.jrag</code> aspect files</td>
+        <td><code class="ic">attribute</code> + <code class="ic">aspect production</code></td>
+        <td><code class="ic">SpecInput { declarations, equations }</code></td>
+      </tr>
+      <tr>
+        <td><strong>Evaluation</strong></td>
+        <td>Generated Java methods</td>
+        <td>Generated Java (lazy)</td>
+        <td><code class="ic">interpret(semantics, root)</code></td>
+      </tr>
+      <tr>
+        <td><strong>Tree model</strong></td>
+        <td>Mutable Java objects + getParent()</td>
+        <td>Undecorated &rarr; Decorated (immutable)</td>
+        <td>Stamped nodes + lazy getters</td>
+      </tr>
+      <tr>
+        <td><strong>Validation</strong></td>
+        <td>Compile-time (Java compiler)</td>
+        <td>Compile-time (MWDA)</td>
+        <td>Runtime (createSemantics validates)</td>
+      </tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 2: THE ALGEBRAIC LENS -->
+<!-- ================================================================= -->
+<div class="section" id="sec-algebra">
+  <div class="section-header" onclick="toggleSection('sec-algebra')">
+    <span class="chevron">&#9654;</span>
+    <h2>Through the Algebraic Lens: F-Algebras, Catamorphisms, and the Three Systems</h2>
+    <span class="badge badge-math">Category Theory</span>
+  </div>
+  <div class="section-body">
+
+    <p>The algebraic view decomposes every AG system into three concerns: <strong>Structure</strong> (endofunctor F), <strong>Behavior</strong> (F-algebra), and <strong>Orchestration</strong> (catamorphism). How closely does each system match this decomposition?</p>
+
+    <h3>Structure: The Endofunctor F</h3>
+
+    <div class="grid-3">
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+        <p>The <code class="ic">.ast</code> file defines a Java class hierarchy. Each node type has typed, named children. This IS the functor &mdash; it defines "one layer of recursion" &mdash; but it's not expressed as a functor. It's expressed as <strong>OO inheritance</strong>.</p>
+        <p>JastAdd's grammar is <em>multi-sorted</em> by construction: each nonterminal (class) is a separate sort. Children have specific types, not just "child nodes."</p>
+<pre><code><span class="cm">// .ast file &mdash; the implicit functor</span>
+Program ::= CompUnit*;
+CompUnit ::= ImportDecl* TypeDecl*;
+TypeDecl ::= &lt;Name:String&gt; Member*;</code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">No explicit functor. The Java class hierarchy IS the fixed point &mu;F. JastAdd never separates F from &mu;F.</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span></h4>
+        <p>Silver has a <strong>two-stage model</strong> that comes closest to the algebraic view. A <code class="ic">nonterminal</code> declaration defines a type. A <code class="ic">production</code> defines one layer of structure.</p>
+        <p>Crucially, Silver distinguishes <strong>undecorated trees</strong> (pure structure, &mu;F) from <strong>decorated trees</strong> (structure + computed attributes). This IS the algebra/coalgebra split.</p>
+<pre><code><span class="cm">-- Nonterminal = sort in the multi-sorted algebra</span>
+<span class="kw">nonterminal</span> <span class="ty">Expr</span>;
+<span class="cm">-- Production = one layer of the functor F</span>
+<span class="kw">abstract production</span> <span class="fn">add</span>
+top::<span class="ty">Expr</span> ::= l::<span class="ty">Expr</span>  r::<span class="ty">Expr</span>
+{ ... }</code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Closest to F-algebra. Undecorated = &mu;F. Decorated = &mu;F + attribute values. The <code class="ic">decorate</code> operator is the catamorphism application.</p>
+      </div>
+      <div class="card hl-ksc">
+        <h4><span class="sys-label sys-ksc">KSC</span></h4>
+        <p>The Grammar is an <strong>explicit, pure functor</strong>: a single function <code class="ic">getChildren: (node: N) => N[]</code>. This is deliberately the simplest possible functor &mdash; it says "a node has children" without knowing types.</p>
+        <p>The tree (KSNode) is the fixed point &mu;F. The Grammar is F. They are separate objects.</p>
+<pre><code><span class="cm">// Grammar = pure endofunctor F</span>
+<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>(getChildren);
+<span class="cm">// getChildren: KSNode => KSNode[]</span></code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Most algebraically explicit. But the functor is "untyped" &mdash; all children are N, no per-production child types. This is a <em>single-sorted</em> functor approximation of a multi-sorted grammar.</p>
+      </div>
+    </div>
+
+    <h3>Behavior: The F-Algebra (A, &alpha;)</h3>
+
+    <div class="grid-3">
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+        <p>Equations in <code class="ic">.jrag</code> files are the structure map &alpha;. But they're not expressed as a separate object &mdash; they're <strong>woven into</strong> the AST classes as Java methods.</p>
+        <p>The "carrier" is the attribute value type. The "algebra" is the generated method body. But this is never reified as a first-class algebra object.</p>
+<pre><code><span class="cm">// .jrag equations = the structure map &alpha;</span>
+<span class="kw">syn</span> <span class="ty">int</span> TypeDecl.memberCount() =
+  getNumMember();
+<span class="kw">inh</span> <span class="ty">Env</span> TypeDecl.env();
+<span class="kw">eq</span> CompUnit.getChild().env() =
+  buildEnv();</code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">The algebra exists, but it's fused with the functor (AST class) at compile time. No inspectable algebra object.</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span></h4>
+        <p>Equations are defined <strong>per-production</strong> in production bodies or aspect productions. Silver's <code class="ic">aspect production</code> mechanism allows adding equations to existing productions from separate files.</p>
+        <p>The decoration process (supplying inherited attributes, computing synthesized) is the catamorphism application. The equations collectively form the algebra.</p>
+<pre><code><span class="cm">-- Synthesized: algebra for this production</span>
+<span class="kw">abstract production</span> <span class="fn">add</span>
+top::<span class="ty">Expr</span> ::= l::<span class="ty">Expr</span>  r::<span class="ty">Expr</span>
+{
+  top.value = l.value + r.value;  <span class="cm">-- syn eq</span>
+  l.env = top.env;                <span class="cm">-- inh eq</span>
+  r.env = top.env;
+}</code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Equations are per-production (like F-algebra case analysis). Aspect productions add equations modularly. But no reified "algebra object."</p>
+      </div>
+      <div class="card hl-ksc">
+        <h4><span class="sys-label sys-ksc">KSC</span></h4>
+        <p>The <code class="ic">SpecInput</code> IS a first-class algebra specification: <code class="ic">declarations</code> define what each attribute is (carrier metadata), <code class="ic">equations</code> define how it's computed (the structure map &alpha;).</p>
+        <p>The <code class="ic">Semantics</code> object is the <strong>compiled, validated product algebra</strong> &mdash; a reified, inspectable object you can pass around.</p>
+<pre><code><span class="cm">// SpecInput = algebra specification</span>
+{
+  <span class="prop">declarations</span>: {
+    kindDefs: { direction: <span class="str">'syn'</span> },
+    defEnv: { direction: <span class="str">'inh'</span>, root: ... },
+  },
+  <span class="prop">equations</span>: {
+    kindDefs: { CompilationUnit: (cu) => ..., _: () => [] },
+    defEnv: <span class="kw">undefined</span>,  <span class="cm">// auto-propagate</span>
+  },
+}</code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Most explicit. The algebra is a first-class object with inspectable declarations. compile() fuses decl + eq into AttributeDef.</p>
+      </div>
+    </div>
+
+    <h3>Orchestration: The Catamorphism</h3>
+
+    <div class="grid-3">
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+        <p>The evaluator is <strong>generated Java code</strong>. Each attribute becomes a method with a <code class="ic">_computed</code> flag and <code class="ic">_value</code> field. First access computes; subsequent accesses return cached. Internally, all evaluation state is managed by a thread-local <code class="ic">ASTNode$State</code> singleton (cycle detection stacks, caching flags, rewrite state).</p>
+        <p>The catamorphism is implicit &mdash; demand-driven property access triggers the recursive evaluation. There's no explicit "fold" or "interpret" call.</p>
+<pre><code><span class="cm">// Generated Java (simplified)</span>
+<span class="kw">private</span> <span class="ty">boolean</span> memberCount_computed = <span class="kw">false</span>;
+<span class="kw">private</span> <span class="ty">int</span> memberCount_value;
+<span class="kw">public</span> <span class="ty">int</span> memberCount() {
+  <span class="kw">if</span> (memberCount_computed) <span class="kw">return</span> memberCount_value;
+  memberCount_computed = <span class="kw">true</span>;
+  memberCount_value = getNumMember(); <span class="cm">// equation</span>
+  <span class="kw">return</span> memberCount_value;
+}</code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">No reified evaluator. The Java method dispatch IS the catamorphism. Parent references via getParent().</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span></h4>
+        <p>The catamorphism is the <strong>decoration</strong> process. <code class="ic">decorate expr with { env = ... }</code> takes an undecorated tree (&mu;F) and produces a decorated tree (the algebra applied).</p>
+        <p>This is the closest to an explicit catamorphism: <code class="ic">decorate</code> takes (tree, inherited attrs) and produces (tree + all computed attrs).</p>
+<pre><code><span class="cm">-- decorate = apply catamorphism</span>
+<span class="kw">local</span> decorated :: <span class="ty">Decorated Expr</span> =
+  <span class="fn">decorate</span> rawExpr <span class="kw">with</span> {
+    env = topLevelEnv;
+  };
+<span class="cm">-- Now decorated.value is available (syn)</span></code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">decorate &asymp; cata. Undecorated &rarr; Decorated is the catamorphism. Lazy inside. Multiple decorations possible (same tree, different inherited attrs).</p>
+      </div>
+      <div class="card hl-ksc">
+        <h4><span class="sys-label sys-ksc">KSC</span></h4>
+        <p><code class="ic">interpret(semantics, root)</code> is the <strong>explicit catamorphism</strong>. It takes a sealed algebra and a tree, returning projected results. Internally: stampTree (zipper) &rarr; applyAttributes (install getters) &rarr; project (trigger evaluation).</p>
+<pre><code><span class="cm">// interpret = explicit catamorphism</span>
+<span class="kw">const</span> <span class="attr">results</span> = <span class="fn">interpret</span>(semantics, root);
+<span class="cm">// Returns Map&lt;string, unknown&gt;</span>
+<span class="cm">// 'ksc-binder' => KindDefinition[]</span>
+<span class="cm">// 'ksc-checker' => CheckerDiagnostic[]</span></code></pre>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Most explicit catamorphism. Three-phase: stamp (coalgebra), install (algebra), project (trigger). But lazy inside &mdash; actual computation is demand-driven like JastAdd/Silver.</p>
+      </div>
+    </div>
+
+    <div class="math-block">
+      <span class="math-label">Summary: Algebraic Explicitness</span>
+      <span class="sys-label sys-jastadd">JastAdd</span> : Functor fused with &mu;F (Java classes). Algebra fused with functor (woven methods). Cata implicit (method dispatch).
+                <strong>Everything is fused.</strong> Algebraic structure exists but is not reified.
+
+      <span class="sys-label sys-silver">Silver</span>  : Functor &asymp; productions. &mu;F = undecorated tree. Algebra &asymp; equations. Cata &asymp; decorate.
+                <strong>Partially separated.</strong> Undecorated/decorated split mirrors algebra/coalgebra.
+
+      <span class="sys-label sys-ksc">KSC</span>    : Functor = Grammar. &mu;F = KSNode tree. Algebra = Semantics. Cata = interpret().
+                <strong>Fully separated.</strong> All three are first-class objects.
+    </div>
+
+    <h3>Beyond Catamorphisms: Advanced Mathematical Frameworks</h3>
+
+    <p>The catamorphism view (Backhouse &amp; de Moor 2001) is the dominant lens, but several other categorical frameworks illuminate AG evaluation from different angles:</p>
+
+    <div class="grid-2">
+      <div class="card hl-purple">
+        <h4>Comonadic Evaluation (Uustalu &amp; Vene 2005)</h4>
+        <p>AG evaluation can be modeled as an <strong>unfold followed by a fold</strong> &mdash; a hylomorphism. Uustalu and Vene show that the "context" each node needs (its position, parent, siblings) forms a <strong>comonad</strong>. The attribute equations are then a coalgebra of this comonad.</p>
+        <p>This directly maps to the three systems' tree models:</p>
+        <ul>
+          <li><span class="sys-label sys-jastadd">JastAdd</span> <code class="ic">getParent()</code> = imperative comonadic context</li>
+          <li><span class="sys-label sys-silver">Silver</span> decorated tree = comonad over undecorated tree</li>
+          <li><span class="sys-label sys-ksc">KSC</span> <code class="ic">stampTree()</code> = explicit comonad construction ($parent, $prev, $next)</li>
+        </ul>
+        <p style="color:var(--text-muted); font-size:0.82rem;">KSC's stampTree is the most literal realization of the comonadic construction &mdash; it explicitly enriches each node with its navigational context before evaluation begins.</p>
+      </div>
+      <div class="card hl-purple">
+        <h4>Traced Monoidal Categories (Katsumata 2009)</h4>
+        <p>Katsumata models AGs in <strong>traced symmetric monoidal categories</strong>. The trace operator captures the "feedback loop" where synthesized attributes flow down as inherited attributes &mdash; the Inh&harr;Syn interaction.</p>
+        <p>This is the most abstract framework: the trace axioms guarantee that attribute evaluation terminates and is well-defined, regardless of the evaluation strategy. It subsumes both the catamorphism view and the comonadic view.</p>
+        <p><strong>Relevance to systems:</strong> None of the three systems explicitly implement traced monoidal structure, but all three implicitly rely on the trace axioms &mdash; their demand-driven evaluation terminates precisely because the dependency graph is acyclic (or, for circular attributes, converges to a fixed point in a lattice).</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 3: TREE MODEL -->
+<!-- ================================================================= -->
+<div class="section" id="sec-tree">
+  <div class="section-header" onclick="toggleSection('sec-tree')">
+    <span class="chevron">&#9654;</span>
+    <h2>Tree Models: Parent References, Zippers, and Decoration</h2>
+    <span class="badge badge-arch">Architecture</span>
+  </div>
+  <div class="section-body">
+
+    <p>How each system enables bidirectional tree navigation &mdash; the key requirement for inherited attributes.</p>
+
+    <div class="grid-3">
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span> Mutable Parent Pointers</h4>
+        <p>Every <code class="ic">ASTNode</code> has a <code class="ic">getParent()</code> method. Parent pointers are set when children are added. The tree is <strong>mutable</strong> &mdash; nodes can be replaced (rewrites), parent pointers update accordingly.</p>
+        <p>This is <strong>not</strong> a zipper &mdash; it's simpler. The tree is a doubly-linked graph. Inherited attributes look up via <code class="ic">getParent()</code> chains.</p>
+        <p><strong>Categorically:</strong> The parent pointer makes each node a <em>comonadic context</em> (it knows its surroundings), but this isn't formalized &mdash; it's just an imperative back-pointer.</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span> Decorated Trees</h4>
+        <p>Silver has the most sophisticated tree model. An <strong>undecorated tree</strong> is pure data (like a Haskell ADT). A <strong>decorated tree</strong> is the tree plus all its computed attributes.</p>
+        <p>Decoration is <strong>explicit</strong>: <code class="ic">decorate expr with { env = ... }</code>. The same undecorated tree can be decorated multiple times with different inherited attribute sets, producing different decorated trees.</p>
+        <p><strong>Categorically:</strong> Undecorated &rarr; Decorated is the closest thing to an explicit catamorphism in any AG system. The <code class="ic">InhSet</code> kind system tracks which inherited attributes have been supplied &mdash; this is dependent typing over the algebra.</p>
+      </div>
+      <div class="card hl-ksc">
+        <h4><span class="sys-label sys-ksc">KSC</span> Stamped Zipper</h4>
+        <p><code class="ic">stampTree(root, getChildren)</code> stamps <code class="ic">$parent</code>, <code class="ic">$children</code>, <code class="ic">$index</code>, <code class="ic">$root</code>, <code class="ic">$prev</code>, <code class="ic">$next</code> on every node via BFS. This is the <strong>zipper construction</strong> (Badouel et al. 2011).</p>
+        <p>Then <code class="ic">applyAttributes()</code> installs lazy getters. The tree becomes both the data and the computation container.</p>
+        <p><strong>Categorically:</strong> stampTree = the coalgebraic half (enriching with navigational context). applyAttributes = the algebraic half (installing equations). Together they form a bialgebra, realized imperatively.</p>
+      </div>
+    </div>
+
+    <div class="card hl-purple">
+      <h4>The Key Difference: Mutability vs Decoration vs Stamping</h4>
+      <table>
+        <tr><th></th><th>Tree immutability</th><th>Multiple evaluations</th><th>Rewrites</th><th>Math model</th></tr>
+        <tr>
+          <td class="col-jastadd"><strong>JastAdd</strong></td>
+          <td>Mutable (rewrites change tree)</td>
+          <td>Single evaluation per node</td>
+          <td>Yes (node replacement)</td>
+          <td>Imperative graph</td>
+        </tr>
+        <tr>
+          <td class="col-silver"><strong>Silver</strong></td>
+          <td>Undecorated = immutable</td>
+          <td>Multiple decorations possible</td>
+          <td>Via forwarding + HOA</td>
+          <td>Algebra application</td>
+        </tr>
+        <tr>
+          <td class="col-ksc"><strong>KSC</strong></td>
+          <td>Stamped = enriched in place</td>
+          <td>Single evaluation per node</td>
+          <td>No rewrites</td>
+          <td>Zipper (bialgebra)</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 4: ATTRIBUTE TYPES COMPARED -->
+<!-- ================================================================= -->
+<div class="section" id="sec-attrs">
+  <div class="section-header" onclick="toggleSection('sec-attrs')">
+    <span class="chevron">&#9654;</span>
+    <h2>Attribute Types: Feature-by-Feature Comparison</h2>
+    <span class="badge badge-compare">Deep Dive</span>
+  </div>
+  <div class="section-body">
+
+    <div class="tabs" id="attr-tabs">
+      <button class="tab-btn active" onclick="switchTab('attr-tabs','attr-syn')">Synthesized</button>
+      <button class="tab-btn" onclick="switchTab('attr-tabs','attr-inh')">Inherited</button>
+      <button class="tab-btn" onclick="switchTab('attr-tabs','attr-coll')">Collection</button>
+      <button class="tab-btn" onclick="switchTab('attr-tabs','attr-circ')">Circular</button>
+      <button class="tab-btn" onclick="switchTab('attr-tabs','attr-hoa')">Higher-Order</button>
+      <button class="tab-btn" onclick="switchTab('attr-tabs','attr-ref')">Reference</button>
+    </div>
+
+    <!-- SYN -->
+    <div class="tab-panel active" id="attr-syn">
+      <h3>Synthesized Attributes (Bottom-Up)</h3>
+      <p><strong>Math:</strong> F-algebra &alpha; : F(A) &rarr; A. The most basic recursion scheme &mdash; a catamorphism.</p>
+      <div class="grid-3">
+        <div class="card hl-jastadd">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+<pre><code><span class="kw">syn</span> <span class="ty">int</span> Expr.value();
+<span class="kw">eq</span> Add.value() =
+  getLeft().value() + getRight().value();
+<span class="kw">eq</span> Num.value() = getValue();</code></pre>
+          <p>Equations are per-production (subclass override). Lazy by default. Generated as Java methods with _computed/_value caching.</p>
+        </div>
+        <div class="card hl-silver">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+<pre><code><span class="kw">synthesized attribute</span> value :: <span class="ty">Integer</span>;
+<span class="kw">abstract production</span> <span class="fn">add</span>
+top::<span class="ty">Expr</span> ::= l::<span class="ty">Expr</span> r::<span class="ty">Expr</span>
+{ top.value = l.value + r.value; }</code></pre>
+          <p>Equations in production bodies. Aspect productions can add equations from other files. Lazy evaluation.</p>
+        </div>
+        <div class="card hl-ksc">
+          <h4><span class="sys-label sys-ksc">KSC</span></h4>
+<pre><code><span class="prop">declarations</span>: {
+  value: { <span class="prop">direction</span>: <span class="str">'syn'</span> }
+},
+<span class="prop">equations</span>: {
+  value: {
+    Add: (n) => n.$children[0].value
+              + n.$children[1].value,
+    Num: (n) => n.rawValue,
+  }
+}</code></pre>
+          <p>Declaration separate from equation. Production dispatch via discriminant. Compiled to installLazy getter.</p>
+        </div>
+      </div>
+      <p><strong>Convergence:</strong> All three support synthesized attributes with demand-driven caching. The mechanism is essentially identical &mdash; the catamorphism (fold). The only difference is surface syntax and when fusion happens (compile-time for JastAdd/Silver, runtime for KSC).</p>
+    </div>
+
+    <!-- INH -->
+    <div class="tab-panel" id="attr-inh">
+      <h3>Inherited Attributes (Top-Down)</h3>
+      <p><strong>Math:</strong> Part of the Inh&rarr;Syn function carrier (Backhouse-de Moor). Requires bidirectional tree navigation.</p>
+      <div class="grid-3">
+        <div class="card hl-jastadd">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+<pre><code><span class="kw">inh</span> <span class="ty">Env</span> Expr.env();
+<span class="cm">// Parent provides equation for children</span>
+<span class="kw">eq</span> CompUnit.getTypeDecl().env() =
+  buildEnv();
+<span class="cm">// Broadcasting: all children inherit same value</span></code></pre>
+          <p><strong>Equation location:</strong> Defined on the <em>parent</em>, targeting specific child accessors. JastAdd supports <strong>broadcasting</strong>: a single equation can supply all children.</p>
+        </div>
+        <div class="card hl-silver">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+<pre><code><span class="kw">inherited attribute</span> env :: <span class="ty">Env</span>;
+<span class="kw">abstract production</span> <span class="fn">compUnit</span>
+top::<span class="ty">Program</span> ::= decls::<span class="ty">[Decl]</span>
+{
+  decls.env = buildEnv();
+  <span class="cm">-- explicit: parent assigns to child</span>
+}</code></pre>
+          <p><strong>Equation location:</strong> In the production body, parent assigns to child's inherited attrs. Part of the <code class="ic">decorate</code> step &mdash; inherited attrs are "supplied" during decoration.</p>
+        </div>
+        <div class="card hl-ksc">
+          <h4><span class="sys-label sys-ksc">KSC</span></h4>
+<pre><code><span class="prop">declarations</span>: {
+  env: { <span class="prop">direction</span>: <span class="str">'inh'</span>, <span class="prop">root</span>: emptyEnv }
+},
+<span class="prop">equations</span>: {
+  env: (parent, child, idx) => {
+    <span class="kw">if</span> (parent.kind === <span class="str">'CompUnit'</span>)
+      <span class="kw">return</span> buildEnv();
+    <span class="kw">return</span> <span class="kw">undefined</span>; <span class="cm">// auto-propagate</span>
+  }
+}</code></pre>
+          <p><strong>Equation location:</strong> A function (parent, child, idx) &rarr; value. <code class="ic">undefined</code> = auto-propagate from parent. Root value required. Compiled to $parent navigation.</p>
+        </div>
+      </div>
+      <p><strong>Key divergence:</strong> JastAdd/Silver define inherited equations on the parent production, targeting specific children. KSC defines them as a function from (parent, child) &rarr; value, with auto-propagation default. JastAdd's broadcasting and Silver's explicit assignment are more fine-grained than KSC's approach.</p>
+    </div>
+
+    <!-- COLL -->
+    <div class="tab-panel" id="attr-coll">
+      <h3>Collection Attributes (Distributed Aggregation)</h3>
+      <p><strong>Math:</strong> Catamorphism into a monoid. Each node contributes to a value that aggregates across the tree.</p>
+      <div class="grid-3">
+        <div class="card hl-jastadd">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+<pre><code><span class="cm">// Declaration: target + type + combiner</span>
+<span class="kw">coll</span> ArrayList&lt;String&gt; Program.errors()
+  [<span class="kw">new</span> ArrayList&lt;&gt;()]
+  <span class="kw">with</span> add;
+
+<span class="cm">// Contributions from anywhere in the tree</span>
+TypeDecl <span class="kw">contributes</span> errorMsg()
+  <span class="kw">when</span> hasError()
+  <span class="kw">to</span> Program.errors();</code></pre>
+          <p><strong>Two-phase evaluation:</strong> (1) Survey phase traverses tree finding contributors. (2) Collection phase evaluates contributions and combines. Supports <code class="ic">root R</code> scoping and conditional contributions.</p>
+        </div>
+        <div class="card hl-silver">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+<pre><code><span class="cm">-- Collection via contribution mechanism</span>
+<span class="kw">synthesized attribute</span> errors ::
+  [<span class="ty">String</span>];
+
+<span class="cm">-- Aspect productions contribute</span>
+<span class="kw">aspect production</span> <span class="fn">typeDecl</span>
+top::<span class="ty">Decl</span> ::= ...
+{
+  top.errors &lt;- [errorMsg];
+  <span class="cm">-- &lt;- is contribution operator</span>
+}</code></pre>
+          <p><strong>Contribution operator <code class="ic">&lt;-</code></strong> appends to a collection. Collections use monoid-like semantics. Silver's collections are more tightly integrated with forwarding &mdash; forwarded productions automatically contribute.</p>
+        </div>
+        <div class="card hl-ksc">
+          <h4><span class="sys-label sys-ksc">KSC</span></h4>
+<pre><code><span class="prop">declarations</span>: {
+  errors: {
+    <span class="prop">direction</span>: <span class="str">'collection'</span>,
+    <span class="prop">initial</span>: [],
+    <span class="prop">combine</span>: (acc, c) => [...acc, ...c],
+  }
+},
+<span class="prop">equations</span>: {
+  errors: (node) => {
+    <span class="kw">const</span> v = node.importViolation;
+    <span class="kw">return</span> v ? [v] : [];
+  }
+}</code></pre>
+          <p><strong>Monoid in the declaration:</strong> <code class="ic">initial</code> + <code class="ic">combine</code> define the monoid explicitly. The equation is the per-node contribution function. compile() fuses them into a bottom-up aggregation over $children.</p>
+        </div>
+      </div>
+      <p><strong>Key divergence:</strong> JastAdd uses a two-phase survey+collect. Silver uses a contribution operator <code class="ic">&lt;-</code>. KSC makes the monoid structure explicit in the declaration. JastAdd/Silver allow contributions from <em>distant</em> nodes (any descendant targeting any ancestor); KSC aggregates bottom-up through the tree hierarchy.</p>
+    </div>
+
+    <!-- CIRC -->
+    <div class="tab-panel" id="attr-circ">
+      <h3>Circular Attributes (Fixed-Point Iteration)</h3>
+      <p><strong>Math:</strong> Beyond recursion schemes. Least fixed point computation via Magnusson-Hedin algorithm (abstract interpretation).</p>
+      <div class="grid-3">
+        <div class="card hl-jastadd">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+<pre><code><span class="kw">syn</span> <span class="ty">boolean</span> Stmt.reachable()
+  <span class="kw">circular</span> [<span class="kw">false</span>] =
+    computeReachable();
+<span class="cm">// Other cycle members: uncache</span>
+<span class="kw">uncache</span> Stmt.nextStmt();</code></pre>
+          <p>The <strong>original</strong> implementation of Magnusson-Hedin (2007). At least one attribute per cycle must be declared <code class="ic">circular</code>; others must be <code class="ic">uncache</code>d. <code class="ic">--safeLazy</code> option enables safe caching within cycles.</p>
+        </div>
+        <div class="card hl-silver">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+          <p>Silver does <strong>not natively support circular attributes</strong>. Circular dependencies are flagged as errors by the circularity checker.</p>
+          <p>Silver's approach: if you need fixed-point semantics, model it explicitly via iterative tree transformations (higher-order attributes that build new trees until convergence).</p>
+          <p style="color:var(--accent-red); font-size:0.85rem;">This is a significant divergence from JastAdd and KSC.</p>
+        </div>
+        <div class="card hl-ksc">
+          <h4><span class="sys-label sys-ksc">KSC</span></h4>
+<pre><code><span class="prop">declarations</span>: {
+  reachable: {
+    <span class="prop">direction</span>: <span class="str">'circular'</span>,
+    <span class="prop">bottom</span>: <span class="kw">false</span>,
+    <span class="prop">equals</span>: (a, b) => a === b,
+  }
+},
+<span class="prop">equations</span>: {
+  reachable: (node) => computeReachable(node),
+}</code></pre>
+          <p>Implements Magnusson-Hedin directly. Module-level cycle tracking. The first accessor becomes the "cycle driver." Bottom value + equality check in declaration. All cycle participants iterate until convergence.</p>
+        </div>
+      </div>
+      <p><strong>Key divergence:</strong> Silver deliberately omits circular attributes. JastAdd originated the algorithm. KSC reimplements it at library level. The math is the same (least fixed point over a lattice), but Silver's philosophy is "make circularity explicit" while JastAdd/KSC allow implicit cycles.</p>
+    </div>
+
+    <!-- HOA -->
+    <div class="tab-panel" id="attr-hoa">
+      <h3>Higher-Order Attributes (Attributes that are Trees)</h3>
+      <p><strong>Math:</strong> Breaks the catamorphism model. The carrier includes new &mu;F values &mdash; the fold can create fresh trees.</p>
+      <div class="grid-3">
+        <div class="card hl-jastadd">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+<pre><code><span class="cm">// NTA: non-terminal attribute</span>
+<span class="kw">syn nta</span> <span class="ty">Expr</span> Stmt.desugared() =
+  <span class="kw">new</span> DesugaredExpr(...);</code></pre>
+          <p>JastAdd's <strong>Non-Terminal Attributes (NTAs)</strong> are full AST subtrees. The NTA tree participates in the attribute evaluation &mdash; you can access attributes on it. NTA children are included in collection attribute surveys.</p>
+        </div>
+        <div class="card hl-silver">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+          <p>Silver has first-class support for higher-order attributes. An attribute can return an <strong>undecorated tree</strong> which can then be decorated (possibly with different inherited attributes).</p>
+          <p>Silver's <strong>forwarding</strong> is itself a higher-order mechanism &mdash; the forwarded-to tree is an HOA.</p>
+        </div>
+        <div class="card hl-ksc">
+          <h4><span class="sys-label sys-ksc">KSC</span></h4>
+          <p>KSC does <strong>not currently support</strong> higher-order attributes. An equation can return any value, but there's no mechanism to stamp/evaluate a synthesized tree as part of the AG evaluation.</p>
+          <p style="color:var(--accent-red); font-size:0.85rem;">This is a gap compared to JastAdd and Silver.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- REF -->
+    <div class="tab-panel" id="attr-ref">
+      <h3>Reference Attributes (Cross-Tree Pointers)</h3>
+      <p><strong>Math:</strong> Extends the algebra with morphisms between different nodes in the tree. Not a standard recursion scheme.</p>
+      <div class="grid-3">
+        <div class="card hl-jastadd">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+<pre><code><span class="cm">// Reference to another node</span>
+<span class="kw">syn</span> <span class="ty">Decl</span> Use.decl() =
+  lookup(getName());
+<span class="cm">// Can access attributes on the target</span>
+Use.type() = decl().type();</code></pre>
+          <p>JastAdd's key innovation: <strong>Reference Attributed Grammars (RAGs)</strong>. Attributes can point to arbitrary nodes. You can then access attributes on the referenced node. This enables name resolution, type checking, etc.</p>
+        </div>
+        <div class="card hl-silver">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+<pre><code><span class="cm">-- Reference: decorated type</span>
+<span class="kw">synthesized attribute</span> decl ::
+  <span class="ty">Decorated Decl</span>;
+<span class="cm">-- Access attributes on referenced node</span>
+top.type = top.decl.type;</code></pre>
+          <p>Silver models references as attributes of <strong>Decorated type</strong>. A reference to a decorated node gives you access to all its computed attributes. The <code class="ic">InhSet</code> kind tracks which inherited attributes the reference carries.</p>
+        </div>
+        <div class="card hl-ksc">
+          <h4><span class="sys-label sys-ksc">KSC</span></h4>
+<pre><code><span class="cm">// Implicit via stamped tree navigation</span>
+defLookup: (node) => {
+  <span class="kw">const</span> env = node.defEnv; <span class="cm">// inh attr</span>
+  <span class="kw">return</span> (name) => env.get(name);
+}
+<span class="cm">// Returns the KindDefinition directly</span>
+<span class="cm">// (not a node reference, but a value)</span></code></pre>
+          <p>KSC doesn't have explicit reference attributes, but achieves similar results via inherited environments + parameterized synthesized attributes. The <code class="ic">defLookup</code> paramSyn returns definition objects, not node references.</p>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <h3>Complete Feature Matrix</h3>
+    <table>
+      <tr>
+        <th>Feature</th>
+        <th class="col-jastadd">JastAdd</th>
+        <th class="col-silver">Silver</th>
+        <th class="col-ksc">KSC</th>
+        <th>Math</th>
+      </tr>
+      <tr><td>Synthesized</td><td>Yes</td><td>Yes</td><td>Yes</td><td>F-algebra (catamorphism)</td></tr>
+      <tr><td>Inherited</td><td>Yes (broadcast)</td><td>Yes (explicit assign)</td><td>Yes (auto-propagate)</td><td>Inh&rarr;Syn carrier</td></tr>
+      <tr><td>Collection</td><td>Yes (two-phase)</td><td>Yes (contribution op)</td><td>Yes (monoid decl)</td><td>Monoid catamorphism</td></tr>
+      <tr><td>Circular</td><td>Yes (original)</td><td>No</td><td>Yes</td><td>Least fixed point</td></tr>
+      <tr><td>Higher-Order / NTA</td><td>Yes</td><td>Yes</td><td>No</td><td>Beyond catamorphism</td></tr>
+      <tr><td>Reference</td><td>Yes (RAGs)</td><td>Yes (Decorated type)</td><td>Implicit (via values)</td><td>Cross-tree morphisms</td></tr>
+      <tr><td>Parameterized</td><td>Yes</td><td>Yes</td><td>Yes (paramSyn)</td><td>Indexed family</td></tr>
+      <tr><td>Rewrites</td><td>Yes (iterative)</td><td>Via forwarding</td><td>No</td><td>Coalgebraic</td></tr>
+      <tr><td>Forwarding</td><td>No</td><td>Yes (key feature)</td><td>No</td><td>Default morphism</td></tr>
+      <tr><td>Implicit Monads</td><td>No</td><td>Yes (<code class="ic">MonadFail</code> etc.)</td><td>No</td><td>Kleisli composition</td></tr>
+      <tr><td>Strategy Attributes</td><td>No</td><td>Yes (Stratego-style)</td><td>No</td><td>Term rewriting</td></tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 5: FORWARDING - SILVER'S UNIQUE CONCEPT -->
+<!-- ================================================================= -->
+<div class="section" id="sec-forward">
+  <div class="section-header" onclick="toggleSection('sec-forward')">
+    <span class="chevron">&#9654;</span>
+    <h2>Forwarding: Silver's Unique Algebraic Innovation</h2>
+    <span class="badge badge-diverge">Key Divergence</span>
+  </div>
+  <div class="section-body">
+
+    <p>Forwarding is Silver's most distinctive feature and has no direct equivalent in JastAdd or KSC. It solves the <strong>expression problem</strong> for attribute grammars.</p>
+
+    <div class="card hl-silver">
+      <h4>How Forwarding Works</h4>
+      <p>When an extension adds a new production (e.g., <code class="ic">forEach</code> loop), it can <code class="ic">forwards to</code> a semantically equivalent host-language tree (e.g., a <code class="ic">while</code> loop). Any attribute not explicitly defined on <code class="ic">forEach</code> is automatically computed on the forwarded-to <code class="ic">while</code> tree.</p>
+
+<pre><code><span class="cm">-- Extension production: forEach forwards to while</span>
+<span class="kw">abstract production</span> <span class="fn">forEach</span>
+top::<span class="ty">Stmt</span> ::= var::<span class="ty">Name</span> list::<span class="ty">Expr</span> body::<span class="ty">Stmt</span>
+{
+  <span class="cm">-- This production FORWARDS to a desugared while loop</span>
+  <span class="kw">forwards to</span> <span class="fn">while</span>(hasNext(list), <span class="fn">block</span>([
+    <span class="fn">assign</span>(var, next(list)),
+    body
+  ]));
+
+  <span class="cm">-- Can still define some attributes explicitly</span>
+  top.prettyPrint = "for(" ++ var.pp ++ " in " ++ list.pp ++ ")...";
+
+  <span class="cm">-- All OTHER attributes (type checking, errors, code gen, etc.)</span>
+  <span class="cm">-- are automatically evaluated on the forwarded-to while loop.</span>
+  <span class="cm">-- This is the magic: new analyses work on new syntax automatically.</span>
+}</code></pre>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h4>The Expression Problem</h4>
+        <p>The classic dilemma: you want to add both <strong>new data types</strong> (productions) and <strong>new operations</strong> (attributes) independently.</p>
+        <ul>
+          <li><strong>Extension A</strong> adds <code class="ic">forEach</code> (new production)</li>
+          <li><strong>Extension B</strong> adds <code class="ic">typeCheck</code> (new attribute)</li>
+          <li><strong>Problem:</strong> Who defines <code class="ic">typeCheck</code> for <code class="ic">forEach</code>?</li>
+          <li><strong>Forwarding solution:</strong> <code class="ic">forEach</code> forwards to <code class="ic">while</code>, so <code class="ic">typeCheck</code> evaluates on the <code class="ic">while</code> tree. No one needs to define the missing equation.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Algebraic Interpretation</h4>
+        <p>Forwarding can be seen as a <strong>default morphism</strong>: when the algebra doesn't have an equation for a particular constructor, it falls back to evaluating on an equivalent constructor that does.</p>
+        <p>Formally (Van Wyk, de Moor, Backhouse 2002): forwarding is a <em>higher-order extension</em> of standard AGs. The forwarded-to tree is a non-terminal attribute (HOA) that provides default semantics. The circularity check extends naturally; the closure check is relaxed (some attributes need not be defined if forwarding provides them).</p>
+        <p style="color:var(--text-muted); font-size:0.85rem;">This is closely related to the concept of <em>coercion</em> in type theory &mdash; a default embedding from extension constructs into host constructs.</p>
+      </div>
+    </div>
+
+    <h3>How Do JastAdd and KSC Handle This?</h3>
+
+    <div class="grid-2">
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span> &mdash; No Forwarding</h4>
+        <p>JastAdd solves extensibility via <strong>aspect weaving</strong> (multiple .jrag files) and <strong>OO inheritance</strong> (subclass equations override superclass). But there's no mechanism for new productions to delegate to existing ones for undefined attributes.</p>
+        <p>JastAdd's <strong>rewrites</strong> partially address this: a node can be rewritten to a different node type, but this changes the tree permanently rather than providing fallback semantics.</p>
+      </div>
+      <div class="card hl-ksc">
+        <h4><span class="sys-label sys-ksc">KSC</span> &mdash; No Forwarding</h4>
+        <p>KSC's production dispatch (<code class="ic">{ CompilationUnit: ..., _: () => default }</code>) provides a <strong>default equation</strong> via the <code class="ic">_</code> handler, which covers new productions. But this is much weaker than forwarding &mdash; the default is a fixed value, not a delegation to a semantically equivalent tree.</p>
+        <p>KSC's <strong>deps</strong> mechanism (spec ordering) enables modular extension, but doesn't solve the expression problem the way forwarding does.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 6: MODULAR COMPOSITION -->
+<!-- ================================================================= -->
+<div class="section" id="sec-modular">
+  <div class="section-header" onclick="toggleSection('sec-modular')">
+    <span class="chevron">&#9654;</span>
+    <h2>Modular Composition: Aspects, Extensions, and Specs</h2>
+    <span class="badge badge-arch">Architecture</span>
+  </div>
+  <div class="section-body">
+
+    <p>All three systems support defining attributes across multiple files/modules. The mechanisms and guarantees differ significantly.</p>
+
+    <div class="grid-3">
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span> Aspect Weaving</h4>
+        <p>Multiple <code class="ic">.jrag</code> files are <strong>woven together</strong> at code generation time. Each file is an "aspect" that contributes intertype declarations (attributes, equations, methods) to AST classes.</p>
+        <p><strong>Validation:</strong> Compile-time. The generated Java code won't compile if equations are missing. The <code class="ic">refine</code> keyword allows one aspect to override another's equations.</p>
+        <p><strong>Guarantee:</strong> If it compiles (Java), it's well-formed. But this is a <em>whole-program</em> check &mdash; not modular.</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span> Modular Well-Definedness</h4>
+        <p>Silver's <strong>MWDA</strong> (Modular Well-Definedness Analysis) is unique. Each grammar module is verified independently with only information from its dependencies. The key rules:</p>
+        <ul>
+          <li>Non-forwarding productions must define <strong>all</strong> attributes on their nonterminal</li>
+          <li>Extension productions must <strong>forward</strong></li>
+          <li>Equations must be "exported by" either the attribute occurrence or the production</li>
+        </ul>
+        <p><strong>Guarantee:</strong> If each module passes MWDA, <em>any composition</em> of verified modules is well-defined. This is the strongest guarantee of any AG system.</p>
+      </div>
+      <div class="card hl-ksc">
+        <h4><span class="sys-label sys-ksc">KSC</span> Runtime Validation</h4>
+        <p><code class="ic">createSemantics(grammar, specs)</code> performs runtime validation:</p>
+        <ul>
+          <li>No duplicate attribute names across specs</li>
+          <li>No circular spec dependencies (topo-sort)</li>
+          <li>No unknown deps</li>
+        </ul>
+        <p>The <code class="ic">deps</code> field orders spec evaluation. <code class="ic">analyzeDeps()</code> discovers attribute-level dependencies dynamically.</p>
+        <p><strong>Guarantee:</strong> Runtime. Validates when Semantics is constructed, before any tree is evaluated.</p>
+      </div>
+    </div>
+
+    <div class="math-block">
+      <span class="math-label">Composability Guarantees (Strongest to Weakest)</span>
+
+      <span class="sys-label sys-silver">Silver</span>  : <strong>Modular proof</strong>. Each module verified independently. Any composition of
+                verified modules is guaranteed well-defined. Forwarding fills gaps.
+                <span class="cm">Proof-theoretic: if Module_A ok and Module_B ok, then Module_A + Module_B ok.</span>
+
+      <span class="sys-label sys-jastadd">JastAdd</span> : <strong>Whole-program check</strong>. Java compilation catches missing equations.
+                Aspects weave freely, but correctness is only checked after full composition.
+                <span class="cm">Pragmatic: if it compiles, it works.</span>
+
+      <span class="sys-label sys-ksc">KSC</span>    : <strong>Runtime validation</strong>. createSemantics() checks at construction time.
+                No compile-time guarantees (TypeScript types help but don't enforce completeness).
+                <span class="cm">Dynamic: fast feedback, but errors found at runtime, not build time.</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 7: WHERE THEY CONVERGE AND DIVERGE -->
+<!-- ================================================================= -->
+<div class="section" id="sec-diverge">
+  <div class="section-header" onclick="toggleSection('sec-diverge')">
+    <span class="chevron">&#9654;</span>
+    <h2>Convergence and Divergence: The Mathematical View</h2>
+    <span class="badge badge-math">Synthesis</span>
+  </div>
+  <div class="section-body">
+
+    <h3>Where All Three Converge</h3>
+
+    <div class="card hl-green">
+      <h4>The Shared Core</h4>
+      <p>Despite their surface differences, all three systems implement the same mathematical core:</p>
+      <ul>
+        <li><strong>Demand-driven evaluation:</strong> Attributes are computed lazily on first access, then cached. This is universal.</li>
+        <li><strong>The Inh&rarr;Syn catamorphism:</strong> All three use parent references + lazy getters to implement the Backhouse-de Moor result (AGs as catamorphisms over function types). JastAdd uses getParent(), Silver uses decoration, KSC uses $parent stamps.</li>
+        <li><strong>Multi-sorted product algebra:</strong> All three compute multiple attributes of different types simultaneously. The "carrier" is always an implicit product of attribute value types.</li>
+        <li><strong>Per-production dispatch:</strong> All three let equations vary by node/production type. This is the "case analysis" in the F-algebra.</li>
+      </ul>
+    </div>
+
+    <h3>Where They Diverge</h3>
+
+    <table>
+      <tr>
+        <th>Dimension</th>
+        <th>Divergence</th>
+        <th>Mathematical Significance</th>
+      </tr>
+      <tr>
+        <td><strong>Algebra reification</strong></td>
+        <td><span class="sys-label sys-ksc">KSC</span> reifies the algebra as a Semantics object. <span class="sys-label sys-jastadd">JastAdd</span> and <span class="sys-label sys-silver">Silver</span> don't &mdash; the algebra is the generated code itself.</td>
+        <td>KSC can inspect, compose, and validate algebras as first-class values. The others can only do this at compile/generation time.</td>
+      </tr>
+      <tr>
+        <td><strong>Functor/data separation</strong></td>
+        <td><span class="sys-label sys-silver">Silver</span> separates undecorated (functor) from decorated (algebra applied). <span class="sys-label sys-ksc">KSC</span> separates Grammar from tree. <span class="sys-label sys-jastadd">JastAdd</span> fuses them into Java classes.</td>
+        <td>Silver's model is closest to the categorical ideal. KSC achieves it differently (simpler functor). JastAdd sacrifices separation for Java integration.</td>
+      </tr>
+      <tr>
+        <td><strong>Forwarding (expression problem)</strong></td>
+        <td><span class="sys-label sys-silver">Silver</span> has forwarding. <span class="sys-label sys-jastadd">JastAdd</span> has rewrites. <span class="sys-label sys-ksc">KSC</span> has default handlers.</td>
+        <td>Forwarding is a categorical "default morphism" &mdash; a principled way to extend algebras. Rewrites are coalgebraic (tree transformation). Default handlers are just wildcard patterns.</td>
+      </tr>
+      <tr>
+        <td><strong>Circular attributes</strong></td>
+        <td><span class="sys-label sys-jastadd">JastAdd</span> and <span class="sys-label sys-ksc">KSC</span> support them. <span class="sys-label sys-silver">Silver</span> doesn't.</td>
+        <td>Circular attrs go beyond recursion schemes into abstract interpretation. Silver's stance: "make it explicit" (model as iterative HOA transforms). JastAdd/KSC: "make it transparent" (declare circular, iterate automatically).</td>
+      </tr>
+      <tr>
+        <td><strong>Modular safety</strong></td>
+        <td><span class="sys-label sys-silver">Silver</span> has proof-theoretic modular guarantees. <span class="sys-label sys-jastadd">JastAdd</span> has whole-program checking. <span class="sys-label sys-ksc">KSC</span> has runtime validation.</td>
+        <td>Silver's MWDA is the strongest formal result. It guarantees algebra composability without seeing the full composition. This is related to the algebraic notion of "conservative extension."</td>
+      </tr>
+      <tr>
+        <td><strong>Collection semantics</strong></td>
+        <td><span class="sys-label sys-jastadd">JastAdd</span> surveys the tree (two-phase). <span class="sys-label sys-silver">Silver</span> uses contribution operators. <span class="sys-label sys-ksc">KSC</span> uses explicit monoid declarations.</td>
+        <td>All three implement monoid catamorphisms. The difference is how contributions are gathered: global survey (JastAdd), scoped contribution (Silver), or hierarchical bottom-up (KSC).</td>
+      </tr>
+    </table>
+
+    <h3>The Philosophical Spectrum</h3>
+
+    <div class="diagram"><span class="d-comment">From pragmatic engineering to algebraic explicitness:</span>
+
+  <span class="d-label">Pragmatic</span>                                                    <span class="d-label">Algebraic</span>
+  <span class="d-arrow">&lt;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&gt;</span>
+
+  <span class="sys-label sys-jastadd">JastAdd</span>                <span class="sys-label sys-silver">Silver</span>                     <span class="sys-label sys-ksc">KSC</span>
+
+  <span class="d-comment">OO + Java integration     Formal AG language          Category theory mapping</span>
+  <span class="d-comment">Rewrites, RAGs            Forwarding, MWDA            Three objects, de-fusion</span>
+  <span class="d-comment">Implicit algebra          Partial separation          Explicit algebra</span>
+  <span class="d-comment">Whole-program check       Modular proof               Runtime validation</span>
+
+<span class="d-comment">All three share: demand-driven lazy evaluation, Inh&rarr;Syn catamorphism, multi-sorted carriers.</span>
+<span class="d-comment">All three implement the same mathematical core &mdash; they diverge in how explicitly they model it.</span></div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 8: WHAT KSC COULD LEARN -->
+<!-- ================================================================= -->
+<div class="section" id="sec-learn">
+  <div class="section-header" onclick="toggleSection('sec-learn')">
+    <span class="chevron">&#9654;</span>
+    <h2>What Each System Could Learn From the Others</h2>
+    <span class="badge badge-arch">Design</span>
+  </div>
+  <div class="section-body">
+
+    <div class="grid-3">
+      <div class="card hl-jastadd">
+        <h4>What JastAdd Has That Others Don't</h4>
+        <ul>
+          <li><strong>Rewrites:</strong> Iterative tree rewriting with conditional rules. Powerful for desugaring. Neither Silver nor KSC has this.</li>
+          <li><strong>RAGs:</strong> First-class reference attributes to arbitrary nodes. Silver has decorated references; KSC has only value-level references.</li>
+          <li><strong>NTAs:</strong> Non-terminal attributes that participate in evaluation. Full higher-order AG support.</li>
+          <li><strong>Mature tooling:</strong> DrAST inspector, IDE integration, decades of compiler-building experience.</li>
+        </ul>
+      </div>
+      <div class="card hl-silver">
+        <h4>What Silver Has That Others Don't</h4>
+        <ul>
+          <li><strong>Forwarding:</strong> The expression problem solution. Neither JastAdd nor KSC can safely compose independent extensions.</li>
+          <li><strong>MWDA:</strong> Modular well-definedness proof. The strongest composability guarantee.</li>
+          <li><strong>Decorated/undecorated distinction:</strong> Closest to the categorical model. Multiple decorations of the same tree.</li>
+          <li><strong>InhSet kinds:</strong> Type-level tracking of which inherited attributes are available. Dependent typing for AGs.</li>
+          <li><strong>Implicit monads:</strong> Attribute computations can be lifted into monadic contexts (<code class="ic">MonadFail</code>, <code class="ic">IO</code>) &mdash; Kleisli composition over AG equations.</li>
+          <li><strong>Strategy attributes:</strong> Stratego-style rewriting strategies operating on decorated trees. Enables programmable traversals as attributes.</li>
+        </ul>
+      </div>
+      <div class="card hl-ksc">
+        <h4>What KSC Has That Others Don't</h4>
+        <ul>
+          <li><strong>Reified algebra:</strong> The Semantics object is a first-class, inspectable, passable value. Neither JastAdd nor Silver can do this.</li>
+          <li><strong>De-fused declarations:</strong> Declarations separate from equations, enabling introspection before compilation.</li>
+          <li><strong>Explicit monoid collections:</strong> The monoid (initial + combine) is in the declaration, not hidden in the runtime.</li>
+          <li><strong>No build step:</strong> Pure library. No code generation, no special language. Works in any TypeScript project.</li>
+          <li><strong>Runtime dep analysis:</strong> Discovers attribute dependencies dynamically (analyzeDeps).</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Potential Cross-Pollination</h3>
+
+    <table>
+      <tr><th>Idea</th><th>From</th><th>Could Benefit</th><th>Feasibility</th></tr>
+      <tr>
+        <td>Forwarding / default delegation</td>
+        <td><span class="sys-label sys-silver">Silver</span></td>
+        <td><span class="sys-label sys-ksc">KSC</span></td>
+        <td>Medium. Could add a <code class="ic">forwards</code> field to SpecInput where a production maps to a desugared tree. The interpret() step would evaluate undefined attributes on the forwarded tree.</td>
+      </tr>
+      <tr>
+        <td>Reified algebra / introspection</td>
+        <td><span class="sys-label sys-ksc">KSC</span></td>
+        <td><span class="sys-label sys-jastadd">JastAdd</span> <span class="sys-label sys-silver">Silver</span></td>
+        <td>Low. Both are compile-time systems. Would need a reflection API over the generated code.</td>
+      </tr>
+      <tr>
+        <td>Higher-order attributes</td>
+        <td><span class="sys-label sys-jastadd">JastAdd</span> <span class="sys-label sys-silver">Silver</span></td>
+        <td><span class="sys-label sys-ksc">KSC</span></td>
+        <td>Medium. An equation could return a node, and interpret() could stamp+evaluate the subtree. Would need a new <code class="ic">'hoa'</code> direction in AttrDecl.</td>
+      </tr>
+      <tr>
+        <td>Modular well-definedness</td>
+        <td><span class="sys-label sys-silver">Silver</span></td>
+        <td><span class="sys-label sys-ksc">KSC</span></td>
+        <td>Hard. KSC validates at runtime, not compile time. Could add a static analysis tool, but TypeScript's type system can't express the MWDA constraints natively.</td>
+      </tr>
+      <tr>
+        <td>Circular attributes</td>
+        <td><span class="sys-label sys-jastadd">JastAdd</span> <span class="sys-label sys-ksc">KSC</span></td>
+        <td><span class="sys-label sys-silver">Silver</span></td>
+        <td>Deliberate omission by Silver. Their stance is explicit iteration via HOA is safer. Unlikely to change.</td>
+      </tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 9: REFERENCES -->
+<!-- ================================================================= -->
+<div class="section" id="sec-refs">
+  <div class="section-header" onclick="toggleSection('sec-refs')">
+    <span class="chevron">&#9654;</span>
+    <h2>References</h2>
+    <span class="badge badge-math">Academic</span>
+  </div>
+  <div class="section-body">
+    <h3>JastAdd</h3>
+    <ul>
+      <li><strong>Hedin (2000)</strong>: "Reference Attributed Grammars" &mdash; Informatica. The RAG extension.</li>
+      <li><strong>Hedin &amp; Magnusson (2003)</strong>: "JastAdd &mdash; An Aspect-Oriented Compiler Construction System" &mdash; SCP. The JastAdd system.</li>
+      <li><strong>Magnusson &amp; Hedin (2007)</strong>: "Circular Reference Attributed Grammars &mdash; Their Evaluation and Applications" &mdash; SCP. The fixed-point iteration algorithm.</li>
+      <li><strong>Magnusson, Ekman, Hedin (2009)</strong>: "Demand-Driven Evaluation of Collection Attributes" &mdash; ASE. Two-phase collection evaluation.</li>
+      <li><strong>S&ouml;derberg &amp; Hedin (2012)</strong>: "An Introductory Tutorial on JastAdd Attribute Grammars" &mdash; GTTSE. Comprehensive tutorial.</li>
+    </ul>
+    <h3>Silver</h3>
+    <ul>
+      <li><strong>Van Wyk, de Moor, Backhouse, Kwiatkowski (2002)</strong>: "Forwarding in Attribute Grammars for Modular Language Design" &mdash; CC. The forwarding paper.</li>
+      <li><strong>Van Wyk, Bodin, Gao, Krishnan (2010)</strong>: "Silver: An Extensible Attribute Grammar System" &mdash; SCP. The Silver system.</li>
+      <li><strong>Kaminski &amp; Van Wyk (2012)</strong>: "Modular Well-Definedness Analysis for Attribute Grammars" &mdash; SLE. The MWDA analysis.</li>
+      <li><strong>Kaminski, McCarthy, Van Wyk (2017)</strong>: "Reliably Composable Language Extensions" &mdash; The full composability framework.</li>
+    </ul>
+    <h3>Foundational</h3>
+    <ul>
+      <li><strong>Knuth (1968)</strong>: "Semantics of Context-Free Languages" &mdash; The original AG paper.</li>
+      <li><strong>Goguen, Thatcher, Wagner, Wright (1977)</strong>: "Initial Algebra Semantics and Continuous Algebras" &mdash; JACM. Established that the connection between Knuth's AGs and initial algebra semantics is a catamorphism.</li>
+      <li><strong>Backhouse &amp; de Moor (2001)</strong>: "A Functional Semantics of Attribute Grammars" &mdash; AGs as catamorphisms over Inh&rarr;Syn function types.</li>
+      <li><strong>Uustalu &amp; Vene (2005)</strong>: "Comonadic Notions of Computation" &mdash; Comonadic framework for AG evaluation; tree contexts as comonads.</li>
+      <li><strong>Katsumata (2009)</strong>: "Attribute Grammars and Categorical Semantics" &mdash; ICALP. Models AGs in traced symmetric monoidal categories; the trace captures Inh&harr;Syn feedback loops.</li>
+      <li><strong>Hamana (2009)</strong>: "AG as Recursion Schemes over Cyclic Representations of Zippers."</li>
+      <li><strong>Badouel, Fotsing, Tchougong (2011)</strong>: "Yet Another Realization of Attribute Evaluation" &mdash; Zipper-based AG evaluation.</li>
+      <li><strong>Jacobs &amp; Uustalu (2012)</strong>: "Semantics of Grammars and Attributes via Initiality" &mdash; Categorical AG semantics via initial algebras in fibrations.</li>
+      <li><strong>Gibbons (2014)</strong>: "Conjugate Hylomorphisms" &mdash; Mother of all structured recursion schemes.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 10: FLASHCARD QUIZ -->
+<!-- ================================================================= -->
+<div class="section" id="sec-quiz">
+  <div class="section-header" onclick="toggleSection('sec-quiz')">
+    <span class="chevron">&#9654;</span>
+    <h2>Flashcard Quiz</h2>
+    <span class="badge badge-quiz">14 Cards</span>
+  </div>
+  <div class="section-body">
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: Which system has the most explicit separation of functor, algebra, and catamorphism?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>KSC.</strong> Grammar = functor, Semantics = product algebra (first-class object), interpret() = catamorphism. All three are separate, inspectable objects. Silver partially separates via undecorated/decorated distinction. JastAdd fuses everything into Java classes.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is Silver's "forwarding" and what problem does it solve?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">Forwarding lets an extension production delegate to a semantically equivalent host-language tree for any attributes not explicitly defined. It solves the <strong>expression problem</strong>: independently developed extensions (one adding new productions, another adding new attributes) compose safely because forwarding fills in the missing equations. Categorically, it's a "default morphism."</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: How do the three systems handle parent references / bidirectional navigation?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>JastAdd:</strong> mutable getParent() back-pointers on Java objects. <strong>Silver:</strong> implicit in decorated trees (inherited attrs are supplied during decoration, no explicit parent pointer). <strong>KSC:</strong> stampTree() installs $parent, $children, $prev, $next &mdash; the zipper construction (Badouel et al. 2011). All three enable the Inh&rarr;Syn catamorphism, just implemented differently.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: Which system(s) support circular attributes, and which doesn't? Why?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>JastAdd</strong> (original Magnusson-Hedin) and <strong>KSC</strong> (reimplemented) support circular attributes. <strong>Silver</strong> deliberately omits them. Silver's philosophy: circularity should be modeled explicitly via iterative HOA transformations, not hidden in implicit fixed-point iteration. This is a design choice, not a limitation.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is Silver's "modular well-definedness" and why can't JastAdd/KSC replicate it?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">MWDA verifies each grammar module independently: non-forwarding productions must define all attributes; extension productions must forward; equations must be "exported by" their occurrence or production. Any composition of verified modules is guaranteed well-defined. JastAdd does whole-program checks (weave then compile). KSC validates at runtime. Neither can guarantee composability without seeing the full composition, because they lack forwarding (which fills the gaps that modular checking can't see).</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: How does collection attribute evaluation differ across the three systems?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>JastAdd:</strong> Two-phase (survey tree for contributors, then collect). Global &mdash; any node can contribute to any ancestor's collection. <strong>Silver:</strong> Contribution operator (<code>&lt;-</code>) in aspect productions. <strong>KSC:</strong> Explicit monoid (initial + combine) in the CollectionDecl, per-node contribution function, bottom-up aggregation over $children. All implement monoid catamorphisms; the gathering strategy differs.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is Silver's "decorated vs undecorated" distinction, and what's the categorical interpretation?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">An <strong>undecorated tree</strong> is pure structure (&mu;F). A <strong>decorated tree</strong> is the tree plus all computed attributes (the algebra applied). Decoration takes an undecorated tree + inherited attributes and produces a decorated tree. This is the closest any AG system gets to an <strong>explicit catamorphism</strong>: decorate(tree, inh) = cata(algebra)(tree)(inh). The InhSet kind system tracks which inherited attributes are available &mdash; essentially dependent typing over the algebra.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What shared mathematical core do all three systems implement?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">All three implement: (1) demand-driven lazy evaluation with caching, (2) the Backhouse-de Moor result (AGs as catamorphisms over Inh&rarr;Syn function types), (3) multi-sorted product algebras (multiple attributes with different types), (4) per-production case analysis in equations. The surface syntax differs vastly, but the computational model is the same.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What does KSC have that neither JastAdd nor Silver has?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">A <strong>reified, first-class algebra object</strong> (Semantics). You can inspect declarations, compilation order, and the dependency graph without evaluating any tree. Also: de-fused declarations (what an attribute is) from equations (how it's computed), explicit monoid semantics in collection declarations, and runtime dependency analysis via analyzeDeps(). No build step required.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: How do JastAdd's rewrites relate to Silver's forwarding?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">Both provide alternative tree semantics, but differ fundamentally. <strong>Rewrites</strong> (JastAdd) permanently replace nodes in the mutable tree &mdash; they're coalgebraic (tree transformation). <strong>Forwarding</strong> (Silver) provides fallback semantics without changing the tree &mdash; the original production remains, and undefined attributes are looked up on the forwarded-to tree. Forwarding is non-destructive and enables the expression problem solution; rewrites are destructive and don't.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: Why doesn't KSC support higher-order attributes (NTAs)?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">KSC's three-phase interpret() (stamp &rarr; install &rarr; project) operates on a fixed tree. HOAs require creating new subtrees during evaluation and evaluating attributes on them. This would need: (1) a mechanism to stamp/evaluate synthesized subtrees, (2) integration with the demand-driven cache. It's feasible (add an 'hoa' direction to AttrDecl where compile() stamps and evaluates the result tree) but not yet implemented.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: Where does each system sit on the pragmatic-to-algebraic spectrum?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>JastAdd</strong> = most pragmatic (OO + Java, implicit algebra, whole-program check). <strong>Silver</strong> = middle (formal AG language, partial separation via decorated/undecorated, proof-theoretic MWDA). <strong>KSC</strong> = most algebraically explicit (Grammar=functor, Semantics=product algebra, interpret=catamorphism, all as first-class objects). But all three implement the same mathematical core &mdash; they just expose different amounts of the algebraic structure.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is the comonadic view of AG evaluation (Uustalu &amp; Vene), and how does it map to each system's tree model?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">Uustalu &amp; Vene show that the navigational context each node needs (parent, siblings, position) forms a <strong>comonad</strong>. Attribute equations are a coalgebra of this comonad. <strong>JastAdd's</strong> getParent() is an imperative comonadic context. <strong>Silver's</strong> decoration enriches an undecorated tree with its full context. <strong>KSC's</strong> stampTree() is the most literal realization &mdash; it explicitly constructs the comonad by stamping $parent, $children, $prev, $next on every node before evaluation begins.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What are Silver's "implicit monads" and "strategy attributes"?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>Implicit monads</strong> allow attribute computations to be lifted into monadic contexts (MonadFail, IO, etc.) &mdash; essentially Kleisli composition over AG equations. This lets error handling and effects compose through the attribute grammar without manual plumbing. <strong>Strategy attributes</strong> bring Stratego-style programmable rewriting strategies into Silver, operating on decorated trees. These are Silver-unique features that neither JastAdd nor KSC currently offers.</div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+function toggleSection(id) {
+  const header = document.querySelector(`#${id} .section-header`);
+  header.classList.toggle('open');
+}
+
+function switchTab(groupId, panelId) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  const container = group.parentElement;
+  const buttons = group.querySelectorAll('.tab-btn');
+  buttons.forEach(b => b.classList.remove('active'));
+  const panels = container.querySelectorAll('.tab-panel');
+  panels.forEach(p => p.classList.remove('active'));
+  const idx = Array.from(buttons).findIndex(b => {
+    const onclick = b.getAttribute('onclick') || '';
+    return onclick.includes(`'${panelId}'`);
+  });
+  if (idx >= 0) buttons[idx].classList.add('active');
+  const panel = document.getElementById(panelId);
+  if (panel) panel.classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const first = document.querySelector('.section-header');
+  if (first && !first.classList.contains('open')) {
+    first.classList.add('open');
+  }
+});
+</script>
+
+</body>
+</html>

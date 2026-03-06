@@ -5,8 +5,8 @@ import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
 import { buildKSTree } from '../src/pipeline/convert.js';
-import { stampTree } from '../libs/ag/src/stamp.js';
-import { getChildren } from '../src/pipeline/ast.js';
+import { stampTree } from '../libs/ag/src/interpret.js';
+import { getChildren } from '../src/pipeline/node-defs.js';
 import type {
   KSCompilationUnit, KSTypeAliasDeclaration, KSTypeReferenceNode,
   KSTypeLiteralNode, KSIdentifier, KSFunctionDeclaration,

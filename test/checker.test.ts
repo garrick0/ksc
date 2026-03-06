@@ -10,7 +10,7 @@ import { createCheckerSpec } from '../src/pipeline/checker.js';
 import { createGrammar } from '../libs/ag/src/grammar.js';
 import { createSemantics } from '../libs/ag/src/semantics.js';
 import { interpret } from '../libs/ag/src/interpret.js';
-import { getChildren } from '../src/pipeline/ast.js';
+import { getChildren } from '../src/pipeline/node-defs.js';
 import type { KindDefinition, CheckerDiagnostic } from '../src/pipeline/types.js';
 import type { KSNode } from '../src/pipeline/ast.js';
 

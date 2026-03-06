@@ -9,7 +9,7 @@
  */
 
 import type { KSNode, KSProgram } from './ast.js';
-import { getChildren } from './ast.js';
+import { getChildren } from './node-defs.js';
 import type { KSTree } from './convert.js';
 import { serializeTree, deserializeTree, type SerializeOptions } from '../../libs/ag/src/serialize.js';
 

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { serializeTree, deserializeTree } from '../src/serialize.js';
-import { stampTree } from '../src/stamp.js';
-import { applyAttributes } from '../src/apply.js';
+import { stampTree, applyAttributes } from '../src/interpret.js';
 import { compile } from '../src/compile.js';
 
 // Simple tree node type

@@ -10,7 +10,7 @@ import ts from 'typescript';
 import type { KSProgramInterface, KindDefinition, CheckerDiagnostic, AttributeDepGraph } from './pipeline/types.js';
 import type { KindScriptConfig } from './api/config.js';
 import { buildKSTree } from './pipeline/convert.js';
-import { getChildren } from './pipeline/ast.js';
+import { getChildren } from './pipeline/node-defs.js';
 import { createBinderSpec } from './pipeline/binder.js';
 import { createCheckerSpec } from './pipeline/checker.js';
 import { createGrammar } from '../libs/ag/src/grammar.js';

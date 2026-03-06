@@ -30,7 +30,7 @@
     line-height: 1.6;
   }
 
-  /* ── Hero ── */
+  /* -- Hero -- */
   .hero {
     background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1e2e 100%);
     border-bottom: 1px solid var(--border);
@@ -41,7 +41,7 @@
   .hero .subtitle { font-size: 1.05rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 1.5rem; }
   .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
 
-  /* ── Sections ── */
+  /* -- Sections -- */
   .section { margin-bottom: 2rem; }
   .section-header {
     display: flex; align-items: center; gap: 0.75rem;
@@ -65,10 +65,11 @@
   }
   .badge-math { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
   .badge-code { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .badge-impl { background: rgba(63,185,80,0.15); color: var(--accent-green); }
   .badge-option { background: rgba(88,166,255,0.15); color: var(--accent); }
   .badge-quiz { background: rgba(247,120,186,0.15); color: var(--accent-pink); }
 
-  /* ── Cards ── */
+  /* -- Cards -- */
   .card {
     background: var(--bg-tertiary); border: 1px solid var(--border);
     border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
@@ -83,7 +84,7 @@
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
   @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
 
-  /* ── Tabs ── */
+  /* -- Tabs -- */
   .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 0; }
   .tab-btn {
     background: var(--bg-tertiary); border: 1px solid var(--border);
@@ -95,7 +96,7 @@
   .tab-panel { display: none; padding: 1rem 0; }
   .tab-panel.active { display: block; }
 
-  /* ── Code ── */
+  /* -- Code -- */
   pre {
     background: var(--bg); border: 1px solid var(--border);
     border-radius: 6px; padding: 1rem; overflow-x: auto;
@@ -112,7 +113,7 @@
   .op { color: var(--accent-red); }
   .attr { color: var(--accent-yellow); }
 
-  /* ── Diagram ── */
+  /* -- Diagram -- */
   .diagram {
     background: var(--bg); border: 1px solid var(--border);
     border-radius: 8px; padding: 1.5rem; margin: 1rem 0;
@@ -125,13 +126,13 @@
   .diagram .d-type { color: var(--accent-green); }
   .diagram .d-comment { color: var(--text-muted); font-style: italic; }
 
-  /* ── Table ── */
+  /* -- Table -- */
   table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.88rem; }
   th { background: var(--bg-tertiary); color: var(--accent); text-align: left; padding: 8px 12px; border: 1px solid var(--border); font-weight: 600; }
   td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
   tr:hover td { background: rgba(88,166,255,0.04); }
 
-  /* ── Math blocks ── */
+  /* -- Math blocks -- */
   .math-block {
     background: rgba(188,140,255,0.06); border: 1px solid rgba(188,140,255,0.2);
     border-radius: 8px; padding: 1.25rem; margin: 1rem 0;
@@ -144,7 +145,7 @@
     letter-spacing: 0.05em; margin-bottom: 0.5rem; display: block;
   }
 
-  /* ── Flashcards ── */
+  /* -- Flashcards -- */
   .flashcard {
     background: var(--bg-tertiary); border: 1px solid var(--border);
     border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
@@ -156,10 +157,10 @@
   .flashcard.open .a { display: block; }
   .flashcard .hint { color: var(--text-muted); font-size: 0.78rem; margin-top: 0.25rem; }
 
-  /* ── Comparison arrow ── */
+  /* -- Comparison arrow -- */
   .vs-arrow { text-align: center; color: var(--accent-yellow); font-size: 1.3rem; padding: 0.5rem 0; }
 
-  /* ── Inline num badges ── */
+  /* -- Inline num badges -- */
   .num {
     display: inline-flex; align-items: center; justify-content: center;
     width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem;
@@ -183,25 +184,25 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <!-- HERO -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <div class="hero">
   <h1>Algebraic Foundations of AG Evaluation</h1>
-  <p class="subtitle">The mathematical objects behind structure, behavior, and orchestration &mdash; and how they map to the KSC attribute grammar library</p>
+  <p class="subtitle">The mathematical objects behind structure, behavior, and orchestration &mdash; and how they map to the KSC attribute grammar library's three-object architecture</p>
   <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:1rem;">
     <span class="badge badge-math">Category Theory</span>
     <span class="badge badge-math">Recursion Schemes</span>
+    <span class="badge badge-impl">Implemented</span>
     <span class="badge badge-code">KSC Mapping</span>
-    <span class="badge badge-option">Design Options</span>
   </div>
 </div>
 
 <div class="container">
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <!-- SECTION 1: THE THREE CONCERNS -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <div class="section" id="sec-three">
   <div class="section-header open" onclick="toggleSection('sec-three')">
     <span class="chevron">&#9654;</span>
@@ -210,7 +211,7 @@
   </div>
   <div class="section-body">
 
-    <p>Every attribute grammar system decomposes into three separable concerns. Each has a precise mathematical identity:</p>
+    <p>Every attribute grammar system decomposes into three separable concerns. Each has a precise mathematical identity. KSC now implements all three as distinct objects:</p>
 
     <div class="grid-3">
       <div class="card hl-purple">
@@ -218,70 +219,83 @@
         <p>Defines <strong>the shape of one layer of recursion</strong> &mdash; what a node looks like, how children relate.</p>
         <p style="color:var(--text-muted); font-size:0.85rem;">In category theory: an <strong>endofunctor</strong> F on a category C. The AST is the <strong>initial F-algebra</strong> &mdash; the "most general" structure any interpretation can consume.</p>
         <p><code class="ic">createGrammar(getChildren)</code></p>
+        <p style="color:var(--accent-green); font-size:0.82rem;">libs/ag/src/grammar.ts &mdash; pure functor, single field</p>
       </div>
       <div class="card hl-green">
         <h4><span class="num num-green">A</span> Behavior (Algebra)</h4>
         <p>Defines <strong>how to interpret</strong> the structure &mdash; what values to compute at each node.</p>
         <p style="color:var(--text-muted); font-size:0.85rem;">In category theory: an <strong>F-algebra</strong> (A, &alpha;: F(A) &rarr; A). The carrier A is the result type; &alpha; is the structure map that collapses one layer.</p>
-        <p><code class="ic">AGSpecInput { attributes }</code></p>
+        <p><code class="ic">SpecInput { declarations, equations }</code></p>
+        <p style="color:var(--accent-green); font-size:0.82rem;">libs/ag/src/spec.ts + decl.ts &mdash; de-fused domain &amp; rules</p>
       </div>
       <div class="card hl-orange">
         <h4><span class="num num-orange">E</span> Orchestration (Evaluator)</h4>
         <p>Defines <strong>how to apply</strong> the algebra to the structure &mdash; the traversal strategy.</p>
         <p style="color:var(--text-muted); font-size:0.85rem;">In category theory: a <strong>catamorphism</strong> (or its generalizations). The unique homomorphism from the initial algebra to the target algebra.</p>
-        <p><code class="ic">grammar.evaluate() / evaluateAll()</code></p>
+        <p><code class="ic">interpret(semantics, root)</code></p>
+        <p style="color:var(--accent-green); font-size:0.82rem;">libs/ag/src/interpret.ts &mdash; stamps, installs, projects</p>
       </div>
     </div>
 
-    <div class="diagram"><span class="d-comment">The universal decomposition:</span>
+    <div class="diagram"><span class="d-comment">The universal decomposition (now implemented in KSC):</span>
 
   <span class="d-label">Initial Algebra</span>          <span class="d-label">F-Algebra</span>            <span class="d-label">Catamorphism</span>
   <span class="d-type">   (the AST)</span>         <span class="d-type">(the interpretation)</span>    <span class="d-type">(the evaluator)</span>
        &mu;F    <span class="d-arrow">&mdash;&mdash;&mdash; unique homomorphism &mdash;&mdash;&mdash;&gt;</span>    (A, &alpha;)
-    KSNode tree   <span class="d-arrow">&mdash;&mdash;&mdash; grammar.evaluate(spec) &mdash;&mdash;&mdash;&gt;</span>   KindDefinition[]
+    KSNode tree   <span class="d-arrow">&mdash;&mdash;&mdash; interpret(semantics, root) &mdash;&mdash;&gt;</span>   KindDefinition[]
                                                        CheckerDiagnostic[]
 
   <span class="d-comment">The catamorphism IS the thing that "runs" an algebra over data.</span>
   <span class="d-comment">It exists by initiality &mdash; it's the ONLY structure-preserving map.</span></div>
 
-    <h3>Why "Algebra" Isn't Quite Right for the Grammar</h3>
-
-    <p>A common confusion: calling the Grammar a "carrier algebra." Precisely:</p>
+    <h3>Precise Correspondence</h3>
 
     <table>
-      <tr><th>Concept</th><th>Math</th><th>What it IS</th><th>What it ISN'T</th></tr>
+      <tr><th>Concept</th><th>Math</th><th>KSC Object</th><th>File</th></tr>
       <tr>
         <td><strong>Grammar</strong></td>
         <td>Endofunctor F</td>
-        <td>The <em>shape</em> of recursion (how children connect)</td>
-        <td>Not the carrier, not the operations</td>
+        <td><code class="ic">createGrammar(getChildren)</code></td>
+        <td>grammar.ts</td>
       </tr>
       <tr>
-        <td><strong>AGSpecInput</strong></td>
+        <td><strong>SpecInput</strong></td>
         <td>F-algebra (A, &alpha;)</td>
-        <td>Carrier type A + structure map &alpha; (equations)</td>
-        <td>Not the tree shape, not the traversal</td>
+        <td><code class="ic">{ declarations, equations }</code></td>
+        <td>spec.ts + decl.ts</td>
+      </tr>
+      <tr>
+        <td><strong>Semantics</strong></td>
+        <td>&prod; (A<sub>i</sub>, &alpha;<sub>i</sub>) &mdash; product of F-algebras</td>
+        <td><code class="ic">createSemantics(grammar, specs)</code></td>
+        <td>semantics.ts</td>
       </tr>
       <tr>
         <td><strong>AST (KSNode tree)</strong></td>
         <td>Initial F-algebra &mu;F</td>
-        <td>The data itself &mdash; the "most general" F-algebra</td>
-        <td>Not an interpretation, just structure</td>
+        <td>The KSNode tree from <code class="ic">buildKSTree()</code></td>
+        <td>pipeline/convert.ts</td>
       </tr>
       <tr>
-        <td><strong>evaluate()</strong></td>
+        <td><strong>interpret()</strong></td>
         <td>Catamorphism (cata)</td>
-        <td>The unique homomorphism &mu;F &rarr; A</td>
-        <td>Not an algebra, not a functor</td>
+        <td><code class="ic">interpret(semantics, root)</code></td>
+        <td>interpret.ts</td>
+      </tr>
+      <tr>
+        <td><strong>compile()</strong></td>
+        <td>Compilation of algebra specification</td>
+        <td><code class="ic">compile(name, decl, eq)</code> &rarr; <code class="ic">AttributeDef</code></td>
+        <td>compile.ts</td>
       </tr>
     </table>
 
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <!-- SECTION 2: F-ALGEBRAS AND INITIAL ALGEBRAS -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <div class="section" id="sec-falg">
   <div class="section-header" onclick="toggleSection('sec-falg')">
     <span class="chevron">&#9654;</span>
@@ -345,17 +359,18 @@
       <tr><td>F (endofunctor)</td><td><code class="ic">getChildren: (node: N) =&gt; N[]</code></td><td>pipeline/ast.ts</td></tr>
       <tr><td>&mu;F (initial algebra)</td><td><code class="ic">KSNode</code> tree</td><td>pipeline/ast.ts</td></tr>
       <tr><td>in (constructor)</td><td>Node constructors in <code class="ic">convertNode()</code></td><td>pipeline/convert.ts</td></tr>
-      <tr><td>(A, &alpha;) (F-algebra)</td><td><code class="ic">AGSpecInput { attributes }</code></td><td>grammar.ts</td></tr>
+      <tr><td>(A, &alpha;) (F-algebra)</td><td><code class="ic">SpecInput { declarations, equations }</code></td><td>spec.ts, decl.ts</td></tr>
       <tr><td>A (carrier)</td><td>Attribute value types: <code class="ic">KindDefinition[], Set&lt;string&gt;, ...</code></td><td>binder.ts, checker.ts</td></tr>
-      <tr><td>cata(&alpha;) (catamorphism)</td><td><code class="ic">grammar.evaluate(spec, root)</code></td><td>grammar.ts</td></tr>
+      <tr><td>&prod;(A<sub>i</sub>, &alpha;<sub>i</sub>) (product algebra)</td><td><code class="ic">createSemantics(grammar, [binder, checker])</code></td><td>semantics.ts</td></tr>
+      <tr><td>cata(&alpha;) (catamorphism)</td><td><code class="ic">interpret(semantics, root)</code></td><td>interpret.ts</td></tr>
     </table>
 
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <!-- SECTION 3: BEYOND CATAMORPHISMS -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <div class="section" id="sec-beyond">
   <div class="section-header" onclick="toggleSection('sec-beyond')">
     <span class="chevron">&#9654;</span>
@@ -364,7 +379,7 @@
   </div>
   <div class="section-body">
 
-    <p>A catamorphism is <strong>bottom-up only</strong> &mdash; it handles synthesized attributes. But KSC's AG evaluator also handles <strong>inherited</strong> (top-down) and <strong>circular</strong> (fixed-point) attributes. What mathematical objects cover these?</p>
+    <p>A catamorphism is <strong>bottom-up only</strong> &mdash; it handles synthesized attributes. But KSC's AG evaluator also handles <strong>inherited</strong> (top-down), <strong>circular</strong> (fixed-point), and <strong>collection</strong> (bottom-up aggregation) attributes. What mathematical objects cover these?</p>
 
     <div class="tabs" id="scheme-tabs">
       <button class="tab-btn active" onclick="switchTab('scheme-tabs','scheme-cata')">Catamorphism</button>
@@ -389,9 +404,9 @@
         <div class="card hl-green">
           <h4>KSC Equivalent</h4>
           <p><code class="ic">syn(compute)</code> where <code class="ic">compute</code> only reads <code class="ic">$children</code> attributes.</p>
-          <p>Example: <code class="ic">allViolations</code> in checker.ts &mdash; aggregates results from the subtree via DFS.</p>
-          <p><strong>Covers:</strong> <code class="ic">syn</code>, <code class="ic">match</code> (per-production dispatch)</p>
-          <p><strong>Doesn't cover:</strong> <code class="ic">inh</code>, <code class="ic">circular</code></p>
+          <p>Example: <code class="ic">allViolations</code> in checker.ts &mdash; a collection attribute that aggregates from the subtree via bottom-up combination.</p>
+          <p><strong>Covers:</strong> <code class="ic">{ direction: 'syn' }</code>, production dispatch equations, <code class="ic">{ direction: 'collection' }</code></p>
+          <p><strong>Doesn't cover:</strong> <code class="ic">{ direction: 'inh' }</code>, <code class="ic">{ direction: 'circular' }</code></p>
         </div>
       </div>
     </div>
@@ -430,7 +445,7 @@
         </div>
         <div class="card hl-green">
           <h4>KSC Equivalent</h4>
-          <p>When <code class="ic">importViolation</code> reads <code class="ic">node.isReference</code> and <code class="ic">node.fileImports</code> (both synthesized), this is a zygomorphism &mdash; multiple folds where one depends on another.</p>
+          <p>When <code class="ic">importViolation</code> reads <code class="ic">node.isReference</code> and <code class="ic">node.fileImports</code> (both defined in other attributes), this is a zygomorphism &mdash; multiple folds where one depends on another.</p>
           <p>KSC handles this <strong>implicitly</strong> via demand-driven lazy evaluation. Accessing <code class="ic">node.isReference</code> inside <code class="ic">importViolation</code>'s equation triggers the auxiliary fold on demand. No explicit fusion needed.</p>
         </div>
       </div>
@@ -452,7 +467,7 @@
           <p>The full KSC pipeline IS a hylomorphism:</p>
           <ul>
             <li><strong>Unfold (ana):</strong> <code class="ic">convertNode()</code> &mdash; builds the KSNode tree from TypeScript AST</li>
-            <li><strong>Fold (cata):</strong> <code class="ic">evaluate()</code> &mdash; computes attributes over the tree</li>
+            <li><strong>Fold (cata):</strong> <code class="ic">interpret()</code> &mdash; computes attributes over the tree</li>
           </ul>
           <p>But the intermediate tree isn't deforested &mdash; it's materialized as the KSNode AST (needed for the dashboard, serialization, etc.).</p>
         </div>
@@ -476,7 +491,7 @@
           <h4>KSC Equivalent</h4>
           <p>This is the deepest insight. KSC's <code class="ic">inh</code> attributes work by reading <code class="ic">$parent</code>, which is essentially threading a "context" parameter downward. Conceptually:</p>
 <pre><code><span class="cm">// What KSC does (imperative, demand-driven):</span>
-<span class="kw">const</span> defEnv = <span class="fn">inh</span>(rootValue, eq)
+<span class="cm">// decl: { direction: 'inh', root: ... }</span>
 <span class="cm">// node.defEnv reads node.$parent.defEnv</span>
 
 <span class="cm">// What the math says (functional):</span>
@@ -504,7 +519,13 @@
         </div>
         <div class="card hl-green">
           <h4>KSC Equivalent</h4>
-          <p>KSC's stamped tree with <code class="ic">$parent</code> / <code class="ic">$children</code> is literally a <strong>zipper</strong>. Each node can navigate both up and down, which is exactly what Hamana's framework requires.</p>
+          <p>KSC's stamped tree with <code class="ic">$parent</code> / <code class="ic">$children</code> is literally a <strong>zipper</strong> (Badouel, Fotsing, Tchougong 2011). Each node can navigate both up and down, which is exactly what Hamana's framework requires.</p>
+          <p>The three-phase process in <code class="ic">interpret()</code> IS the bialgebra model, imperatively:</p>
+          <ol>
+            <li><code class="ic">stampTree()</code> = the coalgebraic half (enriching with context / zipper construction)</li>
+            <li><code class="ic">applyAttributes()</code> = the algebraic half (installing equations)</li>
+            <li>Demand-driven lazy evaluation = the catamorphism over the zipper</li>
+          </ol>
           <p>The <code class="ic">circular()</code> primitive adds fixed-point iteration on top &mdash; this is the Magnusson-Hedin solver for cyclic dependency graphs, which goes beyond standard recursion schemes into <strong>iterative fixpoint computation</strong>.</p>
         </div>
       </div>
@@ -515,20 +536,20 @@
     <h3>Summary: Recursion Scheme Taxonomy</h3>
 
     <table>
-      <tr><th>Scheme</th><th>Direction</th><th>Power</th><th>KSC Primitive</th><th>KSC Attribute Examples</th></tr>
+      <tr><th>Scheme</th><th>Direction</th><th>Power</th><th>KSC Declaration</th><th>KSC Attribute Examples</th></tr>
       <tr>
         <td><strong>Catamorphism</strong></td>
         <td>Bottom-up</td>
         <td>Children &rarr; result</td>
-        <td><code class="ic">syn</code>, <code class="ic">match</code></td>
-        <td>kindDefs, valueImports, localBindings</td>
+        <td><code class="ic">{ direction: 'syn' }</code>, <code class="ic">'collection'</code></td>
+        <td>kindDefs, valueImports, allViolations</td>
       </tr>
       <tr>
         <td><strong>Paramorphism</strong></td>
         <td>Bottom-up + structure access</td>
         <td>Children + original subtree &rarr; result</td>
-        <td><code class="ic">syn</code> (all of them)</td>
-        <td>allViolations (DFS over $children)</td>
+        <td><code class="ic">{ direction: 'syn' }</code> (all of them)</td>
+        <td>enclosingLocals (walks $parent chain)</td>
       </tr>
       <tr>
         <td><strong>Zygomorphism</strong></td>
@@ -548,21 +569,21 @@
         <td><strong>Hylomorphism</strong></td>
         <td>Unfold then fold</td>
         <td>Seed &rarr; intermediate &rarr; result</td>
-        <td>convert + evaluate pipeline</td>
+        <td>convert + interpret pipeline</td>
         <td>TS source &rarr; KSTree &rarr; diagnostics</td>
       </tr>
       <tr>
         <td><strong>Adjoint fold</strong></td>
         <td>Bidirectional</td>
         <td>Inh&rarr;Syn function as carrier</td>
-        <td><code class="ic">inh</code> + <code class="ic">syn</code> together</td>
+        <td><code class="ic">{ direction: 'inh' }</code> + <code class="ic">'syn'</code> together</td>
         <td>defEnv (inh down) + defLookup (syn from inh)</td>
       </tr>
       <tr>
         <td><strong>Fixed-point iteration</strong></td>
         <td>Cyclic</td>
         <td>Iterate until convergence</td>
-        <td><code class="ic">circular</code></td>
+        <td><code class="ic">{ direction: 'circular' }</code></td>
         <td>Reachability, dataflow analysis</td>
       </tr>
     </table>
@@ -570,9 +591,9 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <!-- SECTION 4: THE MULTI-SORTED ALGEBRA PROBLEM -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <div class="section" id="sec-multi">
   <div class="section-header" onclick="toggleSection('sec-multi')">
     <span class="chevron">&#9654;</span>
@@ -608,15 +629,16 @@
     <div class="card hl-green">
       <h4>What KSC Does: Implicit Product via Lazy Properties</h4>
       <p>KSC stamps all 12 attributes as lazy properties on every node. The "carrier" is implicitly the product of all attribute types. But because evaluation is demand-driven, the product is never materialized as a tuple &mdash; each attribute is computed independently on first access.</p>
-      <p>This is actually the <strong>optimal implementation</strong> of the banana-split theorem: you get the fusion of multiple folds (all attributes share a single tree traversal during installation) without paying for the product construction (lazy evaluation means unused attributes are never computed).</p>
+      <p>This is actually the <strong>optimal implementation</strong> of the banana-split theorem: you get the fusion of multiple folds (all attributes share a single tree traversal during installation via <code class="ic">applyAttributes</code>) without paying for the product construction (lazy evaluation means unused attributes are never computed).</p>
+      <p>The <code class="ic">Semantics</code> object makes this explicit: <code class="ic">semantics.compiled</code> is a <code class="ic">ReadonlyMap&lt;string, AttributeDef&gt;</code> &mdash; the product algebra as a concrete, inspectable map.</p>
     </div>
 
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <!-- SECTION 5: PRIOR ART SYSTEMS -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <div class="section" id="sec-prior">
   <div class="section-header" onclick="toggleSection('sec-prior')">
     <span class="chevron">&#9654;</span>
@@ -686,7 +708,7 @@ eq CompUnit.getChild().env() =
           <p>Kiama provides rewriting strategies (<code class="ic">topdown</code>, <code class="ic">bottomup</code>, etc.) and a <code class="ic">Tree</code> class that establishes parent-child navigation.</p>
         </div>
       </div>
-      <p><strong>Separation score: 7/10.</strong> Structure is standard Scala. Behavior uses <code class="ic">attr</code> combinator. But orchestration is implicit (demand-driven caching inside <code class="ic">attr</code>). <strong>Most similar to KSC.</strong></p>
+      <p><strong>Separation score: 7/10.</strong> Structure is standard Scala. Behavior uses <code class="ic">attr</code> combinator. But orchestration is implicit (demand-driven caching inside <code class="ic">attr</code>).</p>
     </div>
 
     <!-- OHM -->
@@ -818,7 +840,7 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
 ): <span class="ty">ExpAlg</span>&lt;[A, B]&gt;</code></pre>
         </div>
       </div>
-      <p><strong>Separation score: 9/10.</strong> Solves the expression problem: new data variants AND new operations. Algebras compose via merge. <strong>Closest to what a redesigned KSC could look like.</strong></p>
+      <p><strong>Separation score: 9/10.</strong> Solves the expression problem: new data variants AND new operations. Algebras compose via merge. But: no inherited attributes.</p>
     </div>
 
     <hr>
@@ -832,315 +854,313 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
         <th>Orchestration object</th>
         <th>Inherited attrs?</th>
         <th>Circular attrs?</th>
+        <th>Collection attrs?</th>
       </tr>
-      <tr><td><strong>JastAdd</strong></td><td>.ast file</td><td>.jrag file</td><td>Generated Java code</td><td>Yes</td><td>Yes</td></tr>
-      <tr><td><strong>Kiama</strong></td><td>Case classes</td><td>attr() defs</td><td>Built-in (implicit)</td><td>Yes</td><td>Yes</td></tr>
-      <tr><td><strong>Ohm.js</strong></td><td>Grammar object</td><td>Semantics object</td><td>match + apply</td><td>No</td><td>No</td></tr>
-      <tr><td><strong>recursion-schemes</strong></td><td>Base functor</td><td>Algebra function</td><td>Named morphisms</td><td>No*</td><td>No</td></tr>
-      <tr><td><strong>Tagless Final</strong></td><td>Typeclass</td><td>Instance</td><td>Resolution (implicit)</td><td>No</td><td>No</td></tr>
-      <tr><td><strong>Object Algebras</strong></td><td>Generic interface</td><td>Implementation</td><td>merge()</td><td>No</td><td>No</td></tr>
-      <tr><td><strong>KSC (current)</strong></td><td>Grammar (mixed)</td><td>AGSpecInput</td><td>grammar.evaluate (mixed)</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td><strong>JastAdd</strong></td><td>.ast file</td><td>.jrag file</td><td>Generated Java code</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td><strong>Kiama</strong></td><td>Case classes</td><td>attr() defs</td><td>Built-in (implicit)</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td><strong>Ohm.js</strong></td><td>Grammar object</td><td>Semantics object</td><td>match + apply</td><td>No</td><td>No</td><td>No</td></tr>
+      <tr><td><strong>recursion-schemes</strong></td><td>Base functor</td><td>Algebra function</td><td>Named morphisms</td><td>No*</td><td>No</td><td>No</td></tr>
+      <tr><td><strong>Tagless Final</strong></td><td>Typeclass</td><td>Instance</td><td>Resolution (implicit)</td><td>No</td><td>No</td><td>No</td></tr>
+      <tr><td><strong>Object Algebras</strong></td><td>Generic interface</td><td>Implementation</td><td>merge()</td><td>No</td><td>No</td><td>No</td></tr>
+      <tr style="background: rgba(63,185,80,0.08);"><td><strong>KSC</strong></td><td>Grammar (pure functor)</td><td>SpecInput (decl+eq)</td><td>Semantics + interpret</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
     </table>
     <p style="color:var(--text-muted); font-size:0.82rem;">* recursion-schemes can encode inherited attrs via para/zygo + Reader, but it's manual.</p>
-    <p><strong>Key observation:</strong> No pure-library system achieves clean three-way separation AND supports inherited + circular attributes. JastAdd gets it by being a generator. KSC is the closest library approach.</p>
+    <p><strong>Key observation:</strong> KSC is the only pure-library system that achieves clean three-way separation AND supports inherited, circular, and collection attributes. JastAdd achieves the same but requires a code generator. KSC does it via runtime compilation (decl + eq &rarr; AttributeDef) and demand-driven lazy evaluation.</p>
 
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- SECTION 6: DESIGN OPTIONS -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="section" id="sec-options">
-  <div class="section-header" onclick="toggleSection('sec-options')">
+<!-- ================================================================= -->
+<!-- SECTION 6: THE IMPLEMENTATION -->
+<!-- ================================================================= -->
+<div class="section" id="sec-impl">
+  <div class="section-header" onclick="toggleSection('sec-impl')">
     <span class="chevron">&#9654;</span>
-    <h2>Design Options for KSC: Algebraic Separation</h2>
-    <span class="badge badge-option">Options</span>
+    <h2>The Implementation: Three Objects + De-fusion</h2>
+    <span class="badge badge-impl">Implemented</span>
   </div>
   <div class="section-body">
 
-    <p>Each option maps to a different level of mathematical faithfulness vs. practical simplicity.</p>
+    <p>KSC now implements the three-object architecture (Grammar, Semantics, Interpreter) with an additional architectural insight: <strong>de-fusion</strong> of declarations from equations.</p>
+
+    <h3>The Three Objects in Practice</h3>
+
+    <div class="card hl-green">
+      <h4>Actual code from src/program.ts:</h4>
+<pre><code><span class="cm">// 1. Structure &mdash; the functor (pure, single field)</span>
+<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>(getChildren);          <span class="cm">// F</span>
+
+<span class="cm">// 2. Behavior &mdash; merged, validated, compiled algebra</span>
+<span class="kw">const</span> <span class="attr">semantics</span> = <span class="fn">createSemantics</span>(grammar, [          <span class="cm">// &prod;(A<sub>i</sub>, &alpha;<sub>i</sub>)</span>
+  <span class="fn">createBinderSpec</span>(),    <span class="cm">// 3 attrs: kindDefs, defEnv, defLookup</span>
+  <span class="fn">createCheckerSpec</span>(),   <span class="cm">// 9 attrs: valueImports, fileImports, ...</span>
+]);
+
+<span class="cm">// 3. Orchestration &mdash; stamps tree, installs attributes, projects</span>
+<span class="kw">const</span> <span class="attr">results</span> = <span class="fn">interpret</span>(semantics, ksTree.root);   <span class="cm">// cata</span>
+
+<span class="kw">const</span> <span class="attr">allDefs</span> = results.<span class="fn">get</span>(<span class="str">'ksc-binder'</span>);           <span class="cm">// KindDefinition[]</span>
+<span class="kw">const</span> <span class="attr">diagnostics</span> = results.<span class="fn">get</span>(<span class="str">'ksc-checker'</span>);     <span class="cm">// CheckerDiagnostic[]</span></code></pre>
+    </div>
+
+    <h3>The De-fusion Insight</h3>
+
+    <p>The key architectural innovation beyond the three-object pattern is <strong>de-fusion</strong>: separating <em>what</em> an attribute is (declaration) from <em>how</em> it's computed (equation). This mirrors JastAdd's separation of <code class="ic">syn int</code> (declaration) from <code class="ic">= expr()</code> (equation).</p>
+
+    <div class="grid-2">
+      <div class="card hl-purple">
+        <h4>Declarations (decl.ts) &mdash; The Domain</h4>
+        <p>Each attribute declares its <strong>direction</strong> and domain metadata, independently of any computation:</p>
+<pre><code><span class="cm">// Synthesized: bottom-up, cached by default</span>
+{ <span class="prop">direction</span>: <span class="str">'syn'</span> }
+{ <span class="prop">direction</span>: <span class="str">'syn'</span>, <span class="prop">uncached</span>: <span class="kw">true</span> }
+
+<span class="cm">// Inherited: top-down, needs root value</span>
+{ <span class="prop">direction</span>: <span class="str">'inh'</span>, <span class="prop">root</span>: <span class="kw">new</span> <span class="ty">Set</span>&lt;string&gt;() }
+
+<span class="cm">// Circular: fixed-point iteration</span>
+{ <span class="prop">direction</span>: <span class="str">'circular'</span>, <span class="prop">bottom</span>: <span class="kw">false</span>, <span class="prop">equals</span>: eq }
+
+<span class="cm">// Collection: bottom-up aggregation with combine</span>
+{ <span class="prop">direction</span>: <span class="str">'collection'</span>, <span class="prop">initial</span>: [], <span class="prop">combine</span>: fn }
+
+<span class="cm">// Parameterized synthesized: Map-cached</span>
+{ <span class="prop">direction</span>: <span class="str">'paramSyn'</span> }</code></pre>
+      </div>
+      <div class="card hl-green">
+        <h4>Equations &mdash; The Rules</h4>
+        <p>Equations are pure computation, keyed by attribute name. Form depends on direction:</p>
+<pre><code><span class="cm">// syn: direct function or production map</span>
+<span class="attr">kindDefs</span>: {
+  <span class="fn">CompilationUnit</span>: (cu) => { <span class="cm">/* collect */</span> },
+  <span class="fn">_</span>: () => [],
+}
+
+<span class="cm">// inh: (parent, child, idx) => V | undefined</span>
+<span class="attr">fileImports</span>: (parent) => {
+  <span class="kw">if</span> (parent.kind === <span class="str">'CompilationUnit'</span>)
+    <span class="kw">return</span> parent.valueImports;
+  <span class="kw">return</span> <span class="kw">undefined</span>; <span class="cm">// auto-propagate</span>
+}
+
+<span class="cm">// collection: contribution per node</span>
+<span class="attr">allViolations</span>: (node) => {
+  <span class="kw">const</span> v = node.importViolation;
+  <span class="kw">return</span> v ? [v] : [];
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="card hl">
+      <h4>compile() &mdash; The Fusion Point</h4>
+      <p>The <code class="ic">compile(name, decl, eq)</code> function in <code class="ic">compile.ts</code> is where declaration + equation fuse into an <code class="ic">AttributeDef</code>. The declaration's <code class="ic">direction</code> field selects the evaluation strategy:</p>
+<pre><code><span class="cm">// compile.ts: direction -> strategy</span>
+<span class="kw">switch</span> (decl.direction) {
+  <span class="kw">case</span> <span class="str">'syn'</span>:        <span class="cm">// installLazy with optional dispatch</span>
+  <span class="kw">case</span> <span class="str">'inh'</span>:        <span class="cm">// installLazy with $parent navigation + auto-propagation</span>
+  <span class="kw">case</span> <span class="str">'circular'</span>:   <span class="cm">// Magnusson-Hedin fixed-point getter</span>
+  <span class="kw">case</span> <span class="str">'collection'</span>: <span class="cm">// installLazy with bottom-up combine over $children</span>
+  <span class="kw">case</span> <span class="str">'paramSyn'</span>:   <span class="cm">// frozen property with Map cache</span>
+}</code></pre>
+      <p>This is the <strong>single point</strong> where domain, rules, and strategy fuse into an installable getter. Before this point, each concern is independently inspectable.</p>
+    </div>
+
+    <h3>What createSemantics() Does</h3>
+
+    <p>The <code class="ic">Semantics</code> object is the <strong>validated, compiled product algebra</strong>:</p>
+
+    <div class="diagram"><span class="d-label">createSemantics(grammar, [binderSpec, checkerSpec])</span>
+
+  <span class="d-arrow">1.</span> Topo-sort specs by deps          <span class="d-comment">binder before checker (checker depends on binder)</span>
+  <span class="d-arrow">2.</span> Validate: no duplicate attrs      <span class="d-comment">12 unique names across 2 specs</span>
+  <span class="d-arrow">3.</span> Compile: decl + eq &rarr; AttributeDef  <span class="d-comment">12 compiled attribute definitions</span>
+  <span class="d-arrow">4.</span> Seal into immutable Semantics      <span class="d-comment">grammar, specs, order, declarations, compiled</span>
+
+  <span class="d-type">Result:</span>
+    semantics.<span class="prop">grammar</span>       <span class="d-comment">= Grammar&lt;KSNode&gt; (the functor)</span>
+    semantics.<span class="prop">specs</span>         <span class="d-comment">= [SealedSpec('ksc-binder'), SealedSpec('ksc-checker')]</span>
+    semantics.<span class="prop">order</span>         <span class="d-comment">= ['kindDefs', 'defEnv', 'defLookup', 'valueImports', ...]</span>
+    semantics.<span class="prop">declarations</span>  <span class="d-comment">= Map(12 entries: name &rarr; AttrDecl)</span>
+    semantics.<span class="prop">compiled</span>      <span class="d-comment">= Map(12 entries: name &rarr; AttributeDef)</span></div>
+
+    <h3>What interpret() Does</h3>
+
+    <p>The <code class="ic">interpret()</code> function is the catamorphism &mdash; a three-phase evaluator:</p>
+
+    <div class="grid-3">
+      <div class="card hl-purple">
+        <h4>Phase 1: stampTree()</h4>
+        <p>The <strong>coalgebraic half</strong> &mdash; enriches the raw AST into a zipper with bidirectional navigation.</p>
+        <p>Stamps: <code class="ic">$parent</code>, <code class="ic">$children</code>, <code class="ic">$index</code>, <code class="ic">$root</code>, <code class="ic">$prev</code>, <code class="ic">$next</code></p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">This is Badouel et al.'s zipper construction. BFS traversal, O(n).</p>
+      </div>
+      <div class="card hl-green">
+        <h4>Phase 2: applyAttributes()</h4>
+        <p>The <strong>algebraic half</strong> &mdash; installs compiled AttributeDefs as lazy getters on every node.</p>
+        <p>For each spec in topo order, walks the tree installing <code class="ic">def.install(node, name)</code>.</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">DFS traversal. No values computed yet &mdash; all computation is deferred.</p>
+      </div>
+      <div class="card hl-orange">
+        <h4>Phase 3: project()</h4>
+        <p>The <strong>result extraction</strong> &mdash; each spec's <code class="ic">project</code> function pulls final results from the attributed tree.</p>
+        <p>Accessing attributes triggers the demand-driven cascade &mdash; the actual catamorphism runs here, lazily.</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">Returns Map&lt;string, unknown&gt;: spec name &rarr; projected result.</p>
+      </div>
+    </div>
+
+    <div class="math-block">
+      <span class="math-label">Mathematical Identity</span>
+      Grammar = F (endofunctor &mdash; tree shape)
+      SpecInput = (Decl, Eq) (algebra specification, unfused)
+      compile() = Decl &times; Eq &rarr; AttributeDef (algebra compilation)
+      Semantics = &prod;<sub>i</sub> (A<sub>i</sub>, &alpha;<sub>i</sub>) (validated product of compiled F-algebras)
+      interpret = stampTree &compfn; applyAttributes &compfn; project (the catamorphism pipeline)
+
+      <span class="cm">The de-fusion means you can inspect declarations before compilation.</span>
+      <span class="cm">The Semantics object is the compiled algebra &mdash; ready for any tree.</span>
+      <span class="cm">interpret() is parametric in the Semantics &mdash; same tree, different analyses.</span>
+    </div>
+
+    <h3>Collection Attributes: A Payoff of De-fusion</h3>
+
+    <p>Collection attributes demonstrate why de-fusion matters. The <code class="ic">CollectionDecl</code> carries domain metadata (<code class="ic">initial</code>, <code class="ic">combine</code>) that's separate from the contribution equation:</p>
+
+<pre><code><span class="cm">// Declaration: WHAT the attribute is</span>
+<span class="attr">allViolations</span>: {
+  <span class="prop">direction</span>: <span class="str">'collection'</span>,
+  <span class="prop">initial</span>: [] <span class="kw">as</span> <span class="ty">CheckerDiagnostic</span>[],
+  <span class="prop">combine</span>: (acc, contrib) => [...acc, ...contrib],
+}
+
+<span class="cm">// Equation: HOW each node contributes</span>
+<span class="attr">allViolations</span>: (node) => {
+  <span class="kw">const</span> v = node.importViolation;
+  <span class="kw">return</span> v ? [v] : [];
+}</code></pre>
+
+    <p>The <code class="ic">compile()</code> step fuses these: it creates an AttributeDef that computes the node's own contribution, then combines with all children's collection values via <code class="ic">$children</code>. The aggregation strategy (monoid structure) lives in the declaration; the per-node logic lives in the equation.</p>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 7: DESIGN OPTIONS (Historical) -->
+<!-- ================================================================= -->
+<div class="section" id="sec-options">
+  <div class="section-header" onclick="toggleSection('sec-options')">
+    <span class="chevron">&#9654;</span>
+    <h2>Design Options Considered</h2>
+    <span class="badge badge-option">Historical</span>
+  </div>
+  <div class="section-body">
+
+    <p>Before implementing the current architecture, five design options were evaluated. Each maps to a different level of mathematical faithfulness vs. practical simplicity. <strong>Option B was chosen and implemented.</strong></p>
 
     <div class="tabs" id="option-tabs">
-      <button class="tab-btn active" onclick="switchTab('option-tabs','opt-minimal')">A: Minimal</button>
-      <button class="tab-btn" onclick="switchTab('option-tabs','opt-three')">B: Three Objects</button>
+      <button class="tab-btn" onclick="switchTab('option-tabs','opt-minimal')">A: Minimal</button>
+      <button class="tab-btn active" onclick="switchTab('option-tabs','opt-three')">B: Three Objects (Chosen)</button>
       <button class="tab-btn" onclick="switchTab('option-tabs','opt-morphisms')">C: Named Morphisms</button>
       <button class="tab-btn" onclick="switchTab('option-tabs','opt-objalgeb')">D: Object Algebras</button>
       <button class="tab-btn" onclick="switchTab('option-tabs','opt-full')">E: Full Algebraic</button>
     </div>
 
     <!-- OPTION A -->
-    <div class="tab-panel active" id="opt-minimal">
+    <div class="tab-panel" id="opt-minimal">
       <h3>Option A: Minimal &mdash; Extract Evaluator from Grammar</h3>
-      <div class="card hl">
-        <h4>Change: Grammar becomes pure functor; evaluate() is standalone</h4>
-<pre><code><span class="cm">// Structure &mdash; pure functor, knows only tree shape</span>
-<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
-
-<span class="cm">// Behavior &mdash; unchanged</span>
-<span class="kw">const</span> <span class="attr">binder</span> = <span class="fn">createBinderSpec</span>();
-
-<span class="cm">// Orchestration &mdash; standalone function</span>
+      <div class="card">
+        <h4>Idea: Grammar becomes pure functor; evaluate() is standalone</h4>
+<pre><code><span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
 <span class="kw">const</span> <span class="attr">results</span> = <span class="fn">evaluate</span>(grammar, [binder, checker], root);</code></pre>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <h4>Pros</h4>
-          <ul>
-            <li>Smallest change (move methods out of Grammar)</li>
-            <li>Grammar.getChildren is the only field &mdash; pure functor</li>
-            <li>evaluate() takes (functor, algebras, data) &mdash; clear roles</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4>Cons</h4>
-          <ul>
-            <li>Doesn't address stamp/validate/apply fusion inside evaluate()</li>
-            <li>Internal architecture unchanged</li>
-          </ul>
-        </div>
-      </div>
-      <div class="math-block">
-        <span class="math-label">Mathematical Identity</span>
-        Grammar = F (endofunctor)
-        AGSpecInput = (A, &alpha;) (F-algebra)
-        evaluate = cata (catamorphism)
-
-        <span class="cm">Just moves cata out of F, which is the correct placement.</span>
-      </div>
+      <p><strong>Why not chosen:</strong> Doesn't create an inspectable intermediate object. Validation happens at evaluate-time, not before. No place for the dashboard to introspect the algebra without running it.</p>
     </div>
 
     <!-- OPTION B -->
-    <div class="tab-panel" id="opt-three">
-      <h3>Option B: Three Objects &mdash; Grammar, Semantics, Interpreter</h3>
-      <div class="card hl">
-        <h4>Change: Add Semantics object (validated, sealed algebra composition)</h4>
-<pre><code><span class="cm">// 1. Structure &mdash; the functor</span>
-<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
-
-<span class="cm">// 2. Behavior &mdash; merged, validated, sealed</span>
-<span class="kw">const</span> <span class="attr">semantics</span> = <span class="fn">createSemantics</span>(grammar, [
-  <span class="fn">createBinderSpec</span>(),
-  <span class="fn">createCheckerSpec</span>(),
-]);
-<span class="cm">// semantics.order: ['ksc-binder', 'ksc-checker']</span>
-<span class="cm">// semantics.attributes: ['kindDefs', 'defEnv', ..., 'allViolations']</span>
-<span class="cm">// semantics.deps: DepGraph (from analyzeDeps)</span>
-<span class="cm">// Validation has already run (duplicates, cycles, completeness)</span>
-
-<span class="cm">// 3. Orchestration &mdash; interpret</span>
-<span class="kw">const</span> <span class="attr">results</span> = <span class="fn">interpret</span>(semantics, root);
-<span class="cm">// Stamps tree, applies attributes, projects results</span></code></pre>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <h4>Pros</h4>
-          <ul>
-            <li>Mirrors Ohm.js's proven three-object pattern</li>
-            <li>Semantics is inspectable before execution (dep graph, order, attributes)</li>
-            <li>Dashboard can render the Semantics without evaluating a tree</li>
-            <li>Validate once, run on many trees</li>
-            <li>The "sealed registry" pattern (Strategy 1)</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4>Cons</h4>
-          <ul>
-            <li>Three concepts where one call sufficed</li>
-            <li>createSemantics does eager work (analysis, validation)</li>
-          </ul>
-        </div>
-      </div>
-      <div class="math-block">
-        <span class="math-label">Mathematical Identity</span>
-        Grammar = F (endofunctor)
-        Semantics = <span class="op">&prod;</span><sub>i</sub> (A<sub>i</sub>, &alpha;<sub>i</sub>) (product of F-algebras, validated &amp; sorted)
-        interpret = cata over the product algebra
-
-        <span class="cm">Semantics is the "compiled" multi-sorted algebra.</span>
-        <span class="cm">Validation = checking the algebra is well-formed.</span>
-        <span class="cm">interpret = applying the unique homomorphism.</span>
+    <div class="tab-panel active" id="opt-three">
+      <h3>Option B: Three Objects &mdash; Grammar, Semantics, Interpreter (IMPLEMENTED)</h3>
+      <div class="card hl-green">
+        <h4>This is what KSC implements. See Section 6 for full details.</h4>
+<pre><code><span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>(getChildren);              <span class="cm">// F</span>
+<span class="kw">const</span> <span class="attr">semantics</span> = <span class="fn">createSemantics</span>(grammar, [binder, checker]); <span class="cm">// &prod;(A<sub>i</sub>, &alpha;<sub>i</sub>)</span>
+<span class="kw">const</span> <span class="attr">results</span> = <span class="fn">interpret</span>(semantics, root);               <span class="cm">// cata</span></code></pre>
+        <p><strong>Why chosen:</strong></p>
+        <ul>
+          <li>Mirrors Ohm.js's proven three-object pattern</li>
+          <li>Semantics is inspectable before execution (declarations, dep graph, evaluation order)</li>
+          <li>Dashboard can render the Semantics without evaluating a tree</li>
+          <li>Validate once, run on many trees</li>
+          <li>De-fusion (declarations/equations) enables collection attributes, completeness checking, introspection</li>
+          <li>Mathematical identity: Grammar = F, Semantics = &prod;algebras, interpret = cata</li>
+        </ul>
       </div>
     </div>
 
     <!-- OPTION C -->
     <div class="tab-panel" id="opt-morphisms">
       <h3>Option C: Named Morphisms &mdash; recursion-schemes Style</h3>
-      <div class="card hl">
-        <h4>Change: Make evaluation strategy explicit and named</h4>
-<pre><code><span class="cm">// Structure</span>
-<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);
-
-<span class="cm">// Behavior</span>
-<span class="kw">const</span> <span class="attr">kindDefs</span> = <span class="fn">synAttr</span>(<span class="fn">match</span>(<span class="str">'kind'</span>, { ... }));
-<span class="kw">const</span> <span class="attr">defEnv</span>  = <span class="fn">inhAttr</span>(rootValue, eq);
-
-<span class="cm">// Orchestration &mdash; explicit morphism choice</span>
-<span class="kw">const</span> <span class="attr">results</span> = <span class="fn">para</span>(grammar, { kindDefs, defEnv }, root);   <span class="cm">// paramorphism</span>
-<span class="kw">const</span> <span class="attr">reach</span>   = <span class="fn">fixpoint</span>(grammar, { reachable }, root);      <span class="cm">// fixed-point iteration</span></code></pre>
+      <div class="card">
+        <h4>Idea: Make evaluation strategy explicit and named</h4>
+<pre><code><span class="kw">const</span> <span class="attr">results</span> = <span class="fn">para</span>(grammar, { kindDefs, defEnv }, root);
+<span class="kw">const</span> <span class="attr">reach</span>   = <span class="fn">fixpoint</span>(grammar, { reachable }, root);</code></pre>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <h4>Pros</h4>
-          <ul>
-            <li>Makes the recursion scheme explicit &mdash; you choose cata/para/hylo/fixpoint</li>
-            <li>Maps directly to the mathematical taxonomy</li>
-            <li>Could optimize per-scheme (cata needs no $parent, etc.)</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4>Cons</h4>
-          <ul>
-            <li>Exposes complexity users don't need to see</li>
-            <li>Most AG specs need multiple schemes (syn + inh + circular)</li>
-            <li>Would need auto-detection to avoid manual scheme selection</li>
-            <li><strong>This is what recursion-schemes libraries struggle with</strong> &mdash; users find the morphism zoo intimidating</li>
-          </ul>
-        </div>
-      </div>
+      <p><strong>Why not chosen:</strong> Exposes complexity users don't need. Most AG specs need multiple schemes (syn + inh + circular) &mdash; forcing users to pick a morphism defeats the purpose. The "morphism zoo" is notoriously intimidating.</p>
     </div>
 
     <!-- OPTION D -->
     <div class="tab-panel" id="opt-objalgeb">
       <h3>Option D: Object Algebras &mdash; Composable Interpretations</h3>
-      <div class="card hl">
-        <h4>Change: Specs become typed algebra implementations; merge() composes them</h4>
-<pre><code><span class="cm">// Structure &mdash; the "signature" (generic interface)</span>
-<span class="kw">interface</span> <span class="ty">KSAlgebra</span>&lt;<span class="ty">E</span>&gt; {
+      <div class="card">
+        <h4>Idea: Specs become typed algebra implementations; merge() composes them</h4>
+<pre><code><span class="kw">interface</span> <span class="ty">KSAlgebra</span>&lt;<span class="ty">E</span>&gt; {
   CompilationUnit(children: <span class="ty">E</span>[]): <span class="ty">E</span>;
   TypeAliasDeclaration(name: <span class="ty">E</span>, type: <span class="ty">E</span>): <span class="ty">E</span>;
-  Identifier(text: string): <span class="ty">E</span>;
   <span class="cm">// ... per production</span>
 }
-
-<span class="cm">// Behavior &mdash; each spec implements the algebra</span>
-<span class="kw">const</span> <span class="attr">binderAlg</span>: <span class="ty">KSAlgebra</span>&lt;<span class="ty">BinderCarrier</span>&gt; = {
-  CompilationUnit(kids) { <span class="cm">/* collect kindDefs */</span> },
-  TypeAliasDeclaration(name, type) { <span class="cm">/* extract Kind<> */</span> },
-  Identifier(text) { <span class="cm">/* return text */</span> },
-};
-
-<span class="cm">// Orchestration &mdash; merge and fold</span>
 <span class="kw">const</span> <span class="attr">combined</span> = <span class="fn">merge</span>(binderAlg, checkerAlg);
 <span class="kw">const</span> <span class="attr">results</span> = <span class="fn">cata</span>(combined, root);</code></pre>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <h4>Pros</h4>
-          <ul>
-            <li>Maximum type safety: each production has a typed equation</li>
-            <li>Merge gives you banana-split (product of carriers) for free</li>
-            <li>Solves the expression problem: add new node types OR new analyses</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4>Cons</h4>
-          <ul>
-            <li>KSC has 361 node types &mdash; the interface would be enormous</li>
-            <li><strong>No inherited attributes</strong> in the standard formulation</li>
-            <li>Would need to extend object algebras with context passing (a research problem)</li>
-            <li>Dramatically different API from current</li>
-          </ul>
-        </div>
-      </div>
-      <div class="math-block">
-        <span class="math-label">Mathematical Identity</span>
-        KSAlgebra&lt;E&gt; = The functor F expressed as a TypeScript interface
-        binderAlg = An F-algebra (E, &alpha;) where E = BinderCarrier
-        merge(a, b) = Product algebra (A &times; B, &alpha; &times; &beta;)
-        cata = The unique homomorphism from &mu;F to A &times; B
-
-        <span class="cm">This IS the mathematical object, directly.</span>
-        <span class="cm">But: AG = more than catamorphism (need inherited attrs).</span>
-      </div>
+      <p><strong>Why not chosen:</strong> KSC has 361 node types &mdash; the interface would be enormous. No standard mechanism for inherited attributes in the object algebra formulation. Dramatically different API.</p>
     </div>
 
     <!-- OPTION E -->
     <div class="tab-panel" id="opt-full">
       <h3>Option E: Full Algebraic &mdash; Functor + Bialgebra + Fixpoint</h3>
-      <div class="card hl">
-        <h4>Change: The nuclear option &mdash; model the full AG as a bialgebra</h4>
-<pre><code><span class="cm">// Structure &mdash; explicit base functor</span>
-<span class="kw">type</span> <span class="ty">KSNodeF</span>&lt;<span class="ty">A</span>&gt; = {
+      <div class="card">
+        <h4>Idea: Model the full AG as a bialgebra with explicit base functor</h4>
+<pre><code><span class="kw">type</span> <span class="ty">KSNodeF</span>&lt;<span class="ty">A</span>&gt; = {
   kind: string;
-  children: <span class="ty">A</span>[];      <span class="cm">// holes where children go</span>
+  children: <span class="ty">A</span>[];
   props: <span class="ty">Record</span>&lt;string, unknown&gt;;
 }
-
-<span class="cm">// Behavior &mdash; bialgebra (algebra + coalgebra)</span>
 <span class="kw">type</span> <span class="ty">AGBialgebra</span>&lt;<span class="ty">Inh</span>, <span class="ty">Syn</span>&gt; = {
-  <span class="cm">// Algebra: synthesize from children's results</span>
   syn: (<span class="ty">KSNodeF</span>&lt;<span class="ty">Syn</span>&gt;) => <span class="ty">Syn</span>,
-  <span class="cm">// Coalgebra: distribute inherited to children</span>
   inh: (<span class="ty">Inh</span>) => <span class="ty">KSNodeF</span>&lt;<span class="ty">Inh</span>&gt;,
 }
-
-<span class="cm">// Orchestration &mdash; bidirectional fold (adjoint fold)</span>
-<span class="kw">function</span> <span class="fn">agEval</span>&lt;<span class="ty">Inh</span>, <span class="ty">Syn</span>&gt;(
-  bialg: <span class="ty">AGBialgebra</span>&lt;<span class="ty">Inh</span>, <span class="ty">Syn</span>&gt;,
-  root: <span class="ty">Fix</span>&lt;<span class="ty">KSNodeF</span>&gt;,
-  rootInh: <span class="ty">Inh</span>,
-): <span class="ty">Syn</span></code></pre>
+<span class="kw">const</span> <span class="attr">result</span> = <span class="fn">agEval</span>(bialg, root, rootInh);</code></pre>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <h4>Pros</h4>
-          <ul>
-            <li>Mathematically exact &mdash; this IS the categorical model (Jacobs-Uustalu)</li>
-            <li>Cleanest possible separation of structure / behavior / evaluation</li>
-            <li>Could derive evaluation order from the bialgebra structure</li>
-            <li>Opens path to formal verification</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4>Cons</h4>
-          <ul>
-            <li>Requires base functor (KSNodeF) &mdash; doubles the type definitions</li>
-            <li>Fixed-point types (Fix) are unergonomic in TypeScript</li>
-            <li>Circular attributes don't fit the bialgebra model cleanly</li>
-            <li><strong>Beautiful math, painful engineering</strong></li>
-            <li>No existing TypeScript library does this well</li>
-          </ul>
-        </div>
-      </div>
-      <div class="math-block">
-        <span class="math-label">Mathematical Identity</span>
-        KSNodeF = The base functor F
-        Fix KSNodeF = &mu;F (the initial algebra / AST)
-        AGBialgebra = Dialgebra (F(Syn)&rarr;Syn, Inh&rarr;F(Inh))
-        agEval = The unique morphism from the initial dialgebra
-
-        Alternatively, following Gibbons 2014:
-        agEval = cata over carrier (Inh &rarr; Syn)
-        <span class="cm">i.e., the AG is a catamorphism where the carrier is a function type.</span>
-      </div>
+      <p><strong>Why not chosen:</strong> Requires base functor (KSNodeF&lt;A&gt;), doubling type definitions. Fixed-point types are unergonomic in TypeScript. Circular attributes don't fit the bialgebra model cleanly. "Beautiful math, painful engineering."</p>
     </div>
 
     <hr>
 
-    <h3>Recommendation: Option B (Three Objects) with Algebraic Naming</h3>
+    <h3>Why Option B + De-fusion Is the Sweet Spot</h3>
 
     <div class="card hl-green">
-      <h4>The Sweet Spot</h4>
-      <p>Option B gives you clean three-way separation without requiring base functors or bialgebra types. The key insight from the math:</p>
+      <p>Option B gives clean three-way separation without requiring base functors or bialgebra types. The de-fusion layer (declarations separate from equations) provides the introspection and extensibility benefits that JastAdd gets from its .ast/.jrag file separation, but at runtime:</p>
       <ul>
-        <li>The Grammar IS the functor &mdash; just make it pure (remove evaluate methods)</li>
-        <li>The Semantics IS the product algebra &mdash; validated, sorted, sealed</li>
-        <li>The interpreter IS the catamorphism (over Inh&rarr;Syn function types, implicitly)</li>
+        <li><strong>Introspection:</strong> <code class="ic">semantics.declarations</code> lets you inspect attribute directions without running equations</li>
+        <li><strong>Extensibility:</strong> New directions (like <code class="ic">collection</code>) are added by extending <code class="ic">AttrDecl</code> + <code class="ic">compile()</code></li>
+        <li><strong>Validation:</strong> <code class="ic">createSemantics()</code> checks for duplicates, unknown deps, circular deps before any tree is evaluated</li>
+        <li><strong>Composition:</strong> Multiple specs merge via topo-sort; the Semantics is the sealed product algebra</li>
       </ul>
-      <p>You get the mathematical structure without paying the TypeScript ergonomics tax. And the Semantics object gives you a concrete, inspectable artifact that the dashboard can render.</p>
-
-<pre><code><span class="cm">// This is what it looks like in practice:</span>
-<span class="kw">const</span> <span class="attr">grammar</span> = <span class="fn">createGrammar</span>&lt;<span class="ty">KSNode</span>&gt;(getChildren);     <span class="cm">// F</span>
-<span class="kw">const</span> <span class="attr">semantics</span> = <span class="fn">createSemantics</span>(grammar, [binder, checker]);  <span class="cm">// &prod;(A<sub>i</sub>, &alpha;<sub>i</sub>)</span>
-<span class="kw">const</span> <span class="attr">results</span> = <span class="fn">interpret</span>(semantics, root);              <span class="cm">// cata</span></code></pre>
     </div>
 
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- SECTION 7: KEY INSIGHT -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
+<!-- SECTION 8: KEY INSIGHT -->
+<!-- ================================================================= -->
 <div class="section" id="sec-insight">
   <div class="section-header" onclick="toggleSection('sec-insight')">
     <span class="chevron">&#9654;</span>
@@ -1166,11 +1186,12 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
   <span class="d-comment">Parent calls child's function, passing Inh</span>
   <span class="d-comment">Child returns Syn as the result</span>
 
-<span class="d-comment">What KSC does (imperative encoding):</span>
-  stampTree(root)           <span class="d-comment">establish $parent links (enables Inh flow)</span>
-  applyAttributes(root)     <span class="d-comment">install lazy getters (Inh&rarr;Syn, cached)</span>
-  node.defEnv               <span class="d-comment">reads $parent.defEnv (Inh, via $parent link)</span>
-  node.kindDefs             <span class="d-comment">computes from children (Syn, via $children)</span></div>
+<span class="d-comment">What KSC does (imperative encoding via three-object architecture):</span>
+  stampTree(root)                    <span class="d-comment">establish $parent links (enables Inh flow)</span>
+  applyAttributes(root, compiled)    <span class="d-comment">install lazy getters (Inh&rarr;Syn, cached)</span>
+  node.defEnv                        <span class="d-comment">reads $parent.defEnv (Inh, via $parent link)</span>
+  node.kindDefs                      <span class="d-comment">computes from children (Syn, via $children)</span>
+  node.allViolations                 <span class="d-comment">aggregates from children (Collection, via combine)</span></div>
 
     <p>KSC's <code class="ic">$parent</code> links are the imperative implementation of the function argument. Instead of explicitly passing inherited values through a function call, KSC makes them available via navigation. The lazy getter reads <code class="ic">$parent.attrName</code> &mdash; this IS the "call the parent's function to get the inherited value" step, just encoded as property access.</p>
 
@@ -1184,14 +1205,16 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
       <li>The multi-sorted problem is just: the carrier is <code class="ic">Inh &rarr; (Syn1 &times; Syn2 &times; ... &times; Syn12)</code></li>
     </ul>
 
-    <p>Circular attributes add fixed-point iteration on top, which takes you beyond pure recursion schemes into the domain of <strong>abstract interpretation</strong> (Cousot &amp; Cousot 1977). This is where KSC's <code class="ic">circular()</code> primitive lives &mdash; it's the Magnusson-Hedin solver, which is a fixpoint iterator, not a fold.</p>
+    <p>Circular attributes add fixed-point iteration on top, which takes you beyond pure recursion schemes into the domain of <strong>abstract interpretation</strong> (Cousot &amp; Cousot 1977). This is where KSC's <code class="ic">{ direction: 'circular' }</code> declaration lives &mdash; it's the Magnusson-Hedin solver, which is a fixpoint iterator, not a fold.</p>
+
+    <p>Collection attributes are the <strong>free monoid</strong> construction: the <code class="ic">initial</code> + <code class="ic">combine</code> in <code class="ic">CollectionDecl</code> define a monoid, and the bottom-up aggregation is the catamorphism into that monoid. This is why <code class="ic">allViolations</code> uses <code class="ic">combine: (acc, contrib) => [...acc, ...contrib]</code> &mdash; it's list concatenation, the free monoid on diagnostics.</p>
 
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- SECTION 8: REFERENCES -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
+<!-- SECTION 9: REFERENCES -->
+<!-- ================================================================= -->
 <div class="section" id="sec-refs">
   <div class="section-header" onclick="toggleSection('sec-refs')">
     <span class="chevron">&#9654;</span>
@@ -1208,29 +1231,31 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
       <li><strong>Hinze, Wu, Gibbons (2013)</strong>: "Unifying Structured Recursion Schemes" &mdash; All recursion schemes as adjoint folds.</li>
       <li><strong>Gibbons (2014)</strong>: "Conjugate Hylomorphisms &mdash; Or: The Mother of All Structured Recursion Schemes" &mdash; Downward/upward accumulations unified.</li>
       <li><strong>Hamana (2009)</strong>: "Attribute Grammars as Recursion Schemes over Cyclic Representations of Zippers" &mdash; AGs via zippers (comonads).</li>
+      <li><strong>Badouel, Fotsing, Tchougong (2011)</strong>: "Yet Another Realization of Attribute Evaluation" &mdash; Zipper-based AG evaluation; KSC's stampTree() is this construction.</li>
       <li><strong>Uustalu &amp; Vene (2005)</strong>: "The Recursion Scheme from the Cofree Recursive Comonad" &mdash; Comonadic recursion schemes.</li>
       <li><strong>Swierstra, Alcocer, Saraiva</strong>: "Purely Functional Implementations of Attribute Grammars" &mdash; Higher-order AG in Haskell.</li>
       <li><strong>Najd &amp; Peyton Jones (2016)</strong>: "Trees That Grow" &mdash; Extensible ASTs via type families.</li>
       <li><strong>Magnusson &amp; Hedin (2007)</strong>: "Circular Reference Attributed Grammars" &mdash; The fixed-point iteration algorithm used in JastAdd and KSC.</li>
+      <li><strong>Cousot &amp; Cousot (1977)</strong>: "Abstract Interpretation" &mdash; The theoretical framework underpinning circular attribute evaluation as fixpoint computation.</li>
     </ul>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- SECTION 9: FLASHCARD QUIZ -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
+<!-- SECTION 10: FLASHCARD QUIZ -->
+<!-- ================================================================= -->
 <div class="section" id="sec-quiz">
   <div class="section-header" onclick="toggleSection('sec-quiz')">
     <span class="chevron">&#9654;</span>
     <h2>Flashcard Quiz</h2>
-    <span class="badge badge-quiz">12 Cards</span>
+    <span class="badge badge-quiz">14 Cards</span>
   </div>
   <div class="section-body">
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
       <div class="q">Q: What mathematical object does createGrammar(getChildren) correspond to?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">An <strong>endofunctor F</strong>. It defines the shape of one layer of recursion &mdash; how children relate to parents. The KSNode AST is the initial F-algebra (&mu;F).</div>
+      <div class="a">An <strong>endofunctor F</strong>. It defines the shape of one layer of recursion &mdash; how children relate to parents. The KSNode AST is the initial F-algebra (&mu;F). In KSC, Grammar is a pure functor with a single field: <code>getChildren</code>.</div>
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
@@ -1240,9 +1265,21 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What are the three objects in KSC's architecture and what mathematical object does each correspond to?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>Grammar</strong> = endofunctor F (tree shape via getChildren). <strong>Semantics</strong> = &prod;(A<sub>i</sub>, &alpha;<sub>i</sub>) product of validated, compiled F-algebras. <strong>interpret()</strong> = catamorphism (the unique homomorphism from initial algebra to the product algebra). Created via <code>createGrammar</code>, <code>createSemantics</code>, <code>interpret</code>.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
       <div class="q">Q: Why is a catamorphism insufficient for full AG evaluation?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">A catamorphism is bottom-up only (synthesized attributes). It can't handle: (1) inherited attributes (top-down context), (2) circular attributes (fixed-point iteration). You need either adjoint folds (catamorphism over Inh&rarr;Syn function types) or the bialgebra/dialgebra model.</div>
+      <div class="a">A catamorphism is bottom-up only (synthesized attributes). It can't handle: (1) inherited attributes (top-down context), (2) circular attributes (fixed-point iteration), (3) collection attributes need monoid structure. You need either adjoint folds (catamorphism over Inh&rarr;Syn function types) or the bialgebra/dialgebra model.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is "de-fusion" in KSC's architecture and why does it matter?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">De-fusion separates <strong>declarations</strong> (what an attribute is: direction, domain metadata) from <strong>equations</strong> (how it's computed). The <code>compile(name, decl, eq)</code> function fuses them into an AttributeDef. This separation enables: introspection of attribute types before evaluation, collection attributes (combine lives in decl), and extensibility (new directions added to AttrDecl + compile).</div>
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
@@ -1260,19 +1297,19 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
     <div class="flashcard" onclick="this.classList.toggle('open')">
       <div class="q">Q: What is the stamped $parent link, categorically?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">It's the imperative encoding of the <strong>zipper comonad</strong> (Hamana 2009). Each node can navigate both up ($parent) and down ($children), which is exactly a tree zipper. This enables inherited attributes by providing upward navigation &mdash; equivalent to passing a function argument in the Inh&rarr;Syn model.</div>
+      <div class="a">It's the imperative encoding of the <strong>zipper comonad</strong> (Hamana 2009, Badouel et al. 2011). Each node can navigate both up ($parent) and down ($children), which is exactly a tree zipper. <code>stampTree()</code> is the coalgebraic half of KSC's bialgebra &mdash; enriching raw data with context.</div>
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
       <div class="q">Q: How does KSC handle the multi-sorted algebra problem (12 attributes with different types)?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">Implicitly via the <strong>banana-split theorem</strong>: all attributes are installed as lazy properties on every node, making the carrier an implicit product type. But because evaluation is demand-driven, unused attributes are never computed &mdash; optimal fusion without explicit product construction.</div>
+      <div class="a">Implicitly via the <strong>banana-split theorem</strong>: all attributes are installed as lazy properties on every node, making the carrier an implicit product type. But because evaluation is demand-driven, unused attributes are never computed &mdash; optimal fusion without explicit product construction. The <code>Semantics.compiled</code> map makes this product explicit and inspectable.</div>
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
       <div class="q">Q: What goes beyond recursion schemes in KSC's AG library?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">The <code>circular()</code> primitive. It uses the Magnusson-Hedin fixed-point iteration algorithm, which re-evaluates all cycle members until convergence. This is abstract interpretation (Cousot-Cousot 1977), not a recursion scheme &mdash; it handles cyclic dependencies that no fold can express.</div>
+      <div class="a">The <code>{ direction: 'circular' }</code> declaration. It uses the Magnusson-Hedin fixed-point iteration algorithm, which re-evaluates all cycle members until convergence. This is abstract interpretation (Cousot-Cousot 1977), not a recursion scheme &mdash; it handles cyclic dependencies that no fold can express.</div>
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
@@ -1282,21 +1319,21 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
-      <div class="q">Q: Why is Option B (Three Objects) recommended over Option E (Full Algebraic)?</div>
+      <div class="q">Q: What mathematical structure does a CollectionDecl's initial + combine represent?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">Option E requires base functors (KSNodeF&lt;A&gt;), which doubles the type definitions and is unergonomic in TypeScript. Option B gives the same three-way separation (Grammar = F, Semantics = &prod;algebras, interpret = cata) without requiring the type-level encoding. You get mathematical correctness with TypeScript-friendly ergonomics.</div>
+      <div class="a">A <strong>monoid</strong> (identity element + associative binary operation). Collection attributes are catamorphisms into a monoid: each node contributes a value, and the tree aggregation is the fold using the monoid's combine. <code>allViolations</code> uses the free monoid on diagnostics (list concatenation).</div>
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
       <div class="q">Q: What is the full KSC pipeline as a recursion scheme?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">A <strong>hylomorphism</strong>: unfold (ana) via <code>convertNode()</code> builds the KSNode tree from TypeScript's AST, then fold (cata) via <code>evaluate()</code> computes attributes over it. The intermediate tree is materialized (not deforested) because it's needed for the dashboard and serialization.</div>
+      <div class="a">A <strong>hylomorphism</strong>: unfold (ana) via <code>convertNode()</code> builds the KSNode tree from TypeScript's AST, then fold (cata) via <code>interpret()</code> computes attributes over it. The intermediate tree is materialized (not deforested) because it's needed for the dashboard and serialization.</div>
     </div>
 
     <div class="flashcard" onclick="this.classList.toggle('open')">
-      <div class="q">Q: In the current KSC architecture, where exactly are the three concerns (structure, behavior, orchestration) entangled?</div>
+      <div class="q">Q: What does createSemantics() actually do, step by step?</div>
       <div class="hint">Click to reveal</div>
-      <div class="a">Three places: (1) Grammar owns both getChildren (structure) AND evaluate/evaluateAll (orchestration). (2) AttributeDef.install() fuses equation definition (behavior) with caching strategy (orchestration). (3) evaluateAll() mixes validation, topo sort, tree stamping, and attribute application in one method.</div>
+      <div class="a">Four steps: (1) Topo-sort specs by <code>deps</code> (binder before checker). (2) Validate: no duplicate attribute names across specs. (3) Compile: for each attribute, fuse <code>decl + eq</code> into an <code>AttributeDef</code> via <code>compile()</code>. (4) Seal into an immutable <code>Semantics</code> object containing: grammar, sorted specs, evaluation order, all declarations, all compiled defs.</div>
     </div>
 
   </div>
@@ -1304,9 +1341,9 @@ s(m).<span class="fn">eval</span>();  <span class="cm">// triggers evaluation</s
 
 </div><!-- /container -->
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <!-- SCRIPTS -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ================================================================= -->
 <script>
 function toggleSection(id) {
   const header = document.querySelector(`#${id} .section-header`);

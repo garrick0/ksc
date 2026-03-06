@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specializing a Generic TypeScript Library: Patterns & Prior Art</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 6px; border-radius: 4px;
+}
+pre {
+  font-family: var(--mono); font-size: 0.84em; line-height: 1.6;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; overflow-x: auto; margin: 16px 0;
+}
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.fn-name { color: var(--yellow); }
+.number-lit { color: var(--orange); }
+
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, #0f1117 0%, #151930 50%, #1a1230 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 80px 24px 60px; text-align: center;
+}
+.hero h1 {
+  font-size: 2.8rem; font-weight: 800; letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--accent), var(--accent2), var(--pink));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 16px;
+}
+.hero .subtitle { font-size: 1.15rem; color: var(--text-dim); max-width: 700px; margin: 0 auto 24px; }
+.badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface);
+}
+.badge.blue { border-color: var(--accent); color: var(--accent); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.pink { border-color: var(--pink); color: var(--pink); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.nav-inner {
+  max-width: 960px; margin: 0 auto;
+  display: flex; gap: 4px; overflow-x: auto; padding: 8px 0;
+}
+.nav a {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  color: var(--text-dim); white-space: nowrap; transition: all 0.2s;
+  text-decoration: none;
+}
+.nav a:hover { color: var(--text); background: var(--surface); }
+
+/* Container & Sections */
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+h2 .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  font-weight: 800; margin-right: 12px;
+}
+h3 { font-size: 1.15rem; color: var(--accent2); font-weight: 700; margin: 28px 0 12px; }
+p { margin-bottom: 14px; }
+.section-sub { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 28px; }
+
+/* Insight */
+.insight {
+  border-left: 3px solid var(--accent); background: rgba(108,140,255,0.06);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 20px 0; font-size: 0.92rem;
+}
+.insight.warn { border-left-color: var(--orange); background: rgba(251,146,60,0.06); }
+.insight.green { border-left-color: var(--green); background: rgba(74,222,128,0.06); }
+.insight strong { color: var(--text); }
+
+/* Tabs */
+.tabs { display: flex; gap: 2px; margin-bottom: 0; overflow-x: auto; }
+.tab {
+  padding: 10px 20px; border: 1px solid var(--border); border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface); color: var(--text-dim); font-size: 0.82rem;
+  font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  font-family: inherit;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); background: var(--surface2); }
+.tab-content {
+  display: none; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) var(--radius); padding: 24px;
+}
+.tab-content.active { display: block; }
+
+/* Cards grid */
+.pattern-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px; margin: 20px 0;
+}
+.pattern-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; cursor: pointer;
+  transition: all 0.2s;
+}
+.pattern-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.pattern-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.pc-num { font-size: 0.7rem; font-weight: 800; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em; }
+.pc-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+.pc-examples { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; }
+.pc-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
+.pc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pc-tag {
+  font-size: 0.68rem; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--border); color: var(--text-dim); font-weight: 600;
+}
+.pc-tag.yes { border-color: var(--green); color: var(--green); }
+.pc-tag.no { border-color: var(--red); color: var(--red); }
+
+/* Pattern detail panel */
+.pattern-detail {
+  display: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px; margin: 20px 0;
+}
+.pattern-detail.active { display: block; }
+.pattern-detail h3 { margin-top: 0; }
+
+/* Expandable stages */
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 4px; overflow: hidden;
+}
+.df-stage-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; cursor: pointer; transition: background 0.2s;
+}
+.df-stage-header:hover { background: var(--surface2); }
+.df-stage-title { font-weight: 700; font-size: 0.95rem; }
+.df-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.7rem;
+  font-weight: 800; margin-right: 10px;
+}
+.df-expand { color: var(--text-dim); transition: transform 0.2s; font-size: 0.75rem; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  display: none; padding: 0 20px 20px;
+  border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-dim);
+}
+.df-stage.active .df-detail { display: block; }
+.df-connector {
+  width: 2px; height: 12px; background: var(--border); margin: 0 auto;
+}
+
+/* Comparison table */
+table {
+  width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 20px 0;
+}
+th {
+  background: var(--surface); border: 1px solid var(--border); padding: 10px 14px;
+  text-align: left; font-weight: 700; color: var(--accent); white-space: nowrap;
+}
+td {
+  border: 1px solid var(--border); padding: 10px 14px;
+  background: var(--surface2); vertical-align: top;
+}
+td.yes { color: var(--green); }
+td.no { color: var(--red); }
+td.mid { color: var(--yellow); }
+
+/* Spectrum */
+.spectrum-bar {
+  display: flex; height: 48px; border-radius: var(--radius);
+  overflow: hidden; margin: 20px 0; border: 1px solid var(--border);
+}
+.spectrum-seg {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; position: relative; text-align: center; padding: 0 4px;
+}
+.spectrum-seg:hover { filter: brightness(1.3); }
+.spectrum-labels {
+  display: flex; justify-content: space-between; font-size: 0.72rem;
+  color: var(--text-dim); margin-top: 6px; font-weight: 600;
+}
+
+/* Quiz / Flashcards */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+  font-family: inherit;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* Links list */
+.source-list { list-style: none; margin: 16px 0; }
+.source-list li {
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem;
+}
+.source-list li:last-child { border-bottom: none; }
+.source-cat { font-size: 0.7rem; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.08em; margin-right: 8px; }
+
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .pattern-grid { grid-template-columns: 1fr; }
+  .spectrum-bar { flex-direction: column; height: auto; }
+  .spectrum-seg { height: 36px; }
+  table { font-size: 0.72rem; }
+  th, td { padding: 6px 8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<div class="hero">
+  <h1>Specializing a Generic TypeScript Library</h1>
+  <p class="subtitle">When a library is generic and you need project-specific types back, what are the options? A survey of 8 patterns, the codegen-vs-inference debate, and what the industry has settled on.</p>
+  <div class="badges">
+    <span class="badge blue">TypeScript Patterns</span>
+    <span class="badge purple">Type Inference</span>
+    <span class="badge green">Code Generation</span>
+    <span class="badge pink">Library Design</span>
+    <span class="badge orange">Prior Art</span>
+  </div>
+</div>
+
+<!-- ============ NAV ============ -->
+<div class="nav">
+  <div class="nav-inner">
+    <a href="#the-problem">The Problem</a>
+    <a href="#spectrum">The Spectrum</a>
+    <a href="#deep-dive">Deep Dives</a>
+    <a href="#debate">Inference vs Codegen</a>
+    <a href="#what-we-built">What We Built</a>
+    <a href="#comparison">Comparison</a>
+    <a href="#ag-systems">AG Systems</a>
+    <a href="#recommendations">Recommendations</a>
+    <a href="#knowledge-check">Quiz</a>
+  </div>
+</div>
+
+<!-- ============ SECTION 1: THE PROBLEM ============ -->
+<section id="the-problem">
+<div class="container">
+  <h2><span class="num">01</span>The Problem</h2>
+  <p class="section-sub">You have a generic library. Your users want project-specific types back. How do you bridge the gap?</p>
+
+  <p>Consider a generic attribute grammar library. It works on <em>any</em> tree shape &mdash; you pass <code>getChildren</code> and it handles the rest. But when a user defines 360 AST node types and 12 attributes, they want the library to <em>know</em> about their specific types: autocomplete on node fields, type-narrowing in production equations, completeness checking over their exact set of kinds.</p>
+
+  <p>This isn't unique to AG libraries. Every TypeScript library faces the same tension:</p>
+
+  <div class="pattern-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="pattern-card" style="cursor:default; border-color: var(--accent);">
+      <div class="pc-num">Option A</div>
+      <div class="pc-name">Pure Inference</div>
+      <div class="pc-desc">Users define their schema in TypeScript. The library infers all types from runtime definitions. No build step needed.</div>
+      <div class="pc-tags"><span class="pc-tag yes">No build step</span><span class="pc-tag no">TS perf at scale</span></div>
+    </div>
+    <div class="pattern-card" style="cursor:default; border-color: var(--green);">
+      <div class="pc-num">Option B</div>
+      <div class="pc-name">Code Generation</div>
+      <div class="pc-desc">A build step reads a schema and generates typed TypeScript files. Users import the generated code.</div>
+      <div class="pc-tags"><span class="pc-tag no">Build step</span><span class="pc-tag yes">Fast type checking</span></div>
+    </div>
+    <div class="pattern-card" style="cursor:default; border-color: var(--accent2);">
+      <div class="pc-num">Option C</div>
+      <div class="pc-name">Type Augmentation</div>
+      <div class="pc-desc">The library provides open interfaces. Users extend them via declaration merging. The library reads the merged types.</div>
+      <div class="pc-tags"><span class="pc-tag yes">No build step</span><span class="pc-tag no">Spooky action</span></div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>The central question:</strong> When should types be resolved? At <em>edit-time</em> (inference), at <em>build-time</em> (codegen), or at <em>augmentation-time</em> (declaration merging)? All the good options keep configuration in TypeScript &mdash; no DSL needed.
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 2: THE SPECTRUM ============ -->
+<section id="spectrum">
+<div class="container">
+  <h2><span class="num">02</span>The Spectrum</h2>
+  <p class="section-sub">Eight patterns arranged from "pure inference, no build step" to "full codegen pipeline."</p>
+
+  <div class="spectrum-bar">
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#1a3a5c,#1a4a6c);" onclick="showPatternDetail('p1')">1<br>Type Param</div>
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#1a4a6c,#1a5a6c);" onclick="showPatternDetail('p2')">2<br>Builder</div>
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#1a5a6c,#1a6a5c);" onclick="showPatternDetail('p3')">3<br>Schema-as-Code</div>
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#1a6a5c,#2a6a4c);" onclick="showPatternDetail('p4')">4<br>defineConfig</div>
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#2a6a4c,#3a5a3c);" onclick="showPatternDetail('p5')">5<br>Type Registry</div>
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#3a5a3c,#4a4a3c);" onclick="showPatternDetail('p6')">6<br>Codegen Script</div>
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#4a4a3c,#5a3a3c);" onclick="showPatternDetail('p7')">7<br>ts-morph</div>
+    <div class="spectrum-seg" style="background:linear-gradient(135deg,#5a3a3c,#6a2a3c);" onclick="showPatternDetail('p8')">8<br>TSC Plugin</div>
+  </div>
+  <div class="spectrum-labels">
+    <span>Pure inference, no build step</span>
+    <span>Full codegen pipeline</span>
+  </div>
+
+  <!-- Pattern detail panels -->
+  <div class="pattern-detail" id="p1">
+    <h3>Pattern 1: Generic Type Parameter <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(Kysely)</span></h3>
+    <p>The user defines an interface describing their domain, then passes it as a type parameter to the library's constructor. The library's entire API becomes specialized to that interface.</p>
+    <pre><span class="comment">// User defines their database structure</span>
+<span class="keyword">interface</span> <span class="type-name">Database</span> {
+  users: { id: <span class="type-name">number</span>; name: <span class="type-name">string</span>; email: <span class="type-name">string</span> };
+  posts: { id: <span class="type-name">number</span>; title: <span class="type-name">string</span>; author_id: <span class="type-name">number</span> };
+}
+
+<span class="comment">// Library becomes specialized via type parameter</span>
+<span class="keyword">const</span> db = <span class="keyword">new</span> <span class="fn-name">Kysely</span>&lt;<span class="type-name">Database</span>&gt;(config);
+db.<span class="fn-name">selectFrom</span>(<span class="string-lit">'users'</span>)  <span class="comment">// TS knows columns: id, name, email</span>
+  .<span class="fn-name">select</span>(<span class="string-lit">'name'</span>)         <span class="comment">// autocomplete on column names</span>
+  .<span class="fn-name">where</span>(<span class="string-lit">'id'</span>, <span class="string-lit">'='</span>, <span class="number-lit">1</span>);  <span class="comment">// type-checked value</span></pre>
+    <p><strong>Who uses it:</strong> <a href="https://kysely.dev/docs/getting-started" target="_blank">Kysely</a>, <a href="https://effect-ts.github.io/effect/effect/Context.ts.html" target="_blank">Effect-TS Context.Tag</a></p>
+    <p><strong>Pros:</strong> Simple mental model, no build step, no magic. <strong>Cons:</strong> User must maintain a separate type definition. Library can't introspect the type at runtime.</p>
+  </div>
+
+  <div class="pattern-detail" id="p2">
+    <h3>Pattern 2: Builder + Inference Chain <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(tRPC, Hono)</span></h3>
+    <p>The user builds their API through a fluent builder. Each method call <em>accumulates</em> type information. The final <code>typeof</code> export carries the complete inferred type.</p>
+    <pre><span class="comment">// Server: fluent builder accumulates types</span>
+<span class="keyword">const</span> appRouter = <span class="fn-name">router</span>({
+  <span class="fn-name">getUser</span>: publicProcedure
+    .<span class="fn-name">input</span>(z.<span class="fn-name">object</span>({ id: z.<span class="fn-name">string</span>() }))
+    .<span class="fn-name">query</span>(({ input }) =&gt; fetchUser(input.id)),
+  <span class="fn-name">createPost</span>: publicProcedure
+    .<span class="fn-name">input</span>(z.<span class="fn-name">object</span>({ title: z.<span class="fn-name">string</span>() }))
+    .<span class="fn-name">mutation</span>(({ input }) =&gt; createPost(input)),
+});
+
+<span class="comment">// Export the inferred type (no codegen!)</span>
+<span class="keyword">export type</span> <span class="type-name">AppRouter</span> = <span class="keyword">typeof</span> appRouter;
+
+<span class="comment">// Client: uses inferred type, full autocomplete</span>
+<span class="keyword">const</span> client = <span class="fn-name">createTRPCClient</span>&lt;<span class="type-name">AppRouter</span>&gt;({ ... });
+client.getUser.<span class="fn-name">query</span>({ id: <span class="string-lit">"1"</span> }); <span class="comment">// typed!</span></pre>
+    <p><strong>Who uses it:</strong> <a href="https://trpc.io/docs/client/vanilla/infer-types" target="_blank">tRPC</a>, <a href="https://hono.dev/docs/guides/rpc" target="_blank">Hono RPC</a></p>
+    <p><strong>Pros:</strong> Zero codegen, excellent DX, define once &rarr; types flow everywhere. <strong>Cons:</strong> Breaks with Higher-Kinded Types (<a href="https://dev.to/zenstack/limitation-of-trpcs-type-inference-and-how-we-improved-it-47fl" target="_blank">tRPC hit this limit</a>). Chaining must be preserved (Hono loses types if you break the chain).</p>
+  </div>
+
+  <div class="pattern-detail" id="p3">
+    <h3>Pattern 3: Schema-as-Code <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(Drizzle, Zod, our defineNode)</span></h3>
+    <p>The user defines their schema using TypeScript function calls. The library infers types from the <em>runtime definitions</em>. No separate type definition, no codegen.</p>
+    <pre><span class="comment">// Drizzle: define table in TS, infer type</span>
+<span class="keyword">const</span> users = <span class="fn-name">pgTable</span>(<span class="string-lit">'users'</span>, {
+  id: <span class="fn-name">serial</span>(<span class="string-lit">'id'</span>).<span class="fn-name">primaryKey</span>(),
+  name: <span class="fn-name">text</span>(<span class="string-lit">'name'</span>).<span class="fn-name">notNull</span>(),
+});
+<span class="keyword">type</span> <span class="type-name">User</span> = <span class="keyword">typeof</span> users.<span class="type-name">$inferSelect</span>;
+
+<span class="comment">// Zod: define schema, infer type</span>
+<span class="keyword">const</span> UserSchema = z.<span class="fn-name">object</span>({ name: z.<span class="fn-name">string</span>(), age: z.<span class="fn-name">number</span>() });
+<span class="keyword">type</span> <span class="type-name">User</span> = z.<span class="fn-name">infer</span>&lt;<span class="keyword">typeof</span> UserSchema&gt;;
+
+<span class="comment">// Our AG library: defineNode + InferNode</span>
+<span class="keyword">const</span> IfStatementDef = <span class="fn-name">defineNode</span>(<span class="string-lit">'IfStatement'</span>, {
+  expression: <span class="fn-name">child</span>(), thenStatement: <span class="fn-name">child</span>(), elseStatement: <span class="fn-name">optChild</span>(),
+});
+<span class="keyword">type</span> <span class="type-name">KSIfStatement</span> = <span class="type-name">InferNode</span>&lt;<span class="keyword">typeof</span> IfStatementDef&gt;;</pre>
+    <p><strong>Who uses it:</strong> <a href="https://orm.drizzle.team/docs/sql-schema-declaration" target="_blank">Drizzle ORM</a>, <a href="https://zod.dev/" target="_blank">Zod</a>, <a href="https://effect.website" target="_blank">Effect Schema</a>, our <code>ag-schema</code></p>
+    <p><strong>Pros:</strong> Single source of truth (runtime + types), no build step, no separate definitions. <strong>Cons:</strong> Complex type-level gymnastics. At scale, TS compiler does 95x more work than codegen (<a href="https://www.prisma.io/blog/why-prisma-orm-checks-types-faster-than-drizzle" target="_blank">Prisma's benchmarks</a>).</p>
+  </div>
+
+  <div class="pattern-detail" id="p4">
+    <h3>Pattern 4: defineConfig + as const satisfies <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(Vite, Vitest, Nuxt)</span></h3>
+    <p>The user defines a config object, freezes its literal types with <code>as const</code>, and validates its shape with <code>satisfies</code>. The library reads the config's <em>narrow</em> type.</p>
+    <pre><span class="comment">// Vite: defineConfig provides intellisense</span>
+<span class="keyword">export default</span> <span class="fn-name">defineConfig</span>({
+  plugins: [<span class="fn-name">react</span>()],
+  server: { port: <span class="number-lit">3000</span> },
+});
+
+<span class="comment">// Custom: as const satisfies preserves literals</span>
+<span class="keyword">const</span> config = {
+  nodes: {
+    Program: { children: [<span class="string-lit">'compilationUnits'</span>] },
+    Identifier: { props: [<span class="string-lit">'escapedText'</span>] },
+  }
+} <span class="keyword">as const</span> <span class="keyword">satisfies</span> <span class="type-name">AGConfig</span>;
+<span class="comment">// typeof config retains literal types</span></pre>
+    <p><strong>Who uses it:</strong> <a href="https://vite.dev/config/" target="_blank">Vite</a>, <a href="https://vitest.dev/config/" target="_blank">Vitest</a>, <a href="https://nuxt.com/docs/4.x/getting-started/configuration" target="_blank">Nuxt</a>, <a href="https://tanstack.com/router/latest/docs/framework/react/guide/creating-a-router" target="_blank">TanStack Router</a></p>
+    <p><strong>Pros:</strong> Very declarative, single object, great IDE support. <strong>Cons:</strong> Can't carry phantom types (no <code>child&lt;KSIdentifier&gt;()</code>), massive config objects strain the TS language server.</p>
+  </div>
+
+  <div class="pattern-detail" id="p5">
+    <h3>Pattern 5: Type Registry / Declaration Merging <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(Express, Fastify)</span></h3>
+    <p>The library provides an open interface. Users augment it via declaration merging. The library reads the merged type globally.</p>
+    <pre><span class="comment">// Library provides an empty open interface</span>
+<span class="keyword">declare module</span> <span class="string-lit">'@ksc/ag'</span> {
+  <span class="keyword">interface</span> <span class="type-name">NodeRegistry</span> {}
+}
+
+<span class="comment">// User augments it in their project</span>
+<span class="keyword">declare module</span> <span class="string-lit">'@ksc/ag'</span> {
+  <span class="keyword">interface</span> <span class="type-name">NodeRegistry</span> {
+    Program: { compilationUnits: <span class="type-name">CompilationUnit</span>[] };
+    Identifier: { escapedText: <span class="type-name">string</span> };
+  }
+}
+
+<span class="comment">// Library reads the merged interface</span>
+<span class="keyword">type</span> <span class="type-name">AllNodes</span> = <span class="type-name">NodeRegistry</span>[<span class="keyword">keyof</span> <span class="type-name">NodeRegistry</span>];</pre>
+    <p><strong>Who uses it:</strong> <a href="https://www.typescriptlang.org/docs/handbook/declaration-merging.html" target="_blank">Express Request augmentation</a>, <a href="https://fastify.dev/docs/latest/Reference/Type-Providers/" target="_blank">Fastify Type Providers</a>, <a href="https://frontendmasters.com/courses/typescript-v4/type-registry-pattern/" target="_blank">Frontend Masters Type Registry</a></p>
+    <p><strong>Pros:</strong> No build step, very TypeScript-idiomatic, plugins can extend independently. <strong>Cons:</strong> Spooky action at a distance (types change globally), can't augment default exports, easy to get wrong.</p>
+  </div>
+
+  <div class="pattern-detail" id="p6">
+    <h3>Pattern 6: Codegen Script <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(Prisma, GraphQL Codegen, our gen-node-defs.ts)</span></h3>
+    <p>A script reads input (schema file, database, existing code) and <em>generates</em> TypeScript source files. Generated files are committed and imported normally.</p>
+    <pre><span class="comment">// Prisma: schema.prisma &rarr; prisma generate &rarr; @prisma/client</span>
+<span class="comment">// GraphQL: schema.graphql &rarr; graphql-codegen &rarr; types.ts</span>
+<span class="comment">// KSC: ast.ts &rarr; gen-node-defs.ts &rarr; node-defs.ts</span>
+
+<span class="comment">// Configuration is TypeScript (codegen.ts or gen-node-defs.ts)</span>
+<span class="keyword">import</span> { <span class="fn-name">CodegenConfig</span> } <span class="keyword">from</span> <span class="string-lit">'@graphql-codegen/cli'</span>;
+<span class="keyword">const</span> config: <span class="type-name">CodegenConfig</span> = {
+  schema: <span class="string-lit">'./schema.graphql'</span>,
+  generates: { <span class="string-lit">'./src/types.ts'</span>: { plugins: [<span class="string-lit">'typescript'</span>] } },
+};</pre>
+    <p><strong>Who uses it:</strong> <a href="https://www.prisma.io/docs/orm/prisma-schema/overview/generators" target="_blank">Prisma</a>, <a href="https://the-guild.dev/graphql/codegen/docs/config-reference/codegen-config" target="_blank">GraphQL Codegen</a>, <a href="https://tanstack.com/router/v1/docs/framework/react/installation/with-router-cli" target="_blank">TanStack Router routeTree.gen.ts</a>, OpenAPI codegen</p>
+    <p><strong>Pros:</strong> Generated code is plain TypeScript (fast type checking), can produce any structure, easy to debug. <strong>Cons:</strong> Extra build step, generated files can drift from source, noisy diffs.</p>
+  </div>
+
+  <div class="pattern-detail" id="p7">
+    <h3>Pattern 7: ts-morph / TypeScript Compiler API <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(Custom generators)</span></h3>
+    <p>A TypeScript program uses the Compiler API (or its wrapper <code>ts-morph</code>) to programmatically construct and emit <code>.ts</code> files.</p>
+    <pre><span class="keyword">import</span> { <span class="type-name">Project</span> } <span class="keyword">from</span> <span class="string-lit">'ts-morph'</span>;
+
+<span class="keyword">const</span> project = <span class="keyword">new</span> <span class="fn-name">Project</span>();
+<span class="keyword">const</span> file = project.<span class="fn-name">createSourceFile</span>(<span class="string-lit">'generated.ts'</span>, <span class="string-lit">''</span>);
+file.<span class="fn-name">addInterface</span>({
+  name: <span class="string-lit">'KSIdentifier'</span>,
+  properties: [
+    { name: <span class="string-lit">'kind'</span>, type: <span class="string-lit">"'Identifier'"</span> },
+    { name: <span class="string-lit">'escapedText'</span>, type: <span class="string-lit">'string'</span> },
+  ],
+});
+file.<span class="fn-name">saveSync</span>();</pre>
+    <p><strong>Who uses it:</strong> <a href="https://github.com/dsherret/ts-morph" target="_blank">ts-morph</a>, custom generators, <a href="https://github.com/intercom/contentful-typescript-codegen" target="_blank">contentful-typescript-codegen</a></p>
+    <p><strong>Pros:</strong> Type-safe code generation (no string bugs), can read/modify existing files. <strong>Cons:</strong> Heavy dependency (pulls full TS compiler), slower, overkill for uniform patterns.</p>
+  </div>
+
+  <div class="pattern-detail" id="p8">
+    <h3>Pattern 8: TSC Transform Plugin <span style="color:var(--text-dim);font-size:0.8rem;font-weight:400;">(ts-patch, ttypescript)</span></h3>
+    <p>A custom transformer runs <em>during</em> <code>tsc</code> compilation, rewriting the AST before emit.</p>
+    <pre><span class="comment">// tsconfig.json</span>
+{
+  <span class="string-lit">"compilerOptions"</span>: {
+    <span class="string-lit">"plugins"</span>: [{ <span class="string-lit">"transform"</span>: <span class="string-lit">"./my-transform.ts"</span> }]
+  }
+}
+
+<span class="comment">// my-transform.ts &mdash; rewrites AST during tsc</span>
+<span class="keyword">export default function</span>(program: <span class="type-name">ts.Program</span>) {
+  <span class="keyword">return</span> (ctx: <span class="type-name">ts.TransformationContext</span>) =&gt;
+    (sourceFile: <span class="type-name">ts.SourceFile</span>) =&gt; {
+      <span class="comment">// rewrite AST nodes, inject code, etc.</span>
+    };
+}</pre>
+    <p><strong>Who uses it:</strong> <a href="https://github.com/nonara/ts-patch" target="_blank">ts-patch</a>, <a href="https://github.com/cevek/ttypescript" target="_blank">ttypescript</a>, <a href="https://github.com/herberttn/vite-plugin-typescript-transform" target="_blank">vite-plugin-typescript-transform</a></p>
+    <p><strong>Pros:</strong> No separate build step (runs during normal <code>tsc</code>). <strong>Cons:</strong> Fragile (breaks on TS version updates), non-standard, <strong>cannot generate type declarations</strong> (transforms operate on emit, not type checking), awful DX for debugging.</p>
+  </div>
+
+  <p style="color:var(--text-dim);font-size:0.85rem;text-align:center;margin-top:16px;">Click a segment above to see details for each pattern.</p>
+</div>
+</section>
+
+<!-- ============ SECTION 3: DEEP DIVES ============ -->
+<section id="deep-dive">
+<div class="container">
+  <h2><span class="num">03</span>Deep Dives: How the Types Flow</h2>
+  <p class="section-sub">Expand each pattern to see how type information propagates from user definition to library internals.</p>
+
+  <div class="data-flow">
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Kysely: User Type &rarr; Generic Parameter &rarr; Autocomplete</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The user writes <code>interface Database { users: {...} }</code> and passes <code>Database</code> as <code>new Kysely&lt;Database&gt;()</code>. Every method in the Kysely API is generic over this type. When you call <code>.selectFrom('users')</code>, TypeScript indexes into <code>Database['users']</code> to narrow the column types. The <em>library</em> never sees the type at runtime &mdash; it's purely a compile-time flow.</p>
+        <p>Kysely also offers <a href="https://github.com/RobinBlomberg/kysely-codegen" target="_blank">kysely-codegen</a> to generate the <code>Database</code> interface from an actual database, combining patterns 1 + 6.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> tRPC/Hono: Builder Chain &rarr; typeof export &rarr; Client inference</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Each builder call (e.g., <code>.input(z.object({...}))</code>) returns a <em>new type</em> that includes the previous type plus the new information. The final <code>typeof appRouter</code> is a massive nested type describing every procedure. The client uses this type parameter to infer request/response types.</p>
+        <p><strong>Limitation:</strong> tRPC's typing is <em>lossy</em> &mdash; it cannot represent <a href="https://dev.to/zenstack/limitation-of-trpcs-type-inference-and-how-we-improved-it-47fl" target="_blank">generic/dynamic return types</a> because TypeScript lacks Higher-Kinded Types. The ZenStack team had to fall back to codegen for this case.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Drizzle/Zod: Runtime Definition &rarr; Phantom Type &rarr; z.infer</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Each builder function (<code>text('name')</code>, <code>z.string()</code>, our <code>child&lt;T&gt;()</code>) returns a runtime object that also carries a phantom type parameter. The object's <code>typeof</code> encodes all type information. Then <code>z.infer&lt;typeof schema&gt;</code> (or our <code>InferNode&lt;typeof def&gt;</code>) uses conditional types to extract the TypeScript type from the definition.</p>
+        <p>This is the <em>most powerful</em> pattern: the runtime schema and the types are the same object. Change the schema, types update immediately. But the compiler must re-derive everything on every check.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Prisma/GraphQL Codegen: Schema File &rarr; Script &rarr; Generated .ts</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>A schema file (<code>schema.prisma</code>, <code>schema.graphql</code>, or our <code>ast.ts</code>) is read by a codegen script. The script generates plain <code>.d.ts</code> or <code>.ts</code> files with explicit interfaces, types, and client APIs. TypeScript loads these as normal files &mdash; no inference needed.</p>
+        <p>This front-loads the type derivation work into the build step. <a href="https://www.prisma.io/blog/why-prisma-orm-checks-types-faster-than-drizzle" target="_blank">Prisma benchmarks show</a> 2.9x faster type checking and 95x fewer type instantiations than inference-based approaches. The tradeoff: you must re-run the generator when the schema changes.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">5</span> Fastify Type Provider: Open Interface &rarr; Module Augmentation &rarr; Merged Type</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Fastify defines open interfaces (like <code>FastifyRequest</code>). Users augment them via <code>declare module 'fastify'</code> to add their specific schema types. <a href="https://fastify.dev/docs/latest/Reference/Type-Providers/" target="_blank">Type Providers</a> enable different schema libraries (Zod, TypeBox, JSON Schema) to plug into the same type system.</p>
+        <p>Express uses the same pattern for <code>Request.user</code> etc. The Slash Financial team <a href="https://puzzles.slash.com/blog/scaling-1m-lines-of-typescript-registries" target="_blank">scaled this to 1M lines</a> using file-extension-based registries.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 4: THE DEBATE ============ -->
+<section id="debate">
+<div class="container">
+  <h2><span class="num">04</span>The Great Debate: Inference vs Codegen</h2>
+  <p class="section-sub">The TypeScript community has been arguing about this since Prisma and Drizzle took opposite approaches. Here's what the data says.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('debate-tabs','debate-prisma')">Prisma's Case for Codegen</button>
+    <button class="tab" onclick="switchTab('debate-tabs','debate-drizzle')">Drizzle's Case for Inference</button>
+    <button class="tab" onclick="switchTab('debate-tabs','debate-trpc')">tRPC's Discovery</button>
+    <button class="tab" onclick="switchTab('debate-tabs','debate-tanstack')">TanStack's Hybrid</button>
+  </div>
+  <div id="debate-tabs">
+
+    <div class="tab-content active" id="debate-prisma">
+      <h3>Prisma: "Codegen is 2.9x faster"</h3>
+      <p>In late 2025, <a href="https://www.prisma.io/blog/why-prisma-orm-checks-types-faster-than-drizzle" target="_blank">Prisma published benchmarks</a> showing their codegen approach requires dramatically fewer type instantiations:</p>
+      <table>
+        <tr><th>Metric</th><th>Prisma (codegen)</th><th>Drizzle (inference)</th><th>Ratio</th></tr>
+        <tr><td>Schema type instantiations</td><td class="yes">428</td><td class="no">41,150</td><td>95x</td></tr>
+        <tr><td>Check time (schema)</td><td class="yes">2.9x faster</td><td class="no">baseline</td><td></td></tr>
+        <tr><td>Query type instantiations</td><td class="yes">48% fewer</td><td class="no">baseline</td><td></td></tr>
+        <tr><td>Check time (queries)</td><td class="yes">~2.1x faster</td><td class="no">baseline</td><td></td></tr>
+      </table>
+      <p>Key argument: <em>"Drizzle asks the compiler to re-derive everything from first principles on each build. Prisma front-loads that work during prisma generate."</em> Generated types avoid deep recursion and prefer interfaces for structural reuse.</p>
+      <p>Prisma 7 (late 2025) dropped its Rust engine entirely &mdash; the client is now pure TypeScript, and type checking improved by 70%.</p>
+    </div>
+
+    <div class="tab-content" id="debate-drizzle">
+      <h3>Drizzle: "No generate step, instant feedback"</h3>
+      <p><a href="https://orm.drizzle.team/docs/overview" target="_blank">Drizzle's philosophy</a> is radical simplicity: <em>"No generate models step. No background daemon. You just import your schema and query your database."</em></p>
+      <p>The instant-feedback DX advantage is real. When you change a column type, every query using that column immediately shows a TypeScript error. No <code>prisma generate</code> step to forget. The schema <em>is</em> the types.</p>
+      <p>For most real-world schemas (under ~100 tables), the performance difference is imperceptible. The 95x instantiation gap only manifests at significant scale, and even then, modern TypeScript versions keep improving inference performance.</p>
+      <div class="insight green">
+        <strong>The Drizzle insight:</strong> For the vast majority of projects, the DX improvement of "change schema, see type error immediately" outweighs a few extra seconds of type checking.
+      </div>
+    </div>
+
+    <div class="tab-content" id="debate-trpc">
+      <h3>tRPC: "Inference has a ceiling"</h3>
+      <p>tRPC proved that <a href="https://dev.to/zenstack/limitation-of-trpcs-type-inference-and-how-we-improved-it-47fl" target="_blank">pure inference hits fundamental limits</a>. When return types need to adapt dynamically based on input parameters (like Prisma's <code>include</code> parameter), TypeScript's lack of Higher-Kinded Types makes inference <em>impossible</em>:</p>
+      <pre><span class="comment">// This SHOULD have different types for p1 and p2</span>
+<span class="keyword">const</span> p1 = <span class="keyword">await</span> client.loadPost({ id: <span class="string-lit">"1"</span> });
+<span class="keyword">const</span> p2 = <span class="keyword">await</span> client.loadPost({ id: <span class="string-lit">"1"</span>, include: { author: <span class="keyword">true</span> } });
+<span class="comment">// But tRPC types both as just `Post` &mdash; dynamicity is lost</span></pre>
+      <p>The ZenStack solution: <strong>generate a custom client</strong> that casts the types correctly. This is a direct admission that when inference hits its ceiling, codegen becomes necessary.</p>
+    </div>
+
+    <div class="tab-content" id="debate-tanstack">
+      <h3>TanStack Router: "Codegen helps the language service"</h3>
+      <p><a href="https://tanstack.com/blog/tanstack-router-typescript-performance" target="_blank">TanStack Router</a> takes a pragmatic hybrid approach. Route definitions use inference (Pattern 3), but the framework <em>also</em> generates a <code>routeTree.gen.ts</code> file that declares necessary types where they help the language service.</p>
+      <p>The generated file is <a href="https://tanstack.com/router/v1/docs/framework/react/installation/with-router-cli" target="_blank">recommended as readonly</a> in VS Code, excluded from search results and file watchers. It's an implementation detail that accelerates the IDE.</p>
+      <div class="insight">
+        <strong>The emerging consensus:</strong> Use inference for the primary API surface (Pattern 3). Use codegen as an optimization layer when the TS language service needs help (Pattern 6). This is exactly what we built with <code>defineNode()</code> + <code>gen-node-defs.ts</code>.
+      </div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 5: WHAT WE BUILT ============ -->
+<section id="what-we-built">
+<div class="container">
+  <h2><span class="num">05</span>What We Built (KSC)</h2>
+  <p class="section-sub">Our attribute grammar library uses the same hybrid architecture as Prisma and TanStack Router.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('ksc-tabs','ksc-schema')">ag-schema Library (Pattern 3)</button>
+    <button class="tab" onclick="switchTab('ksc-tabs','ksc-codegen')">Codegen Script (Pattern 6)</button>
+    <button class="tab" onclick="switchTab('ksc-tabs','ksc-output')">Generated Output</button>
+    <button class="tab" onclick="switchTab('ksc-tabs','ksc-wiring')">Wiring It Up</button>
+  </div>
+  <div id="ksc-tabs">
+
+    <div class="tab-content active" id="ksc-schema">
+      <h3>libs/ag-schema/src/define.ts &mdash; Schema-as-Code</h3>
+      <p>Builder functions with phantom types. Each <code>defineNode()</code> call produces both a runtime schema entry AND a TypeScript type via <code>InferNode&lt;&gt;</code>.</p>
+      <pre><span class="comment">// Builder functions carry phantom types</span>
+<span class="keyword">export function</span> <span class="fn-name">child</span>&lt;<span class="type-name">T</span>&gt;(): <span class="type-name">ChildSpec</span>&lt;<span class="type-name">T</span>&gt; {
+  <span class="keyword">return</span> { __tag: <span class="string-lit">'child'</span> } <span class="keyword">as</span> <span class="type-name">ChildSpec</span>&lt;<span class="type-name">T</span>&gt;;
+}
+
+<span class="comment">// Define a node: runtime schema + phantom type info</span>
+<span class="keyword">const</span> TypeAliasDef = <span class="fn-name">defineNode</span>(<span class="string-lit">'TypeAliasDeclaration'</span>, {
+  name: <span class="fn-name">child</span>&lt;<span class="type-name">KSIdentifier</span>&gt;(),     <span class="comment">// required typed child</span>
+  typeParameters: <span class="fn-name">list</span>(),          <span class="comment">// KSNode[]</span>
+  type: <span class="fn-name">child</span>(),                   <span class="comment">// required generic child</span>
+  modifiers: <span class="fn-name">list</span>(),               <span class="comment">// KSNode[]</span>
+});
+
+<span class="comment">// Infer TypeScript type from the definition</span>
+<span class="keyword">type</span> <span class="type-name">KSTypeAliasDeclaration</span> = <span class="type-name">InferNode</span>&lt;<span class="keyword">typeof</span> TypeAliasDef&gt;;
+<span class="comment">// = { kind: 'TypeAliasDeclaration'; name: KSIdentifier; type: any; ... }</span></pre>
+    </div>
+
+    <div class="tab-content" id="ksc-codegen">
+      <h3>scripts/gen-node-defs.ts &mdash; Migration Script</h3>
+      <p>Parses the existing <code>ast.ts</code> (2252 lines, 360 interfaces) using regex and generates <code>node-defs.ts</code> with all <code>defineNode()</code> calls.</p>
+      <pre><span class="comment">// Field classification rules:</span>
+<span class="comment">//   KSNode          &rarr; child()</span>
+<span class="comment">//   KSIdentifier    &rarr; child&lt;KSIdentifier&gt;()</span>
+<span class="comment">//   KSNode | undef  &rarr; optChild()</span>
+<span class="comment">//   KSNode[]        &rarr; list()</span>
+<span class="comment">//   string, boolean &rarr; prop&lt;T&gt;()</span>
+
+<span class="comment">// Output: 2147 lines, 156 complex + 204 leaf defs</span>
+<span class="comment">// npx tsx scripts/gen-node-defs.ts</span>
+<span class="comment">// Parsed 360 interfaces</span>
+<span class="comment">//   Complex: 156</span>
+<span class="comment">//   Leaf:    204</span></pre>
+    </div>
+
+    <div class="tab-content" id="ksc-output">
+      <h3>src/pipeline/node-defs.ts &mdash; Generated Source of Truth</h3>
+      <pre><span class="comment">// AUTO-GENERATED by scripts/gen-node-defs.ts</span>
+<span class="keyword">import</span> { <span class="fn-name">defineNode</span>, <span class="fn-name">defineLeaf</span>, <span class="fn-name">child</span>, <span class="fn-name">optChild</span>, <span class="fn-name">list</span>, <span class="fn-name">prop</span>,
+  <span class="fn-name">createNodeSchema</span> } <span class="keyword">from</span> <span class="string-lit">'../../libs/ag-schema/src/index.js'</span>;
+
+<span class="keyword">export const</span> ProgramDef = <span class="fn-name">defineNode</span>(<span class="string-lit">'Program'</span>, {
+  compilationUnits: <span class="fn-name">list</span>&lt;<span class="type-name">KSCompilationUnit</span>&gt;(),
+});
+
+<span class="keyword">export const</span> IfStatementDef = <span class="fn-name">defineNode</span>(<span class="string-lit">'IfStatement'</span>, {
+  expression: <span class="fn-name">child</span>(), thenStatement: <span class="fn-name">child</span>(), elseStatement: <span class="fn-name">optChild</span>(),
+});
+
+<span class="keyword">export const</span> OpenBraceTokenDef = <span class="fn-name">defineLeaf</span>(<span class="string-lit">'OpenBraceToken'</span>);
+<span class="comment">// ... 360 total definitions</span>
+
+<span class="comment">// Schema creation &mdash; runtime introspection + derived getChildren</span>
+<span class="keyword">export const</span> ksNodeSchema = <span class="fn-name">createNodeSchema</span>&lt;<span class="type-name">KSNode</span>&gt;(allNodeDefs);
+<span class="keyword">export const</span> getChildren = ksNodeSchema.getChildren;</pre>
+    </div>
+
+    <div class="tab-content" id="ksc-wiring">
+      <h3>Wiring: program.ts uses schema-derived getChildren</h3>
+      <pre><span class="comment">// src/program.ts &mdash; the entire pipeline uses schema-derived traversal</span>
+<span class="keyword">import</span> { getChildren } <span class="keyword">from</span> <span class="string-lit">'./pipeline/node-defs.js'</span>;
+
+<span class="keyword">const</span> grammar = <span class="fn-name">createGrammar</span>(getChildren);
+<span class="keyword">const</span> semantics = <span class="fn-name">createSemantics</span>(grammar, [
+  <span class="fn-name">createBinderSpec</span>(),
+  <span class="fn-name">createCheckerSpec</span>(),
+]);
+<span class="keyword">const</span> results = <span class="fn-name">interpret</span>(semantics, ksTree.root);
+
+<span class="comment">// Schema also provides introspection:</span>
+ksNodeSchema.kinds.size;               <span class="comment">// 360</span>
+ksNodeSchema.<span class="fn-name">getChildFields</span>(<span class="string-lit">'IfStatement'</span>); <span class="comment">// ['expression', 'thenStatement', 'elseStatement']</span>
+ksNodeSchema.<span class="fn-name">checkCompleteness</span>(eqs);     <span class="comment">// missing kinds</span></pre>
+      <p>107/107 tests pass. Schema-derived <code>getChildren</code> verified equivalent to the manual version on every node in real ASTs.</p>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 6: COMPARISON MATRIX ============ -->
+<section id="comparison">
+<div class="container">
+  <h2><span class="num">06</span>Comparison Matrix</h2>
+  <p class="section-sub">All 8 patterns compared across key dimensions.</p>
+
+  <div style="overflow-x:auto;">
+  <table>
+    <tr>
+      <th>Pattern</th>
+      <th>Build step?</th>
+      <th>Config in TS?</th>
+      <th>Runtime schema?</th>
+      <th>TS perf at scale</th>
+      <th>Complexity</th>
+      <th>Best for</th>
+    </tr>
+    <tr>
+      <td><strong>1. Type Param</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">Kysely</span></td>
+      <td class="yes">No</td>
+      <td class="yes">Yes</td>
+      <td class="no">No</td>
+      <td class="yes">Excellent</td>
+      <td class="yes">Low</td>
+      <td>Simple domain models</td>
+    </tr>
+    <tr>
+      <td><strong>2. Builder Chain</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">tRPC, Hono</span></td>
+      <td class="yes">No</td>
+      <td class="yes">Yes</td>
+      <td class="yes">Yes</td>
+      <td class="mid">Good</td>
+      <td class="mid">Medium</td>
+      <td>API routers, middleware</td>
+    </tr>
+    <tr>
+      <td><strong>3. Schema-as-Code</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">Drizzle, Zod, KSC</span></td>
+      <td class="yes">No</td>
+      <td class="yes">Yes</td>
+      <td class="yes">Yes</td>
+      <td class="no">Degrades at scale</td>
+      <td class="mid">Medium</td>
+      <td>Schemas, validation, ASTs</td>
+    </tr>
+    <tr>
+      <td><strong>4. defineConfig</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">Vite, Nuxt</span></td>
+      <td class="yes">No</td>
+      <td class="yes">Yes</td>
+      <td class="yes">Yes</td>
+      <td class="yes">Excellent</td>
+      <td class="yes">Low</td>
+      <td>Tool configuration</td>
+    </tr>
+    <tr>
+      <td><strong>5. Type Registry</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">Express, Fastify</span></td>
+      <td class="yes">No</td>
+      <td class="yes">Yes</td>
+      <td class="no">No</td>
+      <td class="yes">Excellent</td>
+      <td class="mid">Medium</td>
+      <td>Plugin systems, extensibility</td>
+    </tr>
+    <tr>
+      <td><strong>6. Codegen Script</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">Prisma, GQL, KSC</span></td>
+      <td class="no">Yes</td>
+      <td class="yes">Yes</td>
+      <td class="yes">Optional</td>
+      <td class="yes">Excellent</td>
+      <td class="yes">Low</td>
+      <td>Large schemas, databases</td>
+    </tr>
+    <tr>
+      <td><strong>7. ts-morph</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">Custom generators</span></td>
+      <td class="no">Yes</td>
+      <td class="yes">Yes</td>
+      <td class="no">No</td>
+      <td class="yes">Excellent</td>
+      <td class="mid">Medium</td>
+      <td>Complex code transforms</td>
+    </tr>
+    <tr>
+      <td><strong>8. TSC Plugin</strong><br><span style="color:var(--text-dim);font-size:0.72rem;">ts-patch</span></td>
+      <td class="mid">Integrated</td>
+      <td class="yes">Yes</td>
+      <td class="no">No</td>
+      <td class="mid">Varies</td>
+      <td class="no">High</td>
+      <td>Path rewriting, macros</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="insight green">
+    <strong>Pattern observation:</strong> Every successful approach keeps configuration in TypeScript. The era of external DSLs for TypeScript projects is over. Even Prisma's <code>.prisma</code> schema is an outlier &mdash; Drizzle proved you can skip it entirely. Tailwind CSS v4 similarly <a href="https://tailwindcss.com/blog/tailwindcss-v4" target="_blank">moved away from <code>tailwind.config.js</code></a> to CSS-first configuration.
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 7: AG SYSTEMS ============ -->
+<section id="ag-systems">
+<div class="container">
+  <h2><span class="num">07</span>What AG Systems Do</h2>
+  <p class="section-sub">How traditional attribute grammar systems handle this problem.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('ag-tabs','ag-jastadd')">JastAdd (Java)</button>
+    <button class="tab" onclick="switchTab('ag-tabs','ag-silver')">Silver (JVM)</button>
+    <button class="tab" onclick="switchTab('ag-tabs','ag-ksc')">KSC (TypeScript)</button>
+  </div>
+  <div id="ag-tabs">
+
+    <div class="tab-content active" id="ag-jastadd">
+      <h3>JastAdd: .ast + .jrag + .jadd files</h3>
+      <p><a href="https://jastadd.cs.lth.se/releases/jastadd2/2.2.1/reference-manual.php" target="_blank">JastAdd</a> uses a dedicated grammar format (<code>.ast</code>) plus two types of aspect files:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:var(--text-dim);">
+        <li><code>.jrag</code> &mdash; Declarative aspects: attribute declarations, equations, rewrites (an extended Java dialect)</li>
+        <li><code>.jadd</code> &mdash; Imperative aspects: ordinary Java fields and methods added to AST classes</li>
+      </ul>
+      <p>JastAdd's approach is <strong>Pattern 6 (codegen)</strong>: the <code>.ast</code> grammar and <code>.jrag</code>/<code>.jadd</code> aspects are processed by the JastAdd tool, which <em>generates Java classes</em>. The generated classes have all the attribute accessors, caching, and lazy evaluation baked in.</p>
+      <p>The specification language is an <em>extended Java</em> &mdash; not a completely separate DSL. This was a deliberate design choice to keep the learning curve low for Java programmers.</p>
+    </div>
+
+    <div class="tab-content" id="ag-silver">
+      <h3>Silver: Dedicated specification language</h3>
+      <p><a href="https://www-users.cse.umn.edu/~evw/pubs/vanwyk10scp/vanwyk10scp.pdf" target="_blank">Silver</a> takes a different approach: a <em>fully dedicated</em> specification language for attribute grammars. It's not an extension of an existing language but a purpose-built notation.</p>
+      <p>Silver provides dedicated syntax for control-and data-flow analysis, which translates to control-flow graphs and temporal logic formulae. This is <strong>closer to a DSL approach</strong> &mdash; more expressive for AG patterns but with a steeper learning curve.</p>
+    </div>
+
+    <div class="tab-content" id="ag-ksc">
+      <h3>KSC: TypeScript IS the specification language</h3>
+      <p>Our approach: <strong>no DSL at all</strong>. TypeScript itself is the specification language. Attribute declarations, equations, and grammar structure are all plain TypeScript function calls:</p>
+      <pre><span class="keyword">const</span> spec: <span class="type-name">SpecInput</span>&lt;<span class="type-name">KSNode</span>&gt; = {
+  name: <span class="string-lit">'ksc-binder'</span>,
+  declarations: {
+    kindDefs: { direction: <span class="string-lit">'syn'</span> },
+    defEnv:   { direction: <span class="string-lit">'inh'</span>, root: [] },
+  },
+  equations: {
+    kindDefs: { TypeAliasDeclaration: (n) =&gt; extractKind(n), _: () =&gt; [] },
+    defEnv:   (parent, child) =&gt; parent.kindDefs,
+  },
+};</pre>
+      <p>This is <strong>Pattern 3 (Schema-as-Code)</strong> for the AG library itself, plus <strong>Pattern 6 (Codegen)</strong> for the 360 node type definitions. TypeScript's type system handles what JastAdd's code generator does &mdash; ensuring equations match declarations, kinds are covered, etc.</p>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 8: RECOMMENDATIONS ============ -->
+<section id="recommendations">
+<div class="container">
+  <h2><span class="num">08</span>Recommendations</h2>
+  <p class="section-sub">When to use which pattern.</p>
+
+  <div class="data-flow">
+
+    <div class="df-stage active">
+      <div class="df-stage-header" onclick="toggleStage(this.parentNode)">
+        <span class="df-stage-title"><span class="df-num" style="background:var(--green);">A</span> Small domain (&lt;50 types): Use Pattern 3 (Schema-as-Code)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>If your domain is small enough that TS inference won't struggle, <strong>Schema-as-Code (Drizzle/Zod pattern)</strong> gives the best DX. Define once, types flow everywhere, no build step. This is what we do for the AG <em>library</em> itself (<code>SpecInput</code>, <code>AttrDecl</code>, etc.).</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage active">
+      <div class="df-stage-header" onclick="toggleStage(this.parentNode)">
+        <span class="df-stage-title"><span class="df-num" style="background:var(--yellow);">B</span> Large domain (&gt;100 types): Use Pattern 3 + 6 (Hybrid)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>When you have hundreds of node types (like our 360), <strong>combine inference with codegen</strong>. The library API uses inference (Pattern 3: <code>defineNode</code> + <code>InferNode</code>), but the <em>instance</em> (all 360 definitions) is generated by a script (Pattern 6). This is the Prisma architecture and the TanStack Router architecture.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage active">
+      <div class="df-stage-header" onclick="toggleStage(this.parentNode)">
+        <span class="df-stage-title"><span class="df-num" style="background:var(--accent2);">C</span> Plugin system: Use Pattern 5 (Type Registry)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>If third-party plugins need to extend your types independently, <strong>declaration merging</strong> is the TypeScript-idiomatic solution. Express and Fastify prove it works at scale. But use sparingly &mdash; the "spooky action at a distance" problem is real.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage active">
+      <div class="df-stage-header" onclick="toggleStage(this.parentNode)">
+        <span class="df-stage-title"><span class="df-num" style="background:var(--orange);">D</span> API boundary: Use Pattern 2 (Builder Chain)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>For server/client type sharing (API routers, RPC), the <strong>tRPC/Hono builder pattern</strong> is unbeatable. Export the router's <code>typeof</code> and let the client infer everything. Just be aware of the HKT limitation.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="insight warn">
+    <strong>The industry trend:</strong> The hybrid approach (inference for the API, codegen for the instance) is emerging as the standard. Prisma, TanStack Router, and KSC all independently converged on this pattern. Pure inference scales badly. Pure codegen has poor DX. The hybrid gets the best of both.
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 9: SOURCES ============ -->
+<section id="sources">
+<div class="container">
+  <h2><span class="num">09</span>Sources & Further Reading</h2>
+
+  <ul class="source-list">
+    <li><span class="source-cat">Inference</span><a href="https://orm.drizzle.team/docs/sql-schema-declaration" target="_blank">Drizzle ORM &mdash; Schema Definition</a></li>
+    <li><span class="source-cat">Inference</span><a href="https://zod.dev/" target="_blank">Zod &mdash; TypeScript-first schema validation</a></li>
+    <li><span class="source-cat">Inference</span><a href="https://trpc.io/docs/client/vanilla/infer-types" target="_blank">tRPC &mdash; Inferring Types</a></li>
+    <li><span class="source-cat">Inference</span><a href="https://hono.dev/docs/guides/rpc" target="_blank">Hono &mdash; RPC Type Safety</a></li>
+    <li><span class="source-cat">Inference</span><a href="https://kysely.dev/docs/getting-started" target="_blank">Kysely &mdash; Type-safe SQL Query Builder</a></li>
+    <li><span class="source-cat">Debate</span><a href="https://www.prisma.io/blog/why-prisma-orm-checks-types-faster-than-drizzle" target="_blank">Prisma &mdash; Why Prisma Checks Types Faster Than Drizzle</a></li>
+    <li><span class="source-cat">Debate</span><a href="https://dev.to/zenstack/limitation-of-trpcs-type-inference-and-how-we-improved-it-47fl" target="_blank">ZenStack &mdash; Limitation of tRPC's Type Inference</a></li>
+    <li><span class="source-cat">Debate</span><a href="https://tanstack.com/blog/tanstack-router-typescript-performance" target="_blank">TanStack &mdash; TypeScript Performance in Router</a></li>
+    <li><span class="source-cat">Debate</span><a href="https://betterstack.com/community/guides/scaling-nodejs/drizzle-vs-prisma/" target="_blank">Better Stack &mdash; Drizzle vs Prisma 2026</a></li>
+    <li><span class="source-cat">Codegen</span><a href="https://www.prisma.io/docs/orm/prisma-schema/overview/generators" target="_blank">Prisma &mdash; Generators</a></li>
+    <li><span class="source-cat">Codegen</span><a href="https://the-guild.dev/graphql/codegen/docs/config-reference/codegen-config" target="_blank">GraphQL Code Generator &mdash; codegen.ts</a></li>
+    <li><span class="source-cat">Codegen</span><a href="https://tanstack.com/router/v1/docs/framework/react/installation/with-router-cli" target="_blank">TanStack Router &mdash; routeTree.gen.ts</a></li>
+    <li><span class="source-cat">Codegen</span><a href="https://github.com/dsherret/ts-morph" target="_blank">ts-morph &mdash; TypeScript Compiler API wrapper</a></li>
+    <li><span class="source-cat">Augment</span><a href="https://www.typescriptlang.org/docs/handbook/declaration-merging.html" target="_blank">TypeScript &mdash; Declaration Merging</a></li>
+    <li><span class="source-cat">Augment</span><a href="https://fastify.dev/docs/latest/Reference/Type-Providers/" target="_blank">Fastify &mdash; Type Providers</a></li>
+    <li><span class="source-cat">Scale</span><a href="https://puzzles.slash.com/blog/scaling-1m-lines-of-typescript-registries" target="_blank">Slash &mdash; Scaling 1M Lines of TypeScript with Registries</a></li>
+    <li><span class="source-cat">Config</span><a href="https://claritydev.net/blog/typescript-as-const-satisfies-type-safe-config" target="_blank">ClarityDev &mdash; as const satisfies for Config Objects</a></li>
+    <li><span class="source-cat">Config</span><a href="https://vite.dev/config/" target="_blank">Vite &mdash; defineConfig</a></li>
+    <li><span class="source-cat">Plugin</span><a href="https://github.com/nonara/ts-patch" target="_blank">ts-patch &mdash; TypeScript Compiler Plugins</a></li>
+    <li><span class="source-cat">Plugin</span><a href="https://code.lol/post/programming/plugin-architecture/" target="_blank">Codeless Code &mdash; Towards a Well-Typed Plugin Architecture</a></li>
+    <li><span class="source-cat">AG</span><a href="https://jastadd.cs.lth.se/releases/jastadd2/2.2.1/reference-manual.php" target="_blank">JastAdd &mdash; Reference Manual</a></li>
+    <li><span class="source-cat">AG</span><a href="https://www-users.cse.umn.edu/~evw/pubs/vanwyk10scp/vanwyk10scp.pdf" target="_blank">Silver &mdash; An Extensible Attribute Grammar System (PDF)</a></li>
+    <li><span class="source-cat">Codegen</span><a href="https://nuro.dev/posts/typescript_codegen_101" target="_blank">nuro.dev &mdash; TypeScript Codegen 101</a></li>
+  </ul>
+</div>
+</section>
+
+<!-- ============ KNOWLEDGE CHECK ============ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">10</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the fundamental difference between how Drizzle and Prisma provide type safety?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Drizzle uses <strong>type inference</strong> &mdash; you define your schema in TypeScript and types are derived automatically at edit-time. Prisma uses <strong>code generation</strong> &mdash; you run <code>prisma generate</code> which produces <code>.d.ts</code> files with pre-computed types. Prisma front-loads the type derivation work; Drizzle re-derives on every check.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why did tRPC's pure inference approach hit a ceiling? What TypeScript feature is missing?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>tRPC's inference breaks down with <strong>dynamic generic return types</strong> (e.g., return type depends on an <code>include</code> parameter). TypeScript lacks <strong>Higher-Kinded Types (HKTs)</strong>, so it can't hold "uninstantiated" generic function types and instantiate them in a different context. The ZenStack team had to fall back to codegen to fix this.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>In the Kysely pattern (Pattern 1), how does the library become specialized to the user's database?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The user defines a <code>Database</code> interface describing all tables and their column types, then passes it as a <strong>generic type parameter</strong>: <code>new Kysely&lt;Database&gt;(config)</code>. The entire Kysely API becomes specialized to that interface. The library never sees the type at runtime &mdash; it's purely compile-time.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How do phantom types work in a schema-as-code system like Zod or our <code>defineNode()</code>?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Builder functions like <code>child&lt;KSIdentifier&gt;()</code> return a runtime object (<code>{ __tag: 'child' }</code>) that <em>also</em> carries a generic type parameter <code>T</code> via a phantom field (<code>__phantom?: T</code>). At runtime, <code>T</code> is erased. At the type level, <code>InferNode</code> uses conditional types to extract <code>T</code> from the definition and reconstruct the full interface.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the "type registry" pattern (Pattern 5), and which libraries use it?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The library provides an <strong>open interface</strong> (like Express's <code>Request</code>). Users extend it via <code>declare module</code> and TypeScript's <strong>declaration merging</strong>. The library reads the merged type globally. Used by Express (augment <code>Request.user</code>), Fastify (Type Providers), and the Slash Financial registry system (1M lines of TypeScript).</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Prisma found 95x more type instantiations in Drizzle's approach. What causes this difference?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Drizzle's inference forces the TypeScript compiler to <strong>re-derive types from first principles</strong> on every build &mdash; walking through conditional types, mapped types, and generic instantiations. Prisma's codegen <strong>precomputes</strong> these types during the generate step, writing explicit <code>.d.ts</code> files that use interfaces (which TypeScript can structurally reuse) instead of complex type-level computations.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What hybrid pattern is emerging as the industry standard, and who uses it?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>Inference for the API surface + codegen for the instance.</strong> The library API uses Pattern 3 (Schema-as-Code) for good DX, while the large generated file uses Pattern 6 (Codegen) for fast type checking. Prisma, TanStack Router (<code>routeTree.gen.ts</code>), and KSC (<code>defineNode</code> + <code>gen-node-defs.ts</code>) all independently converged on this architecture.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does JastAdd's specification approach compare to KSC's? What is each one closest to?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>JastAdd uses <strong>Pattern 6 (Codegen)</strong>: <code>.ast</code> grammar and <code>.jrag</code>/<code>.jadd</code> aspects are processed by the JastAdd tool, which generates Java classes. KSC uses <strong>TypeScript as the specification language</strong> (Pattern 3): attribute declarations and equations are plain TypeScript objects and functions. KSC adds Pattern 6 only for the 360 node definitions, not for the AG spec itself.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<script>
+/* ── Tabs ── */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabBar = container.previousElementSibling;
+  if (tabBar) tabBar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+}
+
+/* ── Expandable stages ── */
+function toggleStage(el) {
+  el.classList.toggle('active');
+}
+
+/* ── Pattern detail panels ── */
+function showPatternDetail(id) {
+  document.querySelectorAll('.pattern-detail').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById(id);
+  if (panel) panel.classList.add('active');
+}
+
+/* ── Flashcards ── */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+</body>
+</html>

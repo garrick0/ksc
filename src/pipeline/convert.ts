@@ -377,7 +377,6 @@ import type {
   KSCommaListExpression,
   KSMissingDeclaration,
 } from './ast.js';
-import { getChildren } from './ast.js';
 
 // ═══════════════════════════════════════════════════════════════════════
 // TS → KS identity map (replaces tsNode back-references)

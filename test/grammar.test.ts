@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
 import { buildKSTree } from '../src/pipeline/convert.js';
-import { getChildren } from '../src/pipeline/ast.js';
+import { getChildren } from '../src/pipeline/node-defs.js';
 import { createBinderSpec } from '../src/pipeline/binder.js';
 import { createCheckerSpec } from '../src/pipeline/checker.js';
 import { createGrammar } from '../libs/ag/src/grammar.js';

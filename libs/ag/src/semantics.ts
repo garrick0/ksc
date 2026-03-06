@@ -6,10 +6,8 @@
  */
 
 import type { Grammar } from './grammar.js';
-import type { SpecInput } from './spec.js';
-import type { AttrDecl } from './decl.js';
-import type { AttributeDef } from './types.js';
-import { compile } from './compile.js';
+import type { SpecInput, AttrDecl } from './spec.js';
+import { compile, type AttributeDef } from './compile.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 

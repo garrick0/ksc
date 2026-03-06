@@ -13,7 +13,7 @@
  * properties will not work on deserialized trees.
  */
 
-import { stampTree } from './stamp.js';
+import { stampTree } from './interpret.js';
 
 // ── Types ──
 

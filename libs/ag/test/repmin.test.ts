@@ -8,8 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { compile } from '../src/compile.js';
-import { stampTree } from '../src/stamp.js';
-import { applyAttributes } from '../src/apply.js';
+import { stampTree, applyAttributes } from '../src/interpret.js';
 
 // Binary tree type
 type RepTree = RepLeaf | RepFork;

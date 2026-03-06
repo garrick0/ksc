@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Languages Define Their ASTs: A Survey and Our Options</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --text-bright: #e6edf3;
+    --accent: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-yellow: #d29922;
+    --accent-orange: #db6d28;
+    --accent-red: #f85149;
+    --accent-purple: #bc8cff;
+    --accent-pink: #f778ba;
+    --shadow: 0 3px 12px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1e2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+  }
+  .hero h1 { font-size: 1.9rem; color: var(--text-bright); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+  .hero .subtitle { font-size: 1.05rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 1.5rem; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 2rem; }
+  .section-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { border-color: var(--accent); }
+  .section-header h2 { font-size: 1.15rem; color: var(--text-bright); flex: 1; }
+  .chevron { color: var(--accent); font-size: 0.75rem; transition: transform 0.2s; }
+  .section-header.open .chevron { transform: rotate(90deg); }
+  .section-body {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 8px 8px;
+    padding: 1.5rem; display: none;
+  }
+  .section-header.open + .section-body { display: block; }
+  .badge {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge-system { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .badge-gen { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .badge-lib { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+  .badge-hand { background: rgba(210,153,34,0.15); color: var(--accent-yellow); }
+  .badge-option { background: rgba(247,120,186,0.15); color: var(--accent-pink); }
+  .badge-quiz { background: rgba(247,120,186,0.15); color: var(--accent-pink); }
+  .badge-ksc { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .card h4 { color: var(--accent); font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .card.hl { border-color: var(--accent); border-width: 2px; }
+  .card.hl-green { border-color: var(--accent-green); border-width: 2px; }
+  .card.hl-purple { border-color: var(--accent-purple); border-width: 2px; }
+  .card.hl-yellow { border-color: var(--accent-yellow); border-width: 2px; }
+  .card.hl-pink { border-color: var(--accent-pink); border-width: 2px; }
+
+  pre {
+    background: #0d1117; border: 1px solid var(--border);
+    border-radius: 6px; padding: 1rem; overflow-x: auto;
+    font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0;
+  }
+  code { font-family: 'SF Mono', 'Fira Code', monospace; }
+  .inline-code {
+    background: rgba(110,118,129,0.2); padding: 2px 6px;
+    border-radius: 4px; font-size: 0.85em;
+  }
+
+  /* ── Tabs ── */
+  .tab-bar {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem; flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: 0.5rem 1rem; background: none; border: none;
+    color: var(--text-muted); cursor: pointer; font-size: 0.85rem;
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── Comparison table ── */
+  .cmp-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 1rem 0; }
+  .cmp-table th, .cmp-table td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); text-align: left; }
+  .cmp-table th { background: var(--bg-tertiary); color: var(--accent); font-weight: 600; }
+  .cmp-table tr:hover td { background: rgba(88,166,255,0.05); }
+  .y { color: var(--accent-green); font-weight: 600; }
+  .n { color: var(--text-muted); }
+  .p { color: var(--accent-yellow); }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex; align-items: center; gap: 0.5rem;
+    flex-wrap: wrap; margin: 1rem 0; font-size: 0.85rem;
+  }
+  .flow-box {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0.4rem 0.8rem; white-space: nowrap;
+  }
+  .flow-box.hl { border-color: var(--accent); color: var(--accent); }
+  .flow-box.hl-green { border-color: var(--accent-green); color: var(--accent-green); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.1rem; }
+
+  /* ── Flashcards ── */
+  .flashcard-deck { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
+  .flashcard {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem; cursor: pointer;
+  }
+  .flashcard:hover { border-color: var(--accent); }
+  .flashcard .q { color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+  .flashcard .a { display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+  .flashcard.revealed .a { display: block; }
+
+  p { margin-bottom: 0.75rem; }
+  ul, ol { margin: 0.5rem 0 0.75rem 1.25rem; }
+  li { margin-bottom: 0.35rem; }
+  strong { color: var(--text-bright); }
+  em { color: var(--accent-yellow); font-style: normal; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>How Languages Define Their ASTs</h1>
+  <p class="subtitle">
+    A survey of how real compiler systems define tree structure, node schemas,
+    child relationships, and properties &mdash; and what KSC should learn from them.
+  </p>
+</div>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 1: The Fundamental Question -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header open" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>1. The Fundamental Question</h2>
+    <span class="badge badge-system">Foundation</span>
+  </div>
+  <div class="section-body">
+    <p>Every compiler needs to define its AST &mdash; the tree of nodes that represents a program's
+    structure. But <strong>how</strong> you define that tree varies enormously across systems.
+    The central question is:</p>
+
+    <div class="card hl">
+      <h4>Where does the grammar live?</h4>
+      <p>Every system must answer: <em>"For each node kind, what children can it have, in what
+      order, and with what types?"</em> Some systems answer this explicitly in a schema.
+      Others encode it implicitly across their parser, factory, and traversal code.
+      The answer shapes everything downstream: type safety, tooling, extensibility,
+      and maintenance burden.</p>
+    </div>
+
+    <p>We can categorize systems along two axes:</p>
+
+    <table class="cmp-table">
+      <tr>
+        <th></th>
+        <th>Schema is Explicit</th>
+        <th>Schema is Implicit</th>
+      </tr>
+      <tr>
+        <td><strong>Code Generated</strong></td>
+        <td>Roslyn (Syntax.xml), rust-analyzer (ungrammar), JastAdd (.ast files), tree-sitter (grammar.js)</td>
+        <td>ANTLR (grammar defines parse tree, not AST)</td>
+      </tr>
+      <tr>
+        <td><strong>Hand-Written</strong></td>
+        <td>KSC defineNode() (our new approach)</td>
+        <td>TypeScript (4 parallel tables), Go, GCC, most compilers</td>
+      </tr>
+    </table>
+
+    <p>Let's examine each major system in detail.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 2: Roslyn (C# / .NET) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>2. Roslyn &mdash; The Gold Standard of Schema-First</h2>
+    <span class="badge badge-gen">Generated</span>
+  </div>
+  <div class="section-body">
+    <p>Roslyn (the C# and VB compiler) is the most sophisticated example of schema-first AST
+    definition. <strong>Everything is generated from a single XML schema.</strong></p>
+
+    <div class="card hl-green">
+      <h4>The Pipeline</h4>
+      <div class="flow">
+        <span class="flow-box hl-green">Syntax.xml</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">GenerateSyntax tool</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">SyntaxNode classes</span>
+        <span class="flow-arrow">+</span>
+        <span class="flow-box">SyntaxFactory</span>
+        <span class="flow-arrow">+</span>
+        <span class="flow-box">Visitor</span>
+        <span class="flow-arrow">+</span>
+        <span class="flow-box">Rewriter</span>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab(this, 'roslyn-schema')">Syntax.xml</button>
+      <button class="tab-btn" onclick="showTab(this, 'roslyn-generated')">Generated C#</button>
+      <button class="tab-btn" onclick="showTab(this, 'roslyn-arch')">Architecture</button>
+    </div>
+
+    <div id="roslyn-schema" class="tab-pane active">
+      <p>The schema defines every node kind, its children, and their types:</p>
+<pre><code>&lt;!-- From dotnet/roslyn: src/Compilers/CSharp/Portable/Syntax/Syntax.xml --&gt;
+
+&lt;Node Name="IfStatementSyntax" Base="StatementSyntax"&gt;
+  &lt;Kind Name="IfStatement"/&gt;
+  &lt;Field Name="IfKeyword" Type="SyntaxToken"&gt;
+    &lt;Kind Name="IfKeyword"/&gt;
+  &lt;/Field&gt;
+  &lt;Field Name="OpenParenToken" Type="SyntaxToken"&gt;
+    &lt;Kind Name="OpenParenToken"/&gt;
+  &lt;/Field&gt;
+  &lt;Field Name="Condition" Type="ExpressionSyntax"/&gt;
+  &lt;Field Name="CloseParenToken" Type="SyntaxToken"&gt;
+    &lt;Kind Name="CloseParenToken"/&gt;
+  &lt;/Field&gt;
+  &lt;Field Name="Statement" Type="StatementSyntax"/&gt;
+  &lt;Field Name="Else" Type="ElseClauseSyntax" Optional="true"/&gt;
+&lt;/Node&gt;
+
+&lt;Node Name="ClassDeclarationSyntax" Base="TypeDeclarationSyntax"&gt;
+  &lt;Kind Name="ClassDeclaration"/&gt;
+  &lt;Field Name="Keyword" Type="SyntaxToken"&gt;
+    &lt;Kind Name="ClassKeyword"/&gt;
+  &lt;/Field&gt;
+&lt;/Node&gt;
+
+&lt;!-- Base class defines shared children --&gt;
+&lt;AbstractNode Name="TypeDeclarationSyntax" Base="BaseTypeDeclarationSyntax"&gt;
+  &lt;Field Name="TypeParameterList" Type="TypeParameterListSyntax" Optional="true"/&gt;
+  &lt;Field Name="ConstraintClauses" Type="SyntaxList&lt;TypeParameterConstraintClauseSyntax&gt;"/&gt;
+  &lt;Field Name="Members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;"/&gt;
+&lt;/AbstractNode&gt;</code></pre>
+      <p><strong>Key features:</strong> Each field has a name, type, and optionality.
+      Inheritance (<code class="inline-code">Base=</code>) avoids repeating shared fields.
+      Token kinds are constrained via nested <code class="inline-code">&lt;Kind&gt;</code> elements.
+      Lists use <code class="inline-code">SyntaxList&lt;T&gt;</code>
+      or <code class="inline-code">SeparatedSyntaxList&lt;T&gt;</code>.
+      Roslyn also supports <code class="inline-code">&lt;Choice&gt;</code> and
+      <code class="inline-code">&lt;Sequence&gt;</code> elements for expressing alternatives
+      (e.g., a method can have a block body OR an expression body + semicolon) &mdash;
+      these are flattened into optional fields during codegen.</p>
+    </div>
+
+    <div id="roslyn-generated" class="tab-pane">
+      <p>From this XML, Roslyn generates ~30,000 lines of C# code:</p>
+<pre><code>// GENERATED — do not edit by hand
+public sealed partial class IfStatementSyntax : StatementSyntax
+{
+    internal IfStatementSyntax(
+        SyntaxToken ifKeyword,
+        SyntaxToken openParenToken,
+        ExpressionSyntax condition,
+        SyntaxToken closeParenToken,
+        StatementSyntax statement,
+        ElseClauseSyntax? @else)
+    {
+        this.ifKeyword = ifKeyword;
+        this.condition = condition;
+        this.statement = statement;
+        this.@else = @else;
+        // ...
+    }
+
+    public SyntaxToken IfKeyword =&gt; this.ifKeyword;
+    public ExpressionSyntax Condition =&gt; this.condition;
+    public StatementSyntax Statement =&gt; this.statement;
+    public ElseClauseSyntax? Else =&gt; this.@else;
+
+    // Also generates: Accept(visitor), Update(...), WithXxx(...)
+}</code></pre>
+      <p>Also generates: <code class="inline-code">SyntaxFactory.IfStatement(...)</code>,
+      <code class="inline-code">SyntaxVisitor.VisitIfStatement()</code>,
+      <code class="inline-code">SyntaxRewriter</code> dispatch, serialization, etc.</p>
+    </div>
+
+    <div id="roslyn-arch" class="tab-pane">
+      <div class="card">
+        <h4>Red/Green Tree Architecture</h4>
+        <p>Roslyn uses an immutable "green tree" (position-free, shared) wrapped by a
+        "red tree" (position-aware, parent-linked). Both are generated from the same schema.</p>
+        <ul>
+          <li><strong>Green nodes:</strong> Immutable, position-free, structurally shared. This is the
+          persistent data structure.</li>
+          <li><strong>Red nodes:</strong> Lazy wrappers that add parent pointers, absolute positions.
+          Created on demand as you navigate.</li>
+        </ul>
+        <p>The XML schema generates both layers. Every <code class="inline-code">&lt;Field&gt;</code>
+        becomes a property on both the green and red node.</p>
+      </div>
+      <div class="card">
+        <h4>What Roslyn generates from the schema</h4>
+        <ul>
+          <li>Green node classes with child slots</li>
+          <li>Red node classes with typed accessors</li>
+          <li>SyntaxFactory: <code class="inline-code">SyntaxFactory.IfStatement(condition, body, elseClause)</code></li>
+          <li>Visitor base class with one method per node kind</li>
+          <li>Rewriter with Update/With methods for immutable transforms</li>
+          <li>Serialization and debugging support</li>
+          <li>Internal slot arrays for child enumeration</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card hl-purple">
+      <h4>Lesson for KSC</h4>
+      <p>Roslyn proves that schema-first works at massive scale (800+ node kinds).
+      The XML schema is the single source of truth &mdash; nothing is hand-written.
+      Our <code class="inline-code">defineNode()</code> approach is the TypeScript equivalent
+      of Roslyn's Syntax.xml, but using runtime builders instead of XML + codegen.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 3: rust-analyzer (ungrammar) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>3. rust-analyzer &mdash; Ungrammar + Code Generation</h2>
+    <span class="badge badge-gen">Generated</span>
+  </div>
+  <div class="section-body">
+    <p>rust-analyzer uses <strong>ungrammar</strong>, a purpose-built DSL that describes the
+    concrete syntax tree structure. It's designed to be the single source of truth for
+    the AST, generating typed Rust node wrappers.</p>
+
+    <div class="card hl-green">
+      <h4>The Pipeline</h4>
+      <div class="flow">
+        <span class="flow-box hl-green">rust.ungram</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">sourcegen_ast</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">generated/nodes.rs</span>
+        <span class="flow-arrow">+</span>
+        <span class="flow-box">generated/tokens.rs</span>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab(this, 'ungram-schema')">rust.ungram</button>
+      <button class="tab-btn" onclick="showTab(this, 'ungram-generated')">Generated Rust</button>
+      <button class="tab-btn" onclick="showTab(this, 'ungram-rowan')">Rowan Library</button>
+    </div>
+
+    <div id="ungram-schema" class="tab-pane active">
+      <p>The ungrammar format is concise and readable:</p>
+<pre><code>// From rust-analyzer: crates/syntax/rust.ungram
+
+IfExpr =
+  Attr* 'if' condition:Expr
+  then_branch:BlockExpr
+  ('else' else_branch:(IfExpr | BlockExpr))?
+
+FnDef =
+  Attr* Visibility?
+  'default'? 'const'? 'async'? 'unsafe'? Abi?
+  'fn' Name GenericParamList? ParamList RetType?
+  WhereClause?
+  (body:BlockExpr | ';')
+
+StructDef =
+  Attr* Visibility?
+  'struct' Name GenericParamList? WhereClause?
+  (RecordFieldList | TupleFieldList | ';')
+
+// Enum nodes: alternatives separated by |
+Item =
+  Const
+| Enum
+| ExternBlock
+| ExternCrate
+| Fn
+| Impl
+| MacroCall
+| Module
+| Static
+| Struct
+| TypeAlias
+| Union
+| Use</code></pre>
+      <p><strong>Key features:</strong> Named fields use <code class="inline-code">name:Type</code> syntax.
+      Optionality is <code class="inline-code">?</code>. Repetition is <code class="inline-code">*</code>.
+      Alternatives are <code class="inline-code">|</code>. Tokens are quoted literals.
+      The format is deliberately <em>not</em> a parsing grammar &mdash; it describes
+      tree structure only (hence "un-grammar").</p>
+    </div>
+
+    <div id="ungram-generated" class="tab-pane">
+      <p>The codegen tool produces typed wrapper structs:</p>
+<pre><code>// GENERATED by sourcegen_ast
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct IfExpr {
+    pub(crate) syntax: SyntaxNode,
+}
+
+impl IfExpr {
+    pub fn if_token(&self) -> Option&lt;SyntaxToken&gt; { ... }
+    pub fn condition(&self) -> Option&lt;Expr&gt; { ... }
+    pub fn then_branch(&self) -> Option&lt;BlockExpr&gt; { ... }
+    pub fn else_branch(&self) -> Option&lt;ElseBranch&gt; { ... }
+}
+
+impl AstNode for IfExpr {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::IF_EXPR
+    }
+    fn cast(syntax: SyntaxNode) -> Option&lt;Self&gt; { ... }
+    fn syntax(&self) -> &SyntaxNode { &self.syntax }
+}</code></pre>
+    </div>
+
+    <div id="ungram-rowan" class="tab-pane">
+      <div class="card">
+        <h4>Rowan: The Underlying Tree Library</h4>
+        <p>rust-analyzer's syntax tree is built on <strong>rowan</strong>, a library that
+        provides the generic tree structure. Rowan is analogous to our <code class="inline-code">ag</code>
+        library:</p>
+        <ul>
+          <li><strong>SyntaxKind:</strong> A numeric tag (like our <code class="inline-code">kind: string</code>)</li>
+          <li><strong>GreenNode:</strong> Immutable, position-free tree nodes (like Roslyn's green tree)</li>
+          <li><strong>SyntaxNode:</strong> Position-aware wrapper with parent pointers (like our stamped tree)</li>
+          <li><strong>Language trait:</strong> Parametrizes rowan for a specific language &mdash;
+          provides <code class="inline-code">kind_from_raw()</code> and <code class="inline-code">kind_to_raw()</code></li>
+        </ul>
+        <p>The generated AST types (IfExpr, FnDef, etc.) are thin wrappers over
+        <code class="inline-code">SyntaxNode</code> &mdash; they add typed accessors
+        but the tree structure is owned by rowan.</p>
+      </div>
+      <div class="card">
+        <h4>Two-layer architecture (like ours!)</h4>
+        <ul>
+          <li><strong>rowan</strong> = generic tree library (our <code class="inline-code">libs/ag/</code>)</li>
+          <li><strong>ungrammar + generated code</strong> = language-specific schema (our <code class="inline-code">libs/ag-schema/ + node-defs.ts</code>)</li>
+        </ul>
+        <p>The parallel is almost exact: rowan doesn't know about Rust syntax, just like
+        our AG library doesn't know about TypeScript syntax. The schema layer adds
+        language-specific knowledge on top.</p>
+      </div>
+    </div>
+
+    <div class="card hl-purple">
+      <h4>Lesson for KSC</h4>
+      <p>Ungrammar is the closest prior art to what we want. It's a <em>schema DSL</em>
+      that generates typed accessors from a single source of truth. The key difference:
+      ungrammar uses a custom DSL + codegen, while we use TypeScript builders
+      (<code class="inline-code">defineNode()</code>) that provide types via inference.
+      Our approach avoids a build step at the cost of more verbose definitions.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 4: JastAdd -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>4. JastAdd &mdash; The AG Pioneer</h2>
+    <span class="badge badge-gen">Generated</span>
+  </div>
+  <div class="section-body">
+    <p>JastAdd is the system our AG library is most directly inspired by. It uses
+    <code class="inline-code">.ast</code> grammar files to define tree structure,
+    then <code class="inline-code">.jrag</code>/<code class="inline-code">.jadd</code>
+    files for attribute equations. The grammar is explicitly separate from the attributes.</p>
+
+    <div class="card hl-green">
+      <h4>The Pipeline</h4>
+      <div class="flow">
+        <span class="flow-box hl-green">.ast grammar</span>
+        <span class="flow-arrow">+</span>
+        <span class="flow-box hl">. jrag attributes</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">JastAdd compiler</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">Java AST classes</span>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab(this, 'jastadd-grammar')">Grammar (.ast)</button>
+      <button class="tab-btn" onclick="showTab(this, 'jastadd-attrs')">Attributes (.jrag)</button>
+      <button class="tab-btn" onclick="showTab(this, 'jastadd-gen')">Generated Java</button>
+    </div>
+
+    <div id="jastadd-grammar" class="tab-pane active">
+      <p>JastAdd's grammar is BNF-like, defining the tree structure:</p>
+<pre><code>// .ast file &mdash; tree structure definition
+
+Program ::= CompilationUnit*;
+
+CompilationUnit ::= ImportDecl* TypeDecl*
+    /&lt;fileName:String&gt;/;     // token attribute (non-child property)
+
+// Children use names and types
+IfStmt : Stmt ::=
+    Condition:Expr
+    Then:Stmt
+    [Else:Stmt];              // [...] means optional child
+
+ClassDecl : TypeDecl ::=
+    &lt;Name:String&gt;             // &lt;...&gt; is a token (scalar property)
+    [SuperClass:Access]
+    Implements:Access*        // * means list
+    BodyDecl*;
+
+MethodDecl : BodyDecl ::=
+    Modifiers
+    TypeAccess:Access
+    &lt;Name:String&gt;
+    Parameter:ParameterDecl*
+    Exception:Access*
+    [Block];
+
+// Abstract productions
+abstract Stmt;
+abstract Expr : Stmt;
+abstract TypeDecl : BodyDecl ::= &lt;Name:String&gt;;</code></pre>
+      <p><strong>Syntax summary:</strong></p>
+      <ul>
+        <li><code class="inline-code">Child:Type</code> &mdash; named child</li>
+        <li><code class="inline-code">[Child:Type]</code> &mdash; optional child (Opt node)</li>
+        <li><code class="inline-code">Child:Type*</code> &mdash; list of children (List node)</li>
+        <li><code class="inline-code">&lt;Name:Type&gt;</code> &mdash; token attribute (scalar property, not a child)</li>
+        <li><code class="inline-code">/Child/</code> &mdash; NTA (non-terminal attribute): a child computed by an equation, not the parser</li>
+        <li><code class="inline-code">abstract</code> &mdash; abstract node (cannot be instantiated)</li>
+        <li><code class="inline-code">A : B</code> &mdash; A extends B</li>
+      </ul>
+    </div>
+
+    <div id="jastadd-attrs" class="tab-pane">
+      <p>Attributes are defined separately in .jrag files:</p>
+<pre><code>// .jrag file &mdash; attribute equations (separate from grammar!)
+
+// Synthesized attribute: computed bottom-up
+syn String MethodDecl.signature() =
+    getName() + "(" + paramTypes() + ")";
+
+// Inherited attribute: passed top-down
+inh TypeDecl Expr.hostType();
+eq ClassDecl.getBodyDecl(int i).hostType() = this;
+
+// Collection attribute: aggregated across the tree
+coll Set&lt;String&gt; CompilationUnit.allMethodNames()
+    [new HashSet&lt;String&gt;()]   // initial value
+    with add;                  // combiner operation
+MethodDecl contributes getName()
+    to CompilationUnit.allMethodNames();
+
+// Circular attribute: fixed-point iteration
+syn boolean Stmt.isReachable() circular [true];
+eq IfStmt.getThen().isReachable() =
+    getCondition().isTrue() || isReachable();
+
+// NTA (non-terminal attribute): computed subtree
+syn nta TypeDecl ClassDecl.unknownType() =
+    new UnknownType();
+
+// Aspect: add equations to existing productions from another file
+aspect CodeGeneration {
+    syn byte TypeDecl.arrayLoad() {
+        throw new Error("No array load");
+    }
+    eq IntType.arrayLoad() = Bytecode.IALOAD;
+    eq ReferenceType.arrayLoad() = Bytecode.AALOAD;
+}</code></pre>
+      <p><strong>The key design:</strong> Grammar (structure) and attributes (behavior) are
+      completely separate files. The grammar defines WHAT the tree looks like.
+      The attributes define HOW to compute over it. This is the de-fusion principle
+      we adopted in KSC.</p>
+    </div>
+
+    <div id="jastadd-gen" class="tab-pane">
+      <p>JastAdd generates Java classes with both structure and attributes woven in:</p>
+<pre><code>// GENERATED by JastAdd
+
+public class IfStmt extends Stmt {
+    // From grammar: children
+    private Expr tokenExpr_Condition;
+    private Stmt tokenStmt_Then;
+    private Opt&lt;Stmt&gt; tokenOpt_Else;  // optional child
+
+    // Accessors
+    public Expr getCondition() { return tokenExpr_Condition; }
+    public Stmt getThen() { return tokenStmt_Then; }
+    public boolean hasElse() { return tokenOpt_Else.getNumChild() != 0; }
+    public Stmt getElse() { return tokenOpt_Else.getChild(0); }
+
+    // From attributes: woven in
+    private boolean isReachable_computed = false;
+    private boolean isReachable_value;
+    public boolean isReachable() {
+        if (isReachable_computed) return isReachable_value;
+        // ... Magnusson-Hedin circular evaluation
+    }
+
+    // Tree navigation (built-in)
+    public ASTNode getParent() { return parent; }
+    public int getNumChild() { return numChildren; }
+    public ASTNode getChild(int i) { return children[i]; }
+}</code></pre>
+    </div>
+
+    <div class="card hl-purple">
+      <h4>Lesson for KSC</h4>
+      <p>JastAdd's clean separation of grammar (.ast) and attributes (.jrag) is what inspired
+      our de-fusion architecture. Our <code class="inline-code">defineNode()</code> schema is the
+      equivalent of .ast files. Our <code class="inline-code">SpecInput</code> declarations + equations
+      are the equivalent of .jrag files. The difference: JastAdd uses code generation (Java classes),
+      while we use runtime installation (lazy getters on JavaScript objects).</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 5: TypeScript Compiler -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>5. TypeScript Compiler &mdash; Implicit Schema, Four Parallel Tables</h2>
+    <span class="badge badge-hand">Hand-Written</span>
+  </div>
+  <div class="section-body">
+    <p>TypeScript's compiler is the system we mirror most directly &mdash; our AST is a
+    projection of tsc's AST. But tsc has <strong>no explicit schema</strong>. Instead,
+    the same structural knowledge is encoded <em>redundantly</em> across four independent
+    dispatch tables.</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab(this, 'tsc-tables')">The Four Tables</button>
+      <button class="tab-btn" onclick="showTab(this, 'tsc-foreach')">forEachChild</button>
+      <button class="tab-btn" onclick="showTab(this, 'tsc-factory')">NodeFactory</button>
+      <button class="tab-btn" onclick="showTab(this, 'tsc-interfaces')">Interfaces</button>
+    </div>
+
+    <div id="tsc-tables" class="tab-pane active">
+      <p>TypeScript encodes "what children does IfStatement have?" in four separate places,
+      each maintained independently:</p>
+
+      <table class="cmp-table">
+        <tr>
+          <th>Table</th>
+          <th>Location</th>
+          <th>Purpose</th>
+          <th>Encodes</th>
+        </tr>
+        <tr>
+          <td><strong>1. Interfaces</strong></td>
+          <td>typescript.d.ts</td>
+          <td>Type definitions</td>
+          <td>Field names, types, optionality</td>
+        </tr>
+        <tr>
+          <td><strong>2. forEachChildTable</strong></td>
+          <td>typescript.js:32485</td>
+          <td>Read-only traversal</td>
+          <td>Child fields, visitation order, single vs list</td>
+        </tr>
+        <tr>
+          <td><strong>3. visitEachChildTable</strong></td>
+          <td>typescript.js:95327</td>
+          <td>Transform/clone</td>
+          <td>Child fields, factory method calls, type guards</td>
+        </tr>
+        <tr>
+          <td><strong>4. NodeFactory</strong></td>
+          <td>typescript.js:27125</td>
+          <td>Node creation</td>
+          <td>Constructor parameters, child assignment, flags</td>
+        </tr>
+      </table>
+
+      <p>If you add a child to a node kind, you must update all four places.
+      They can (and occasionally do) get out of sync. This is the exact problem
+      a schema-first approach solves.</p>
+    </div>
+
+    <div id="tsc-foreach" class="tab-pane">
+      <p>The <code class="inline-code">forEachChildTable</code> is a dispatcher object mapping
+      SyntaxKind numbers to handler functions. This is tsc's closest equivalent to a grammar:</p>
+<pre><code>// typescript.js:32485+ (simplified)
+
+const forEachChildTable = {
+  [246 /* IfStatement */]: function(node, cbNode, _cbNodes) {
+    return visitNode2(cbNode, node.expression)    // single child
+        || visitNode2(cbNode, node.thenStatement)  // single child
+        || visitNode2(cbNode, node.elseStatement); // optional child
+  },
+
+  [263 /* FunctionDeclaration */]: function(node, cbNode, cbNodes) {
+    return visitNodes(cbNode, cbNodes, node.modifiers)     // list
+        || visitNode2(cbNode, node.asteriskToken)           // opt token
+        || visitNode2(cbNode, node.name)                    // opt child
+        || visitNodes(cbNode, cbNodes, node.typeParameters) // list
+        || visitNodes(cbNode, cbNodes, node.parameters)     // list
+        || visitNode2(cbNode, node.type)                    // opt child
+        || visitNode2(cbNode, node.body);                   // opt child
+  },
+
+  [264 /* ClassDeclaration */]:
+    forEachChildInClassDeclarationOrExpression,  // shared handler
+  [232 /* ClassExpression */]:
+    forEachChildInClassDeclarationOrExpression,  // same handler
+
+  // ... 150+ more entries
+};</code></pre>
+      <p>Notice that <code class="inline-code">visitNode2</code> = single child,
+      <code class="inline-code">visitNodes</code> = child list. This is the
+      implicit encoding of child/list/optChild that our
+      <code class="inline-code">defineNode()</code> makes explicit.</p>
+    </div>
+
+    <div id="tsc-factory" class="tab-pane">
+      <p>The factory must re-encode the same children as parameters:</p>
+<pre><code>// typescript.d.ts — Factory interface
+
+createIfStatement(
+  expression: Expression,
+  thenStatement: Statement,
+  elseStatement?: Statement
+): IfStatement;
+
+createFunctionDeclaration(
+  modifiers: readonly ModifierLike[] | undefined,
+  asteriskToken: AsteriskToken | undefined,
+  name: string | Identifier | undefined,
+  typeParameters: readonly TypeParameterDeclaration[] | undefined,
+  parameters: readonly ParameterDeclaration[],
+  type: TypeNode | undefined,
+  body: Block | undefined
+): FunctionDeclaration;
+
+// Also: updateIfStatement(...), updateFunctionDeclaration(...)
+// which take the same parameters + the original node</code></pre>
+    </div>
+
+    <div id="tsc-interfaces" class="tab-pane">
+      <p>The type definitions encode the same info yet again:</p>
+<pre><code>// typescript.d.ts
+
+interface IfStatement extends Statement, FlowContainer {
+  readonly kind: SyntaxKind.IfStatement;
+  readonly expression: Expression;          // child
+  readonly thenStatement: Statement;        // child
+  readonly elseStatement?: Statement;       // optional child
+}
+
+// But children are spread across inheritance:
+interface FunctionDeclaration
+  extends FunctionLikeDeclarationBase, DeclarationStatement {
+  readonly kind: SyntaxKind.FunctionDeclaration;
+  readonly modifiers?: NodeArray&lt;ModifierLike&gt;;
+  readonly name?: Identifier;
+  readonly body?: FunctionBody;
+}
+
+// Must look at FunctionLikeDeclarationBase for:
+//   asteriskToken, questionToken, exclamationToken, body
+// And SignatureDeclarationBase for:
+//   typeParameters, parameters, type
+// And NamedDeclaration for:
+//   name</code></pre>
+      <p>The deep inheritance chains mean you need to traverse 4-5 base classes
+      to find all children of a node. A flat schema avoids this complexity.</p>
+    </div>
+
+    <div class="card hl-purple">
+      <h4>Lesson for KSC</h4>
+      <p>TypeScript's approach is what happens when you grow a compiler organically
+      without a schema. The knowledge is there, but it's scattered and redundant.
+      Since our AST mirrors tsc's, we could theoretically extract our schema
+      <em>from</em> tsc's <code class="inline-code">forEachChildTable</code> &mdash;
+      it's the most complete encoding of "what children does each node have?" in the
+      entire compiler. But our <code class="inline-code">defineNode()</code> approach is better
+      because it's explicit, introspectable, and type-safe.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 6: tree-sitter -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>6. tree-sitter &mdash; JavaScript Grammar DSL</h2>
+    <span class="badge badge-gen">Generated</span>
+  </div>
+  <div class="section-body">
+    <p>tree-sitter uses a JavaScript-based grammar DSL that defines both the parsing rules
+    and the tree structure. The grammar is executable JavaScript that generates a C parser.</p>
+
+    <div class="card hl-green">
+      <h4>The Pipeline</h4>
+      <div class="flow">
+        <span class="flow-box hl-green">grammar.js</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">tree-sitter generate</span>
+        <span class="flow-arrow">&rarr;</span>
+        <span class="flow-box">parser.c</span>
+        <span class="flow-arrow">+</span>
+        <span class="flow-box">node-types.json</span>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab(this, 'ts-grammar')">grammar.js</button>
+      <button class="tab-btn" onclick="showTab(this, 'ts-nodetypes')">node-types.json</button>
+    </div>
+
+    <div id="ts-grammar" class="tab-pane active">
+<pre><code>// tree-sitter-javascript/grammar.js (simplified)
+
+module.exports = grammar({
+  name: 'javascript',
+
+  rules: {
+    if_statement: $ => seq(
+      'if',
+      field('condition', $.parenthesized_expression),
+      field('consequence', $.statement),
+      optional(seq('else', field('alternative', $.statement)))
+    ),
+
+    function_declaration: $ => seq(
+      optional('async'),
+      'function',
+      optional(field('name', $.identifier)),
+      field('parameters', $.formal_parameters),
+      field('body', $.statement_block)
+    ),
+
+    class_declaration: $ => seq(
+      repeat(field('decorator', $.decorator)),
+      'class',
+      field('name', $.identifier),
+      optional(field('type_parameters', $.type_parameters)),
+      optional($.class_heritage),
+      field('body', $.class_body)
+    ),
+  }
+});</code></pre>
+      <p><strong>Key features:</strong> <code class="inline-code">field('name', ...)</code> creates
+      named children &mdash; accessible as <code class="inline-code">node.childForFieldName('name')</code>.
+      <code class="inline-code">optional(...)</code> marks optional children.
+      <code class="inline-code">repeat(...)</code> marks lists.
+      The grammar serves double duty: it defines both parsing rules AND tree structure.</p>
+    </div>
+
+    <div id="ts-nodetypes" class="tab-pane">
+      <p>tree-sitter also generates a <code class="inline-code">node-types.json</code> schema:</p>
+<pre><code>// Generated node-types.json (schema as data!)
+[
+  {
+    "type": "if_statement",
+    "named": true,
+    "fields": {
+      "condition": {
+        "multiple": false,
+        "required": true,
+        "types": [{ "type": "parenthesized_expression", "named": true }]
+      },
+      "consequence": {
+        "multiple": false,
+        "required": true,
+        "types": [{ "type": "statement", "named": true }]
+      },
+      "alternative": {
+        "multiple": false,
+        "required": false,
+        "types": [{ "type": "statement", "named": true }]
+      }
+    }
+  }
+]</code></pre>
+      <p>This JSON schema is exactly the kind of introspectable data our
+      <code class="inline-code">NodeSchema</code> provides at runtime.
+      tree-sitter uses it for syntax highlighting queries, code navigation, etc.</p>
+    </div>
+
+    <div class="card hl-purple">
+      <h4>Lesson for KSC</h4>
+      <p>tree-sitter's <code class="inline-code">node-types.json</code> is compelling: a machine-readable
+      schema derived from the grammar. Our <code class="inline-code">ksNodeSchema</code> provides the
+      same capability but at runtime in TypeScript. tree-sitter also shows the value of
+      named fields &mdash; <code class="inline-code">field('condition', ...)</code> is the parsing-grammar
+      equivalent of our <code class="inline-code">condition: child()</code>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 7: Silver -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>7. Silver &mdash; Extensible AG with Forwarding</h2>
+    <span class="badge badge-gen">Generated</span>
+  </div>
+  <div class="section-body">
+    <p>Silver (from the University of Minnesota) is an attribute grammar system designed for
+    <em>language extension</em>. Its grammar definitions are similar to JastAdd's but with
+    a focus on composability and forwarding.</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab(this, 'silver-grammar')">Grammar</button>
+      <button class="tab-btn" onclick="showTab(this, 'silver-attrs')">Attributes</button>
+    </div>
+
+    <div id="silver-grammar" class="tab-pane active">
+<pre><code>-- Silver grammar definition
+
+nonterminal Expr with pp, errors, env, type;
+nonterminal Stmt with pp, errors, env;
+nonterminal Decl with pp, errors, defs;
+
+-- Productions define tree structure
+abstract production ifStmt
+top::Stmt ::= c::Expr  th::Stmt  el::Stmt
+{
+  top.pp = "if (" ++ c.pp ++ ") " ++ th.pp ++ " else " ++ el.pp;
+  top.errors = c.errors ++ th.errors ++ el.errors;
+  c.env = top.env;
+  th.env = top.env;
+  el.env = top.env;
+}
+
+abstract production classDecl
+top::Decl ::= name::String  super::Maybe&lt;TypeExpr&gt;  body::[Decl]
+{
+  top.defs = [classDef(name, ...)];
+  top.pp = "class " ++ name ++ ...;
+}
+
+-- Forwarding: extension productions translate to core
+abstract production forLoop
+top::Stmt ::= init::Stmt  cond::Expr  step::Stmt  body::Stmt
+{
+  forwards to
+    blockStmt([init, whileStmt(cond, blockStmt([body, step]))]);
+}</code></pre>
+      <p><strong>Key features:</strong> Silver combines grammar and attributes in the same
+      production. Children are declared in the production signature
+      (<code class="inline-code">c::Expr  th::Stmt  el::Stmt</code>).
+      <code class="inline-code">nonterminal</code> declarations list which attributes exist.
+      Forwarding enables language extensions.</p>
+    </div>
+
+    <div id="silver-attrs" class="tab-pane">
+      <div class="card">
+        <h4>Silver's Attribute System</h4>
+        <ul>
+          <li><strong>Synthesized:</strong> <code class="inline-code">synthesized attribute pp :: String occurs on Expr, Stmt;</code></li>
+          <li><strong>Inherited:</strong> <code class="inline-code">inherited attribute env :: [Def] occurs on Expr, Stmt;</code></li>
+          <li><strong>Collection:</strong> <code class="inline-code">collection attribute errors :: [Error] with ++ occurs on Expr;</code></li>
+          <li><strong>Propagate:</strong> <code class="inline-code">propagate env;</code> &mdash; automatically copies inherited attrs to all children</li>
+          <li><strong>Forwarding:</strong> Productions can delegate to other productions, enabling modular extension</li>
+          <li><strong>Aspects:</strong> <code class="inline-code">aspect production add ... { }</code> &mdash; add equations to existing productions from another module</li>
+        </ul>
+        <p>Silver's key innovation over JastAdd is <em>modular well-definedness analysis</em> &mdash;
+        you can prove that independently developed language extensions won't conflict at compile time.</p>
+      </div>
+    </div>
+
+    <div class="card hl-purple">
+      <h4>Lesson for KSC</h4>
+      <p>Silver's approach of bundling grammar and attributes in the same production is the
+      opposite of our de-fusion. But Silver's <code class="inline-code">nonterminal</code>
+      declarations (listing which attributes exist on which nodes) are interesting &mdash;
+      they're a form of declaration that could inform our completeness checking. Silver also
+      shows that collection attributes with explicit monoid structure
+      (<code class="inline-code">with ++</code>) are standard practice, validating our
+      <code class="inline-code">CollectionDecl</code> design.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 8: ANTLR + Kiama + Spoofax -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>8. Other Notable Systems</h2>
+    <span class="badge badge-system">Reference</span>
+  </div>
+  <div class="section-body">
+
+    <div class="card">
+      <h4>ANTLR &mdash; Grammar Defines Parse Tree, Not AST</h4>
+<pre><code>// ANTLR grammar (defines parse tree structure)
+ifStatement
+    : IF '(' expression ')' statement (ELSE statement)?
+    ;
+
+classDeclaration
+    : CLASS IDENTIFIER typeParameters?
+      (EXTENDS typeType)?
+      (IMPLEMENTS typeList)?
+      classBody
+    ;</code></pre>
+      <p>ANTLR generates a parse tree (CST), not an AST. Each grammar rule becomes a
+      <code class="inline-code">Context</code> class with typed accessors for children.
+      ANTLR also generates Visitor and Listener base classes. The parse tree is
+      typically lowered to an AST by hand. This means ANTLR doesn't actually define
+      the AST schema &mdash; just the parsing structure.</p>
+    </div>
+
+    <div class="card">
+      <h4>Kiama (Scala) &mdash; Case Classes as Schema</h4>
+<pre><code>// Kiama uses Scala case classes directly
+sealed trait Stmt
+case class IfStmt(
+  cond: Expr,
+  thenBranch: Stmt,
+  elseBranch: Option[Stmt]
+) extends Stmt
+
+case class ClassDecl(
+  name: String,
+  members: List[Member],
+  parent: Option[TypeRef]
+) extends Stmt
+
+// Attribution via Kiama's library
+val lookup: Expr => Option[Decl] =
+  attr { case IdnUse(n) => env(n) }
+
+val env: Node => Map[String, Decl] =
+  attrWithDefault(Map.empty) {
+    case tree.parent(Block(stmts, _)) => /* ... */
+  }</code></pre>
+      <p>Kiama's approach is the <em>library</em> approach &mdash; no code generation, no DSL.
+      Scala case classes serve as the schema (they define children via constructor parameters).
+      Pattern matching serves as production equations. This is the closest existing system to
+      what we're building in TypeScript.</p>
+    </div>
+
+    <div class="card">
+      <h4>Spoofax/SDF3 &mdash; Language Workbench</h4>
+<pre><code>// SDF3 syntax definition (Spoofax)
+context-free syntax
+  Stmt.If = [if ([Expr]) [Stmt] else [Stmt]]
+  Stmt.While = [while ([Expr]) [Stmt]]
+  Decl.Class = [class [ID] { [Member*] }]
+
+// Generates: Java term classes, pretty-printer,
+// parser, type signatures for Stratego rewriting</code></pre>
+      <p>Spoofax is a full language workbench: the syntax definition generates everything
+      including the parser, AST term classes, editor services, and Stratego rewriting rules.
+      The grammar IS the schema. Most ambitious but also most heavyweight.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 9: Comparison Matrix -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>9. Comparison Matrix</h2>
+    <span class="badge badge-system">Analysis</span>
+  </div>
+  <div class="section-body">
+
+    <table class="cmp-table">
+      <tr>
+        <th>System</th>
+        <th>Schema Format</th>
+        <th>Code Gen?</th>
+        <th>Named Children</th>
+        <th>child/list/opt</th>
+        <th>Child Types</th>
+        <th>Props</th>
+        <th>Introspectable</th>
+        <th>Attributes</th>
+      </tr>
+      <tr>
+        <td><strong>Roslyn</strong></td>
+        <td>XML (Syntax.xml)</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="p">Partial</td>
+        <td class="n">No (separate analysis)</td>
+      </tr>
+      <tr>
+        <td><strong>rust-analyzer</strong></td>
+        <td>Ungrammar DSL</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="n">No</td>
+        <td class="n">No</td>
+        <td class="n">No (ad-hoc analysis)</td>
+      </tr>
+      <tr>
+        <td><strong>JastAdd</strong></td>
+        <td>BNF-like (.ast)</td>
+        <td class="y">Yes (Java)</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes (tokens)</td>
+        <td class="n">No</td>
+        <td class="y">Yes (.jrag/.jadd)</td>
+      </tr>
+      <tr>
+        <td><strong>Silver</strong></td>
+        <td>AG DSL</td>
+        <td class="y">Yes (Java)</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="n">No</td>
+        <td class="y">Yes (in productions)</td>
+      </tr>
+      <tr>
+        <td><strong>tree-sitter</strong></td>
+        <td>JavaScript DSL</td>
+        <td class="y">Yes (C)</td>
+        <td class="y">Yes (field())</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="n">No</td>
+        <td class="y">node-types.json</td>
+        <td class="n">No</td>
+      </tr>
+      <tr>
+        <td><strong>TypeScript (tsc)</strong></td>
+        <td>None (implicit)</td>
+        <td class="n">No</td>
+        <td class="y">Yes</td>
+        <td class="p">Implicit</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="n">No</td>
+        <td class="n">No</td>
+      </tr>
+      <tr>
+        <td><strong>ANTLR</strong></td>
+        <td>Grammar DSL</td>
+        <td class="y">Yes</td>
+        <td class="p">Labels only</td>
+        <td class="p">Via grammar rules</td>
+        <td class="p">Partial</td>
+        <td class="n">No</td>
+        <td class="n">No</td>
+        <td class="n">No</td>
+      </tr>
+      <tr>
+        <td><strong>Kiama</strong></td>
+        <td>Scala case classes</td>
+        <td class="n">No (library)</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="p">Reflection</td>
+        <td class="y">Yes (library)</td>
+      </tr>
+      <tr style="background: rgba(63,185,80,0.08);">
+        <td><strong>KSC (defineNode)</strong></td>
+        <td>TS builders</td>
+        <td class="n">No (library)</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes (phantom)</td>
+        <td class="y">Yes</td>
+        <td class="y">Yes (runtime)</td>
+        <td class="y">Yes (AG library)</td>
+      </tr>
+    </table>
+
+    <div class="card hl">
+      <h4>Where KSC Sits</h4>
+      <p>KSC's <code class="inline-code">defineNode()</code> approach is most similar to
+      <strong>Kiama's</strong> (library-based, language-native schema, no codegen) but
+      with the runtime introspection of <strong>tree-sitter's</strong>
+      <code class="inline-code">node-types.json</code> and the attribute system of
+      <strong>JastAdd</strong>. We get the benefits of a schema without the build step.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 10: Patterns & Insights -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>10. Patterns and Insights</h2>
+    <span class="badge badge-system">Analysis</span>
+  </div>
+  <div class="section-body">
+
+    <div class="card hl-green">
+      <h4>Pattern 1: Successful compilers converge on schema-first</h4>
+      <p>Every compiler that has reached large scale (100+ node kinds) and is actively
+      maintained eventually moves toward an explicit schema. Roslyn started hand-written
+      and migrated to Syntax.xml. rust-analyzer created ungrammar specifically because
+      hand-writing was unsustainable. JastAdd and Silver were schema-first from day one.
+      TypeScript is the notable holdout &mdash; and it pays the cost in four parallel tables.</p>
+    </div>
+
+    <div class="card hl-green">
+      <h4>Pattern 2: The schema must define exactly four things</h4>
+      <p>Every system that has an explicit schema defines the same four things per node kind:</p>
+      <ol>
+        <li><strong>Kind discriminant</strong> &mdash; what kind of node this is</li>
+        <li><strong>Children</strong> &mdash; named sub-nodes, with cardinality (single, optional, list)</li>
+        <li><strong>Child types</strong> &mdash; what types of nodes can appear in each child slot</li>
+        <li><strong>Properties</strong> &mdash; non-child data (strings, numbers, booleans, flags)</li>
+      </ol>
+      <p>Our <code class="inline-code">defineNode('IfStatement', { expression: child(), thenStatement: child(), elseStatement: optChild() })</code>
+      captures exactly these four things.</p>
+    </div>
+
+    <div class="card hl-green">
+      <h4>Pattern 3: Schema and attributes should be separate</h4>
+      <p>JastAdd separates .ast (grammar) from .jrag (attributes). Roslyn separates
+      Syntax.xml (structure) from binding/analysis (semantics). rust-analyzer separates
+      ungrammar (syntax) from IDE analysis. Silver is the exception &mdash; it bundles them,
+      but this makes extension harder. Clean separation enables:</p>
+      <ul>
+        <li>Multiple independent analyses over the same tree structure</li>
+        <li>Schema validation independent of specific analyses</li>
+        <li>Tooling that works with structure alone (formatters, linters, visualizers)</li>
+      </ul>
+      <p>Our architecture follows this: <code class="inline-code">defineNode()</code> (structure)
+      is separate from <code class="inline-code">SpecInput</code> (attributes/analysis).</p>
+    </div>
+
+    <div class="card">
+      <h4>Pattern 4: Two layers &mdash; generic tree library + language-specific schema</h4>
+      <p>Multiple systems use a two-layer architecture:</p>
+      <ul>
+        <li><strong>rust-analyzer:</strong> rowan (generic tree) + ungrammar (Rust-specific schema)</li>
+        <li><strong>Kiama:</strong> Kiama core (generic attribution) + case classes (language-specific schema)</li>
+        <li><strong>KSC:</strong> <code class="inline-code">libs/ag/</code> (generic AG library) +
+        <code class="inline-code">libs/ag-schema/ + node-defs.ts</code> (TypeScript-specific schema)</li>
+      </ul>
+      <p>This is a validated architectural pattern. The generic library doesn't need to know
+      about specific node kinds &mdash; that knowledge lives in the schema layer.</p>
+    </div>
+
+    <div class="card">
+      <h4>Pattern 5: Codegen vs Runtime &mdash; a genuine tradeoff</h4>
+      <p>Systems split between code generation (Roslyn, JastAdd, rust-analyzer, tree-sitter)
+      and runtime/library approaches (Kiama, KSC). The tradeoffs:</p>
+      <table class="cmp-table">
+        <tr><th>Aspect</th><th>Code Generation</th><th>Runtime Library</th></tr>
+        <tr><td>Performance</td><td class="y">Optimal (no dispatch)</td><td class="p">Good (lazy getters)</td></tr>
+        <tr><td>Type safety</td><td class="y">Full static types</td><td class="y">Inferred types (phantom)</td></tr>
+        <tr><td>Build complexity</td><td class="n">Needs build step</td><td class="y">Zero build step</td></tr>
+        <tr><td>Debugging</td><td class="p">Generated code is opaque</td><td class="y">Transparent source</td></tr>
+        <tr><td>Flexibility</td><td class="n">Rigid (re-run generator)</td><td class="y">Dynamic (runtime schema)</td></tr>
+        <tr><td>Introspection</td><td class="p">If schema is retained</td><td class="y">Schema IS the runtime</td></tr>
+      </table>
+      <p>For KSC, the runtime approach wins because: (a) our tree is already built by tsc's parser,
+      so we don't need codegen for parsing; (b) TypeScript's type inference gives us static types
+      without codegen; (c) runtime introspection enables completeness checking and tooling.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 11: Our Options -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>11. Our Options Going Forward</h2>
+    <span class="badge badge-option">Options</span>
+  </div>
+  <div class="section-body">
+
+    <div class="card hl-green">
+      <h4>Option A: Stay the Course (defineNode + runtime schema) <em>&mdash; Current</em></h4>
+      <p>Keep our current <code class="inline-code">defineNode()</code> approach with
+      <code class="inline-code">node-defs.ts</code> as the source of truth. Already implemented
+      and working (360 definitions, 107 tests passing). Most similar to Kiama.</p>
+      <ul>
+        <li><strong>Pros:</strong> Already done. No build step. Runtime introspection. TypeScript-native.
+        Schema derives getChildren, completeness checking.</li>
+        <li><strong>Cons:</strong> Verbose (2147 lines for 360 nodes). Type inference is phantom-based
+        (less intuitive than plain interfaces). No auto-sync with tsc upgrades.</li>
+        <li><strong>Best for:</strong> Iterating quickly, keeping complexity low.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h4>Option B: Custom DSL + Codegen (Roslyn/ungrammar style)</h4>
+      <p>Write our own DSL (like ungrammar) and generate <code class="inline-code">ast.ts</code>,
+      <code class="inline-code">node-defs.ts</code>, and converter scaffolding from it.</p>
+<pre><code>// Hypothetical ksc.grammar
+IfStatement : Statement =
+  expression: Expression
+  thenStatement: Statement
+  elseStatement?: Statement
+
+ClassDeclaration : Declaration =
+  &lt;name&gt;: Identifier?
+  typeParameters: TypeParameter*
+  members: ClassElement*
+  heritageClauses: HeritageClause*
+  modifiers: Modifier*</code></pre>
+      <ul>
+        <li><strong>Pros:</strong> Concise. Could generate both interfaces AND defineNode calls.
+        Clean diff when AST changes. Could auto-generate converters too.</li>
+        <li><strong>Cons:</strong> Needs a parser for the DSL. Build step required. Custom tooling
+        to maintain. Overkill for 360 mostly-stable definitions.</li>
+        <li><strong>Best for:</strong> If we expect frequent AST changes or want to target multiple languages.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h4>Option C: Derive from tsc's Source</h4>
+      <p>Use TypeScript's compiler API to parse <code class="inline-code">typescript.d.ts</code>
+      and extract node interfaces automatically. Or parse the
+      <code class="inline-code">forEachChildTable</code> from <code class="inline-code">typescript.js</code>.</p>
+      <ul>
+        <li><strong>Pros:</strong> Auto-sync with TypeScript upgrades. Zero manual maintenance.
+        Always matches tsc's actual behavior.</li>
+        <li><strong>Cons:</strong> Fragile (depends on tsc internals). Our AST isn't a pure mirror
+        (KSProgram, KSCompilationUnit, string kinds, extra props). Complex extraction logic.
+        Deep inheritance chains in tsc's types make extraction non-trivial.</li>
+        <li><strong>Best for:</strong> If TypeScript upgrades frequently break our AST.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h4>Option D: Hybrid &mdash; defineNode() + Verification Against tsc</h4>
+      <p>Keep <code class="inline-code">defineNode()</code> as the source of truth, but add a
+      verification test that compares our schema against tsc's
+      <code class="inline-code">forEachChild</code> behavior at runtime. Catches drift on
+      TypeScript upgrades.</p>
+      <ul>
+        <li><strong>Pros:</strong> Best of both worlds. Our schema is the source of truth
+        (explicit, introspectable). tsc's behavior is the validation oracle.
+        Fails fast if they diverge.</li>
+        <li><strong>Cons:</strong> Need to construct sample nodes for each SyntaxKind to test.
+        Some fields (like our extra props) can't be verified against tsc.</li>
+        <li><strong>Best for:</strong> Production-quality confidence with minimal complexity.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h4>Option E: tree-sitter Style &mdash; Export node-types.json</h4>
+      <p>Add a build step that exports our <code class="inline-code">ksNodeSchema</code> to a
+      <code class="inline-code">node-types.json</code> file, enabling tooling that doesn't
+      need to import our TypeScript code.</p>
+      <ul>
+        <li><strong>Pros:</strong> Machine-readable schema for external tools. Could power editor
+        extensions, syntax highlighting, code navigation. Standard format.</li>
+        <li><strong>Cons:</strong> Another artifact to keep in sync. Minor &mdash; easy to generate
+        from existing schema.</li>
+        <li><strong>Best for:</strong> When we need external tooling support.</li>
+      </ul>
+    </div>
+
+    <div class="card hl">
+      <h4>Recommended: A + D (current approach + tsc verification)</h4>
+      <p>Option A is already implemented and working. Adding Option D (verification against tsc)
+      would give us confidence that our schema stays in sync with TypeScript. This is the
+      pragmatic path: we get schema-first benefits now, with a safety net for the future.
+      Options B, C, and E can be added later if needed.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Section 12: Quiz -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="chevron">&#9654;</span>
+    <h2>12. Quiz: Test Your Understanding</h2>
+    <span class="badge badge-quiz">Quiz</span>
+  </div>
+  <div class="section-body">
+    <p>Click each question to reveal the answer.</p>
+    <div class="flashcard-deck">
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">1. What is Roslyn's Syntax.xml?</div>
+        <div class="a">An XML schema file that defines every syntax node kind in C#/VB. It specifies
+        each node's name, base class, child fields (with names, types, and optionality), and
+        token constraints. A code generator produces ~30,000 lines of C# from it: node classes,
+        factory methods, visitor dispatch, and the red/green tree layers.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">2. How does rust-analyzer's ungrammar differ from a parsing grammar?</div>
+        <div class="a">Ungrammar describes tree <em>structure</em>, not parsing rules. It defines
+        what children each node kind has (with names, types, optionality, repetition) but says
+        nothing about how to parse text into that tree. The parser is written separately.
+        That's why it's called "un-grammar" &mdash; it's the complement of a parsing grammar.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">3. How does JastAdd separate structure from behavior?</div>
+        <div class="a">.ast files define tree structure (children, their types, cardinality, token attributes).
+        .jrag/.jadd files define attribute equations (syn, inh, collection, circular, NTA).
+        The JastAdd compiler weaves them together into Java classes. This separation is the
+        "de-fusion" principle our architecture follows.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">4. Why does TypeScript's compiler have "four parallel tables"?</div>
+        <div class="a">Because tsc has no explicit schema. The knowledge of "what children does
+        IfStatement have?" is encoded independently in: (1) the interface definition in .d.ts,
+        (2) the forEachChildTable for traversal, (3) the visitEachChildTable for transformation,
+        (4) the NodeFactory for creation. These four must be kept in sync manually.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">5. What is tree-sitter's node-types.json?</div>
+        <div class="a">A machine-readable JSON schema generated from the grammar. For each node kind,
+        it lists all named fields with their types, cardinality (multiple: true/false), and
+        whether they're required. This enables tooling (syntax highlighting, code navigation)
+        to understand the tree structure without parsing the grammar DSL.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">6. What do Kiama and KSC have in common?</div>
+        <div class="a">Both are <em>library-based</em> approaches that use the host language's own
+        type system as the schema. Kiama uses Scala case classes; KSC uses TypeScript's
+        defineNode() with phantom types. Neither requires a build step or code generation.
+        Both provide runtime attribution (lazy computed attributes on tree nodes).</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">7. What is rowan's relationship to rust-analyzer?</div>
+        <div class="a">Rowan is the generic tree library that rust-analyzer builds on. It provides
+        SyntaxNode, SyntaxToken, and the green/red tree architecture. It doesn't know about
+        Rust syntax &mdash; that knowledge lives in the ungrammar-generated typed wrappers.
+        This two-layer architecture (generic tree + language-specific schema) mirrors our
+        libs/ag/ + libs/ag-schema/ separation.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">8. What are the four things every AST schema must define per node kind?</div>
+        <div class="a">(1) Kind discriminant &mdash; what type of node this is.
+        (2) Children &mdash; named sub-nodes with cardinality (single, optional, list).
+        (3) Child types &mdash; what types of nodes can appear in each child slot.
+        (4) Properties &mdash; non-child scalar data (strings, numbers, flags).
+        Every system with an explicit schema encodes exactly these four things.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">9. Why does KSC use runtime schema instead of code generation?</div>
+        <div class="a">Three reasons: (a) Our tree is already built by tsc's parser, so we don't need
+        codegen for construction. (b) TypeScript's type inference (via phantom types) gives us
+        static types without codegen. (c) Runtime introspection enables completeness checking,
+        schema-derived getChildren, and tooling &mdash; the schema IS the runtime, not a separate
+        artifact that generates code.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">10. What is Silver's "forwarding" and why does it matter?</div>
+        <div class="a">Forwarding lets an extension production delegate to a host-language production.
+        A forLoop production can forward to a whileLoop, meaning any attribute defined on
+        whileLoop automatically works on forLoop without additional equations. This enables
+        modular language extensions that compose safely. KSC doesn't need forwarding (we
+        analyze a fixed language) but the concept validates modular attribute definition.</div>
+      </div>
+
+      <div class="flashcard" onclick="this.classList.toggle('revealed')">
+        <div class="q">11. What is the recommended option for KSC going forward?</div>
+        <div class="a">Option A + D: Keep defineNode() as the source of truth (already implemented,
+        360 definitions, 107 tests passing) and add a verification test that compares our schema
+        against tsc's forEachChild behavior at runtime. This gives schema-first benefits now with
+        a safety net that catches drift on TypeScript upgrades. Other options (DSL, codegen,
+        tsc extraction) can be added later if needed.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+function toggleSection(header) {
+  header.classList.toggle('open');
+}
+
+function showTab(btn, paneId) {
+  const bar = btn.parentElement;
+  const container = bar.parentElement;
+  bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  container.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(paneId).classList.add('active');
+}
+</script>
+
+</body>
+</html>

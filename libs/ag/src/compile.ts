@@ -4,11 +4,65 @@
  * This is the single point where domain (declaration), rules (equation),
  * and strategy (caching/evaluation mechanism) fuse into an installable
  * AttributeDef. The strategy is derived from the declaration's direction.
+ *
+ * Also contains installLazy — the JastAdd-style lazy caching mechanism
+ * used by all cached attribute strategies.
  */
 
-import type { AttributeDef } from './types.js';
-import type { AttrDecl, SynDecl, InhDecl, CircularDecl, CollectionDecl } from './decl.js';
-import { installLazy } from './stamp.js';
+import type { AttrDecl, SynDecl, InhDecl, CircularDecl, CollectionDecl } from './spec.js';
+
+// ── Core types ──────────────────────────────────────────────────────────
+
+/**
+ * An attribute definition that can be installed on nodes.
+ *
+ * This is the compiled output of compile(decl, eq) — it knows HOW
+ * to compute the attribute and HOW to cache it. Call install() to
+ * put a lazy getter on a specific node under a specific key.
+ */
+export interface AttributeDef<N extends object, V = any> {
+  install(node: N, key: string): void;
+}
+
+/** Map of named attribute definitions (compiled equations). */
+export type AttributeMap<N extends object> = Record<string, AttributeDef<N>>;
+
+// ── installLazy ─────────────────────────────────────────────────────────
+
+/**
+ * Install a lazy-computing getter on a node.
+ *
+ * On first access of `node[key]`:
+ *   1. Calls `compute(node)` to get the value
+ *   2. Replaces the getter with a plain data property
+ *   3. Returns the cached value
+ *
+ * This is the JS equivalent of JastAdd's:
+ *   if (attrName_computed) return attrName_value;
+ *   attrName_computed = true;
+ *   attrName_value = equation();
+ *   return attrName_value;
+ */
+export function installLazy<N extends object, V>(
+  node: N,
+  key: string,
+  compute: (node: N) => V,
+): void {
+  Object.defineProperty(node, key, {
+    configurable: true,
+    enumerable: true,
+    get() {
+      const value = compute(node);
+      Object.defineProperty(node, key, {
+        value,
+        writable: false,
+        configurable: false,
+        enumerable: true,
+      });
+      return value;
+    },
+  });
+}
 
 // ── Public API ───────────────────────────────────────────────────────────
 

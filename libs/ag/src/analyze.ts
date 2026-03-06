@@ -11,8 +11,8 @@
  * attributes were read.
  */
 
-import type { AttributeDef } from './types.js';
-import { stampTree } from './stamp.js';
+import type { AttributeDef } from './compile.js';
+import { stampTree } from './interpret.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 

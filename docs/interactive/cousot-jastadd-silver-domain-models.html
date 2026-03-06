@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cousot vs JastAdd vs Silver: Domain Models Compared</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --text-bright: #e6edf3;
+    --accent: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-yellow: #d29922;
+    --accent-orange: #db6d28;
+    --accent-red: #f85149;
+    --accent-purple: #bc8cff;
+    --accent-pink: #f778ba;
+    --cousot: #bc8cff;
+    --jastadd: #f0883e;
+    --silver: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1e2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+  }
+  .hero h1 { font-size: 1.9rem; color: var(--text-bright); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+  .hero .subtitle { font-size: 1.05rem; color: var(--text-muted); max-width: 900px; margin: 0 auto 1.5rem; }
+  .container { max-width: 1150px; margin: 0 auto; padding: 2rem; }
+
+  .section { margin-bottom: 2rem; }
+  .section-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { border-color: var(--accent); }
+  .section-header h2 { font-size: 1.15rem; color: var(--text-bright); flex: 1; }
+  .chevron { color: var(--accent); font-size: 0.75rem; transition: transform 0.2s; }
+  .section-header.open .chevron { transform: rotate(90deg); }
+  .section-body {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 8px 8px;
+    padding: 1.5rem; display: none;
+  }
+  .section-header.open + .section-body { display: block; }
+  .badge {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge-compare { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .badge-model { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+  .badge-arch { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .badge-quiz { background: rgba(247,120,186,0.15); color: var(--accent-pink); }
+  .badge-diverge { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+  .badge-same { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+
+  .card {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .card h4 { color: var(--accent); font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .card.hl-cousot { border-color: var(--cousot); border-width: 2px; }
+  .card.hl-jastadd { border-color: var(--jastadd); border-width: 2px; }
+  .card.hl-silver { border-color: var(--silver); border-width: 2px; }
+  .card.hl-green { border-color: var(--accent-green); border-width: 2px; }
+  .card.hl-red { border-color: var(--accent-red); border-width: 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 0; }
+  .tab-btn {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    padding: 6px 14px; color: var(--text-muted); cursor: pointer;
+    font-size: 0.85rem; font-weight: 500;
+  }
+  .tab-btn.active { background: var(--bg-secondary); color: var(--accent); border-color: var(--accent); }
+  .tab-panel { display: none; padding: 1rem 0; }
+  .tab-panel.active { display: block; }
+
+  pre {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1rem; overflow-x: auto;
+    font-size: 0.85rem; line-height: 1.5; margin: 0.75rem 0;
+  }
+  code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+  .ic { background: rgba(88,166,255,0.1); color: var(--accent); padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  .kw { color: var(--accent-purple); }
+  .fn { color: #d2a8ff; }
+  .ty { color: var(--accent-green); }
+  .str { color: #a5d6ff; }
+  .cm { color: var(--text-muted); }
+
+  .diagram {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.5rem; margin: 1rem 0;
+    font-family: 'SF Mono', monospace; font-size: 0.82rem;
+    line-height: 1.7; white-space: pre; overflow-x: auto;
+    color: var(--text);
+  }
+  .diagram .d-label { color: var(--accent); font-weight: 600; }
+  .diagram .d-arrow { color: var(--accent-yellow); }
+  .diagram .d-type { color: var(--accent-green); }
+  .diagram .d-comment { color: var(--text-muted); font-style: italic; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+  th { background: var(--bg-tertiary); color: var(--accent); text-align: left; padding: 8px 12px; border: 1px solid var(--border); font-weight: 600; }
+  td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(88,166,255,0.04); }
+  .col-cousot { color: var(--cousot); }
+  .col-jastadd { color: var(--jastadd); }
+  .col-silver { color: var(--silver); }
+
+  .flashcard {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  .flashcard:hover { border-color: var(--accent-pink); }
+  .flashcard .q { color: var(--accent-pink); font-weight: 600; font-size: 0.9rem; }
+  .flashcard .a { color: var(--text); margin-top: 0.75rem; display: none; font-size: 0.88rem; }
+  .flashcard.open .a { display: block; }
+  .flashcard .hint { color: var(--text-muted); font-size: 0.78rem; margin-top: 0.25rem; }
+
+  .sys-label {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 700; margin-right: 4px;
+  }
+  .sys-cousot { background: rgba(188,140,255,0.2); color: var(--cousot); }
+  .sys-jastadd { background: rgba(240,136,62,0.2); color: var(--jastadd); }
+  .sys-silver { background: rgba(88,166,255,0.2); color: var(--silver); }
+
+  .obj-grid { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0.75rem 0; font-size: 0.88rem; }
+  .obj-name { color: var(--accent-yellow); font-family: 'SF Mono', monospace; font-weight: 600; white-space: nowrap; }
+  .obj-desc { color: var(--text); }
+
+  .equiv-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 0; margin-bottom: 1px;
+  }
+  .equiv-cell {
+    padding: 8px 12px; border: 1px solid var(--border);
+    font-size: 0.85rem; background: var(--bg-tertiary);
+  }
+  .equiv-cell.header {
+    font-weight: 700; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .equiv-cell.c-cousot { border-left: 3px solid var(--cousot); }
+  .equiv-cell.c-jastadd { border-left: 3px solid var(--jastadd); }
+  .equiv-cell.c-silver { border-left: 3px solid var(--silver); }
+  .equiv-cell code { font-size: 0.82rem; }
+
+  p { margin-bottom: 0.75rem; }
+  ul, ol { margin: 0.5rem 0 0.75rem 1.5rem; }
+  li { margin-bottom: 0.35rem; }
+  h3 { color: var(--text-bright); margin: 1rem 0 0.5rem; font-size: 1.05rem; }
+  strong { color: var(--text-bright); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+  .pillar {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;
+  }
+  .pillar h4 { margin-bottom: 0.5rem; }
+  .pillar-num {
+    display: inline-block; width: 24px; height: 24px; line-height: 24px;
+    text-align: center; border-radius: 50%; font-size: 0.75rem;
+    font-weight: 700; margin-right: 6px;
+  }
+  .pn-cousot { background: rgba(188,140,255,0.3); color: var(--cousot); }
+  .pn-jastadd { background: rgba(240,136,62,0.3); color: var(--jastadd); }
+  .pn-silver { background: rgba(88,166,255,0.3); color: var(--silver); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Cousot &middot; JastAdd &middot; Silver</h1>
+  <p class="subtitle">Three frameworks for computing over trees &mdash; their core objects, operations, nomenclature, and where they converge and diverge</p>
+  <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:1rem;">
+    <span class="sys-label sys-cousot">Cousot</span>
+    <span class="sys-label sys-jastadd">JastAdd</span>
+    <span class="sys-label sys-silver">Silver</span>
+    <span class="badge badge-model">Domain Models</span>
+    <span class="badge badge-compare">Comparison</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ================================================================= -->
+<!-- SECTION 1: THE THREE SYSTEMS -->
+<!-- ================================================================= -->
+<div class="section" id="sec-overview">
+  <div class="section-header open" onclick="toggleSection('sec-overview')">
+    <span class="chevron">&#9654;</span>
+    <h2>The Three Frameworks at a Glance</h2>
+    <span class="badge badge-compare">Overview</span>
+  </div>
+  <div class="section-body">
+
+    <div class="grid-3">
+      <div class="card hl-cousot">
+        <h4><span class="sys-label sys-cousot">Cousot</span> Abstract Interpretation</h4>
+        <p><strong>What it is:</strong> A mathematical framework for <em>sound approximation</em> of program semantics. The "weak interpreter" is the abstract interpreter &mdash; a systematically weakened version of the concrete interpreter that trades precision for computability.</p>
+        <p><strong>Core idea:</strong> Start with a concrete semantics (exact but undecidable). Derive abstract semantics via Galois connections. The abstract interpreter computes fixpoints over abstract domains, guaranteed to be <em>sound</em> (never misses real behaviors) but potentially <em>incomplete</em> (may report false alarms).</p>
+        <p><strong>Applied to grammars:</strong> Cousot &amp; Cousot (2007/2011) showed that classical grammar analyses &mdash; Knuth's problem, flow analysis, parsing &mdash; are all abstract interpretations of a fixpoint "protoderivation semantics."</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">P. Cousot &amp; R. Cousot. POPL 1977, TCS 2011. ENS Paris / NYU.</p>
+      </div>
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span> Metacompiler</h4>
+        <p><strong>What it is:</strong> A code generator for Reference Attribute Grammars (RAGs). Takes <code class="ic">.ast</code> + <code class="ic">.jrag/.jadd</code> aspect files and weaves them into Java classes with demand-driven evaluation, caching, and circular attribute support.</p>
+        <p><strong>Core idea:</strong> Define tree structure in <code class="ic">.ast</code> files. Define attribute equations in aspect files. JastAdd generates Java code where each attribute access triggers lazy evaluation. Circular attributes use Magnusson-Hedin fixpoint iteration.</p>
+        <p><strong>Key innovation:</strong> Reference attributes (pointers to arbitrary tree nodes), NTAs (computed subtrees), collection attributes (gather contributions from entire tree).</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">G. Hedin et al. Lund University. Since ~2003.</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span> AG Language</h4>
+        <p><strong>What it is:</strong> A full programming language for writing attribute grammars, compiling to Java. Self-hosted (Silver is written in Silver).</p>
+        <p><strong>Core idea:</strong> Nonterminals are types, productions are constructors, attributes are declared to "occur on" nonterminals, equations live inside productions. Undecorated trees (data) become decorated trees (attributed) by supplying inherited attributes.</p>
+        <p><strong>Key innovation:</strong> <em>Forwarding</em> (extension productions delegate to host-language trees), <em>Modular Well-Definedness Analysis</em> (guarantees safe composition of independently-developed extensions).</p>
+        <p style="color:var(--text-muted); font-size:0.82rem;">E. Van Wyk et al. U. Minnesota MELT group. Since ~2006.</p>
+      </div>
+    </div>
+
+    <h3>Fundamental Comparison</h3>
+    <table>
+      <tr>
+        <th></th>
+        <th class="col-cousot">Cousot</th>
+        <th class="col-jastadd">JastAdd</th>
+        <th class="col-silver">Silver</th>
+      </tr>
+      <tr>
+        <td><strong>Nature</strong></td>
+        <td>Mathematical theory</td>
+        <td>Code generator (tool)</td>
+        <td>Programming language</td>
+      </tr>
+      <tr>
+        <td><strong>Primary domain</strong></td>
+        <td>Program analysis / verification</td>
+        <td>Compiler construction</td>
+        <td>Extensible language design</td>
+      </tr>
+      <tr>
+        <td><strong>Input</strong></td>
+        <td>Program + abstract domain choice</td>
+        <td><code class="ic">.ast</code> + <code class="ic">.jrag/.jadd</code> files</td>
+        <td><code class="ic">.sv</code> Silver source files</td>
+      </tr>
+      <tr>
+        <td><strong>Output</strong></td>
+        <td>Sound invariants / properties</td>
+        <td>Generated Java classes</td>
+        <td>Generated Java (compiled JAR)</td>
+      </tr>
+      <tr>
+        <td><strong>Tree model</strong></td>
+        <td>Abstract syntax / control flow graph</td>
+        <td>Mutable Java objects + getParent()</td>
+        <td>Undecorated &rarr; Decorated (immutable)</td>
+      </tr>
+      <tr>
+        <td><strong>Evaluation</strong></td>
+        <td>Fixpoint iteration over abstract domain</td>
+        <td>Demand-driven (lazy) + caching</td>
+        <td>Demand-driven (lazy) + caching</td>
+      </tr>
+      <tr>
+        <td><strong>Circularity</strong></td>
+        <td>Widening / narrowing on lattices</td>
+        <td>Magnusson-Hedin fixpoint algorithm</td>
+        <td>Supported (less emphasis)</td>
+      </tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 2: COUSOT DOMAIN MODEL -->
+<!-- ================================================================= -->
+<div class="section" id="sec-cousot">
+  <div class="section-header" onclick="toggleSection('sec-cousot')">
+    <span class="chevron">&#9654;</span>
+    <h2>Cousot: The Abstract Interpretation Domain Model</h2>
+    <span class="badge badge-model">Core Objects</span>
+  </div>
+  <div class="section-body">
+
+    <div class="card" style="border-color: var(--accent-yellow); border-width: 2px; margin-bottom: 1.25rem;">
+      <h4 style="color: var(--accent-yellow);">A Note on the Term "Weak Interpreter"</h4>
+      <p>The specific phrase "weak interpreter" is not a named concept in Cousot's published work. What Cousot's framework describes is an <strong>abstract interpreter</strong> &mdash; a systematically <em>weakened</em> version of the concrete interpreter. The "weakness" is the defining feature: it trades precision for computability. We use "weak interpreter" here as an intuitive label for this central idea.</p>
+      <p style="margin-bottom:0">Cousot's grammar-related work (TCS 2011) applies abstract interpretation to context-free grammar derivation semantics &mdash; showing that classical grammar analyses (FIRST/FOLLOW, parsing) are progressively weaker interpreters of the same protoderivation semantics. Separately, Martin Jourdan (INRIA, 1984) developed the <strong>recursive evaluator</strong> for attribute grammars &mdash; a demand-driven/lazy AG evaluator from the same French research milieu. These are distinct contributions that address different problems.</p>
+    </div>
+
+    <p>Cousot's abstract interpretation is a <strong>theory of sound approximation</strong>. The core idea: systematically weaken (abstract) a concrete interpreter to make it computable, while guaranteeing it never misses real behaviors. Every component of the concrete interpreter has a corresponding abstract counterpart.</p>
+
+    <h3>The Core Objects</h3>
+
+    <div class="card hl-cousot">
+      <h4>The Seven Pillars of Abstract Interpretation</h4>
+      <div class="obj-grid">
+        <span class="obj-name">Concrete Domain (C, &le;)</span>
+        <span class="obj-desc">A complete lattice of concrete properties (e.g., sets of program states, sets of execution traces). The "ground truth" &mdash; what actually happens when a program runs.</span>
+
+        <span class="obj-name">Abstract Domain (A, &sqle;)</span>
+        <span class="obj-desc">A complete lattice of abstract properties (e.g., intervals [lo,hi], sign {+,-,0}, types). Machine-representable approximations of concrete properties.</span>
+
+        <span class="obj-name">Abstraction (&alpha;: C &rarr; A)</span>
+        <span class="obj-desc">Maps concrete properties to their "best" abstract approximation. Monotone: more concrete detail &rarr; at least as precise an abstraction.</span>
+
+        <span class="obj-name">Concretization (&gamma;: A &rarr; C)</span>
+        <span class="obj-desc">Maps abstract properties back to the set of concrete properties they represent. Every abstract value "means" a set of possible concrete values.</span>
+
+        <span class="obj-name">Galois Connection (&alpha;, &gamma;)</span>
+        <span class="obj-desc">The fundamental bridge: &alpha; and &gamma; form an adjunction where &alpha;(c) &sqle; a &hArr; c &le; &gamma;(a). Ensures the abstraction is "best possible" &mdash; no unnecessary loss of information.</span>
+
+        <span class="obj-name">Transfer Functions (f#)</span>
+        <span class="obj-desc">Abstract counterparts of concrete operations. If concrete operation f transforms states, then f# transforms abstract states <em>soundly</em>: &alpha;(f(c)) &sqle; f#(&alpha;(c)).</span>
+
+        <span class="obj-name">Fixpoint Computation</span>
+        <span class="obj-desc">Programs with loops/recursion need fixpoints. The concrete fixpoint (lfp f) is approximated by computing lfp f# in the abstract domain, possibly accelerated by <strong>widening</strong> (&nabla;) and refined by <strong>narrowing</strong> (&Delta;).</span>
+      </div>
+    </div>
+
+    <h3>The Concrete &harr; Abstract Symmetry</h3>
+    <div class="diagram"><span class="d-label">CONCRETE WORLD</span>                          <span class="d-label">ABSTRACT WORLD</span>
+                                                  ("weak interpreter")
+<span class="d-type">Concrete Domain</span>  (C, &le;)    <span class="d-arrow">&larr;&mdash; &gamma; &mdash;</span>    (A, &sqle;)  <span class="d-type">Abstract Domain</span>
+    exact states                <span class="d-arrow">&mdash; &alpha; &mdash;&rarr;</span>       approximate states
+    {x=3, y=7}                                  x &isin; [1,10], y &isin; [0,&infin;)
+
+<span class="d-type">Concrete Semantics</span>         <span class="d-arrow">&mdash; abstracted to &mdash;&rarr;</span>    <span class="d-type">Abstract Semantics</span>
+    all possible traces                         sound over-approximation
+    (undecidable in general)                    (computable)
+
+<span class="d-type">Concrete Transfer</span>  f       <span class="d-arrow">&mdash; abstracted to &mdash;&rarr;</span>    f#  <span class="d-type">Abstract Transfer</span>
+    x := x + 1                                 [lo,hi] &rarr; [lo+1, hi+1]
+
+<span class="d-type">Concrete Fixpoint</span>  lfp f   <span class="d-arrow">&mdash; approximated by &mdash;&rarr;</span>  lfp f#  <span class="d-type">Abstract Fixpoint</span>
+    (may not terminate)                         (terminates via widening)</div>
+
+    <h3>The Hierarchy of Semantics</h3>
+    <p>A key Cousot contribution: program semantics form a <strong>hierarchy of abstractions</strong>, each level an abstract interpretation of the one below it:</p>
+
+    <div class="card">
+      <h4>Cousot's Semantic Hierarchy (by successive abstraction)</h4>
+      <ol>
+        <li><strong>Maximal Trace Semantics</strong> &mdash; all possible execution traces (most concrete)</li>
+        <li><strong>Big-Step Semantics</strong> &mdash; input&rarr;output pairs (abstracting away intermediate steps)</li>
+        <li><strong>Relational Semantics</strong> &mdash; natural, demoniac, angelic variants</li>
+        <li><strong>Denotational Semantics</strong> &mdash; Scott/Strachey-style function denotations</li>
+        <li><strong>Collecting Semantics</strong> &mdash; sets of reachable states at each program point</li>
+        <li><strong>Predicate Transformer Semantics</strong> &mdash; wp / wlp (Dijkstra)</li>
+        <li><strong>Axiomatic Semantics</strong> &mdash; Hoare triples {P}S{Q} (most abstract)</li>
+      </ol>
+      <p>Each level is connected to the one above by a <strong>Galois connection</strong>. The abstract interpreter at each level is a "weaker" interpreter than the one below &mdash; it sees less detail but can answer coarser questions more efficiently.</p>
+    </div>
+
+    <h3>Applied to Grammars</h3>
+    <p>Cousot &amp; Cousot (2007/2011) showed that grammar analysis follows the same pattern. Starting from a concrete <strong>protoderivation semantics</strong> (all possible derivation steps of a context-free grammar, modeled as a transition system akin to a pushdown automaton), successive abstractions yield:</p>
+    <ul>
+      <li><strong>Derivational semantics</strong> &mdash; sets of derivation sequences</li>
+      <li><strong>Equational (language) semantics</strong> &mdash; Knuth's context-free grammar problem</li>
+      <li><strong>Grammar flow analysis</strong> &mdash; classical FIRST/FOLLOW/nullable analyses</li>
+      <li><strong>Parsing algorithms</strong> &mdash; Earley's algorithm is an abstract interpretation of the derivation semantics</li>
+    </ul>
+    <p>Each of these is a <em>progressively weaker interpreter</em> of the grammar &mdash; losing detail about derivations but gaining computability and efficiency.</p>
+
+    <h3>Key Operations</h3>
+    <table>
+      <tr><th>Operation</th><th>What it does</th><th>Role in the framework</th></tr>
+      <tr><td><code class="ic">&alpha;(c)</code></td><td>Abstract a concrete property</td><td>Sound over-approximation</td></tr>
+      <tr><td><code class="ic">&gamma;(a)</code></td><td>Concretize an abstract property</td><td>What an abstract value "means"</td></tr>
+      <tr><td><code class="ic">f#(a)</code></td><td>Apply abstract transfer function</td><td>One step of the weak interpreter</td></tr>
+      <tr><td><code class="ic">lfp f#</code></td><td>Compute least fixpoint in abstract domain</td><td>The result of the weak interpreter</td></tr>
+      <tr><td><code class="ic">a &nabla; b</code> (widen)</td><td>Accelerate convergence by jumping ahead</td><td>Ensures termination for infinite-height domains</td></tr>
+      <tr><td><code class="ic">a &Delta; b</code> (narrow)</td><td>Refine after widening</td><td>Recover precision lost by widening</td></tr>
+      <tr><td><code class="ic">&perp;</code> / <code class="ic">&top;</code></td><td>Bottom / top of lattice</td><td>No info / all possible values</td></tr>
+      <tr><td><code class="ic">a &sqcup; b</code> (join)</td><td>Least upper bound in abstract domain</td><td>Merge information at control-flow joins</td></tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 3: JASTADD DOMAIN MODEL -->
+<!-- ================================================================= -->
+<div class="section" id="sec-jastadd">
+  <div class="section-header" onclick="toggleSection('sec-jastadd')">
+    <span class="chevron">&#9654;</span>
+    <h2>JastAdd: The Reference Attribute Grammar Domain Model</h2>
+    <span class="badge badge-model">Core Objects</span>
+  </div>
+  <div class="section-body">
+
+    <p>JastAdd is an engineering tool: it takes a grammar specification and weaves it into Java classes. Its domain model is organized around <strong>three file types</strong> (<code class="ic">.ast</code>, <code class="ic">.jrag</code>, <code class="ic">.jadd</code>) and a demand-driven evaluation engine.</p>
+
+    <h3>Core Objects</h3>
+
+    <div class="card hl-jastadd">
+      <h4>The JastAdd Object Inventory</h4>
+      <div class="obj-grid">
+        <span class="obj-name">AST Class</span>
+        <span class="obj-desc">A node type in the abstract syntax tree. Defined in <code class="ic">.ast</code> files. Generates a Java class extending <code class="ic">ASTNode</code>. Has typed, named children, optional children (<code class="ic">[C]</code>), list children (<code class="ic">C*</code>), and tokens (<code class="ic">&lt;Name:String&gt;</code>).</span>
+
+        <span class="obj-name">Child</span>
+        <span class="obj-desc">A structural sub-node of an AST class. Accessed via generated <code class="ic">getX()</code> methods. Defines the tree shape &mdash; the "functor" in algebraic terms.</span>
+
+        <span class="obj-name">Token</span>
+        <span class="obj-desc">A leaf-level value (string, integer) stored directly on a node. Not a tree child &mdash; primitive data. Syntax: <code class="ic">&lt;Name:Type&gt;</code>.</span>
+
+        <span class="obj-name">Aspect</span>
+        <span class="obj-desc">A named module in <code class="ic">.jrag</code> (declarative) or <code class="ic">.jadd</code> (imperative) files grouping related attribute declarations, equations, and inter-type declarations. JastAdd weaves aspects into generated classes.</span>
+
+        <span class="obj-name">Synthesized Attribute</span>
+        <span class="obj-desc">Value computed bottom-up from a node's own children. Declared with <code class="ic">syn T A.x();</code>. May have a default equation and be overridden in subclasses.</span>
+
+        <span class="obj-name">Inherited Attribute</span>
+        <span class="obj-desc">Value passed top-down from a parent. Declared with <code class="ic">inh T A.y();</code>. Equation defined in the <em>parent</em>: <code class="ic">eq C.getA().y() = expr;</code>.</span>
+
+        <span class="obj-name">Collection Attribute</span>
+        <span class="obj-desc">Value assembled from contributions scattered across the tree. Declared with <code class="ic">coll T A.c() [init] with combiner;</code>. Contributions via <code class="ic">N contributes v to M.c();</code>.</span>
+
+        <span class="obj-name">Circular Attribute</span>
+        <span class="obj-desc">Attribute whose definition is self-referential. Evaluated by iterating from a bottom value until a fixpoint is reached. Syntax: <code class="ic">syn T A.x() circular [bottom] = expr;</code>.</span>
+
+        <span class="obj-name">Parameterized Attribute</span>
+        <span class="obj-desc">Attribute that takes parameters, behaving like a cached method. <code class="ic">syn T A.x(int a);</code>. Cached per parameter combination.</span>
+
+        <span class="obj-name">NTA (Nonterminal Attribute)</span>
+        <span class="obj-desc">An attribute whose value is an entire AST subtree, computed on demand. A "higher-order attribute." Syntax: <code class="ic">syn nta C A.anNTA() = new C(...);</code> or declared in .ast as <code class="ic">/C/</code>.</span>
+
+        <span class="obj-name">Equation</span>
+        <span class="obj-desc">Defines how to compute an attribute's value. For syn: <code class="ic">eq A.x() = expr;</code>. For inh: <code class="ic">eq Parent.getChild().y() = expr;</code>. Must be side-effect-free.</span>
+
+        <span class="obj-name">Rewrite</span>
+        <span class="obj-desc">A rule that replaces an AST node with a different node on first access. Conditional (<code class="ic">when</code>) or unconditional. Iterates until stable. Unique to JastAdd.</span>
+
+        <span class="obj-name">Inter-type Declaration</span>
+        <span class="obj-desc">Methods, fields, or interface implementations injected into AST classes from aspect files. Java-like syntax: <code class="ic">void A.method() { ... }</code>.</span>
+
+        <span class="obj-name">Refinement</span>
+        <span class="obj-desc">One aspect overriding a method from another aspect: <code class="ic">refine AspectName void A.m() { ... refined(); }</code>.</span>
+      </div>
+    </div>
+
+    <h3>The Three File Types</h3>
+    <div class="grid-3">
+      <div class="pillar">
+        <h4><span class="pillar-num pn-jastadd">1</span> .ast &mdash; Tree Structure</h4>
+<pre><code><span class="cm">// Defines the shape of the AST</span>
+<span class="kw">abstract</span> Expr;
+Add : Expr ::= Left:Expr Right:Expr;
+Num : Expr ::= &lt;Value:int&gt;;
+Stmt ::= Expr*;
+IfStmt : Stmt ::= Cond:Expr Then:Stmt [Else:Stmt];</code></pre>
+      </div>
+      <div class="pillar">
+        <h4><span class="pillar-num pn-jastadd">2</span> .jrag &mdash; Declarative Aspects</h4>
+<pre><code><span class="kw">aspect</span> Eval {
+  <span class="kw">syn</span> <span class="ty">int</span> Expr.eval();
+  <span class="kw">eq</span> Add.eval() = getLeft().eval()
+                  + getRight().eval();
+  <span class="kw">eq</span> Num.eval() = getValue();
+}
+
+<span class="kw">aspect</span> TypeCheck {
+  <span class="kw">inh</span> <span class="ty">Env</span> Expr.env();
+  <span class="kw">eq</span> Stmt.getExpr(int i).env() = localEnv();
+}</code></pre>
+      </div>
+      <div class="pillar">
+        <h4><span class="pillar-num pn-jastadd">3</span> .jadd &mdash; Imperative Aspects</h4>
+<pre><code><span class="kw">aspect</span> PrettyPrint {
+  <span class="cm">// inter-type method</span>
+  <span class="ty">void</span> Expr.prettyPrint(PrintStream out) {
+    out.print("&lt;expr&gt;");
+  }
+
+  <span class="cm">// refine method from another aspect</span>
+  <span class="kw">refine</span> Eval <span class="ty">void</span> Add.prettyPrint(
+    PrintStream out) {
+    getLeft().prettyPrint(out);
+    out.print(" + ");
+    getRight().prettyPrint(out);
+  }
+}</code></pre>
+      </div>
+    </div>
+
+    <h3>Evaluation Model</h3>
+    <div class="diagram"><span class="d-label">JastAdd Demand-Driven Evaluation</span>
+
+  User code calls:  <span class="d-type">node.someAttribute()</span>
+                          |
+                     <span class="d-arrow">[is cached?]</span>
+                    /            \
+                  yes             no
+                   |               |
+             return cached    <span class="d-arrow">[compute equation]</span>
+                                   |
+                          may trigger other
+                          attribute accesses
+                          (recursive demand)
+                                   |
+                              <span class="d-arrow">[is circular?]</span>
+                             /            \
+                           no             yes
+                            |               |
+                       cache &amp; return   <span class="d-arrow">[iterate from bottom]</span>
+                                            |
+                                       evaluate equation
+                                       compare with previous
+                                            |
+                                       <span class="d-arrow">[changed?]</span>
+                                      /          \
+                                    yes           no
+                                     |             |
+                                  re-evaluate   fixpoint reached
+                                  (loop)        cache &amp; return</div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 4: SILVER DOMAIN MODEL -->
+<!-- ================================================================= -->
+<div class="section" id="sec-silver">
+  <div class="section-header" onclick="toggleSection('sec-silver')">
+    <span class="chevron">&#9654;</span>
+    <h2>Silver: The Extensible AG Language Domain Model</h2>
+    <span class="badge badge-model">Core Objects</span>
+  </div>
+  <div class="section-body">
+
+    <p>Silver is a <strong>language</strong> for writing attribute grammars. Its domain model centers on the distinction between <strong>undecorated trees</strong> (pure structure) and <strong>decorated trees</strong> (structure + attribute values), connected by a decoration operation that supplies inherited attributes.</p>
+
+    <h3>Core Objects</h3>
+
+    <div class="card hl-silver">
+      <h4>The Silver Object Inventory</h4>
+      <div class="obj-grid">
+        <span class="obj-name">Nonterminal</span>
+        <span class="obj-desc">A type representing a syntactic category. Like a Haskell data type or abstract class. Declared with <code class="ic">nonterminal Expr with pp, env, errors;</code>. The <code class="ic">with</code> clause declares which attributes occur on it.</span>
+
+        <span class="obj-name">Production</span>
+        <span class="obj-desc">A constructor for a nonterminal. Contains equations for attributes. Four kinds: <strong>abstract</strong> (data constructors), <strong>concrete</strong> (parsing rules), <strong>aspect</strong> (add equations to existing productions), <strong>default</strong> (fallback equations for a nonterminal).</span>
+
+        <span class="obj-name">Attribute</span>
+        <span class="obj-desc">A named, typed property. Two core kinds: <code class="ic">synthesized</code> (bottom-up) and <code class="ic">inherited</code> (top-down). Declared separately from where they occur.</span>
+
+        <span class="obj-name">Occurs-on</span>
+        <span class="obj-desc">Declaration that an attribute exists on a nonterminal: <code class="ic">attribute pp :: String occurs on Expr;</code>. Separates attribute definition from the types it applies to.</span>
+
+        <span class="obj-name">Equation</span>
+        <span class="obj-desc">Defines an attribute value inside a production: <code class="ic">e.pp = "(" ++ l.pp ++ " + " ++ r.pp ++ ")";</code>. Syn equations define the LHS nonterminal's attributes; inh equations define children's attributes.</span>
+
+        <span class="obj-name">Undecorated Tree</span>
+        <span class="obj-desc">The raw tree structure &mdash; a production applied to its children. Space-efficient. No attribute values computed yet. Type: <code class="ic">Expr</code>.</span>
+
+        <span class="obj-name">Decorated Tree</span>
+        <span class="obj-desc">An undecorated tree + inherited attributes &rarr; all attribute values available. Type: <code class="ic">Decorated Expr with {env}</code>. A tree can be decorated multiple times with different inherited attributes, yielding different decorated trees.</span>
+
+        <span class="obj-name">Decoration</span>
+        <span class="obj-desc">The operation of supplying inherited attributes to an undecorated tree to produce a decorated tree. Happens implicitly for production children or explicitly via <code class="ic">decorate expr with { ... }</code>.</span>
+
+        <span class="obj-name">Forwarding</span>
+        <span class="obj-desc">A production specifies a semantically equivalent tree to provide default attribute values: <code class="ic">forwards to not(lt(l,r));</code>. Undefined attributes are looked up on the forwarded-to tree. Essential for extensibility.</span>
+
+        <span class="obj-name">Collection Attribute</span>
+        <span class="obj-desc">An attribute assembled from contributions. Declared with a combining operator: <code class="ic">synthesized attribute errors :: [Message] with ++;</code>. Contributions accumulate via the operator.</span>
+
+        <span class="obj-name">Autocopy Attribute</span>
+        <span class="obj-desc">An inherited attribute automatically propagated from parent to children via <code class="ic">propagate env;</code>. Eliminates boilerplate copy-down equations.</span>
+
+        <span class="obj-name">Higher-Order Attribute</span>
+        <span class="obj-desc">An attribute whose value is an undecorated tree (a transformation). Used for AST transformations, translation to lower-level IRs.</span>
+
+        <span class="obj-name">Reference Attribute</span>
+        <span class="obj-desc">An attribute whose value is a <em>decorated</em> tree. Used for connecting uses to declarations (e.g., variable resolution). The reference points to a specific decoration context.</span>
+
+        <span class="obj-name">Threaded Attribute</span>
+        <span class="obj-desc">A pair of inherited + synthesized attributes that thread state sequentially through children: <code class="ic">threaded attribute stIn, stOut :: State;</code>. With <code class="ic">propagate</code>, auto-generates chaining: child1.stIn = top.stIn; child2.stIn = child1.stOut; top.stOut = child2.stOut.</span>
+
+        <span class="obj-name">Monoid Attribute</span>
+        <span class="obj-desc">A collection attribute with explicit identity and operator: <code class="ic">monoid attribute errors :: [Message] with [], ++;</code>. Propagation uses identity for leaves and combines children's values.</span>
+
+        <span class="obj-name">Functor Attribute</span>
+        <span class="obj-desc">Reconstructs the tree with transformed children: <code class="ic">functor attribute host;</code>. Propagation rebuilds the production with each child's functor value. Type is automatically the nonterminal it occurs on.</span>
+
+        <span class="obj-name">Strategy Attribute</span>
+        <span class="obj-desc">Defines tree rewriting strategies combining rules with traversal combinators (<code class="ic">all</code>, <code class="ic">some</code>, <code class="ic">&lt;*</code> sequence, <code class="ic">&lt;+</code> choice). Stratego-inspired term rewriting at the attribute level.</span>
+
+        <span class="obj-name">Annotation</span>
+        <span class="obj-desc">A value supplied at tree construction time (not computed). Like a named constructor parameter: <code class="ic">annotation location :: Location;</code>. The parser auto-supplies <code class="ic">location</code>.</span>
+
+        <span class="obj-name">Closed Nonterminal</span>
+        <span class="obj-desc">A nonterminal that disallows new attribute occurrences but permits new productions. Used for concrete syntax types where attributes are fixed.</span>
+
+        <span class="obj-name">Aspect Production</span>
+        <span class="obj-desc">Adds equations to an existing production without modifying its definition. Enables modular extension: <code class="ic">aspect production plus ... { e.newAttr = ...; }</code>.</span>
+
+        <span class="obj-name">Flow Type</span>
+        <span class="obj-desc">Declares which inherited attributes a synthesized attribute may depend on: <code class="ic">flowtype Expr = forward {env}, pp {decorate};</code>. Informs the MWDA about what must be supplied.</span>
+
+        <span class="obj-name">InhSet</span>
+        <span class="obj-desc">A type-level set of inherited attributes. Controls what a <code class="ic">Decorated</code> type requires: <code class="ic">Decorated Expr with {env, frame}</code>. Supports <code class="ic">subset</code> constraints for flexible typing.</span>
+      </div>
+    </div>
+
+    <h3>The Two-Stage Model</h3>
+    <div class="diagram"><span class="d-label">Silver's Undecorated &rarr; Decorated Pipeline</span>
+
+  <span class="d-type">Stage 1: Construction</span>                <span class="d-type">Stage 2: Decoration</span>
+
+  production(child1, child2)     +  {env = ..., frame = ...}
+           |                                    |
+           v                                    v
+   <span class="d-type">Undecorated Tree</span>              <span class="d-arrow">&mdash; decorate &mdash;&rarr;</span>   <span class="d-type">Decorated Tree</span>
+   (pure data, no attributes)                  (all attributes available)
+   Type: <span class="d-type">Expr</span>                                  Type: <span class="d-type">Decorated Expr with {env}</span>
+
+   <span class="d-comment">Can be decorated multiple         Lazily evaluates attributes</span>
+   <span class="d-comment">times with different inh attrs    on demand with caching</span></div>
+
+    <h3>Forwarding: The Extension Mechanism</h3>
+    <div class="grid-2">
+      <div class="card">
+        <h4>How Forwarding Works</h4>
+        <p>An extension production can define equations for some attributes and <strong>forward</strong> to a host-language tree for the rest:</p>
+<pre><code><span class="kw">abstract production</span> gte
+e::Expr ::= l::Expr  r::Expr
+{
+  e.pp = l.pp ++ " >= " ++ r.pp;
+  <span class="kw">forwards to</span> not(lt(l, r));
+  <span class="cm">-- e.value, e.type, etc. come</span>
+  <span class="cm">-- from not(lt(l,r))</span>
+}</code></pre>
+      </div>
+      <div class="card">
+        <h4>Why It Matters</h4>
+        <p><strong>The expression problem, solved:</strong> Extensions can add new productions (new syntax) to existing nonterminals. The host language defines attributes; extensions forward to host-language trees for those attributes. Multiple independently-developed extensions compose safely.</p>
+        <p>Silver's <strong>Modular Well-Definedness Analysis (MWDA)</strong> statically guarantees that any composition of well-defined extensions produces a well-defined whole &mdash; no missing equations, no conflicts.</p>
+      </div>
+    </div>
+
+    <h3>Silver Syntax Example</h3>
+<pre><code><span class="cm">-- Nonterminal with attributes</span>
+<span class="kw">nonterminal</span> <span class="ty">Expr</span> <span class="kw">with</span> pp, value, env, errors;
+
+<span class="cm">-- Attribute declarations</span>
+<span class="kw">synthesized attribute</span> pp :: String;
+<span class="kw">synthesized attribute</span> value :: Integer;
+<span class="kw">inherited attribute</span> env :: Map&lt;String Integer&gt;;
+<span class="kw">synthesized attribute</span> errors :: [Message] <span class="kw">with</span> ++;
+
+<span class="cm">-- Production with equations</span>
+<span class="kw">abstract production</span> add
+e::<span class="ty">Expr</span> ::= l::<span class="ty">Expr</span>  r::<span class="ty">Expr</span>
+{
+  e.pp = "(" ++ l.pp ++ " + " ++ r.pp ++ ")";
+  e.value = l.value + r.value;
+  l.env = e.env;
+  r.env = e.env;
+  <span class="kw">propagate</span> errors;  <span class="cm">-- auto-collect from children</span>
+}</code></pre>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 5: ROSETTA STONE -->
+<!-- ================================================================= -->
+<div class="section" id="sec-rosetta">
+  <div class="section-header" onclick="toggleSection('sec-rosetta')">
+    <span class="chevron">&#9654;</span>
+    <h2>The Rosetta Stone: Equivalent Concepts Across Systems</h2>
+    <span class="badge badge-same">Same / Equivalent</span>
+  </div>
+  <div class="section-body">
+
+    <p>Many concepts exist in all three systems but under different names or forms. This table maps equivalent ideas.</p>
+
+    <table>
+      <tr>
+        <th>Concept</th>
+        <th class="col-cousot">Cousot</th>
+        <th class="col-jastadd">JastAdd</th>
+        <th class="col-silver">Silver</th>
+      </tr>
+      <tr>
+        <td><strong>Tree structure definition</strong></td>
+        <td>Program syntax / CFG productions</td>
+        <td><code class="ic">.ast</code> file (class hierarchy)</td>
+        <td><code class="ic">nonterminal</code> + <code class="ic">production</code></td>
+      </tr>
+      <tr>
+        <td><strong>Node type</strong></td>
+        <td>Program point / syntactic category</td>
+        <td>AST class (extends <code class="ic">ASTNode</code>)</td>
+        <td>Nonterminal</td>
+      </tr>
+      <tr>
+        <td><strong>Constructor / variant</strong></td>
+        <td>Grammar production</td>
+        <td>Concrete AST subclass</td>
+        <td>Abstract production</td>
+      </tr>
+      <tr>
+        <td><strong>Property computed bottom-up</strong></td>
+        <td>Abstract property at a program point (post-state)</td>
+        <td>Synthesized attribute (<code class="ic">syn</code>)</td>
+        <td>Synthesized attribute (<code class="ic">synthesized</code>)</td>
+      </tr>
+      <tr>
+        <td><strong>Context flowing top-down</strong></td>
+        <td>Abstract property from calling context (pre-state)</td>
+        <td>Inherited attribute (<code class="ic">inh</code>)</td>
+        <td>Inherited attribute (<code class="ic">inherited</code>)</td>
+      </tr>
+      <tr>
+        <td><strong>Computation rule</strong></td>
+        <td>Abstract transfer function (f#)</td>
+        <td>Equation (<code class="ic">eq A.x() = ...;</code>)</td>
+        <td>Equation (<code class="ic">e.x = ...;</code>)</td>
+      </tr>
+      <tr>
+        <td><strong>Circular computation</strong></td>
+        <td>Fixpoint iteration with widening/narrowing</td>
+        <td>Circular attribute (<code class="ic">circular [bottom]</code>)</td>
+        <td>Supported (less central)</td>
+      </tr>
+      <tr>
+        <td><strong>Gathering info from whole tree</strong></td>
+        <td>Collecting semantics / global analysis</td>
+        <td>Collection attribute (<code class="ic">coll</code> + <code class="ic">contributes</code>)</td>
+        <td>Collection attribute (<code class="ic">with ++</code>)</td>
+      </tr>
+      <tr>
+        <td><strong>Demand-driven evaluation</strong></td>
+        <td>Demand-driven fixpoint iteration</td>
+        <td>Lazy evaluation with caching (<code class="ic">lazy</code>)</td>
+        <td>Lazy decoration with caching</td>
+      </tr>
+      <tr>
+        <td><strong>Unevaluated tree</strong></td>
+        <td>Program text / syntax tree</td>
+        <td>Raw AST (before attribute access)</td>
+        <td>Undecorated tree (<code class="ic">Expr</code>)</td>
+      </tr>
+      <tr>
+        <td><strong>Evaluated / attributed tree</strong></td>
+        <td>Annotated program (with abstract values)</td>
+        <td>AST with cached attribute values</td>
+        <td>Decorated tree (<code class="ic">Decorated Expr</code>)</td>
+      </tr>
+      <tr>
+        <td><strong>Computed subtree</strong></td>
+        <td>Derived program representation</td>
+        <td>NTA (nonterminal attribute)</td>
+        <td>Higher-order attribute (undecorated value)</td>
+      </tr>
+      <tr>
+        <td><strong>Cross-tree reference</strong></td>
+        <td>Points-to analysis result</td>
+        <td>Reference attribute (RAG)</td>
+        <td>Reference attribute (decorated value)</td>
+      </tr>
+      <tr>
+        <td><strong>Modular rule grouping</strong></td>
+        <td>Abstract domain module</td>
+        <td>Aspect (<code class="ic">.jrag</code> / <code class="ic">.jadd</code>)</td>
+        <td>Silver grammar module / aspect production</td>
+      </tr>
+      <tr>
+        <td><strong>Sound approximation guarantee</strong></td>
+        <td>Galois connection soundness (&alpha;&sdot;&gamma; &ge; id)</td>
+        <td>N/A (no formal soundness)</td>
+        <td>Modular Well-Definedness Analysis (MWDA)</td>
+      </tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 6: WHAT'S THE SAME -->
+<!-- ================================================================= -->
+<div class="section" id="sec-same">
+  <div class="section-header" onclick="toggleSection('sec-same')">
+    <span class="chevron">&#9654;</span>
+    <h2>What is the Same</h2>
+    <span class="badge badge-same">Shared Foundations</span>
+  </div>
+  <div class="section-body">
+
+    <div class="card hl-green">
+      <h4>All Three Share These Foundational Ideas</h4>
+      <ul>
+        <li><strong>Trees as the central data structure.</strong> All three operate over tree-structured data &mdash; whether ASTs (JastAdd, Silver) or derivation trees / program structure (Cousot).</li>
+        <li><strong>Properties computed over trees.</strong> Each system attaches computed values to tree nodes &mdash; called "attributes" (JastAdd, Silver) or "abstract properties" (Cousot).</li>
+        <li><strong>Directional information flow.</strong> All distinguish between information flowing <em>bottom-up</em> (synthesized / post-state properties) and <em>top-down</em> (inherited / pre-state context).</li>
+        <li><strong>Fixpoint computation for circularity.</strong> When definitions are mutually recursive, all three use iterative fixpoint computation to reach a stable solution.</li>
+        <li><strong>Demand-driven / lazy evaluation.</strong> Properties are computed only when needed, avoiding unnecessary work.</li>
+        <li><strong>Caching / memoization.</strong> Once computed, values are stored to avoid recomputation.</li>
+        <li><strong>Compositionality.</strong> Specifications are modular &mdash; different aspects/domains can be defined separately and combined.</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 7: WHAT'S DIFFERENT -->
+<!-- ================================================================= -->
+<div class="section" id="sec-different">
+  <div class="section-header" onclick="toggleSection('sec-different')">
+    <span class="chevron">&#9654;</span>
+    <h2>What is Different</h2>
+    <span class="badge badge-diverge">Divergences</span>
+  </div>
+  <div class="section-body">
+
+    <h3>Concepts Unique to Each System</h3>
+
+    <div class="grid-3">
+      <div class="card hl-cousot">
+        <h4><span class="sys-label sys-cousot">Cousot</span> Only</h4>
+        <ul>
+          <li><strong>Galois connections</strong> &mdash; the formal bridge between precision levels. Neither AG system has an equivalent mathematical construct.</li>
+          <li><strong>Widening (&nabla;)</strong> &mdash; an extrapolation operator to force convergence in infinite-height domains. AG systems use simpler fixpoint iteration.</li>
+          <li><strong>Narrowing (&Delta;)</strong> &mdash; a refinement operator to recover precision after widening. No AG counterpart.</li>
+          <li><strong>Soundness proof obligation</strong> &mdash; every abstract domain comes with a proof that it soundly approximates concrete semantics.</li>
+          <li><strong>Hierarchy of abstractions</strong> &mdash; the idea that different analyses are systematically related by abstraction. AGs define attributes independently without this lattice structure between analyses.</li>
+          <li><strong>Collecting semantics</strong> &mdash; the "most precise" abstract analysis that still operates point-wise.</li>
+        </ul>
+      </div>
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span> Only</h4>
+        <ul>
+          <li><strong>Rewrites</strong> &mdash; AST node replacement rules that fire on first access. Neither Cousot nor Silver has this (Silver uses forwarding instead).</li>
+          <li><strong>Inter-type declarations</strong> &mdash; injecting arbitrary Java methods/fields into generated AST classes.</li>
+          <li><strong>Aspect refinement</strong> &mdash; one aspect overriding methods from another via <code class="ic">refine</code> + <code class="ic">refined()</code>.</li>
+          <li><strong>getParent()</strong> &mdash; mutable parent pointers on all nodes. Silver's trees are immutable; Cousot's framework doesn't address tree mutability.</li>
+          <li><strong>.jrag vs .jadd distinction</strong> &mdash; separating declarative (attribute) aspects from imperative (method) aspects.</li>
+          <li><strong>CRAG formalism</strong> &mdash; Circular Rewritable Reference Attribute Grammars: the unified formalism combining references, circularity, rewrites, NTAs, and collections in one demand-driven framework.</li>
+        </ul>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span> Only</h4>
+        <ul>
+          <li><strong>Forwarding</strong> &mdash; extension productions delegate to host-language trees for undefined attributes. Neither Cousot nor JastAdd has this.</li>
+          <li><strong>Undecorated / Decorated type distinction</strong> &mdash; a first-class type-level distinction between raw trees and attributed trees. JastAdd conflates them; Cousot doesn't have tree types.</li>
+          <li><strong>InhSet types</strong> &mdash; type-level sets of inherited attributes with subset constraints.</li>
+          <li><strong>Modular Well-Definedness Analysis (MWDA)</strong> &mdash; static guarantee that independently-developed extensions compose safely.</li>
+          <li><strong>Closed nonterminals</strong> &mdash; nonterminals open to new productions but closed to new attributes.</li>
+          <li><strong>Autocopy / propagate</strong> &mdash; automatic inherited attribute copying via <code class="ic">propagate</code>.</li>
+          <li><strong>Threaded / monoid / functor / strategy attributes</strong> &mdash; specialized attribute kinds with auto-propagation semantics that eliminate boilerplate equations.</li>
+          <li><strong>Annotations</strong> &mdash; values supplied at construction time (not computed), like <code class="ic">location</code>. Distinct from attributes.</li>
+          <li><strong>Type classes</strong> &mdash; Haskell-style type classes with <code class="ic">class</code>, <code class="ic">instance</code>, <code class="ic">deriving</code>.</li>
+          <li><strong>Flow types</strong> &mdash; declarations of which inherited attributes each synthesized attribute depends on, enabling modular non-circularity checking.</li>
+          <li><strong>Grammar-as-module</strong> &mdash; Silver "grammars" are modules (like Java packages), not CFGs. Identified by colon-separated paths: <code class="ic">edu:umn:cs:melt:exts:ableC</code>.</li>
+          <li><strong>Copper integration</strong> &mdash; composable parser generator tightly integrated with the AG system.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Key Architectural Differences</h3>
+
+    <div class="card">
+      <h4>1. What is the "specification" vs. what is the "computation"?</h4>
+      <table>
+        <tr>
+          <th></th>
+          <th class="col-cousot">Cousot</th>
+          <th class="col-jastadd">JastAdd</th>
+          <th class="col-silver">Silver</th>
+        </tr>
+        <tr>
+          <td><strong>Specification</strong></td>
+          <td>Choice of abstract domain + Galois connection</td>
+          <td>.ast + .jrag/.jadd files</td>
+          <td>.sv Silver source files</td>
+        </tr>
+        <tr>
+          <td><strong>Computation</strong></td>
+          <td>Fixpoint iteration in abstract domain</td>
+          <td>Generated Java code with demand evaluation</td>
+          <td>Generated Java code with lazy decoration</td>
+        </tr>
+        <tr>
+          <td><strong>Separation</strong></td>
+          <td>Clean &mdash; domain is pure math, iterator is generic</td>
+          <td>Moderate &mdash; aspects separate concerns but generate interleaved code</td>
+          <td>Clean &mdash; attribute decl separate from occurs-on, from equations</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h4>2. How is the tree related to the attributes?</h4>
+      <table>
+        <tr>
+          <th></th>
+          <th class="col-cousot">Cousot</th>
+          <th class="col-jastadd">JastAdd</th>
+          <th class="col-silver">Silver</th>
+        </tr>
+        <tr>
+          <td><strong>Tree mutability</strong></td>
+          <td>Irrelevant (mathematical objects)</td>
+          <td>Mutable (parent pointers, rewrites)</td>
+          <td>Immutable (undecorated) / computed (decorated)</td>
+        </tr>
+        <tr>
+          <td><strong>Attribute storage</strong></td>
+          <td>Map from program points to abstract values</td>
+          <td>Cached in Java fields on AST nodes</td>
+          <td>Stored in decoration context</td>
+        </tr>
+        <tr>
+          <td><strong>Multiple evaluations</strong></td>
+          <td>Different abstract domains = different analyses</td>
+          <td>One evaluation per tree (shared mutable state)</td>
+          <td>Multiple decorations of same undecorated tree</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h4>3. How is extensibility handled?</h4>
+      <table>
+        <tr>
+          <th></th>
+          <th class="col-cousot">Cousot</th>
+          <th class="col-jastadd">JastAdd</th>
+          <th class="col-silver">Silver</th>
+        </tr>
+        <tr>
+          <td><strong>Add new node types</strong></td>
+          <td>N/A (programs are given)</td>
+          <td>Add .ast subclasses + equations</td>
+          <td>Add productions (+ forwarding for defaults)</td>
+        </tr>
+        <tr>
+          <td><strong>Add new analyses</strong></td>
+          <td>Define new abstract domain</td>
+          <td>Add new aspects with new attributes</td>
+          <td>Add new attributes + occurs-on + equations</td>
+        </tr>
+        <tr>
+          <td><strong>Compose extensions</strong></td>
+          <td>Reduced product of abstract domains</td>
+          <td>Include all .jrag/.jadd files (no formal guarantee)</td>
+          <td>MWDA guarantees safe composition</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 8: EQUIVALENT BUT IMPLEMENTED DIFFERENTLY -->
+<!-- ================================================================= -->
+<div class="section" id="sec-equiv">
+  <div class="section-header" onclick="toggleSection('sec-equiv')">
+    <span class="chevron">&#9654;</span>
+    <h2>Equivalent but Implemented Differently</h2>
+    <span class="badge badge-compare">Same Concept, Different Mechanism</span>
+  </div>
+  <div class="section-body">
+
+    <div class="card">
+      <h4>1. Fixpoint Computation</h4>
+      <div class="grid-3">
+        <div class="pillar">
+          <h4><span class="sys-label sys-cousot">Cousot</span></h4>
+          <p>Iterate transfer functions over abstract lattice. Use <strong>widening</strong> (&nabla;) to force convergence in finite steps, then <strong>narrowing</strong> (&Delta;) to refine. Works on any complete lattice. May need multiple widening points.</p>
+          <p><em>General-purpose, mathematically grounded.</em></p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+          <p>Magnusson-Hedin algorithm: mark attribute as <code class="ic">circular [bottom]</code>. Iterate the equation from bottom value, re-evaluating all dependent attributes each iteration, until no value changes. Operates on individual attribute instances.</p>
+          <p><em>Attribute-level, practical, no widening needed (assumes finite-height domains).</em></p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+          <p>Silver supports circular attributes but with less emphasis than JastAdd. The evaluation is similar (iterate to fixpoint) but the mechanism is less exposed in the language design.</p>
+          <p><em>Supported but not a central design concern.</em></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>2. Gathering Distributed Information</h4>
+      <div class="grid-3">
+        <div class="pillar">
+          <h4><span class="sys-label sys-cousot">Cousot</span></h4>
+          <p><strong>Collecting semantics:</strong> the set of all reachable states at each program point. A single fixpoint computation gathers information from the entire program. The abstract domain determines how collected info is represented.</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+          <p><strong>Collection attributes:</strong> <code class="ic">coll T A.c() [init] with combine;</code> + <code class="ic">N contributes v to M.c();</code>. Any node can contribute to any target node's collection. Uses a tree traversal to gather all contributions.</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+          <p><strong>Collection attributes:</strong> <code class="ic">synthesized attribute errors :: [Message] with ++;</code> + <code class="ic">propagate errors;</code>. Contributions are combined via the declared operator. <code class="ic">propagate</code> auto-collects from children.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>3. Handling Missing / Default Definitions</h4>
+      <div class="grid-3">
+        <div class="pillar">
+          <h4><span class="sys-label sys-cousot">Cousot</span></h4>
+          <p>If an abstract domain doesn't model a property, that property is implicitly <strong>&top;</strong> (all values possible). The "default" is maximal imprecision &mdash; sound but useless for that property.</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+          <p><strong>Default equations</strong> on synthesized attributes: <code class="ic">syn T A.x() = defaultVal;</code>. Subclasses inherit the default unless they override. <strong>Rewrites</strong> can also transform nodes to provide missing behavior.</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+          <p><strong>Forwarding</strong> is the primary mechanism. Extension productions delegate to host-language trees for any attributes they don't define. Also supports <strong>default productions</strong> providing fallback equations for an entire nonterminal.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>4. Modularity and Composition</h4>
+      <div class="grid-3">
+        <div class="pillar">
+          <h4><span class="sys-label sys-cousot">Cousot</span></h4>
+          <p><strong>Reduced product:</strong> combine two abstract domains into one that is at least as precise as either alone. <strong>Tensor product:</strong> track correlations between domains. Formal operations with soundness guarantees via Galois connections.</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+          <p><strong>Aspects</strong> are the modularity unit. Multiple .jrag/.jadd files are woven together at code-generation time. No formal composition guarantee &mdash; missing equations are compile-time errors in generated Java.</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+          <p><strong>Grammar modules</strong> with <code class="ic">imports</code>. Extensions can be independently developed and composed. MWDA provides a formal guarantee: if each extension is well-defined on its own, their composition is well-defined too.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>5. Tree Transformation</h4>
+      <div class="grid-3">
+        <div class="pillar">
+          <h4><span class="sys-label sys-cousot">Cousot</span></h4>
+          <p>Not directly applicable. Abstract interpretation is about <em>analyzing</em> a fixed program, not transforming it. However, abstract-interpretation-guided transformations exist (e.g., partial evaluation, constant folding via AI results).</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+          <p><strong>Rewrites:</strong> replace AST nodes in-place. <strong>NTAs:</strong> synthesize entirely new subtrees. Both happen lazily on first access. Rewrites are <em>destructive</em> (mutate the tree).</p>
+        </div>
+        <div class="pillar">
+          <h4><span class="sys-label sys-silver">Silver</span></h4>
+          <p><strong>Higher-order attributes:</strong> synthesize new undecorated trees as attribute values. <strong>Forwarding:</strong> construct an equivalent tree without modifying the original. Both are <em>non-destructive</em> (original tree unchanged).</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 9: NOMENCLATURE MAP -->
+<!-- ================================================================= -->
+<div class="section" id="sec-nomenclature">
+  <div class="section-header" onclick="toggleSection('sec-nomenclature')">
+    <span class="chevron">&#9654;</span>
+    <h2>Nomenclature Map</h2>
+    <span class="badge badge-compare">Terminology</span>
+  </div>
+  <div class="section-body">
+
+    <p>The same underlying concept often has completely different names across systems. This comprehensive table maps terminology.</p>
+
+    <table>
+      <tr>
+        <th>Underlying Concept</th>
+        <th class="col-cousot">Cousot Term</th>
+        <th class="col-jastadd">JastAdd Term</th>
+        <th class="col-silver">Silver Term</th>
+      </tr>
+      <tr>
+        <td>The thing being analyzed</td>
+        <td>Program</td>
+        <td>AST</td>
+        <td>Undecorated tree</td>
+      </tr>
+      <tr>
+        <td>A kind of node</td>
+        <td>Syntactic category / program point type</td>
+        <td>AST class</td>
+        <td>Nonterminal</td>
+      </tr>
+      <tr>
+        <td>A specific node shape</td>
+        <td>Production / statement form</td>
+        <td>Concrete AST subclass</td>
+        <td>Production</td>
+      </tr>
+      <tr>
+        <td>A computed property</td>
+        <td>Abstract property / invariant</td>
+        <td>Attribute</td>
+        <td>Attribute</td>
+      </tr>
+      <tr>
+        <td>Bottom-up computed value</td>
+        <td>Post-state / output property</td>
+        <td>syn</td>
+        <td>synthesized</td>
+      </tr>
+      <tr>
+        <td>Top-down context</td>
+        <td>Pre-state / calling context</td>
+        <td>inh</td>
+        <td>inherited</td>
+      </tr>
+      <tr>
+        <td>How to compute a property</td>
+        <td>Transfer function (f#)</td>
+        <td>Equation (eq)</td>
+        <td>Equation (=)</td>
+      </tr>
+      <tr>
+        <td>Set of possible values</td>
+        <td>Abstract domain (lattice)</td>
+        <td>Java type</td>
+        <td>Silver type</td>
+      </tr>
+      <tr>
+        <td>"No information" value</td>
+        <td>&perp; (bottom of lattice)</td>
+        <td>Circular attribute's initial value</td>
+        <td>Bottom value</td>
+      </tr>
+      <tr>
+        <td>"All values possible"</td>
+        <td>&top; (top of lattice)</td>
+        <td>N/A</td>
+        <td>N/A</td>
+      </tr>
+      <tr>
+        <td>Merging information</td>
+        <td>Join (&sqcup;) / meet (&sqcap;)</td>
+        <td>Collection combiner (with)</td>
+        <td>Collection operator (with)</td>
+      </tr>
+      <tr>
+        <td>Module of related rules</td>
+        <td>Abstract domain definition</td>
+        <td>Aspect</td>
+        <td>Grammar module</td>
+      </tr>
+      <tr>
+        <td>Tree with all values computed</td>
+        <td>Annotated program / analysis result</td>
+        <td>Attributed AST</td>
+        <td>Decorated tree</td>
+      </tr>
+      <tr>
+        <td>Trigger evaluation</td>
+        <td>Run the abstract interpreter</td>
+        <td>Access attribute (call getter)</td>
+        <td>Decorate + access attribute</td>
+      </tr>
+      <tr>
+        <td>Supplying context to a subtree</td>
+        <td>N/A (implicit in fixpoint)</td>
+        <td>Inherited equation on parent</td>
+        <td>Decoration with inherited attributes</td>
+      </tr>
+      <tr>
+        <td>Pointer to another node</td>
+        <td>Points-to analysis / alias</td>
+        <td>Reference attribute (RAG)</td>
+        <td>Reference attribute (Decorated type)</td>
+      </tr>
+      <tr>
+        <td>Computed subtree</td>
+        <td>Derived representation</td>
+        <td>NTA (nonterminal attribute)</td>
+        <td>Higher-order attribute</td>
+      </tr>
+      <tr>
+        <td>Handle missing definitions</td>
+        <td>&top; (maximal imprecision)</td>
+        <td>Default equation / rewrite</td>
+        <td>Forwarding / default production</td>
+      </tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 10: DEEP DIVES -->
+<!-- ================================================================= -->
+<div class="section" id="sec-deep">
+  <div class="section-header" onclick="toggleSection('sec-deep')">
+    <span class="chevron">&#9654;</span>
+    <h2>Deep Dives: Key Concepts Explored</h2>
+    <span class="badge badge-arch">Architecture</span>
+  </div>
+  <div class="section-body">
+
+    <div class="tabs" id="deep-tabs">
+      <button class="tab-btn active" onclick="switchTab('deep-tabs','deep-galois')">Galois Connections</button>
+      <button class="tab-btn" onclick="switchTab('deep-tabs','deep-decoration')">Decoration</button>
+      <button class="tab-btn" onclick="switchTab('deep-tabs','deep-rewrites')">Rewrites vs Forwarding</button>
+      <button class="tab-btn" onclick="switchTab('deep-tabs','deep-collections')">Collections</button>
+      <button class="tab-btn" onclick="switchTab('deep-tabs','deep-mwda')">MWDA</button>
+    </div>
+
+    <div class="tab-panel active" id="deep-galois">
+      <div class="card hl-cousot">
+        <h4>Galois Connections: The Heart of Abstract Interpretation</h4>
+        <p>A Galois connection is a pair of functions (&alpha;, &gamma;) between two lattices (C, &le;) and (A, &sqle;) satisfying:</p>
+        <div class="diagram">  &alpha;(c) &sqle; a   &hArr;   c &le; &gamma;(a)     for all c &isin; C, a &isin; A
+
+  <span class="d-comment">Equivalently:</span>
+  c &le; &gamma;(&alpha;(c))        <span class="d-comment">"abstracting then concretizing gives a superset"</span>
+  &alpha;(&gamma;(a)) &sqle; a        <span class="d-comment">"concretizing then abstracting gives at most a"</span></div>
+        <p><strong>Why it matters:</strong> The Galois connection guarantees that &alpha; produces the <em>best possible</em> approximation &mdash; the most precise abstract value that is still sound. This is what distinguishes abstract interpretation from ad-hoc approximation.</p>
+        <p><strong>Example &mdash; Interval domain:</strong></p>
+        <div class="diagram">  Concrete: {3, 5, 7, 11}    <span class="d-arrow">&mdash; &alpha; &mdash;&rarr;</span>    Abstract: [3, 11]
+  Concrete: {1, 2, ..., 100} <span class="d-arrow">&mdash; &alpha; &mdash;&rarr;</span>    Abstract: [1, 100]
+  Abstract: [3, 11]          <span class="d-arrow">&mdash; &gamma; &mdash;&rarr;</span>    Concrete: {3, 4, 5, ..., 11}</div>
+        <p><strong>AG parallel:</strong> JastAdd and Silver don't have Galois connections because they compute <em>exact</em> attribute values, not approximations. There's no "precision vs. computability" trade-off in standard AG evaluation. However, when an AG computes a <em>type</em> for a program, that type system can be viewed as an abstract interpretation with a Galois connection between concrete values and types.</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="deep-decoration">
+      <div class="card hl-silver">
+        <h4>Silver's Decorated/Undecorated Distinction</h4>
+        <p>Silver makes the distinction between "tree structure" and "tree with computed values" <strong>explicit at the type level</strong>:</p>
+        <div class="diagram">  <span class="d-type">Expr</span>                              <span class="d-comment">undecorated &mdash; just data</span>
+  <span class="d-type">Decorated Expr</span>                     <span class="d-comment">decorated with ALL known inh attrs</span>
+  <span class="d-type">Decorated Expr with {env}</span>          <span class="d-comment">decorated with specific inh attrs</span>
+  <span class="d-type">Decorated Expr with {env, frame}</span>   <span class="d-comment">decorated with more context</span></div>
+        <p><strong>Key insight:</strong> The same undecorated tree can be decorated multiple times with <em>different</em> inherited attributes, yielding different attribute values each time. This models the reality that an expression's type depends on its context (environment).</p>
+        <p><strong>JastAdd's approach:</strong> No type-level distinction. AST nodes are always "potentially decorated" Java objects. Attribute values are cached in mutable fields. A node can only have <em>one</em> set of attribute values (one evaluation context) because it has mutable parent pointers that fix its position.</p>
+        <p><strong>Cousot's parallel:</strong> Closest analog is the distinction between program <em>syntax</em> (static) and an <em>annotated program</em> (with abstract values at each point). Different abstract domains give different annotations of the same program &mdash; analogous to different decorations.</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="deep-rewrites">
+      <div class="card">
+        <h4>JastAdd Rewrites vs. Silver Forwarding</h4>
+        <p>Both address the problem of providing default behavior for new syntax, but they do it in fundamentally different ways:</p>
+        <div class="grid-2">
+          <div class="card hl-jastadd">
+            <h4><span class="sys-label sys-jastadd">Rewrites</span></h4>
+            <p><strong>Mechanism:</strong> When a node is first accessed, conditional rewrite rules fire. The node is <em>replaced in the tree</em> with the rewritten node. The original is gone.</p>
+<pre><code><span class="kw">rewrite</span> ForEach {
+  <span class="kw">when</span> (shouldDesugar())
+  <span class="kw">to</span> WhileLoop {
+    <span class="kw">return new</span> WhileLoop(
+      getCond(), getBody());
+  }
+}</code></pre>
+            <p><strong>Nature:</strong> Destructive, in-place, eager on first access. Iterative (rewrites re-fire until stable).</p>
+          </div>
+          <div class="card hl-silver">
+            <h4><span class="sys-label sys-silver">Forwarding</span></h4>
+            <p><strong>Mechanism:</strong> A production declares a semantically equivalent tree. Attributes <em>not</em> explicitly defined on the production are looked up on the forwarded-to tree. The original production remains.</p>
+<pre><code><span class="kw">abstract production</span> forEach
+e::<span class="ty">Stmt</span> ::= v::<span class="ty">Name</span> l::<span class="ty">Expr</span> b::<span class="ty">Stmt</span>
+{
+  e.pp = "for " ++ v.pp ++ " in " ++
+         l.pp ++ " " ++ b.pp;
+  <span class="kw">forwards to</span> whileLoop(cond, body);
+}</code></pre>
+            <p><strong>Nature:</strong> Non-destructive, lazy, transparent. Original tree preserved; forwarded tree computed on demand.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="deep-collections">
+      <div class="card">
+        <h4>Collection Attributes: Three Approaches</h4>
+        <div class="grid-3">
+          <div class="pillar">
+            <h4><span class="sys-label sys-cousot">Cousot</span></h4>
+            <p>The <strong>collecting semantics</strong> gathers the set of all reachable states at each program point. This is the "maximal collection" &mdash; every fact from every execution path. It's a single global fixpoint.</p>
+            <p>Individual analyses (interval, pointer, etc.) are abstractions of this collecting semantics &mdash; they "collect" only what their domain can represent.</p>
+          </div>
+          <div class="pillar">
+            <h4><span class="sys-label sys-jastadd">JastAdd</span></h4>
+<pre><code><span class="cm">// Declaration</span>
+<span class="kw">coll</span> Set&lt;String&gt; Program.allNames()
+  [<span class="kw">new</span> HashSet&lt;&gt;()] <span class="kw">with</span> add;
+
+<span class="cm">// Contributions (anywhere in tree)</span>
+VarDecl <span class="kw">contributes</span> getName()
+  <span class="kw">to</span> Program.allNames();
+
+FunDecl <span class="kw">contributes</span> getName()
+  <span class="kw">to</span> Program.allNames();</code></pre>
+            <p>Traverses the entire subtree to gather all matching contributions into the collection.</p>
+          </div>
+          <div class="pillar">
+            <h4><span class="sys-label sys-silver">Silver</span></h4>
+<pre><code><span class="cm">-- Declaration with operator</span>
+<span class="kw">synthesized attribute</span>
+  errors :: [Message] <span class="kw">with</span> ++;
+
+<span class="cm">-- In a production (base value):</span>
+e.errors := l.errors ++ r.errors;
+<span class="cm">-- := means "base equation"</span>
+
+<span class="cm">-- In an aspect (contribution):</span>
+e.errors &lt;- [mkError(...)];
+<span class="cm">-- &lt;- means "contribute"</span>
+
+<span class="cm">-- Auto-collect from children:</span>
+<span class="kw">propagate</span> errors;</code></pre>
+            <p>Uses <code class="ic">:=</code> for base equations, <code class="ic">&lt;-</code> for contributions, and <code class="ic">with</code> on the declaration for the combining operator.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="deep-mwda">
+      <div class="card hl-silver">
+        <h4>Modular Well-Definedness Analysis</h4>
+        <p>Silver's signature contribution to the field. The key problem: if Alice writes extension A and Bob writes extension B, can they be composed without conflicts?</p>
+        <div class="diagram"><span class="d-label">The Composition Problem</span>
+
+  <span class="d-type">Host Language</span> (defines Expr with value, type, pp)
+       |
+       +--- <span class="d-type">Extension A</span> (adds forEach production)
+       |         defines: pp for forEach
+       |         forwards to: whileLoop(...) for value, type
+       |
+       +--- <span class="d-type">Extension B</span> (adds attribute "complexity")
+                 defines: complexity for all host productions
+                 <span class="d-comment">What about forEach? It's from Extension A!</span>
+
+  <span class="d-arrow">Answer: forwarding handles it.</span>
+  forEach.complexity is looked up on whileLoop(...).complexity
+  which Extension B already defined (it's a host production).</div>
+        <p><strong>MWDA guarantee:</strong> If each extension is "well-defined" according to Silver's rules (all new attributes have equations on all host productions, all new productions forward to host trees), then <em>any combination</em> of extensions produces a well-defined whole. Checked at compile time, per-extension.</p>
+        <p><strong>No AG analog in JastAdd:</strong> JastAdd relies on the Java compiler to catch missing equations (as abstract methods). No compositional guarantee.</p>
+        <p><strong>Cousot parallel:</strong> The soundness guarantee of Galois connections serves a similar role &mdash; ensuring that abstract domains compose correctly (via reduced product). But it's a proof obligation, not a static analysis.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 11: META-COMPARISON -->
+<!-- ================================================================= -->
+<div class="section" id="sec-meta">
+  <div class="section-header" onclick="toggleSection('sec-meta')">
+    <span class="chevron">&#9654;</span>
+    <h2>Meta-Comparison: What Each System Optimizes For</h2>
+    <span class="badge badge-arch">Philosophy</span>
+  </div>
+  <div class="section-body">
+
+    <div class="grid-3">
+      <div class="card hl-cousot">
+        <h4><span class="sys-label sys-cousot">Cousot</span> Optimizes for...</h4>
+        <p><strong>Mathematical rigor.</strong> Every component has a formal definition. Soundness is proved, not tested. The framework tells you what questions you <em>can</em> and <em>cannot</em> answer for a given level of abstraction.</p>
+        <p><strong>Generality.</strong> The same framework applies to imperative programs, logic programs, grammar analysis, parsing, type systems, model checking. "Types as abstract interpretations" unifies type theory and static analysis.</p>
+        <p><strong>Trade-off:</strong> Not an engineering tool. You need substantial mathematical sophistication to design a new abstract domain. No "just run it" experience.</p>
+      </div>
+      <div class="card hl-jastadd">
+        <h4><span class="sys-label sys-jastadd">JastAdd</span> Optimizes for...</h4>
+        <p><strong>Practical compiler construction.</strong> Built for real compilers (ExtendJ for Java, JModelica). Rich Java interop. Rewrites enable desugaring. NTAs enable higher-order transformations. Collection attributes handle name binding and error reporting.</p>
+        <p><strong>Incrementality and performance.</strong> Generated Java code with fine-grained caching. Support for incremental re-evaluation in IDEs. Mutable tree model enables efficient in-place updates.</p>
+        <p><strong>Trade-off:</strong> Tight coupling to Java. No formal composition guarantee. Mutable state makes reasoning about evaluation order subtle.</p>
+      </div>
+      <div class="card hl-silver">
+        <h4><span class="sys-label sys-silver">Silver</span> Optimizes for...</h4>
+        <p><strong>Reliable extensibility.</strong> The entire design serves one goal: independently-developed language extensions that compose safely. Forwarding, MWDA, and the decorated/undecorated distinction all serve this purpose.</p>
+        <p><strong>Clean semantics.</strong> Immutable trees, explicit decoration, type-level tracking of inherited attribute requirements. The functional flavor (Haskell-like syntax, algebraic data types) encourages equational reasoning.</p>
+        <p><strong>Trade-off:</strong> Less mature tooling than JastAdd. Self-hosting adds complexity. The extension-focused design may be overkill for non-extensible languages.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>The Fundamental Triangle</h4>
+      <div class="diagram">                    <span class="d-label">RIGOR</span>
+                   (Cousot)
+                      /\
+                     /  \
+                    /    \
+                   /      \
+                  / sound   \
+                 / approx.   \
+                /   theory    \
+               /________________\
+    <span class="d-label">ENGINEERING</span>              <span class="d-label">EXTENSIBILITY</span>
+      (JastAdd)                  (Silver)
+
+      fast, practical,           safe composition,
+      Java-integrated,           forwarding,
+      mutable, rewrites          MWDA, immutable
+
+  <span class="d-comment">Each system lives at a different vertex.</span>
+  <span class="d-comment">Cousot provides the theory that JastAdd and Silver implement (partially).</span>
+  <span class="d-comment">JastAdd and Silver are engineering tools that approximate the rigor Cousot demands.</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 12: QUIZ -->
+<!-- ================================================================= -->
+<div class="section" id="sec-quiz">
+  <div class="section-header" onclick="toggleSection('sec-quiz')">
+    <span class="chevron">&#9654;</span>
+    <h2>Flashcard Quiz</h2>
+    <span class="badge badge-quiz">Test Yourself</span>
+  </div>
+  <div class="section-body">
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">What is the "weak interpreter" in Cousot's framework?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">The <strong>abstract interpreter</strong> &mdash; a systematically weakened version of the concrete interpreter that operates on an abstract domain instead of concrete values. It's "weak" because it trades precision for computability: it can answer questions about all possible executions but may produce false alarms. The weakening is formalized by a Galois connection between concrete and abstract domains.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">What is the JastAdd equivalent of Silver's "undecorated tree"?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">JastAdd doesn't have a clean equivalent. The closest concept is a freshly constructed AST node before any attributes have been accessed. But JastAdd nodes are always <em>mutable</em> Java objects that can hold cached attribute values, so there's no type-level distinction between "has attributes" and "doesn't have attributes" like Silver's <code>Expr</code> vs <code>Decorated Expr</code>.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">What is the Cousot equivalent of a JastAdd circular attribute?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>Fixpoint iteration in an abstract domain</strong>, possibly with widening. Both compute iteratively from a bottom value until stability. The difference: Cousot's widening can force convergence in infinite-height lattices (at the cost of precision), while JastAdd's circular attributes assume finite-height domains where simple iteration always terminates.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Why does Silver need forwarding but JastAdd doesn't?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">Silver optimizes for <strong>modular extensibility</strong> &mdash; independently-developed extensions must compose without coordination. Forwarding lets extension productions delegate to host-language trees for attributes they don't know about. JastAdd doesn't need this because it's designed for monolithic compilation &mdash; all aspects are available at code-generation time, so missing equations are caught by the Java compiler.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">What do Galois connections, MWDA, and JastAdd's Java compiler all have in common?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">They all provide <strong>soundness/completeness guarantees</strong> for their respective systems. Galois connections guarantee that abstract interpretations are sound (never miss real behaviors). MWDA guarantees that Silver extensions compose without missing equations. JastAdd's Java compiler catches missing equations as compile errors. They're all "safety nets" &mdash; but at different levels of formality and with different guarantees.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Name three concepts that exist in JastAdd but not in Silver (or vice versa).</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a"><strong>JastAdd only:</strong> (1) Rewrites (in-place node replacement), (2) Inter-type declarations (injecting arbitrary Java into AST classes), (3) Aspect refinement (<code>refine</code>/<code>refined()</code>).<br><br><strong>Silver only:</strong> (1) Forwarding (delegation to equivalent trees), (2) Decorated/undecorated type distinction, (3) MWDA (modular well-definedness analysis).</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">What is the Cousot term for what JastAdd calls a "collection attribute"?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">The closest Cousot concept is the <strong>collecting semantics</strong> &mdash; gathering all reachable states (or all relevant facts) at a program point. A JastAdd collection attribute gathers contributions from across the tree into a single value, which is conceptually similar to how collecting semantics gathers all states that can reach a given point. Both involve aggregation from distributed sources.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">In what way is Silver's "decorate" operation analogous to Cousot's abstraction function &alpha;?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">Both transform a "raw" input into a "processed" form. Decoration takes an undecorated tree + inherited attributes and produces a decorated tree (with all attribute values). Abstraction (&alpha;) takes a concrete property and produces an abstract property. Both are <em>lossy</em> in a sense: decoration fixes one set of inherited attributes (losing the generality of other contexts), while abstraction fixes one level of precision (losing concrete detail). But the analogy is loose &mdash; decoration computes <em>exact</em> values, while &alpha; computes <em>approximations</em>.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">What is Cousot's "protoderivation semantics" and how does it relate to attribute grammars?</div>
+      <div class="hint">Click to reveal</div>
+      <div class="a">The protoderivation semantics is a <strong>fixpoint semantics for context-free grammars</strong> that models all possible derivation steps as transitions of a pushdown automaton. It is the "most concrete" grammar semantics. By successive abstractions, it yields: derivational semantics &rarr; equational language semantics &rarr; grammar flow analysis (FIRST/FOLLOW) &rarr; parsing algorithms. This hierarchy shows that classical grammar algorithms are all "weak interpreters" of the same underlying grammar semantics &mdash; each operating at a different level of abstraction.</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 13: REFERENCES -->
+<!-- ================================================================= -->
+<div class="section" id="sec-refs">
+  <div class="section-header" onclick="toggleSection('sec-refs')">
+    <span class="chevron">&#9654;</span>
+    <h2>Key References</h2>
+    <span class="badge badge-model">Sources</span>
+  </div>
+  <div class="section-body">
+
+    <h3><span class="sys-label sys-cousot">Cousot</span> Abstract Interpretation</h3>
+    <ul>
+      <li>P. Cousot &amp; R. Cousot, "Abstract interpretation: a unified lattice model for static analysis of programs by construction or approximation of fixpoints," POPL 1977</li>
+      <li>P. Cousot, "Constructive Design of a Hierarchy of Semantics of a Transition System by Abstract Interpretation," ENTCS 1997</li>
+      <li>P. Cousot &amp; R. Cousot, "Grammar Analysis and Parsing by Abstract Interpretation," Festschrift for Reinhard Wilhelm, Springer 2007</li>
+      <li>P. Cousot &amp; R. Cousot, "Grammar semantics, analysis and parsing by abstract interpretation," TCS 412(44):6135-6192, 2011</li>
+      <li>P. Cousot, <em>Principles of Abstract Interpretation</em>, MIT Press, 2021</li>
+    </ul>
+
+    <h3><span class="sys-label sys-jastadd">JastAdd</span></h3>
+    <ul>
+      <li>G. Hedin, "An Introductory Tutorial on JastAdd Attribute Grammars," GTTSE 2009</li>
+      <li>G. Hedin &amp; E. Magnusson, "JastAdd&mdash;an aspect-oriented compiler construction system," SCP 2003</li>
+      <li>E. Magnusson &amp; G. Hedin, "Circular Reference Attributed Grammars&mdash;Their Evaluation and Applications," SCP 2007</li>
+      <li>JastAdd Reference Manual: <a href="https://jastadd.cs.lth.se/web/documentation/reference-manual.php">jastadd.cs.lth.se</a></li>
+    </ul>
+
+    <h3><span class="sys-label sys-silver">Silver</span></h3>
+    <ul>
+      <li>E. Van Wyk, O. de Moor, K. Backhouse, P. Kwiatkowski, "Forwarding in Attribute Grammars for Modular Language Design," CC 2002</li>
+      <li>E. Van Wyk &amp; A. Schwerdfeger, "Context-Aware Scanning for Parsing Extensible Languages," GPCE 2007</li>
+      <li>T. Kaminski, L. Kramer, T. Carlson, E. Van Wyk, "Reliable and Automatic Composition of Language Extensions to C," PLDI 2017</li>
+      <li>Silver Documentation: <a href="https://melt.cs.umn.edu/silver/">melt.cs.umn.edu/silver/</a></li>
+    </ul>
+
+  </div>
+</div>
+
+</div><!-- container -->
+
+<script>
+function toggleSection(id) {
+  const header = document.querySelector(`#${id} .section-header`);
+  header.classList.toggle('open');
+}
+
+function switchTab(groupId, panelId) {
+  const group = document.getElementById(groupId);
+  const container = group.parentElement;
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(panelId).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>

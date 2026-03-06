@@ -1,10 +1,11 @@
 /**
  * Tests for the three-object architecture: Grammar + Semantics + interpret().
+ * Also tests stampTree (tree navigation stamping).
  */
 import { describe, it, expect } from 'vitest';
 import { createGrammar } from '../src/grammar.js';
 import { createSemantics } from '../src/semantics.js';
-import { interpret } from '../src/interpret.js';
+import { interpret, stampTree } from '../src/interpret.js';
 import type { SpecInput } from '../src/spec.js';
 
 // ── Test tree ───────────────────────────────────────────────────────────
@@ -35,6 +36,90 @@ function makeTree(): TNode {
     ],
   };
 }
+
+// ── stampTree ────────────────────────────────────────────────────────────
+
+interface SNode {
+  name: string;
+  kids: SNode[];
+}
+
+function snode(name: string, ...kids: SNode[]): SNode {
+  return { name, kids };
+}
+
+describe('stampTree', () => {
+  //       a
+  //      / \
+  //     b   c
+  //    / \
+  //   d   e
+  const d = snode('d');
+  const e = snode('e');
+  const b = snode('b', d, e);
+  const c = snode('c');
+  const a = snode('a', b, c);
+
+  // Stamp before tests
+  stampTree(a, (n) => n.kids);
+
+  it('stamps $root correctly', () => {
+    expect((a as any).$root).toBe(true);
+    expect((b as any).$root).toBe(false);
+    expect((d as any).$root).toBe(false);
+  });
+
+  it('stamps $parent correctly', () => {
+    expect((a as any).$parent).toBeUndefined();
+    expect((b as any).$parent).toBe(a);
+    expect((c as any).$parent).toBe(a);
+    expect((d as any).$parent).toBe(b);
+    expect((e as any).$parent).toBe(b);
+  });
+
+  it('stamps $children correctly', () => {
+    expect((a as any).$children).toEqual([b, c]);
+    expect((b as any).$children).toEqual([d, e]);
+    expect((c as any).$children).toEqual([]);
+    expect((d as any).$children).toEqual([]);
+  });
+
+  it('stamps $index correctly', () => {
+    expect((a as any).$index).toBe(-1); // root
+    expect((b as any).$index).toBe(0);
+    expect((c as any).$index).toBe(1);
+    expect((d as any).$index).toBe(0);
+    expect((e as any).$index).toBe(1);
+  });
+
+  it('stamps $prev correctly', () => {
+    expect((a as any).$prev).toBeUndefined();
+    expect((b as any).$prev).toBeUndefined(); // first child
+    expect((c as any).$prev).toBe(b);
+    expect((d as any).$prev).toBeUndefined();
+    expect((e as any).$prev).toBe(d);
+  });
+
+  it('stamps $next correctly', () => {
+    expect((a as any).$next).toBeUndefined();
+    expect((b as any).$next).toBe(c);
+    expect((c as any).$next).toBeUndefined(); // last child
+    expect((d as any).$next).toBe(e);
+    expect((e as any).$next).toBeUndefined();
+  });
+
+  it('works with a single-node tree', () => {
+    const single = snode('solo');
+    stampTree(single, (n) => n.kids);
+
+    expect((single as any).$root).toBe(true);
+    expect((single as any).$parent).toBeUndefined();
+    expect((single as any).$children).toEqual([]);
+    expect((single as any).$index).toBe(-1);
+    expect((single as any).$prev).toBeUndefined();
+    expect((single as any).$next).toBeUndefined();
+  });
+});
 
 // ── interpret() ──────────────────────────────────────────────────────────
 
