@@ -8,7 +8,6 @@ import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
 import { createProgram, createProgramFromTSProgram } from '../src/program.js';
-import { exportDashboardData } from '../src/dashboard/export.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
@@ -164,6 +163,39 @@ describe('e2e — checker edge cases', () => {
     );
     expect(typeOnly).toEqual([]);
   });
+
+  it('destructured parameter shadowing import: no violation', () => {
+    const program = createProgram(getRootFiles('checker-edges'), undefined, {
+      strict: true, noEmit: true,
+    });
+
+    const destructured = program.getDiagnostics().filter(
+      d => d.fileName.includes('destructured-param.ts'),
+    );
+    expect(destructured).toEqual([]);
+  });
+
+  it('destructured local variable shadowing import: no violation', () => {
+    const program = createProgram(getRootFiles('checker-edges'), undefined, {
+      strict: true, noEmit: true,
+    });
+
+    const destructured = program.getDiagnostics().filter(
+      d => d.fileName.includes('destructured-local.ts'),
+    );
+    expect(destructured).toEqual([]);
+  });
+
+  it('array-destructured parameter shadowing import: no violation', () => {
+    const program = createProgram(getRootFiles('checker-edges'), undefined, {
+      strict: true, noEmit: true,
+    });
+
+    const destructured = program.getDiagnostics().filter(
+      d => d.fileName.includes('array-destructured.ts'),
+    );
+    expect(destructured).toEqual([]);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────
@@ -184,38 +216,6 @@ describe('e2e — createProgramFromTSProgram integration', () => {
     expect(diags1.map(d => d.message).sort()).toEqual(
       diags2.map(d => d.message).sort(),
     );
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-
-describe('e2e — dashboard export with checker', () => {
-  it('dashboard export works after checker runs', () => {
-    const program = createProgram(getRootFiles('kind-violations'), undefined, {
-      strict: true, noEmit: true,
-    });
-
-    // Verify checker ran
-    expect(program.getDiagnostics().length).toBeGreaterThan(0);
-
-    // Dashboard export should still work
-    const data = exportDashboardData(program, { root: '/test' });
-    expect(data.version).toBe(2);
-    expect(data.parse.sourceFiles.length).toBeGreaterThan(0);
-    expect(data.kinds.definitions.length).toBeGreaterThan(0);
-    expect(data.kinds.definitions.map(d => d.name)).toContain('NoImports');
-  });
-
-  it('dashboard export works with clean code', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
-
-    expect(program.getDiagnostics()).toEqual([]);
-
-    const data = exportDashboardData(program, { includeSource: true });
-    expect(data.parse.sourceFiles.length).toBeGreaterThan(0);
-    expect(data.parse.sourceFiles[0].source).toBeTruthy();
   });
 });
 

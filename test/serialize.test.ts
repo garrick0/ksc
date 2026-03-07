@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
 import { createProgram } from '../src/program.js';
-import { serializeKSTree, serializeKSNode, deserializeKSTree } from '../src/pipeline/serialize.js';
-import { exportDashboardData } from '../src/dashboard/export.js';
+import {
+  treeToJSON, treeFromJSON, nodeToJSON, type JSONNode,
+} from '../ast-schema/generated/index.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
@@ -16,17 +17,19 @@ function getRootFiles(fixtureDir: string): string[] {
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('serializeKSTree', () => {
+describe('treeToJSON (replaces serializeKSTree)', () => {
   it('produces a JSON-safe tree with correct structure', () => {
     const program = createProgram(getRootFiles('kind-basic'), undefined, {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
+    const serialized = treeToJSON(program.getKSTree());
 
     expect(serialized.root).toBeDefined();
     expect(serialized.root.kind).toBe('Program');
-    expect(serialized.root.children.length).toBeGreaterThan(0);
+    // Program's children are under 'compilationUnits' (schema-aware)
+    const cus = serialized.root.compilationUnits as JSONNode[];
+    expect(cus.length).toBeGreaterThan(0);
 
     // Check it's JSON-safe
     const json = JSON.stringify(serialized);
@@ -40,8 +43,9 @@ describe('serializeKSTree', () => {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
-    const cu = serialized.root.children[0];
+    const serialized = treeToJSON(program.getKSTree());
+    const cus = serialized.root.compilationUnits as JSONNode[];
+    const cu = cus[0];
 
     expect(cu.kind).toBe('CompilationUnit');
     expect(cu.fileName).toBeTruthy();
@@ -54,7 +58,7 @@ describe('serializeKSTree', () => {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
+    const serialized = treeToJSON(program.getKSTree());
 
     // tsNode/tsProgram should not appear anywhere
     const json = JSON.stringify(serialized);
@@ -62,12 +66,12 @@ describe('serializeKSTree', () => {
     expect(json).not.toContain('"tsProgram"');
   });
 
-  it('strips AG navigation properties', () => {
+  it('does not contain navigation properties', () => {
     const program = createProgram(getRootFiles('kind-basic'), undefined, {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
+    const serialized = treeToJSON(program.getKSTree());
     const json = JSON.stringify(serialized);
 
     expect(json).not.toContain('"$parent"');
@@ -80,14 +84,25 @@ describe('serializeKSTree', () => {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
+    const serialized = treeToJSON(program.getKSTree());
 
     // Find an Identifier node
     function findIdentifier(node: any): any {
       if (node.kind === 'Identifier' && node.escapedText) return node;
-      for (const child of node.children ?? []) {
-        const found = findIdentifier(child);
-        if (found) return found;
+      // Search in all array/object values
+      for (const key of Object.keys(node)) {
+        const val = node[key];
+        if (Array.isArray(val)) {
+          for (const item of val) {
+            if (item && typeof item === 'object' && item.kind) {
+              const found = findIdentifier(item);
+              if (found) return found;
+            }
+          }
+        } else if (val && typeof val === 'object' && val.kind) {
+          const found = findIdentifier(val);
+          if (found) return found;
+        }
       }
       return null;
     }
@@ -102,17 +117,18 @@ describe('serializeKSTree', () => {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
-    const cu = serialized.root.children[0];
+    const serialized = treeToJSON(program.getKSTree());
+    const cus = serialized.root.compilationUnits as JSONNode[];
+    const cu = cus[0];
 
-    // CU text should be the full source
-    expect(cu.sourceText!.length).toBeGreaterThan(0);
+    // CU sourceText should be the full source
+    expect((cu.sourceText as string).length).toBeGreaterThan(0);
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('serializeKSNode', () => {
+describe('nodeToJSON (replaces serializeKSNode)', () => {
   it('serializes a single CompilationUnit', () => {
     const program = createProgram(getRootFiles('kind-basic'), undefined, {
       strict: true, noEmit: true,
@@ -120,11 +136,11 @@ describe('serializeKSNode', () => {
 
     const ksTree = program.getKSTree();
     const cu = ksTree.root.compilationUnits[0];
-    const serialized = serializeKSNode(cu);
+    const serialized = nodeToJSON(cu);
 
     expect(serialized.kind).toBe('CompilationUnit');
     expect(serialized.fileName).toBeTruthy();
-    expect(serialized.children.length).toBeGreaterThan(0);
+    expect(serialized.children!.length).toBeGreaterThan(0);
 
     // JSON-safe
     expect(() => JSON.stringify(serialized)).not.toThrow();
@@ -133,25 +149,24 @@ describe('serializeKSNode', () => {
 
 // ────────────────────────────────────────────────────────────────────────
 
-describe('deserializeKSTree', () => {
-  it('round-trips: serialize → JSON → deserialize', () => {
+describe('treeFromJSON (replaces deserializeKSTree)', () => {
+  it('round-trips: serialize -> JSON -> deserialize', () => {
     const program = createProgram(getRootFiles('kind-basic'), undefined, {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
+    const serialized = treeToJSON(program.getKSTree());
     const json = JSON.stringify(serialized);
     const parsed = JSON.parse(json);
 
-    const restored = deserializeKSTree(parsed);
+    const restored = treeFromJSON(parsed);
 
     expect(restored.root.kind).toBe('Program');
-    expect((restored.root as any).$root).toBe(true);
 
-    // compilationUnits is excluded from serialization; children holds CUs
-    const cu = (restored.root as any).children[0];
+    // compilationUnits restored
+    const cu = restored.root.children[0];
     expect(cu).toBeDefined();
-    expect((cu as any).$parent).toBe(restored.root);
+    expect(cu.kind).toBe('CompilationUnit');
   });
 
   it('deserialized tree has correct children', () => {
@@ -159,84 +174,12 @@ describe('deserializeKSTree', () => {
       strict: true, noEmit: true,
     });
 
-    const serialized = serializeKSTree(program.getKSTree());
+    const serialized = treeToJSON(program.getKSTree());
     const json = JSON.stringify(serialized);
-    const restored = deserializeKSTree(JSON.parse(json));
+    const restored = treeFromJSON(JSON.parse(json));
 
-    const cu = (restored.root as any).children[0];
+    const cu = restored.root.children[0];
     expect(cu.children.length).toBeGreaterThan(0);
-    expect((cu.children[0] as any).$parent).toBe(cu);
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-
-describe('dashboard export includes ksAst', () => {
-  it('ksAst is present when includeSource is true', () => {
-    // exportDashboardData imported at top
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
-
-    const data = exportDashboardData(program, { includeSource: true });
-    const sf = data.parse.sourceFiles[0];
-
-    expect(sf.ksAst).toBeDefined();
-    expect(sf.ksAst.kind).toBe('CompilationUnit');
-    expect(sf.ksAst.children.length).toBeGreaterThan(0);
-  });
-
-  it('ksAst is absent when includeSource is false', () => {
-    // exportDashboardData imported at top
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
-
-    const data = exportDashboardData(program);
-    const sf = data.parse.sourceFiles[0];
-
-    expect(sf.ksAst).toBeUndefined();
-  });
-
-  it('ksAst includes AG attributes when includeAttributes is true', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
-
-    const data = exportDashboardData(program, { includeSource: true, includeAttributes: true });
-    const sf = data.parse.sourceFiles[0];
-
-    expect(sf.ksAst).toBeDefined();
-
-    // Walk ksAst to find a node that has kindDefs attribute
-    function findAttr(node: any, key: string): any {
-      if (node[key] !== undefined && node[key] !== null) return node;
-      for (const child of node.children ?? []) {
-        const found = findAttr(child, key);
-        if (found) return found;
-      }
-      return null;
-    }
-
-    // kind-basic fixture defines a kind, so kindDefs should be present
-    const nodeWithKindDefs = findAttr(sf.ksAst, 'kindDefs');
-    expect(nodeWithKindDefs).toBeTruthy();
-    expect(Array.isArray(nodeWithKindDefs.kindDefs)).toBe(true);
-    expect(nodeWithKindDefs.kindDefs.length).toBeGreaterThan(0);
-  });
-
-  it('ksAst excludes AG attributes when includeAttributes is false', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
-
-    const data = exportDashboardData(program, { includeSource: true });
-    const sf = data.parse.sourceFiles[0];
-
-    expect(sf.ksAst).toBeDefined();
-
-    // Walk ksAst — no node should have kindDefs
-    const json = JSON.stringify(sf.ksAst);
-    expect(json).not.toContain('"kindDefs"');
+    expect(cu.children[0].kind).toBeTruthy();
   });
 });

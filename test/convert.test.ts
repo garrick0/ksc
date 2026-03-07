@@ -4,16 +4,15 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { buildKSTree } from '../src/pipeline/convert.js';
-import { stampTree } from '../libs/ag/src/interpret.js';
-import { getChildren } from '../src/pipeline/node-defs.js';
+import { buildKSTree } from '../ast-schema/generated/convert.js';
+import { buildTree, KSCDNode } from '../ksc-generated/evaluator.js';
 import type {
-  KSCompilationUnit, KSTypeAliasDeclaration, KSTypeReferenceNode,
-  KSTypeLiteralNode, KSIdentifier, KSFunctionDeclaration,
+  KSNode, KSCompilationUnit, KSTypeAliasDeclaration, KSTypeReference,
+  KSTypeLiteral, KSIdentifier, KSFunctionDeclaration,
   KSVariableStatement, KSVariableDeclarationList, KSVariableDeclaration,
   KSImportDeclaration, KSStringLiteral, KSPropertySignature,
   KSArrowFunction,
-} from '../src/pipeline/ast.js';
+} from '../ast-schema/generated/index.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
@@ -41,7 +40,6 @@ describe('buildKSTree', () => {
   describe('kind-basic fixture', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-basic'));
     const { root } = buildKSTree(tsProgram);
-    stampTree(root, getChildren);
 
     it('creates a Program root with CompilationUnits', () => {
       expect(root.kind).toBe('Program');
@@ -55,14 +53,20 @@ describe('buildKSTree', () => {
       expect(fileNames).toContain('math.ts');
     });
 
-    it('$parent works across the hierarchy', () => {
-      const kindsFile = root.compilationUnits.find(cu => cu.fileName.endsWith('kinds.ts'))!;
-      expect((kindsFile as any).$parent).toBe(root);
-      expect((root as any).$root).toBe(true);
+    it('KSCDNode navigation works across the hierarchy', () => {
+      const dnodeRoot = buildTree(root);
+
+      // Find the DNode for the kinds file
+      const kindsDNode = (dnodeRoot.children as KSCDNode[]).find(
+        c => (c.node as any).fileName?.endsWith('kinds.ts'),
+      )!;
+      expect(kindsDNode).toBeDefined();
+      expect(kindsDNode.parent).toBe(dnodeRoot);
+      expect(dnodeRoot.isRoot).toBe(true);
 
       // First child of the compilation unit has the CU as parent
-      if (kindsFile.children.length > 0) {
-        expect((kindsFile.children[0] as any).$parent).toBe(kindsFile);
+      if (kindsDNode.children.length > 0) {
+        expect(kindsDNode.children[0].parent).toBe(kindsDNode);
       }
     });
 
@@ -92,14 +96,14 @@ describe('buildKSTree', () => {
       const noImports = typeAliases.find(ta => ta.name.escapedText === 'NoImports');
       if (noImports) {
         expect(noImports.type.kind).toBe('TypeReference');
-        const typeRef = noImports.type as KSTypeReferenceNode;
+        const typeRef = noImports.type as KSTypeReference;
         expect(typeRef.typeName.kind).toBe('Identifier');
         expect((typeRef.typeName as KSIdentifier).escapedText).toBe('Kind');
         expect(typeRef.typeArguments.length).toBe(1);
 
         const arg = typeRef.typeArguments[0];
         expect(arg.kind).toBe('TypeLiteral');
-        const typeLiteral = arg as KSTypeLiteralNode;
+        const typeLiteral = arg as KSTypeLiteral;
         expect(typeLiteral.members.length).toBeGreaterThan(0);
 
         const member = typeLiteral.members[0] as KSPropertySignature;
@@ -132,7 +136,7 @@ describe('buildKSTree', () => {
         const prog = createTSProgram(path.join(FIXTURES, fixture));
         const { root } = buildKSTree(prog);
 
-        const stack: import('../src/pipeline/ast.js').KSNode[] = [root];
+        const stack: KSNode[] = [root];
         const kindsFound = new Set<string>();
         while (stack.length > 0) {
           const n = stack.pop()!;
@@ -157,7 +161,7 @@ describe('buildKSTree', () => {
       const { root } = buildKSTree(prog);
 
       const allKinds = new Set<string>();
-      const stack: import('../src/pipeline/ast.js').KSNode[] = [root];
+      const stack: KSNode[] = [root];
       while (stack.length > 0) {
         const n = stack.pop()!;
         allKinds.add(n.kind);
@@ -175,14 +179,13 @@ describe('buildKSTree', () => {
   describe('full AST depth', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-basic'));
     const { root } = buildKSTree(tsProgram);
-    stampTree(root, getChildren);
 
     it('tree goes beyond statements — into function bodies and expressions', () => {
       const mathFile = root.compilationUnits.find(cu => cu.fileName.endsWith('math.ts'))!;
 
       // Count all nodes in the tree (should be much more than just top-level statements)
       let nodeCount = 0;
-      const stack = [mathFile as import('../src/pipeline/ast.js').KSNode];
+      const stack = [mathFile as KSNode];
       while (stack.length > 0) {
         const n = stack.pop()!;
         nodeCount++;
@@ -196,7 +199,7 @@ describe('buildKSTree', () => {
 
     it('every node has valid pos/end', () => {
       const cu = root.compilationUnits[0];
-      const stack = [cu as import('../src/pipeline/ast.js').KSNode];
+      const stack = [cu as KSNode];
       while (stack.length > 0) {
         const n = stack.pop()!;
         expect(n.pos).toBeGreaterThanOrEqual(0);
@@ -207,7 +210,7 @@ describe('buildKSTree', () => {
 
     it('every node has a kind string', () => {
       const cu = root.compilationUnits[0];
-      const stack = [cu as import('../src/pipeline/ast.js').KSNode];
+      const stack = [cu as KSNode];
       while (stack.length > 0) {
         const n = stack.pop()!;
         expect(typeof n.kind).toBe('string');
@@ -216,24 +219,26 @@ describe('buildKSTree', () => {
       }
     });
 
-    it('$parent works deep in the tree', () => {
-      const cu = root.compilationUnits[0];
+    it('KSCDNode parent works deep in the tree', () => {
+      const dnodeRoot = buildTree(root);
+      const cuDNode = dnodeRoot.children[0] as KSCDNode;
       // Walk to find a deeply nested node
-      let deepNode = cu.children[0];
+      let deepNode: KSCDNode = cuDNode.children[0] as KSCDNode;
       let depth = 0;
       while (deepNode && deepNode.children.length > 0) {
-        deepNode = deepNode.children[0];
+        deepNode = deepNode.children[0] as KSCDNode;
         depth++;
       }
 
       if (depth > 1) {
-        // Walk back up via $parent and verify we reach the root
-        let current: any = deepNode;
-        while (current && !current.$root) {
-          const parent = current.$parent;
+        // Walk back up via parent and verify we reach the root
+        let current: KSCDNode | undefined = deepNode;
+        while (current && !current.isRoot) {
+          const parent = current.parent;
           expect(parent).toBeDefined();
           current = parent;
         }
+        expect(current!.isRoot).toBe(true);
       }
     });
   });

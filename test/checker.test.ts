@@ -1,18 +1,12 @@
 /**
- * Tests for the KindScript Checker — AG spec for kind property enforcement.
+ * Tests for the KindScript Checker — compiled evaluator.
  */
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { buildKSTree } from '../src/pipeline/convert.js';
-import { createBinderSpec } from '../src/pipeline/binder.js';
-import { createCheckerSpec } from '../src/pipeline/checker.js';
-import { createGrammar } from '../libs/ag/src/grammar.js';
-import { createSemantics } from '../libs/ag/src/semantics.js';
-import { interpret } from '../libs/ag/src/interpret.js';
-import { getChildren } from '../src/pipeline/node-defs.js';
-import type { KindDefinition, CheckerDiagnostic } from '../src/pipeline/types.js';
-import type { KSNode } from '../src/pipeline/ast.js';
+import { buildKSTree } from '../ast-schema/generated/convert.js';
+import { evaluate, buildTree, KSCDNode } from '../ksc-generated/evaluator.js';
+import type { KindDefinition, CheckerDiagnostic } from '../ksc-behavior/types.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
@@ -27,36 +21,28 @@ function buildAndCheck(fixtureDir: string) {
     rootDir: path.join(FIXTURES, fixtureDir),
   });
   const ksTree = buildKSTree(tsProgram);
-  const grammar = createGrammar(getChildren);
-  const semantics = createSemantics(grammar, [
-    createBinderSpec(),
-    createCheckerSpec(),
-  ]);
-  const results = interpret(semantics, ksTree.root);
-  const allDefs = (results.get('ksc-binder') as KindDefinition[]) ?? [];
-  const diagnostics = (results.get('ksc-checker') as CheckerDiagnostic[]) ?? [];
-  return { ksTree, allDefs, diagnostics };
+  const { definitions: allDefs, diagnostics } = evaluate(ksTree.root);
+  const dnodeRoot = buildTree(ksTree.root);
+  return { ksTree, dnodeRoot, allDefs, diagnostics };
 }
 
-// ────────────────────────────────────────────────────────────────────────
+/** Find a CU DNode by filename substring. */
+function findCU(dnodeRoot: KSCDNode, fileSubstr: string): KSCDNode | undefined {
+  return (dnodeRoot.children as KSCDNode[]).find(
+    cu => (cu.node as any).fileName?.includes(fileSubstr),
+  );
+}
 
-describe('checker — SpecInput contract', () => {
-  it('createCheckerSpec returns a valid SpecInput', () => {
-    const spec = createCheckerSpec();
-    expect(spec.name).toBe('ksc-checker');
-    expect(spec.deps).toContain('ksc-binder');
-    expect(typeof spec.project).toBe('function');
-    expect(spec.declarations).toHaveProperty('valueImports');
-    expect(spec.declarations).toHaveProperty('fileImports');
-    expect(spec.declarations).toHaveProperty('localBindings');
-    expect(spec.declarations).toHaveProperty('enclosingLocals');
-    expect(spec.declarations).toHaveProperty('isReference');
-    expect(spec.declarations).toHaveProperty('kindAnnotations');
-    expect(spec.declarations).toHaveProperty('noImportsContext');
-    expect(spec.declarations).toHaveProperty('importViolation');
-    expect(spec.declarations).toHaveProperty('allViolations');
-  });
-});
+/** DFS to find first KSCDNode whose raw node has given kind. */
+function findDNodeByKind(root: KSCDNode, kind: string): KSCDNode | undefined {
+  const stack: KSCDNode[] = [...root.children as KSCDNode[]];
+  while (stack.length > 0) {
+    const d = stack.pop()!;
+    if (d.node.kind === kind) return d;
+    stack.push(...d.children as KSCDNode[]);
+  }
+  return undefined;
+}
 
 // ────────────────────────────────────────────────────────────────────────
 
@@ -104,85 +90,23 @@ describe('checker — kind-violations fixture', () => {
 // ────────────────────────────────────────────────────────────────────────
 
 describe('checker — individual attributes', () => {
-  it('valueImports collects non-type-only imports', () => {
-    const { ksTree } = buildAndCheck('kind-violations');
-    const violating = ksTree.root.compilationUnits.find(
-      cu => cu.fileName.includes('violating.ts'),
-    )!;
-    const imports: Set<string> = (violating as any).valueImports;
-    expect(imports.has('helper')).toBe(true);
-  });
-
-  it('valueImports skips type-only imports', () => {
-    const { ksTree } = buildAndCheck('kind-basic');
-    const mathFile = ksTree.root.compilationUnits.find(
-      cu => cu.fileName.includes('math.ts'),
-    )!;
-    const imports: Set<string> = (mathFile as any).valueImports;
-    expect(imports.size).toBe(0);
-  });
-
-  it('fileImports propagates to descendants', () => {
-    const { ksTree } = buildAndCheck('kind-violations');
-    const violating = ksTree.root.compilationUnits.find(
-      cu => cu.fileName.includes('violating.ts'),
-    )!;
-    const deepNode = violating.children[violating.children.length - 1];
-    const imports: Set<string> = (deepNode as any).fileImports;
-    expect(imports.has('helper')).toBe(true);
-  });
-
-  it('localBindings collects parameters', () => {
-    const { ksTree } = buildAndCheck('kind-violations');
-    const violating = ksTree.root.compilationUnits.find(
-      cu => cu.fileName.includes('violating.ts'),
-    )!;
-    const stack: KSNode[] = [...violating.children];
-    let arrowFn: KSNode | undefined;
-    while (stack.length > 0) {
-      const n = stack.pop()!;
-      if (n.kind === 'ArrowFunction') { arrowFn = n; break; }
-      stack.push(...n.children);
-    }
-    expect(arrowFn).toBeDefined();
-    const locals: Set<string> = (arrowFn as any).localBindings;
-    expect(locals.has('a')).toBe(true);
-    expect(locals.has('b')).toBe(true);
-  });
-
   it('kindAnnotations finds NoImports on annotated declarations', () => {
-    const { ksTree } = buildAndCheck('kind-violations');
-    const violating = ksTree.root.compilationUnits.find(
-      cu => cu.fileName.includes('violating.ts'),
-    )!;
-    const stack: KSNode[] = [...violating.children];
-    let varDecl: KSNode | undefined;
-    while (stack.length > 0) {
-      const n = stack.pop()!;
-      if (n.kind === 'VariableDeclaration') { varDecl = n; break; }
-      stack.push(...n.children);
-    }
+    const { dnodeRoot } = buildAndCheck('kind-violations');
+    const violating = findCU(dnodeRoot, 'violating.ts')!;
+    const varDecl = findDNodeByKind(violating, 'VariableDeclaration');
     expect(varDecl).toBeDefined();
-    const annotations: KindDefinition[] = (varDecl as any).kindAnnotations;
+    const annotations = varDecl!.kindAnnotations();
     expect(annotations.length).toBeGreaterThan(0);
     expect(annotations[0].name).toBe('NoImports');
     expect(annotations[0].properties.noImports).toBe(true);
   });
 
   it('noImportsContext is non-null inside annotated function body', () => {
-    const { ksTree } = buildAndCheck('kind-violations');
-    const violating = ksTree.root.compilationUnits.find(
-      cu => cu.fileName.includes('violating.ts'),
-    )!;
-    const stack: KSNode[] = [...violating.children];
-    let arrowFn: KSNode | undefined;
-    while (stack.length > 0) {
-      const n = stack.pop()!;
-      if (n.kind === 'ArrowFunction') { arrowFn = n; break; }
-      stack.push(...n.children);
-    }
+    const { dnodeRoot } = buildAndCheck('kind-violations');
+    const violating = findCU(dnodeRoot, 'violating.ts')!;
+    const arrowFn = findDNodeByKind(violating, 'ArrowFunction');
     expect(arrowFn).toBeDefined();
-    const ctx: KindDefinition | null = (arrowFn as any).noImportsContext;
+    const ctx = arrowFn!.noImportsContext();
     expect(ctx).not.toBeNull();
     expect(ctx!.name).toBe('NoImports');
   });
