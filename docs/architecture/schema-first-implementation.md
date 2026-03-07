@@ -1,5 +1,12 @@
 # Schema-First Node Definitions — Implementation Plan
 
+> **Superseded:** The `libs/ag-schema` library described in this plan was
+> subsequently eliminated entirely. The codegen now generates all runtime
+> structures as pure static code in `ast-schema/generated/schema.ts`, with no
+> runtime library dependencies. See
+> [`eliminate-ag-schema-plan.md`](eliminate-ag-schema-plan.md) for details.
+> This document is retained as historical context for the original design.
+
 ## Goal
 
 Replace the current dual-maintenance AST architecture (hand-written TypeScript

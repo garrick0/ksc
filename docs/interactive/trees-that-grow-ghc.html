@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trees that Grow &amp; How GHC Works — A Visual Guide</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3348;
+  --text: #e2e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4ecdc4;
+  --green: #4ecdc4;
+  --yellow: #ffd93d;
+  --orange: #ff8c42;
+  --red: #ff6b6b;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --pink: #ff6b9d;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;line-height:1.7;padding:2rem;max-width:1200px;margin:0 auto}
+h1{font-size:2.2rem;margin-bottom:.3rem;background:linear-gradient(135deg,var(--purple),var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+h2{font-size:1.5rem;color:var(--accent);margin:3rem 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+h3{font-size:1.1rem;color:var(--accent2);margin:1.5rem 0 .5rem}
+p,li{color:var(--text2);margin-bottom:.7rem}
+.sub{color:var(--text2);font-size:1.05rem;margin-bottom:2.5rem}
+code{background:var(--surface2);padding:.15rem .4rem;border-radius:4px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85rem;color:var(--accent)}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;overflow-x:auto;margin:.8rem 0 1.2rem;line-height:1.5}
+pre code{background:none;padding:0;color:var(--text)}
+.kw{color:var(--purple)}.str{color:var(--green)}.num{color:var(--orange)}.cmt{color:#555b70;font-style:italic}.typ{color:var(--cyan)}.fn{color:var(--yellow)}.con{color:var(--pink)}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin:.8rem 0;transition:all .3s}
+.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}
+.card h4{margin-bottom:.4rem;font-size:1rem}
+
+/* Tabs */
+.tabs{display:flex;gap:0;margin:1.2rem 0 0;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.tab{padding:.55rem 1rem;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;font-size:.88rem;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none;padding:1.2rem;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:1rem}
+.tab-content.active{display:block}
+
+/* SVG styles */
+svg text{font-family:'Inter',system-ui,sans-serif}
+
+/* Pipeline */
+.pipeline-container{margin:1.5rem 0;overflow-x:auto}
+.phase-box{cursor:pointer;transition:all .3s}
+.phase-box:hover rect{stroke-width:3}
+.phase-box.active rect{stroke-width:3;filter:drop-shadow(0 0 8px rgba(108,140,255,.4))}
+.phase-detail{display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1rem 0;animation:fadeIn .3s}
+.phase-detail.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* AST Tree visual */
+.tree-container{position:relative;margin:1.5rem 0;overflow-x:auto}
+.tree-svg{width:100%;min-height:300px}
+.tree-node{cursor:pointer;transition:all .3s}
+.tree-node:hover circle{stroke-width:3;filter:drop-shadow(0 0 6px rgba(108,140,255,.5))}
+
+/* Interactive comparison */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin:1rem 0}
+@media(max-width:700px){.compare-grid{grid-template-columns:1fr}}
+.compare-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative}
+.compare-panel h4{color:var(--accent);margin-bottom:.8rem;font-size:.95rem}
+.phase-badge{display:inline-block;padding:.2rem .6rem;border-radius:12px;font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+
+/* Animated data flow */
+.flow-demo{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.2rem 0;position:relative;overflow:hidden}
+.flow-demo h4{color:var(--accent);margin-bottom:1rem}
+
+/* Extension point highlighting */
+.ext-point{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.8rem;border:1px dashed;margin:.15rem}
+.ext-node{border-color:var(--purple);color:var(--purple);background:rgba(167,139,250,.08)}
+.ext-field{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08)}
+.ext-cons{border-color:var(--yellow);color:var(--yellow);background:rgba(255,217,61,.08)}
+
+/* Quiz */
+.quiz{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.5rem 0}
+.quiz h4{color:var(--yellow);margin-bottom:1rem;font-size:1.05rem}
+.quiz-q{margin-bottom:1rem}
+.quiz-option{display:block;width:100%;text-align:left;padding:.65rem 1rem;margin:.3rem 0;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .2s}
+.quiz-option:hover{border-color:var(--accent)}
+.quiz-option.correct{border-color:var(--green);background:rgba(78,205,196,.1);color:var(--green)}
+.quiz-option.wrong{border-color:var(--red);background:rgba(255,107,107,.1);color:var(--red)}
+.quiz-explain{display:none;margin-top:.8rem;padding:.8rem;background:var(--surface2);border-radius:6px;font-size:.88rem;color:var(--text2);border-left:3px solid var(--green)}
+
+/* Expandable */
+.expand{margin:.5rem 0}
+.expand-header{display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:var(--surface2);border-radius:6px;cursor:pointer;user-select:none;transition:background .2s}
+.expand-header:hover{background:rgba(108,140,255,.08)}
+.expand-arrow{transition:transform .2s;font-size:.7rem;color:var(--text2)}
+.expand-arrow.open{transform:rotate(90deg)}
+.expand-body{display:none;padding:.6rem .8rem .8rem 1.8rem;font-size:.9rem}
+.expand-body.open{display:block}
+
+/* Glowing connector lines */
+.glow-line{stroke-dasharray:8 4;animation:dashMove 1.5s linear infinite}
+@keyframes dashMove{to{stroke-dashoffset:-24}}
+
+/* Annotation visual */
+.anno-row{display:flex;align-items:stretch;gap:0;margin:.6rem 0}
+.anno-core{background:var(--surface2);border:2px solid var(--accent);border-radius:8px;padding:.5rem .9rem;font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--accent);display:flex;align-items:center}
+.anno-ext{border:2px dashed;border-radius:0 8px 8px 0;padding:.4rem .7rem;font-family:'JetBrains Mono',monospace;font-size:.78rem;margin-left:-2px;display:flex;align-items:center;gap:.3rem}
+
+/* Phase selector buttons */
+.phase-btns{display:flex;gap:.4rem;flex-wrap:wrap;margin:.8rem 0}
+.phase-btn{padding:.4rem .85rem;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-size:.82rem;font-family:inherit;transition:all .2s}
+.phase-btn:hover{border-color:var(--accent);color:var(--text)}
+.phase-btn.active{border-color:var(--accent);background:rgba(108,140,255,.15);color:var(--accent)}
+
+/* Smooth transitions */
+.smooth{transition:all .4s ease}
+
+/* Tooltip */
+.tip{position:relative}
+.tip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--surface2);color:var(--text);padding:.3rem .6rem;border-radius:6px;font-size:.75rem;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s;border:1px solid var(--border)}
+.tip:hover::after{opacity:1}
+
+/* Memory layout vis */
+.mem-cell{display:inline-flex;align-items:center;justify-content:center;min-width:60px;height:36px;border:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:.78rem;transition:all .3s}
+.mem-row{display:flex;gap:0;margin:.4rem 0;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<h1>Trees that Grow &amp; How GHC Works</h1>
+<p class="sub">A visual journey through the Haskell compiler's architecture and its extensible AST design pattern</p>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: THE BIG PICTURE -->
+<!-- ============================================================ -->
+<h2>1. The Big Picture: GHC's Pipeline</h2>
+<p>GHC transforms Haskell source code through <strong>eight major phases</strong>, each producing a different intermediate representation. Click any phase to learn more.</p>
+
+<div class="pipeline-container">
+<svg id="pipelineSvg" viewBox="0 0 1100 200" style="width:100%;max-height:220px">
+  <!-- Phase boxes -->
+  <g class="phase-box" data-phase="parse" onclick="showPhase('parse')">
+    <rect x="10" y="50" width="110" height="60" rx="10" fill="#1a1d27" stroke="#a78bfa" stroke-width="2"/>
+    <text x="65" y="77" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="600">Parser</text>
+    <text x="65" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">HsSyn (Ps)</text>
+  </g>
+  <g><line x1="120" y1="80" x2="145" y2="80" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/></g>
+
+  <g class="phase-box" data-phase="rename" onclick="showPhase('rename')">
+    <rect x="145" y="50" width="110" height="60" rx="10" fill="#1a1d27" stroke="#6c8cff" stroke-width="2"/>
+    <text x="200" y="77" text-anchor="middle" fill="#6c8cff" font-size="13" font-weight="600">Renamer</text>
+    <text x="200" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">HsSyn (Rn)</text>
+  </g>
+  <g><line x1="255" y1="80" x2="280" y2="80" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/></g>
+
+  <g class="phase-box" data-phase="typecheck" onclick="showPhase('typecheck')">
+    <rect x="280" y="50" width="120" height="60" rx="10" fill="#1a1d27" stroke="#4ecdc4" stroke-width="2"/>
+    <text x="340" y="77" text-anchor="middle" fill="#4ecdc4" font-size="13" font-weight="600">Typechecker</text>
+    <text x="340" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">HsSyn (Tc)</text>
+  </g>
+  <g><line x1="400" y1="80" x2="425" y2="80" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/></g>
+
+  <g class="phase-box" data-phase="desugar" onclick="showPhase('desugar')">
+    <rect x="425" y="50" width="110" height="60" rx="10" fill="#1a1d27" stroke="#ffd93d" stroke-width="2"/>
+    <text x="480" y="77" text-anchor="middle" fill="#ffd93d" font-size="13" font-weight="600">Desugarer</text>
+    <text x="480" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">Core</text>
+  </g>
+  <g><line x1="535" y1="80" x2="560" y2="80" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/></g>
+
+  <g class="phase-box" data-phase="core" onclick="showPhase('core')">
+    <rect x="560" y="50" width="120" height="60" rx="10" fill="#1a1d27" stroke="#ff8c42" stroke-width="2"/>
+    <text x="620" y="77" text-anchor="middle" fill="#ff8c42" font-size="13" font-weight="600">Core-to-Core</text>
+    <text x="620" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">Optimised Core</text>
+  </g>
+  <g><line x1="680" y1="80" x2="705" y2="80" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/></g>
+
+  <g class="phase-box" data-phase="stg" onclick="showPhase('stg')">
+    <rect x="705" y="50" width="100" height="60" rx="10" fill="#1a1d27" stroke="#ff6b6b" stroke-width="2"/>
+    <text x="755" y="77" text-anchor="middle" fill="#ff6b6b" font-size="13" font-weight="600">STG</text>
+    <text x="755" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">Spineless G</text>
+  </g>
+  <g><line x1="805" y1="80" x2="830" y2="80" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/></g>
+
+  <g class="phase-box" data-phase="cmm" onclick="showPhase('cmm')">
+    <rect x="830" y="50" width="100" height="60" rx="10" fill="#1a1d27" stroke="#ff6b9d" stroke-width="2"/>
+    <text x="880" y="77" text-anchor="middle" fill="#ff6b9d" font-size="13" font-weight="600">Cmm</text>
+    <text x="880" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">C-- IR</text>
+  </g>
+  <g><line x1="930" y1="80" x2="955" y2="80" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/></g>
+
+  <g class="phase-box" data-phase="codegen" onclick="showPhase('codegen')">
+    <rect x="955" y="50" width="120" height="60" rx="10" fill="#1a1d27" stroke="#22d3ee" stroke-width="2"/>
+    <text x="1015" y="77" text-anchor="middle" fill="#22d3ee" font-size="13" font-weight="600">Code Gen</text>
+    <text x="1015" y="96" text-anchor="middle" fill="#9ba1b5" font-size="10">Assembly/LLVM</text>
+  </g>
+
+  <!-- Data labels above -->
+  <text x="65" y="35" text-anchor="middle" fill="#555b70" font-size="10">Source .hs</text>
+  <line x1="65" y1="38" x2="65" y2="50" stroke="#555b70" stroke-width="1" stroke-dasharray="3 2"/>
+
+  <text x="1015" y="140" text-anchor="middle" fill="#555b70" font-size="10">.o / executable</text>
+  <line x1="1015" y1="110" x2="1015" y2="130" stroke="#555b70" stroke-width="1" stroke-dasharray="3 2"/>
+
+  <!-- Brace showing TTG applies here -->
+  <rect x="8" y="130" width="400" height="28" rx="6" fill="none" stroke="var(--purple)" stroke-width="1" stroke-dasharray="6 3" opacity=".5"/>
+  <text x="208" y="148" text-anchor="middle" fill="var(--purple)" font-size="11" opacity=".7">Trees that Grow (same HsSyn type, 3 phases)</text>
+
+  <defs>
+    <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#555b70" stroke-width="1.5"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+<!-- Phase detail panels -->
+<div id="phase-parse" class="phase-detail">
+  <h3 style="color:var(--purple)">Parser</h3>
+  <p>The <strong>parser</strong> reads Haskell source text and produces the <code>HsSyn</code> AST parameterised by the <code>GhcPs</code> phase ("Parsed Source"). At this stage:</p>
+  <div class="card-grid">
+    <div class="card">
+      <h4 style="color:var(--purple)">Identifiers</h4>
+      <p>Names are <code>RdrName</code> — raw strings from source code, not yet resolved.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--purple)">Extension fields</h4>
+      <p><code>XApp GhcPs = EpAnn</code> — stores source locations and exact print annotations for formatting preservation.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--purple)">No types yet</h4>
+      <p>Type information doesn't exist. The typechecker hasn't run. Expression nodes carry no type annotations.</p>
+    </div>
+  </div>
+</div>
+
+<div id="phase-rename" class="phase-detail">
+  <h3 style="color:var(--accent)">Renamer</h3>
+  <p>The <strong>renamer</strong> resolves all names to unique <code>Name</code> values, catching scope errors. The AST becomes <code>HsSyn GhcRn</code>.</p>
+  <div class="card-grid">
+    <div class="card">
+      <h4 style="color:var(--accent)">Identifiers</h4>
+      <p><code>RdrName</code> &rarr; <code>Name</code>. Every identifier now has a <code>Unique</code> — a globally unique integer. Shadowing and scope are resolved.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent)">Free variables</h4>
+      <p>Extension fields like <code>XMatch GhcRn</code> now carry <code>NameSet</code> — the set of free variables used by each sub-expression.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent)">Import resolution</h4>
+      <p>Qualified names, re-exports, and fixity are all resolved. Error messages report the original user-written name.</p>
+    </div>
+  </div>
+</div>
+
+<div id="phase-typecheck" class="phase-detail">
+  <h3 style="color:var(--green)">Typechecker</h3>
+  <p>The <strong>typechecker</strong> infers and checks types, producing <code>HsSyn GhcTc</code> — the fully elaborated AST.</p>
+  <div class="card-grid">
+    <div class="card">
+      <h4 style="color:var(--green)">Identifiers</h4>
+      <p><code>Name</code> &rarr; <code>Id</code> (a.k.a. <code>Var</code>). Every binder now knows its full type. <code>Id</code> = <code>Name</code> + <code>Type</code> + <code>IdInfo</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--green)">Type annotations everywhere</h4>
+      <p><code>XApp GhcTc = Type</code> — every application node stores the result type. The wrapper <code>HsWrapper</code> records coercions and dictionary evidence.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--green)">Evidence &amp; dictionaries</h4>
+      <p>Type class constraints become explicit dictionary-passing. <code>HsWrap</code> nodes insert coercions, type applications, and evidence bindings.</p>
+    </div>
+  </div>
+</div>
+
+<div id="phase-desugar" class="phase-detail">
+  <h3 style="color:var(--yellow)">Desugarer</h3>
+  <p>The desugarer transforms the rich <code>HsSyn</code> AST into <strong>Core</strong> — GHC's small, typed intermediate language.</p>
+  <div class="card-grid">
+    <div class="card">
+      <h4 style="color:var(--yellow)">Pattern match compilation</h4>
+      <p>Nested patterns, guards, and view patterns are compiled into simple <code>case</code> expressions with flat alternatives.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--yellow)">do-notation &rarr; binds</h4>
+      <p><code>do { x &lt;- e1; e2 }</code> becomes <code>e1 &gt;&gt;= (\x -&gt; e2)</code>. List comprehensions are similarly desugared.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--yellow)">Core has only 8 constructors</h4>
+      <p><code>Var | Lit | App | Lam | Let | Case | Cast | Type</code> — dramatically simpler than HsSyn's ~60 expression forms.</p>
+    </div>
+  </div>
+</div>
+
+<div id="phase-core" class="phase-detail">
+  <h3 style="color:var(--orange)">Core-to-Core Optimisation</h3>
+  <p>GHC runs <strong>multiple passes</strong> over Core, each simplifying and optimising. This is where the magic happens.</p>
+  <div class="card-grid">
+    <div class="card"><h4 style="color:var(--orange)">Simplifier</h4><p>Inlining, beta reduction, case-of-case, case-of-known-constructor. Runs multiple times.</p></div>
+    <div class="card"><h4 style="color:var(--orange)">Specialiser</h4><p>Creates type-specialised versions of polymorphic functions to avoid dictionary overhead.</p></div>
+    <div class="card"><h4 style="color:var(--orange)">Float in/out</h4><p>Moves let-bindings to reduce allocation (float-in) or enable sharing (float-out/full laziness).</p></div>
+    <div class="card"><h4 style="color:var(--orange)">Demand analysis</h4><p>Strictness/absence analysis. Identifies which arguments are always forced, enabling unboxing and worker/wrapper.</p></div>
+  </div>
+</div>
+
+<div id="phase-stg" class="phase-detail">
+  <h3 style="color:var(--red)">STG — Spineless Tagless G-machine</h3>
+  <p>Core is translated to <strong>STG</strong> — an IR that makes heap allocation and evaluation strategy explicit.</p>
+  <div class="card-grid">
+    <div class="card"><h4 style="color:var(--red)">Every let = allocation</h4><p>Each <code>let</code> binding in STG corresponds to a heap object (thunk, data constructor, or partial application).</p></div>
+    <div class="card"><h4 style="color:var(--red)">Explicit closures</h4><p>Free variables are listed explicitly. <code>let f = \[x,y] \z -&gt; body</code> — free vars <code>[x,y]</code> and param <code>z</code>.</p></div>
+    <div class="card"><h4 style="color:var(--red)">Update flags</h4><p>Each closure is marked as updatable (thunk, evaluated at most once) or re-entrant (function, no update).</p></div>
+  </div>
+</div>
+
+<div id="phase-cmm" class="phase-detail">
+  <h3 style="color:var(--pink)">Cmm (C--)</h3>
+  <p><strong>Cmm</strong> is GHC's low-level imperative IR — a portable assembly language with an explicit stack and register model.</p>
+  <div class="card-grid">
+    <div class="card"><h4 style="color:var(--pink)">Basic blocks</h4><p>Control flow is a graph of basic blocks. Each block ends with a branch, call, or return.</p></div>
+    <div class="card"><h4 style="color:var(--pink)">GC info tables</h4><p>Every heap object and stack frame has an info table describing its layout for the garbage collector.</p></div>
+    <div class="card"><h4 style="color:var(--pink)">Platform-independent</h4><p>Cmm abstracts over registers and calling conventions. The native code generator lowers it to actual machine instructions.</p></div>
+  </div>
+</div>
+
+<div id="phase-codegen" class="phase-detail">
+  <h3 style="color:var(--cyan)">Code Generation</h3>
+  <p>The final step: Cmm is lowered to machine code via one of three backends.</p>
+  <div class="card-grid">
+    <div class="card"><h4 style="color:var(--cyan)">NCG (Native Code Gen)</h4><p>GHC's own backend. Generates x86-64, AArch64 assembly directly. Fastest compile times.</p></div>
+    <div class="card"><h4 style="color:var(--cyan)">LLVM backend</h4><p><code>-fllvm</code> emits LLVM IR. Better at loop optimisation and SIMD. Used for numeric code.</p></div>
+    <div class="card"><h4 style="color:var(--cyan)">JavaScript backend</h4><p>Targets JavaScript/WebAssembly for running Haskell in browsers. Added in GHC 9.6.</p></div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 2: THE PROBLEM TTG SOLVES -->
+<!-- ============================================================ -->
+<h2>2. The Problem: One AST, Many Phases</h2>
+
+<p>GHC's AST (<code>HsSyn</code>) represents Haskell syntax. But each compiler phase needs <strong>different data</strong> on the same tree structure. Before Trees that Grow, GHC had two bad options:</p>
+
+<div class="compare-grid">
+  <div class="compare-panel" style="border-color:var(--red)">
+    <h4 style="color:var(--red)">Option A: Separate AST types</h4>
+    <svg viewBox="0 0 300 180" style="width:100%">
+      <rect x="20" y="10" width="110" height="40" rx="8" fill="none" stroke="var(--purple)" stroke-width="2"/>
+      <text x="75" y="35" text-anchor="middle" fill="var(--purple)" font-size="12">PsExpr</text>
+      <rect x="20" y="70" width="110" height="40" rx="8" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      <text x="75" y="95" text-anchor="middle" fill="var(--accent)" font-size="12">RnExpr</text>
+      <rect x="20" y="130" width="110" height="40" rx="8" fill="none" stroke="var(--green)" stroke-width="2"/>
+      <text x="75" y="155" text-anchor="middle" fill="var(--green)" font-size="12">TcExpr</text>
+      <!-- Duplication arrows -->
+      <text x="160" y="35" fill="var(--red)" font-size="10">~60 constructors</text>
+      <text x="160" y="95" fill="var(--red)" font-size="10">~60 constructors</text>
+      <text x="160" y="155" fill="var(--red)" font-size="10">~60 constructors</text>
+      <text x="160" y="60" fill="var(--red)" font-size="10" font-style="italic">90% identical!</text>
+      <text x="160" y="120" fill="var(--red)" font-size="10" font-style="italic">90% identical!</text>
+    </svg>
+    <p style="font-size:.85rem">Massive code duplication. Every function processing the AST needs three versions. Bug fixes must be applied three times.</p>
+  </div>
+
+  <div class="compare-panel" style="border-color:var(--red)">
+    <h4 style="color:var(--red)">Option B: One type with Maybe fields</h4>
+    <pre><code><span class="kw">data</span> <span class="typ">HsExpr</span> = <span class="con">HsApp</span>
+  { appFun  :: <span class="typ">HsExpr</span>
+  , appArg  :: <span class="typ">HsExpr</span>
+  , appType :: <span class="typ">Maybe Type</span>  <span class="cmt">-- Nothing before TC</span>
+  , appFVs  :: <span class="typ">Maybe NameSet</span> <span class="cmt">-- Nothing before Rn</span>
+  , appAnn  :: <span class="typ">Maybe EpAnn</span>  <span class="cmt">-- Nothing after parse</span>
+  }</code></pre>
+    <p style="font-size:.85rem">Littered with <code>Maybe</code>. No static guarantee that types exist after typechecking. Runtime crashes from unexpected <code>Nothing</code>. Wastes memory.</p>
+  </div>
+</div>
+
+<h3>What we actually want</h3>
+<div class="card" style="border-color:var(--green)">
+  <p style="color:var(--text)"><strong>One AST definition</strong> with <strong>type-safe, phase-indexed extension points</strong> — so the type system guarantees that type info exists after typechecking and source locations exist after parsing, with zero runtime overhead.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: TREES THAT GROW — THE PATTERN -->
+<!-- ============================================================ -->
+<h2>3. Trees that Grow — The Pattern</h2>
+
+<p>The key insight: parameterise the AST by a <strong>phase type</strong>, and use <strong>type families</strong> to vary the data stored at each node per phase.</p>
+
+<h3>Step 1: Define extension type families</h3>
+<pre><code><span class="cmt">-- A "phase" type: just a tag, no runtime values</span>
+<span class="kw">data</span> <span class="typ">GhcPass</span> (c :: <span class="typ">Pass</span>) <span class="kw">where</span> ...
+<span class="kw">data</span> <span class="typ">Pass</span> = <span class="con">Parsed</span> | <span class="con">Renamed</span> | <span class="con">Typechecked</span>
+
+<span class="kw">type</span> <span class="typ">GhcPs</span> = <span class="typ">GhcPass</span> '<span class="con">Parsed</span>
+<span class="kw">type</span> <span class="typ">GhcRn</span> = <span class="typ">GhcPass</span> '<span class="con">Renamed</span>
+<span class="kw">type</span> <span class="typ">GhcTc</span> = <span class="typ">GhcPass</span> '<span class="con">Typechecked</span>
+
+<span class="cmt">-- Extension point: what does HsApp carry in each phase?</span>
+<span class="kw">type family</span> <span class="typ">XApp</span> p</code></pre>
+
+<h3>Step 2: The AST uses the type family</h3>
+<pre><code><span class="kw">data</span> <span class="typ">HsExpr</span> p
+  = <span class="con">HsApp</span> (<span class="typ">XApp</span> p) (<span class="typ">HsExpr</span> p) (<span class="typ">HsExpr</span> p)
+  | <span class="con">HsVar</span> (<span class="typ">XVar</span> p) (<span class="typ">LIdP</span> p)
+  | <span class="con">HsLam</span> (<span class="typ">XLam</span> p) (<span class="typ">MatchGroup</span> p (<span class="typ">LHsExpr</span> p))
+  | ...
+  | <span class="con">XExpr</span>  (<span class="typ">XXExpr</span> p)       <span class="cmt">-- extension constructor!</span></code></pre>
+
+<h3>Step 3: Instantiate for each phase</h3>
+
+<div class="tabs" id="ttg-tabs">
+  <div class="tab active" onclick="switchTab('ttg-tabs','ttg-ps')">GhcPs (Parsed)</div>
+  <div class="tab" onclick="switchTab('ttg-tabs','ttg-rn')">GhcRn (Renamed)</div>
+  <div class="tab" onclick="switchTab('ttg-tabs','ttg-tc')">GhcTc (Typechecked)</div>
+</div>
+<div id="ttg-ps" class="tab-content active">
+<pre><code><span class="kw">type instance</span> <span class="typ">XApp</span> <span class="typ">GhcPs</span> = <span class="typ">EpAnn</span>             <span class="cmt">-- source location + print info</span>
+<span class="kw">type instance</span> <span class="typ">XVar</span> <span class="typ">GhcPs</span> = <span class="typ">EpAnn</span>
+<span class="kw">type instance</span> <span class="typ">LIdP</span> <span class="typ">GhcPs</span> = <span class="typ">LocatedN RdrName</span>  <span class="cmt">-- raw, unresolved name</span>
+<span class="kw">type instance</span> <span class="typ">XXExpr</span> <span class="typ">GhcPs</span> = <span class="typ">DataConCantHappen</span> <span class="cmt">-- no extra constructors</span></code></pre>
+<p>After parsing, identifiers are raw strings (<code>RdrName</code>) and nodes carry exact-print annotations for round-tripping source code.</p>
+</div>
+<div id="ttg-rn" class="tab-content">
+<pre><code><span class="kw">type instance</span> <span class="typ">XApp</span> <span class="typ">GhcRn</span> = <span class="typ">NoExtField</span>        <span class="cmt">-- no extra data needed</span>
+<span class="kw">type instance</span> <span class="typ">XVar</span> <span class="typ">GhcRn</span> = <span class="typ">NoExtField</span>
+<span class="kw">type instance</span> <span class="typ">LIdP</span> <span class="typ">GhcRn</span> = <span class="typ">LocatedN Name</span>     <span class="cmt">-- resolved unique Name</span>
+<span class="kw">type instance</span> <span class="typ">XXExpr</span> <span class="typ">GhcRn</span> = <span class="typ">DataConCantHappen</span></code></pre>
+<p>After renaming, every identifier has a globally unique <code>Name</code>. Scope errors have been caught. Exact-print info is dropped (or moved).</p>
+</div>
+<div id="ttg-tc" class="tab-content">
+<pre><code><span class="kw">type instance</span> <span class="typ">XApp</span> <span class="typ">GhcTc</span> = <span class="typ">Type</span>             <span class="cmt">-- result type of application!</span>
+<span class="kw">type instance</span> <span class="typ">XVar</span> <span class="typ">GhcTc</span> = <span class="typ">Type</span>             <span class="cmt">-- type of the variable</span>
+<span class="kw">type instance</span> <span class="typ">LIdP</span> <span class="typ">GhcTc</span> = <span class="typ">LocatedN Id</span>      <span class="cmt">-- Id = Name + Type + IdInfo</span>
+<span class="kw">type instance</span> <span class="typ">XXExpr</span> <span class="typ">GhcTc</span> = <span class="typ">XXExprGhcTc</span>    <span class="cmt">-- HsWrap, etc.</span></code></pre>
+<p>After typechecking, every expression node carries its <code>Type</code>. The <code>XXExpr</code> extension constructor adds <code>HsWrap</code> for coercions and evidence application.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: VISUAL — Extension Points Map -->
+<!-- ============================================================ -->
+<h2>4. The Three Extension Mechanisms</h2>
+
+<p>Trees that Grow provides <strong>three kinds</strong> of extension points. Each solves a different problem.</p>
+
+<svg viewBox="0 0 800 340" style="width:100%;max-height:360px;margin:1rem 0">
+  <!-- Extension 1: Per-constructor annotation -->
+  <rect x="20" y="20" width="240" height="130" rx="12" fill="var(--surface)" stroke="var(--purple)" stroke-width="2"/>
+  <text x="140" y="50" text-anchor="middle" fill="var(--purple)" font-size="14" font-weight="600">X fields</text>
+  <text x="140" y="72" text-anchor="middle" fill="var(--text2)" font-size="11">Per-constructor annotation</text>
+  <rect x="40" y="85" width="80" height="22" rx="4" fill="rgba(167,139,250,.1)" stroke="var(--purple)" stroke-width="1"/>
+  <text x="80" y="100" text-anchor="middle" fill="var(--purple)" font-size="10">XApp p</text>
+  <rect x="130" y="85" width="80" height="22" rx="4" fill="rgba(167,139,250,.1)" stroke="var(--purple)" stroke-width="1"/>
+  <text x="170" y="100" text-anchor="middle" fill="var(--purple)" font-size="10">XVar p</text>
+  <text x="140" y="135" text-anchor="middle" fill="var(--text2)" font-size="10">EpAnn, Type, NoExtField...</text>
+
+  <!-- Extension 2: Phase-indexed types -->
+  <rect x="280" y="20" width="240" height="130" rx="12" fill="var(--surface)" stroke="var(--cyan)" stroke-width="2"/>
+  <text x="400" y="50" text-anchor="middle" fill="var(--cyan)" font-size="14" font-weight="600">IdP / LIdP</text>
+  <text x="400" y="72" text-anchor="middle" fill="var(--text2)" font-size="11">Phase-indexed identifier type</text>
+  <rect x="300" y="85" width="80" height="22" rx="4" fill="rgba(34,211,238,.1)" stroke="var(--cyan)" stroke-width="1"/>
+  <text x="340" y="100" text-anchor="middle" fill="var(--cyan)" font-size="10">RdrName</text>
+  <text x="386" y="100" fill="var(--text2)" font-size="12">&rarr;</text>
+  <rect x="395" y="85" width="60" height="22" rx="4" fill="rgba(34,211,238,.1)" stroke="var(--cyan)" stroke-width="1"/>
+  <text x="425" y="100" text-anchor="middle" fill="var(--cyan)" font-size="10">Name</text>
+  <text x="462" y="100" fill="var(--text2)" font-size="12">&rarr;</text>
+  <rect x="470" y="85" width="40" height="22" rx="4" fill="rgba(34,211,238,.1)" stroke="var(--cyan)" stroke-width="1"/>
+  <text x="490" y="100" text-anchor="middle" fill="var(--cyan)" font-size="10">Id</text>
+  <text x="400" y="135" text-anchor="middle" fill="var(--text2)" font-size="10">Ps: raw string, Rn: unique, Tc: typed</text>
+
+  <!-- Extension 3: Extension constructors -->
+  <rect x="540" y="20" width="240" height="130" rx="12" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+  <text x="660" y="50" text-anchor="middle" fill="var(--yellow)" font-size="14" font-weight="600">XX constructors</text>
+  <text x="660" y="72" text-anchor="middle" fill="var(--text2)" font-size="11">Phase-specific node variants</text>
+  <rect x="565" y="85" width="90" height="22" rx="4" fill="rgba(255,217,61,.1)" stroke="var(--yellow)" stroke-width="1"/>
+  <text x="610" y="100" text-anchor="middle" fill="var(--yellow)" font-size="10">XXExpr p</text>
+  <rect x="665" y="85" width="90" height="22" rx="4" fill="rgba(255,217,61,.1)" stroke="var(--yellow)" stroke-width="1"/>
+  <text x="710" y="100" text-anchor="middle" fill="var(--yellow)" font-size="10">XXPat p</text>
+  <text x="660" y="135" text-anchor="middle" fill="var(--text2)" font-size="10">HsWrap only in GhcTc, etc.</text>
+
+  <!-- Visual example: an HsApp node across phases -->
+  <text x="400" y="190" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600">How an HsApp node looks across phases:</text>
+
+  <!-- Parsed -->
+  <rect x="30" y="210" width="220" height="100" rx="10" fill="var(--surface)" stroke="var(--purple)" stroke-width="2"/>
+  <text x="140" y="233" text-anchor="middle" fill="var(--purple)" font-size="12" font-weight="600">GhcPs</text>
+  <rect x="45" y="245" width="55" height="20" rx="4" fill="rgba(167,139,250,.15)" stroke="var(--purple)" stroke-width="1"/>
+  <text x="72" y="259" text-anchor="middle" fill="var(--purple)" font-size="9">EpAnn</text>
+  <rect x="108" y="245" width="55" height="20" rx="4" fill="rgba(108,140,255,.15)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="135" y="259" text-anchor="middle" fill="var(--accent)" font-size="9">fun</text>
+  <rect x="170" y="245" width="55" height="20" rx="4" fill="rgba(108,140,255,.15)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="198" y="259" text-anchor="middle" fill="var(--accent)" font-size="9">arg</text>
+  <text x="140" y="295" text-anchor="middle" fill="var(--text2)" font-size="9">names are RdrName (strings)</text>
+
+  <!-- Renamed -->
+  <rect x="290" y="210" width="220" height="100" rx="10" fill="var(--surface)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="400" y="233" text-anchor="middle" fill="var(--accent)" font-size="12" font-weight="600">GhcRn</text>
+  <rect x="305" y="245" width="55" height="20" rx="4" fill="rgba(155,161,181,.1)" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 2"/>
+  <text x="332" y="259" text-anchor="middle" fill="var(--text2)" font-size="9">()</text>
+  <rect x="368" y="245" width="55" height="20" rx="4" fill="rgba(108,140,255,.15)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="395" y="259" text-anchor="middle" fill="var(--accent)" font-size="9">fun</text>
+  <rect x="430" y="245" width="55" height="20" rx="4" fill="rgba(108,140,255,.15)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="458" y="259" text-anchor="middle" fill="var(--accent)" font-size="9">arg</text>
+  <text x="400" y="295" text-anchor="middle" fill="var(--text2)" font-size="9">names are Name (unique IDs)</text>
+
+  <!-- arrows between -->
+  <line x1="250" y1="260" x2="290" y2="260" stroke="var(--text2)" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+  <line x1="510" y1="260" x2="550" y2="260" stroke="var(--text2)" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+
+  <!-- Typechecked -->
+  <rect x="550" y="210" width="220" height="100" rx="10" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
+  <text x="660" y="233" text-anchor="middle" fill="var(--green)" font-size="12" font-weight="600">GhcTc</text>
+  <rect x="565" y="245" width="55" height="20" rx="4" fill="rgba(78,205,196,.15)" stroke="var(--green)" stroke-width="1"/>
+  <text x="592" y="259" text-anchor="middle" fill="var(--green)" font-size="9">Type</text>
+  <rect x="628" y="245" width="55" height="20" rx="4" fill="rgba(108,140,255,.15)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="655" y="259" text-anchor="middle" fill="var(--accent)" font-size="9">fun</text>
+  <rect x="690" y="245" width="55" height="20" rx="4" fill="rgba(108,140,255,.15)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="718" y="259" text-anchor="middle" fill="var(--accent)" font-size="9">arg</text>
+  <text x="660" y="295" text-anchor="middle" fill="var(--text2)" font-size="9">names are Id (Name + Type)</text>
+</svg>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 5: INTERACTIVE AST EXPLORER -->
+<!-- ============================================================ -->
+<h2>5. Interactive: Watch the AST Transform</h2>
+
+<p>See how <code>map (+1) xs</code> is represented across all three HsSyn phases. Select a phase:</p>
+
+<div class="phase-btns" id="ast-phase-btns">
+  <button class="phase-btn active" onclick="setAstPhase('ps')" style="border-color:var(--purple);color:var(--purple)">Parsed (GhcPs)</button>
+  <button class="phase-btn" onclick="setAstPhase('rn')" style="border-color:var(--accent);color:var(--accent)">Renamed (GhcRn)</button>
+  <button class="phase-btn" onclick="setAstPhase('tc')" style="border-color:var(--green);color:var(--green)">Typechecked (GhcTc)</button>
+</div>
+
+<div class="tree-container">
+<svg id="astTree" viewBox="0 0 700 380" class="tree-svg">
+  <!-- Tree will be drawn by JS -->
+</svg>
+</div>
+
+<div id="ast-info" class="card" style="min-height:60px">
+  <p id="ast-info-text" style="color:var(--text2);font-size:.9rem">Click on any node in the tree to see details about what it contains in this phase.</p>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 6: CORE — THE HEART OF GHC -->
+<!-- ============================================================ -->
+<h2>6. Core — The Heart of GHC</h2>
+
+<p>After desugaring, the AST changes entirely. Core has <strong>only 8 expression forms</strong> — making it easy to optimise.</p>
+
+<svg viewBox="0 0 800 280" style="width:100%;max-height:300px;margin:1rem 0">
+  <!-- Core constructors as a grid -->
+  <text x="400" y="25" text-anchor="middle" fill="var(--text)" font-size="15" font-weight="600">The 8 Core Expression Forms</text>
+
+  <!-- Row 1 -->
+  <g transform="translate(30,45)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--orange)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--orange)" font-size="14" font-weight="600">Var</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Variable reference</text>
+  </g>
+  <g transform="translate(210,45)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--orange)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--orange)" font-size="14" font-weight="600">Lit</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Literal value (Int, Char...)</text>
+  </g>
+  <g transform="translate(390,45)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--orange)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--orange)" font-size="14" font-weight="600">App</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Function application</text>
+  </g>
+  <g transform="translate(570,45)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--orange)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--orange)" font-size="14" font-weight="600">Lam</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Lambda abstraction</text>
+  </g>
+
+  <!-- Row 2 -->
+  <g transform="translate(30,120)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--yellow)" font-size="14" font-weight="600">Let</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Local bindings</text>
+  </g>
+  <g transform="translate(210,120)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--yellow)" font-size="14" font-weight="600">Case</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Pattern matching + eval</text>
+  </g>
+  <g transform="translate(390,120)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--yellow)" font-size="14" font-weight="600">Cast</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Type coercion</text>
+  </g>
+  <g transform="translate(570,120)">
+    <rect width="160" height="55" rx="8" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+    <text x="80" y="24" text-anchor="middle" fill="var(--yellow)" font-size="14" font-weight="600">Type</text>
+    <text x="80" y="42" text-anchor="middle" fill="var(--text2)" font-size="10">Type argument</text>
+  </g>
+
+  <!-- Comparison annotation -->
+  <rect x="30" y="200" width="700" height="60" rx="10" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+  <text x="380" y="222" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="500">HsSyn (pre-desugar): ~60 expression constructors</text>
+  <text x="380" y="242" text-anchor="middle" fill="var(--orange)" font-size="13" font-weight="500">Core (post-desugar): just these 8</text>
+</svg>
+
+<div class="expand">
+  <div class="expand-header" onclick="toggleExpand(this)">
+    <span class="expand-arrow">&#9654;</span>
+    <span style="color:var(--accent)">What gets desugared?</span>
+  </div>
+  <div class="expand-body">
+    <div class="card-grid">
+      <div class="card"><h4 style="color:var(--yellow)">do-notation</h4><p><code>do { x &lt;- e1; e2 }</code> &rarr; <code>e1 >>= \x -> e2</code></p></div>
+      <div class="card"><h4 style="color:var(--yellow)">where clauses</h4><p>Become <code>let</code> bindings in Core</p></div>
+      <div class="card"><h4 style="color:var(--yellow)">if/then/else</h4><p><code>if c then t else f</code> &rarr; <code>case c of { True -> t; False -> f }</code></p></div>
+      <div class="card"><h4 style="color:var(--yellow)">Guards</h4><p>Multi-way guards become nested <code>case</code></p></div>
+      <div class="card"><h4 style="color:var(--yellow)">List comprehensions</h4><p><code>[x | x &lt;- xs, even x]</code> &rarr; recursive <code>build</code>/<code>foldr</code></p></div>
+      <div class="card"><h4 style="color:var(--yellow)">Type classes</h4><p>Constraints become explicit dictionary arguments</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: The Compilation Journey Animated -->
+<!-- ============================================================ -->
+<h2>7. Animated: A Function's Journey Through GHC</h2>
+
+<p>Watch how <code>double x = x + x</code> transforms through each compiler phase.</p>
+
+<div class="flow-demo">
+  <h4>Compilation of: <code style="color:var(--green)">double x = x + x</code></h4>
+  <div class="phase-btns" id="journey-btns">
+    <button class="phase-btn active" onclick="setJourneyPhase(0)">Source</button>
+    <button class="phase-btn" onclick="setJourneyPhase(1)">Parsed</button>
+    <button class="phase-btn" onclick="setJourneyPhase(2)">Renamed</button>
+    <button class="phase-btn" onclick="setJourneyPhase(3)">Typechecked</button>
+    <button class="phase-btn" onclick="setJourneyPhase(4)">Core</button>
+    <button class="phase-btn" onclick="setJourneyPhase(5)">Optimised Core</button>
+    <button class="phase-btn" onclick="setJourneyPhase(6)">STG</button>
+  </div>
+  <div id="journey-display" style="margin-top:1rem">
+    <pre id="journey-code"><code>double x = x + x</code></pre>
+    <p id="journey-explanation" style="margin-top:.8rem;font-size:.88rem"></p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 8: Key Insight — DataConCantHappen -->
+<!-- ============================================================ -->
+<h2>8. The Uninhabited Type Trick</h2>
+
+<p>One elegant detail: when a phase doesn't need an extension constructor, TTG uses an <strong>uninhabited type</strong> to make it impossible to construct.</p>
+
+<div class="compare-grid">
+  <div class="compare-panel">
+    <h4 style="color:var(--green)">The Pattern</h4>
+    <pre><code><span class="cmt">-- An empty type: no constructors!</span>
+<span class="kw">data</span> <span class="typ">DataConCantHappen</span>
+  <span class="cmt">-- (no constructors at all)</span>
+
+<span class="cmt">-- In GhcPs and GhcRn, no extra</span>
+<span class="cmt">-- expression forms exist:</span>
+<span class="kw">type instance</span> <span class="typ">XXExpr GhcPs</span>
+  = <span class="typ">DataConCantHappen</span>
+
+<span class="cmt">-- So this pattern is impossible:</span>
+<span class="cmt">-- case e of XExpr x -> ...</span>
+<span class="cmt">-- x :: DataConCantHappen</span>
+<span class="cmt">-- can't exist!</span></code></pre>
+  </div>
+  <div class="compare-panel">
+    <h4 style="color:var(--green)">Why It Matters</h4>
+    <svg viewBox="0 0 300 200" style="width:100%">
+      <!-- Visual: door locked vs open -->
+      <rect x="20" y="10" width="120" height="80" rx="8" fill="var(--surface2)" stroke="var(--red)" stroke-width="2"/>
+      <text x="80" y="40" text-anchor="middle" fill="var(--red)" font-size="22">&#128274;</text>
+      <text x="80" y="65" text-anchor="middle" fill="var(--red)" font-size="11">GhcPs: locked</text>
+      <text x="80" y="80" text-anchor="middle" fill="var(--text2)" font-size="9">No XExpr possible</text>
+
+      <rect x="160" y="10" width="120" height="80" rx="8" fill="var(--surface2)" stroke="var(--green)" stroke-width="2"/>
+      <text x="220" y="40" text-anchor="middle" fill="var(--green)" font-size="22">&#128275;</text>
+      <text x="220" y="65" text-anchor="middle" fill="var(--green)" font-size="11">GhcTc: open</text>
+      <text x="220" y="80" text-anchor="middle" fill="var(--text2)" font-size="9">HsWrap, ExpansionExpr</text>
+
+      <text x="150" y="120" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="500">Compile-time guarantee:</text>
+      <text x="150" y="140" text-anchor="middle" fill="var(--text2)" font-size="11">"This constructor literally cannot</text>
+      <text x="150" y="158" text-anchor="middle" fill="var(--text2)" font-size="11">be constructed in this phase"</text>
+      <text x="150" y="185" text-anchor="middle" fill="var(--accent)" font-size="11">No Maybe. No runtime check. Zero cost.</text>
+    </svg>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 9: GHC Runtime Architecture -->
+<!-- ============================================================ -->
+<h2>9. GHC Runtime: Heap Objects</h2>
+
+<p>GHC's runtime represents every Haskell value as a <strong>heap object</strong> with a uniform layout. Understanding this helps explain why STG and Cmm exist.</p>
+
+<svg viewBox="0 0 750 250" style="width:100%;max-height:260px;margin:1rem 0">
+  <text x="375" y="25" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600">Heap Object Layout</text>
+
+  <!-- Info pointer -->
+  <rect x="50" y="50" width="120" height="50" rx="0" fill="rgba(167,139,250,.1)" stroke="var(--purple)" stroke-width="2"/>
+  <text x="110" y="72" text-anchor="middle" fill="var(--purple)" font-size="12" font-weight="600">Info Pointer</text>
+  <text x="110" y="88" text-anchor="middle" fill="var(--text2)" font-size="9">points to info table</text>
+
+  <!-- Payload 1 -->
+  <rect x="170" y="50" width="100" height="50" rx="0" fill="rgba(78,205,196,.1)" stroke="var(--green)" stroke-width="2"/>
+  <text x="220" y="72" text-anchor="middle" fill="var(--green)" font-size="12" font-weight="600">Payload 1</text>
+  <text x="220" y="88" text-anchor="middle" fill="var(--text2)" font-size="9">field / free var</text>
+
+  <!-- Payload 2 -->
+  <rect x="270" y="50" width="100" height="50" rx="0" fill="rgba(78,205,196,.1)" stroke="var(--green)" stroke-width="2"/>
+  <text x="320" y="72" text-anchor="middle" fill="var(--green)" font-size="12" font-weight="600">Payload 2</text>
+  <text x="320" y="88" text-anchor="middle" fill="var(--text2)" font-size="9">field / free var</text>
+
+  <!-- ... -->
+  <text x="395" y="80" fill="var(--text2)" font-size="16">...</text>
+
+  <!-- Info table (pointed to) -->
+  <line x1="110" y1="100" x2="110" y2="140" stroke="var(--purple)" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <line x1="110" y1="140" x2="200" y2="140" stroke="var(--purple)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowPurple)"/>
+
+  <rect x="200" y="125" width="480" height="55" rx="8" fill="var(--surface)" stroke="var(--purple)" stroke-width="1.5"/>
+  <text x="440" y="145" text-anchor="middle" fill="var(--purple)" font-size="12" font-weight="600">Info Table</text>
+
+  <rect x="215" y="155" width="70" height="18" rx="3" fill="rgba(167,139,250,.08)"/>
+  <text x="250" y="168" text-anchor="middle" fill="var(--text2)" font-size="9">entry code</text>
+
+  <rect x="292" y="155" width="70" height="18" rx="3" fill="rgba(167,139,250,.08)"/>
+  <text x="327" y="168" text-anchor="middle" fill="var(--text2)" font-size="9">type (CONSTR)</text>
+
+  <rect x="369" y="155" width="70" height="18" rx="3" fill="rgba(167,139,250,.08)"/>
+  <text x="404" y="168" text-anchor="middle" fill="var(--text2)" font-size="9">GC layout</text>
+
+  <rect x="446" y="155" width="70" height="18" rx="3" fill="rgba(167,139,250,.08)"/>
+  <text x="481" y="168" text-anchor="middle" fill="var(--text2)" font-size="9">SRT info</text>
+
+  <rect x="523" y="155" width="70" height="18" rx="3" fill="rgba(167,139,250,.08)"/>
+  <text x="558" y="168" text-anchor="middle" fill="var(--text2)" font-size="9">prof info</text>
+
+  <rect x="600" y="155" width="65" height="18" rx="3" fill="rgba(167,139,250,.08)"/>
+  <text x="632" y="168" text-anchor="middle" fill="var(--text2)" font-size="9">closure size</text>
+
+  <!-- Object types -->
+  <text x="375" y="215" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="500">Closure Types:</text>
+  <g transform="translate(60,225)">
+    <rect width="90" height="22" rx="4" fill="rgba(78,205,196,.1)" stroke="var(--green)" stroke-width="1"/>
+    <text x="45" y="15" text-anchor="middle" fill="var(--green)" font-size="10">CONSTR</text>
+  </g>
+  <g transform="translate(165,225)">
+    <rect width="90" height="22" rx="4" fill="rgba(255,217,61,.1)" stroke="var(--yellow)" stroke-width="1"/>
+    <text x="45" y="15" text-anchor="middle" fill="var(--yellow)" font-size="10">FUN</text>
+  </g>
+  <g transform="translate(270,225)">
+    <rect width="90" height="22" rx="4" fill="rgba(255,140,66,.1)" stroke="var(--orange)" stroke-width="1"/>
+    <text x="45" y="15" text-anchor="middle" fill="var(--orange)" font-size="10">THUNK</text>
+  </g>
+  <g transform="translate(375,225)">
+    <rect width="90" height="22" rx="4" fill="rgba(167,139,250,.1)" stroke="var(--purple)" stroke-width="1"/>
+    <text x="45" y="15" text-anchor="middle" fill="var(--purple)" font-size="10">PAP</text>
+  </g>
+  <g transform="translate(480,225)">
+    <rect width="90" height="22" rx="4" fill="rgba(255,107,107,.1)" stroke="var(--red)" stroke-width="1"/>
+    <text x="45" y="15" text-anchor="middle" fill="var(--red)" font-size="10">AP</text>
+  </g>
+  <g transform="translate(585,225)">
+    <rect width="90" height="22" rx="4" fill="rgba(34,211,238,.1)" stroke="var(--cyan)" stroke-width="1"/>
+    <text x="45" y="15" text-anchor="middle" fill="var(--cyan)" font-size="10">IND</text>
+  </g>
+
+  <defs>
+    <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--purple)" stroke-width="1.5"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="expand">
+  <div class="expand-header" onclick="toggleExpand(this)">
+    <span class="expand-arrow">&#9654;</span>
+    <span style="color:var(--accent)">What are these closure types?</span>
+  </div>
+  <div class="expand-body">
+    <ul>
+      <li><strong style="color:var(--green)">CONSTR</strong> — A fully evaluated data constructor (e.g., <code>Just 42</code>, <code>(:) 1 []</code>)</li>
+      <li><strong style="color:var(--yellow)">FUN</strong> — A function closure. Payload = free variables. Entry code = the function body.</li>
+      <li><strong style="color:var(--orange)">THUNK</strong> — An unevaluated expression (lazy!). Payload = free vars. Entry code evaluates it, then <em>overwrites</em> the thunk with an indirection to the result.</li>
+      <li><strong style="color:var(--purple)">PAP</strong> — Partial application. A function applied to <em>some</em> but not all arguments.</li>
+      <li><strong style="color:var(--red)">AP</strong> — A generic application node. Used by the GC and the STG machine.</li>
+      <li><strong style="color:var(--cyan)">IND</strong> — Indirection. Points to the real value. Left behind when a THUNK is evaluated. Cleaned up by GC.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 10: TTG in Other Compilers -->
+<!-- ============================================================ -->
+<h2>10. TTG Beyond GHC</h2>
+
+<p>The Trees that Grow pattern generalises to any multi-phase compiler. Here's how it maps to other architectures:</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4 style="color:var(--purple)">TypeScript Compiler</h4>
+    <p>TSC uses a single <code>Node</code> type with optional fields (<code>.symbol</code>, <code>.type</code>). This is "Option B" — no type safety between phases. TTG would give compile-time guarantees.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--accent)">Rust (rustc)</h4>
+    <p>Rust uses <strong>separate AST types</strong>: <code>ast::Expr</code> &rarr; <code>hir::Expr</code> &rarr; <code>mir::Statement</code>. Clean but involves conversion functions. TTG offers a middle ground.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--green)">Attribute Grammars</h4>
+    <p>AG systems (JastAdd, Silver) solve the same problem differently: attributes are <em>externally computed properties</em> on nodes, not fields inside them. The tree shape stays fixed; analysis results live separately.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--yellow)">Roslyn (C#)</h4>
+    <p>Roslyn's <code>SyntaxNode</code> is immutable and phase-independent. Semantic info lives in a separate <code>SemanticModel</code>. Clean separation, but loses the "one tree with everything" benefit.</p>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 11: QUIZ -->
+<!-- ============================================================ -->
+<h2>11. Test Your Understanding</h2>
+
+<div class="quiz">
+  <h4>Quiz 1: What problem does Trees that Grow solve?</h4>
+  <div class="quiz-q" data-correct="2">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. Making Haskell's type system Turing-complete</button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">B. Allowing one AST type to carry different data per compiler phase, with type safety</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">C. Implementing lazy evaluation in the AST</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. Providing garbage collection for AST nodes</button>
+  </div>
+  <div class="quiz-explain">TTG parameterises an AST by a phase index and uses type families to vary the data at each node. This avoids both code duplication (separate types) and runtime unsafety (Maybe fields).</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 2: What is <code>DataConCantHappen</code>?</h4>
+  <div class="quiz-q" data-correct="3">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. A runtime error thrown when a bad constructor is used</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">B. A type class constraint that prevents construction</button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">C. An uninhabited type (no constructors) used to make extension constructors impossible in certain phases</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. A compiler pragma that disables certain AST nodes</button>
+  </div>
+  <div class="quiz-explain"><code>DataConCantHappen</code> has zero constructors, so a field of this type can never be constructed. When <code>XXExpr GhcPs = DataConCantHappen</code>, the <code>XExpr</code> constructor is statically impossible to create.</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 3: How many expression forms does Core have?</h4>
+  <div class="quiz-q" data-correct="1">
+    <button class="quiz-option" onclick="checkQuiz(this,true)">A. 8 (Var, Lit, App, Lam, Let, Case, Cast, Type)</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">B. About 60, same as HsSyn</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">C. 3 (Var, App, Lam — it's just lambda calculus)</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. 16 (one for each Haskell keyword)</button>
+  </div>
+  <div class="quiz-explain">Core is a small typed lambda calculus with just 8 constructors. Everything else (do-notation, guards, where-clauses, list comprehensions) is desugared into these 8 forms.</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 4: What type does an identifier have in each GHC phase?</h4>
+  <div class="quiz-q" data-correct="2">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. String in all phases, with a type annotation added later</button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">B. RdrName (parsed) &rarr; Name (renamed) &rarr; Id (typechecked)</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">C. Name in all phases, with different metadata</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. Token (parsed) &rarr; Symbol (renamed) &rarr; TypedSymbol (typechecked)</button>
+  </div>
+  <div class="quiz-explain">GHC uses <code>RdrName</code> (raw from source), <code>Name</code> (globally unique after renaming), and <code>Id</code> (<code>Name</code> + <code>Type</code> + <code>IdInfo</code> after typechecking). This is controlled by the <code>IdP</code> type family.</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 5: What is a THUNK in GHC's runtime?</h4>
+  <div class="quiz-q" data-correct="3">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. A fully evaluated data constructor</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">B. A function waiting for more arguments</button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">C. An unevaluated expression (lazy computation) that overwrites itself with the result when forced</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. A pointer to another heap object left behind by the garbage collector</button>
+  </div>
+  <div class="quiz-explain">THUNKs implement laziness. They store free variables as payload. When evaluated, the entry code runs, computes the result, and overwrites the THUNK with an IND (indirection) pointing to the result. The GC later short-circuits indirections.</div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 12: Summary -->
+<!-- ============================================================ -->
+<h2>12. Summary</h2>
+
+<svg viewBox="0 0 800 400" style="width:100%;max-height:420px;margin:1rem 0">
+  <!-- Central concept -->
+  <circle cx="400" cy="200" r="70" fill="var(--surface)" stroke="var(--accent)" stroke-width="3"/>
+  <text x="400" y="190" text-anchor="middle" fill="var(--accent)" font-size="15" font-weight="700">Trees that</text>
+  <text x="400" y="210" text-anchor="middle" fill="var(--accent)" font-size="15" font-weight="700">Grow</text>
+
+  <!-- Spokes -->
+  <!-- 1. Type families -->
+  <line x1="340" y1="160" x2="200" y2="70" stroke="var(--purple)" stroke-width="2"/>
+  <circle cx="200" cy="70" r="45" fill="var(--surface)" stroke="var(--purple)" stroke-width="2"/>
+  <text x="200" y="65" text-anchor="middle" fill="var(--purple)" font-size="11" font-weight="600">Type</text>
+  <text x="200" y="80" text-anchor="middle" fill="var(--purple)" font-size="11" font-weight="600">Families</text>
+
+  <!-- 2. Phase indexing -->
+  <line x1="460" y1="160" x2="600" y2="70" stroke="var(--cyan)" stroke-width="2"/>
+  <circle cx="600" cy="70" r="45" fill="var(--surface)" stroke="var(--cyan)" stroke-width="2"/>
+  <text x="600" y="65" text-anchor="middle" fill="var(--cyan)" font-size="11" font-weight="600">Phase</text>
+  <text x="600" y="80" text-anchor="middle" fill="var(--cyan)" font-size="11" font-weight="600">Indexing</text>
+
+  <!-- 3. Extension fields -->
+  <line x1="340" y1="240" x2="170" y2="320" stroke="var(--green)" stroke-width="2"/>
+  <circle cx="170" cy="320" r="45" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
+  <text x="170" y="315" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="600">Extension</text>
+  <text x="170" y="330" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="600">Fields</text>
+
+  <!-- 4. Extension constructors -->
+  <line x1="460" y1="240" x2="630" y2="320" stroke="var(--yellow)" stroke-width="2"/>
+  <circle cx="630" cy="320" r="45" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+  <text x="630" y="315" text-anchor="middle" fill="var(--yellow)" font-size="11" font-weight="600">Extension</text>
+  <text x="630" y="330" text-anchor="middle" fill="var(--yellow)" font-size="11" font-weight="600">Constructors</text>
+
+  <!-- 5. Uninhabited types -->
+  <line x1="400" y1="270" x2="400" y2="350" stroke="var(--red)" stroke-width="2"/>
+  <circle cx="400" cy="380" r="30" fill="var(--surface)" stroke="var(--red)" stroke-width="2"/>
+  <text x="400" y="383" text-anchor="middle" fill="var(--red)" font-size="9" font-weight="600">Uninhabited</text>
+
+  <!-- Annotations -->
+  <text x="200" y="25" text-anchor="middle" fill="var(--text2)" font-size="9">XApp p, XVar p, XLam p</text>
+  <text x="600" y="25" text-anchor="middle" fill="var(--text2)" font-size="9">GhcPs | GhcRn | GhcTc</text>
+  <text x="100" y="370" text-anchor="middle" fill="var(--text2)" font-size="9">EpAnn, Type, NameSet</text>
+  <text x="700" y="370" text-anchor="middle" fill="var(--text2)" font-size="9">XXExpr, XXPat</text>
+</svg>
+
+<div class="card" style="border-color:var(--accent)">
+  <h4 style="color:var(--accent)">Key takeaways</h4>
+  <ul>
+    <li><strong>GHC compiles Haskell</strong> through 8 phases: Parse &rarr; Rename &rarr; Typecheck &rarr; Desugar &rarr; Core optimisation &rarr; STG &rarr; Cmm &rarr; Code gen</li>
+    <li><strong>Trees that Grow</strong> lets the first 3 phases share one AST type (<code>HsSyn p</code>) while varying the data at each node per phase</li>
+    <li><strong>Type families</strong> (<code>XApp p</code>, <code>IdP p</code>) resolve to different concrete types depending on the phase parameter</li>
+    <li><strong>Extension constructors</strong> (<code>XXExpr p</code>) add phase-specific node variants — locked out in other phases via uninhabited types</li>
+    <li><strong>Core</strong> is a separate, tiny (8 constructor) IR where all the serious optimisation happens</li>
+    <li><strong>STG</strong> makes allocation and evaluation explicit, mapping directly to GHC's runtime heap objects</li>
+  </ul>
+</div>
+
+<script>
+// =====================================================
+// Tab switching
+// =====================================================
+function switchTab(tabGroupId, tabContentId) {
+  const group = document.getElementById(tabGroupId);
+  const tabs = group.querySelectorAll('.tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  // Find sibling tab-contents
+  let el = group.nextElementSibling;
+  while (el && el.classList.contains('tab-content')) {
+    el.classList.remove('active');
+    el = el.nextElementSibling;
+  }
+  document.getElementById(tabContentId).classList.add('active');
+}
+
+// =====================================================
+// Phase detail panels
+// =====================================================
+function showPhase(phase) {
+  document.querySelectorAll('.phase-detail').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.phase-box').forEach(b => b.classList.remove('active'));
+  const detail = document.getElementById('phase-' + phase);
+  if (detail) detail.classList.add('active');
+  const box = document.querySelector(`.phase-box[data-phase="${phase}"]`);
+  if (box) box.classList.add('active');
+}
+
+// =====================================================
+// Expand/collapse
+// =====================================================
+function toggleExpand(header) {
+  const arrow = header.querySelector('.expand-arrow');
+  const body = header.nextElementSibling;
+  arrow.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// =====================================================
+// Quiz
+// =====================================================
+function checkQuiz(btn, correct) {
+  const q = btn.parentElement;
+  if (q.dataset.answered) return;
+  q.dataset.answered = 'true';
+  if (correct) {
+    btn.classList.add('correct');
+  } else {
+    btn.classList.add('wrong');
+    // Highlight correct answer
+    q.querySelectorAll('.quiz-option').forEach(o => {
+      if (!o.classList.contains('wrong')) {
+        // Find the correct one by trying each
+      }
+    });
+  }
+  // Show explanation
+  const explain = q.parentElement.querySelector('.quiz-explain');
+  if (explain) explain.style.display = 'block';
+}
+
+// =====================================================
+// Interactive AST Explorer
+// =====================================================
+const astPhases = {
+  ps: {
+    color: '#a78bfa',
+    label: 'GhcPs',
+    nodes: [
+      { id: 'app1', label: 'HsApp', x: 350, y: 50, ext: 'EpAnn {line:1,col:1}', info: 'Top-level application: map applied to (+1) and xs. Extension field stores source location and exact-print annotations.' },
+      { id: 'app2', label: 'HsApp', x: 200, y: 140, ext: 'EpAnn {line:1,col:1}', info: 'Application of map to (+1). The EpAnn records the whitespace and formatting.' },
+      { id: 'var1', label: 'HsVar', x: 100, y: 230, ext: 'EpAnn', val: '"map"', info: 'HsVar with RdrName "map" — just a raw string from source. Not yet resolved to Prelude.map or any other map.' },
+      { id: 'sec1', label: 'SectionL', x: 300, y: 230, ext: 'EpAnn', val: '"(+1)"', info: 'An operator section (+1). This is a syntactic form that only exists in HsSyn — Core won\'t have sections.' },
+      { id: 'var2', label: 'HsVar', x: 500, y: 140, ext: 'EpAnn', val: '"xs"', info: 'HsVar with RdrName "xs" — raw identifier. Could refer to any "xs" in scope; not resolved yet.' },
+    ],
+    edges: [
+      ['app1','app2'], ['app1','var2'], ['app2','var1'], ['app2','sec1']
+    ]
+  },
+  rn: {
+    color: '#6c8cff',
+    label: 'GhcRn',
+    nodes: [
+      { id: 'app1', label: 'HsApp', x: 350, y: 50, ext: 'NoExtField', info: 'Application node. Extension field is now NoExtField (unit type) — source locations moved to a separate annotation structure.' },
+      { id: 'app2', label: 'HsApp', x: 200, y: 140, ext: 'NoExtField', info: 'Inner application. Free variable set computed: {map, (+), xs}.' },
+      { id: 'var1', label: 'HsVar', x: 100, y: 230, ext: '()', val: 'base:GHC.List.map', info: 'Resolved! "map" is now Name with Unique #3F2, pointing to GHC.List.map. Scope errors would have been caught here.' },
+      { id: 'sec1', label: 'SectionL', x: 300, y: 230, ext: '()', val: '(GHC.Num.+) 1', info: 'Section now references GHC.Num.(+) by its unique Name. The literal 1 is also resolved.' },
+      { id: 'var2', label: 'HsVar', x: 500, y: 140, ext: '()', val: 'xs_a3K', info: 'Resolved to unique Name xs_a3K. The _a3K suffix is the Unique, ensuring no confusion with other variables named "xs".' },
+    ],
+    edges: [
+      ['app1','app2'], ['app1','var2'], ['app2','var1'], ['app2','sec1']
+    ]
+  },
+  tc: {
+    color: '#4ecdc4',
+    label: 'GhcTc',
+    nodes: [
+      { id: 'app1', label: 'HsApp', x: 350, y: 50, ext: 'Type: [Int]', info: 'The result type of this application is [Int]. Extension field XApp GhcTc = Type — every application knows its type!' },
+      { id: 'app2', label: 'HsApp', x: 200, y: 140, ext: 'Type: [Int]->[Int]', info: 'map (+1) has type [Int] -> [Int]. The typechecker inferred that map is specialised to Int lists here.' },
+      { id: 'var1', label: 'HsVar', x: 100, y: 230, ext: 'Type: (Int->Int)->[Int]->[Int]', val: 'map_a3F :: ...', info: 'Now an Id: map has type (Int->Int) -> [Int] -> [Int]. The Id contains Name + Type + IdInfo (inlining, strictness, etc.).' },
+      { id: 'wrap1', label: 'XExpr:HsWrap', x: 300, y: 230, ext: 'WpEvApp $dNum', val: '(+) @Int $dNum 1', info: 'NEW NODE! XExpr extension constructor wraps (+) with evidence: the Num Int dictionary ($dNum). This constructor couldn\'t exist in GhcPs or GhcRn.' },
+      { id: 'var2', label: 'HsVar', x: 500, y: 140, ext: 'Type: [Int]', val: 'xs_a3K :: [Int]', info: 'xs now has type [Int]. The Id carries the full type, strictness info, and occurrence analysis results.' },
+    ],
+    edges: [
+      ['app1','app2'], ['app1','var2'], ['app2','var1'], ['app2','wrap1']
+    ]
+  }
+};
+
+let currentAstPhase = 'ps';
+
+function setAstPhase(phase) {
+  currentAstPhase = phase;
+  document.querySelectorAll('#ast-phase-btns .phase-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  drawAstTree();
+  document.getElementById('ast-info-text').textContent = 'Click on any node in the tree to see details about what it contains in this phase.';
+}
+
+function drawAstTree() {
+  const data = astPhases[currentAstPhase];
+  const svg = document.getElementById('astTree');
+  let html = '';
+
+  // Draw edges first
+  data.edges.forEach(([fromId, toId]) => {
+    const from = data.nodes.find(n => n.id === fromId);
+    const to = data.nodes.find(n => n.id === toId);
+    html += `<line x1="${from.x}" y1="${from.y + 20}" x2="${to.x}" y2="${to.y - 20}" stroke="${data.color}" stroke-width="2" opacity=".4"/>`;
+  });
+
+  // Draw nodes
+  data.nodes.forEach(n => {
+    const isExtension = n.label.startsWith('XExpr');
+    const strokeDash = isExtension ? 'stroke-dasharray="6 3"' : '';
+    html += `<g class="tree-node" onclick="showNodeInfo('${n.id}')">`;
+    html += `<circle cx="${n.x}" cy="${n.y}" r="28" fill="var(--surface)" stroke="${data.color}" stroke-width="2" ${strokeDash}/>`;
+    html += `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" fill="${data.color}" font-size="9" font-weight="600">${n.label}</text>`;
+    if (n.val) {
+      html += `<text x="${n.x}" y="${n.y + 10}" text-anchor="middle" fill="var(--text2)" font-size="7.5">${n.val.length > 16 ? n.val.slice(0,16)+'...' : n.val}</text>`;
+    }
+    // Extension badge
+    html += `<text x="${n.x}" y="${n.y + 52}" text-anchor="middle" fill="var(--text2)" font-size="8" opacity=".7">${n.ext.length > 22 ? n.ext.slice(0,22)+'...' : n.ext}</text>`;
+    html += `</g>`;
+  });
+
+  // Phase label
+  html += `<text x="350" y="360" text-anchor="middle" fill="${data.color}" font-size="16" font-weight="700" opacity=".3">${data.label}</text>`;
+
+  svg.innerHTML = html;
+}
+
+function showNodeInfo(nodeId) {
+  const data = astPhases[currentAstPhase];
+  const node = data.nodes.find(n => n.id === nodeId);
+  if (node) {
+    document.getElementById('ast-info-text').innerHTML = `<strong style="color:${data.color}">${node.label}</strong>: ${node.info}`;
+  }
+}
+
+// Initial draw
+drawAstTree();
+
+// =====================================================
+// Journey animation
+// =====================================================
+const journeyPhases = [
+  {
+    code: 'double x = x + x',
+    explain: 'Raw Haskell source code. The parser will read this text and produce a syntax tree.'
+  },
+  {
+    code: `<span class="con">FunBind</span> {
+  fun_id   = <span class="str">"double"</span>  <span class="cmt">-- RdrName (raw string)</span>
+  matches  = [<span class="con">Match</span> {
+    pats = [<span class="con">VarPat</span> <span class="str">"x"</span>]
+    body = <span class="con">OpApp</span> (<span class="con">HsVar</span> <span class="str">"x"</span>)
+                   (<span class="con">HsVar</span> <span class="str">"+"</span>)
+                   (<span class="con">HsVar</span> <span class="str">"x"</span>)
+  }]
+  ext = <span class="typ">EpAnn</span> {...} <span class="cmt">-- source locations</span>
+}`,
+    explain: 'After parsing: HsSyn GhcPs. Names are raw strings (RdrName). Source locations preserved in EpAnn extension fields. (+) is an OpApp node.'
+  },
+  {
+    code: `<span class="con">FunBind</span> {
+  fun_id   = <span class="fn">double_r4A</span>  <span class="cmt">-- unique Name!</span>
+  matches  = [<span class="con">Match</span> {
+    pats = [<span class="con">VarPat</span> <span class="fn">x_a2B</span>]
+    body = <span class="con">OpApp</span> (<span class="con">HsVar</span> <span class="fn">x_a2B</span>)
+                   (<span class="con">HsVar</span> <span class="fn">GHC.Num.+</span>)
+                   (<span class="con">HsVar</span> <span class="fn">x_a2B</span>)
+  }]
+  fvs = {<span class="fn">GHC.Num.+</span>} <span class="cmt">-- free variables</span>
+}`,
+    explain: 'After renaming: HsSyn GhcRn. Every identifier has a globally unique Name (suffix = Unique ID). "+" resolved to GHC.Num.(+). Free variable sets computed.'
+  },
+  {
+    code: `<span class="con">FunBind</span> {
+  fun_id   = <span class="fn">double_r4A</span> :: <span class="typ">Int -> Int</span>
+  matches  = [<span class="con">Match</span> {
+    pats = [<span class="con">VarPat</span> (<span class="fn">x_a2B</span> :: <span class="typ">Int</span>)]
+    body = <span class="con">XExpr</span> (<span class="con">HsWrap</span>
+      (<span class="typ">WpEvApp $dNumInt</span>)  <span class="cmt">-- dict evidence!</span>
+      (<span class="con">OpApp</span> <span class="typ">{Int}</span>
+        (<span class="con">HsVar</span> <span class="fn">x_a2B</span>)
+        (<span class="con">HsVar</span> <span class="fn">GHC.Num.+</span>)
+        (<span class="con">HsVar</span> <span class="fn">x_a2B</span>)))
+  }]
+}`,
+    explain: 'After typechecking: HsSyn GhcTc. Every node carries its Type. XExpr (extension constructor) wraps the body with HsWrap, inserting the Num Int dictionary as evidence. Ids = Name + Type.'
+  },
+  {
+    code: `<span class="fn">double</span> :: <span class="typ">Int -> Int</span>
+<span class="fn">double</span> = <span class="kw">\\</span> (x :: <span class="typ">Int</span>) <span class="kw">-></span>
+  <span class="kw">case</span> x <span class="kw">of</span> { <span class="con">I#</span> x# <span class="kw">-></span>
+    <span class="con">I#</span> (<span class="fn">+#</span> x# x#)
+  }`,
+    explain: 'After desugaring to Core: Radically simpler! The type class (+) is replaced by the primitive (+#) on unboxed Int#. Pattern matching on (I# x#) unboxes the Int. The dictionary is gone — it was resolved statically.'
+  },
+  {
+    code: `<span class="fn">double</span> :: <span class="typ">Int -> Int</span>
+<span class="cmt">-- Worker/wrapper split:</span>
+<span class="fn">$wdouble</span> :: <span class="typ">Int# -> Int#</span>   <span class="cmt">-- worker: unboxed!</span>
+<span class="fn">$wdouble</span> = <span class="kw">\\</span> (x# :: <span class="typ">Int#</span>) <span class="kw">-></span> <span class="fn">+#</span> x# x#
+
+<span class="fn">double</span> = <span class="kw">\\</span> (x :: <span class="typ">Int</span>) <span class="kw">-></span>   <span class="cmt">-- wrapper: boxes result</span>
+  <span class="kw">case</span> x <span class="kw">of</span> { <span class="con">I#</span> x# <span class="kw">-></span>
+    <span class="con">I#</span> (<span class="fn">$wdouble</span> x#)
+  }`,
+    explain: 'After Core-to-Core optimisation: Demand analysis found x is always forced, so worker/wrapper splits the function. The worker ($wdouble) operates on unboxed Int# — no heap allocation! The wrapper handles boxing for callers who need boxed Ints.'
+  },
+  {
+    code: `<span class="fn">$wdouble</span> = <span class="kw">\\r</span> [x#]  <span class="cmt">-- re-entrant, 1 arg</span>
+  <span class="fn">+#</span> [x#, x#];
+
+<span class="fn">double</span> = <span class="kw">\\r</span> [x]     <span class="cmt">-- re-entrant, 1 arg</span>
+  <span class="kw">case</span> x <span class="kw">of</span> {
+    <span class="con">I#</span> [x#] <span class="kw">-></span>
+      <span class="kw">let</span> result = <span class="con">I#</span> [<span class="fn">$wdouble</span> x#]
+      <span class="kw">in</span> result;
+  };`,
+    explain: 'STG makes closures explicit. \\r = re-entrant (function, no thunk update). The let in double allocates a heap object (I# constructor). Free variables would be listed in [] after \\. This maps directly to heap objects at runtime.'
+  }
+];
+
+function setJourneyPhase(idx) {
+  const btns = document.querySelectorAll('#journey-btns .phase-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  btns[idx].classList.add('active');
+  const phase = journeyPhases[idx];
+  document.getElementById('journey-code').innerHTML = phase.code;
+  document.getElementById('journey-explanation').innerHTML = phase.explain;
+}
+
+// Initialize
+setJourneyPhase(0);
+</script>
+
+</body>
+</html>

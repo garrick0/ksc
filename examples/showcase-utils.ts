@@ -1,21 +1,18 @@
 /**
- * Utilities for the compiler dashboard showcase.
+ * Utilities for the AST explorer showcase.
  *
- * Handles temp folder lifecycle, data injection into dashboard HTML,
- * and serving via Vite dev server or legacy HTTP server.
+ * Handles temp folder lifecycle and serving via Vite dev server.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as http from 'node:http';
 import * as readline from 'node:readline';
 import { execSync } from 'node:child_process';
-import type { DashboardExportData } from '../src/dashboard/export.js';
+import type { ASTDashboardData } from '../ast-schema/export.js';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const TEMP_DIR = path.join(PROJECT_ROOT, '.showcase-tmp');
 const TEMP_PROJECT = path.join(TEMP_DIR, 'project');
-const DASHBOARD_HTML = path.join(PROJECT_ROOT, 'docs', 'compiler-dashboard.html');
 
 const REMOTE_URL = 'git@github.com:garrick0/ksc.git';
 const FIXED_COMMIT = 'a58632bcb41f12d6c737c0f27742f329f0d1204f';
@@ -61,7 +58,6 @@ export async function setupTempProject(): Promise<{ root: string; rootFiles: str
 
   console.log(`  Checked out ${FIXED_COMMIT.slice(0, 10)}...`);
 
-  // Discover .ts files in the cloned project
   const rootFiles = discoverRootFiles(TEMP_PROJECT);
 
   console.log(`  Found ${rootFiles.length} root files.\n`);
@@ -99,82 +95,40 @@ function findAllTsFiles(dir: string): string[] {
 // ── Root file discovery ─────────────────────────────────────────────────
 
 export function discoverRootFiles(rootDir: string): string[] {
-  // Only discover files in src/ — avoids tests crowding the dashboard
   const srcDir = path.join(rootDir, 'src');
   if (fs.existsSync(srcDir)) {
     const srcFiles = findAllTsFiles(srcDir);
     if (srcFiles.length > 0) return srcFiles;
   }
 
-  // Fallback: all .ts files in the project
   return findAllTsFiles(rootDir);
 }
 
 // ── Dashboard serving (Vite) ────────────────────────────────────────────
 
-export async function serveDashboard(data: DashboardExportData): Promise<{ close: () => void }> {
-  // Try Vite-based serving first
-  try {
-    const { createServer } = await import('vite');
-    const configPath = path.join(PROJECT_ROOT, 'vite.config.dashboard.ts');
+export async function serveDashboard(data: ASTDashboardData): Promise<{ close: () => void }> {
+  const { createServer } = await import('vite');
+  const configPath = path.join(PROJECT_ROOT, 'dashboard', 'vite.config.ts');
 
-    const server = await createServer({
-      configFile: configPath,
-      server: { port: 0, open: true },
-      plugins: [{
-        name: 'dashboard-data',
-        configureServer(server) {
-          server.middlewares.use('/__data__', (_req, res) => {
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(data));
-          });
-        },
-      }],
-    });
-
-    await server.listen();
-    const addr = server.httpServer?.address();
-    const port = typeof addr === 'object' && addr ? addr.port : 5173;
-    console.log(`  Dashboard running at http://localhost:${port}`);
-    console.log('  Press Ctrl+C to stop.\n');
-
-    return { close: () => server.close() };
-  } catch {
-    // Fallback: legacy HTML injection
-    return serveDashboardLegacy(data);
-  }
-}
-
-// ── Legacy dashboard serving (HTML injection) ───────────────────────────
-
-function serveDashboardLegacy(data: DashboardExportData): Promise<{ close: () => void }> {
-  const html = fs.readFileSync(DASHBOARD_HTML, 'utf-8');
-
-  const dataJs = `// __DASHBOARD_DATA_START__\nconst SAMPLE_DATA = ${JSON.stringify(data, null, 2)};\n// __DASHBOARD_DATA_END__`;
-  const injected = html.replace(
-    /\/\/ __DASHBOARD_DATA_START__[\s\S]*?\/\/ __DASHBOARD_DATA_END__/,
-    dataJs,
-  );
-
-  return new Promise((resolve) => {
-    const server = http.createServer((_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(injected);
-    });
-
-    server.listen(0, () => {
-      const addr = server.address();
-      const port = typeof addr === 'object' && addr ? addr.port : 3000;
-      const url = `http://localhost:${port}`;
-
-      console.log(`  Dashboard (legacy) running at ${url}`);
-      console.log('  Press Ctrl+C to stop.\n');
-
-      try {
-        execSync(`open ${url}`, { stdio: 'ignore' });
-      } catch { /* Non-macOS or open failed */ }
-
-      resolve({ close: () => server.close() });
-    });
+  const server = await createServer({
+    configFile: configPath,
+    server: { port: 0, open: true },
+    plugins: [{
+      name: 'dashboard-data',
+      configureServer(server) {
+        server.middlewares.use('/__data__', (_req, res) => {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(data));
+        });
+      },
+    }],
   });
+
+  await server.listen();
+  const addr = server.httpServer?.address();
+  const port = typeof addr === 'object' && addr ? addr.port : 5173;
+  console.log(`  Dashboard running at http://localhost:${port}`);
+  console.log('  Press Ctrl+C to stop.\n');
+
+  return { close: () => server.close() };
 }

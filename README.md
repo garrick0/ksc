@@ -144,6 +144,18 @@ In type theory, a *kind* is the type of a type. `Type` has kind `*`. `Array` has
 
 The name also reflects the design philosophy: KindScript is TypeScript. It uses TypeScript's compiler, TypeScript's AST, TypeScript's tooling. It adds a layer of architectural verification without introducing a new language, new syntax, or new build step.
 
+## AST Schema
+
+KindScript uses a schema-first architecture for its AST. A single source of truth (`ast-schema/schema.ts`) declares all 364 node kinds, their typed fields, and 48 sum type memberships — mirroring TypeScript's full AST structure. A codegen step generates:
+
+- **Typed interfaces** — `KSNode` union, per-node interfaces (e.g., `KSIfStatement`), sum type unions (`KSExpression`, `KSStatement`, etc.), type guards
+- **Runtime schema** — `getChildren()`, field introspection, completeness checking for AG equations
+- **Node definitions** — `defineNode()`/`defineLeaf()` calls with phantom-typed field descriptors
+
+Every child field is typed to a specific node kind or sum type. Operator and token enums are decoded to human-readable string literals (`'extends' | 'implements'`, not raw numbers). The schema covers 362/362 TypeScript SyntaxKinds with 0 verification errors.
+
+See [`docs/architecture/ast-schema-completeness.md`](docs/architecture/ast-schema-completeness.md) for details.
+
 ## Status
 
 KindScript is a greenfield rewrite of an [earlier prototype](https://github.com/user/kindscript). The rewrite aligns the compiler's internal architecture directly with TypeScript's own compiler phases — scanner, parser, binder, checker — using the same names, same patterns, and same data flow model.

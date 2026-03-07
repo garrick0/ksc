@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From AG Interpreter to AG Compiler: The Roadmap</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --bg3: #0f3460;
+  --surface: #1e2a4a;
+  --surface2: #253557;
+  --border: #2a4080;
+  --text: #e0e0e0;
+  --text2: #a0b0d0;
+  --accent: #e94560;
+  --accent2: #f5a623;
+  --accent3: #7dd3fc;
+  --accent4: #86efac;
+  --accent5: #c4b5fd;
+  --code-bg: #0d1b2a;
+  --code-border: #1b3a5c;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+a { color: var(--accent3); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* -- Header -- */
+.hero {
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 50%, #1a1040 100%);
+  padding: 60px 40px 50px;
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle at 30% 50%, rgba(233,69,96,0.06) 0%, transparent 50%),
+              radial-gradient(circle at 70% 50%, rgba(125,211,252,0.06) 0%, transparent 50%);
+  animation: heroGlow 15s ease-in-out infinite alternate;
+}
+@keyframes heroGlow {
+  0% { transform: translateX(-5%); }
+  100% { transform: translateX(5%); }
+}
+.hero h1 {
+  font-size: 2.4em;
+  font-weight: 700;
+  position: relative;
+  background: linear-gradient(90deg, var(--accent3), var(--accent5), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.hero .subtitle {
+  font-size: 1.15em;
+  color: var(--text2);
+  max-width: 750px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* -- Layout -- */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 30px 30px 60px;
+}
+
+/* -- Sections -- */
+section { margin-bottom: 40px; }
+section h2 {
+  font-size: 1.6em;
+  color: var(--accent3);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+section h3 {
+  font-size: 1.2em;
+  color: var(--accent2);
+  margin: 20px 0 10px;
+}
+p, li { margin-bottom: 10px; color: var(--text); }
+ul, ol { padding-left: 24px; }
+
+/* -- Collapsible -- */
+details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 14px 0;
+  overflow: hidden;
+}
+details summary {
+  padding: 14px 18px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent3);
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+details summary::before {
+  content: '\25B6';
+  font-size: 0.7em;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+details[open] summary::before {
+  transform: rotate(90deg);
+}
+details .content {
+  padding: 4px 18px 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* -- Code -- */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.92em;
+}
+:not(pre) > code {
+  background: var(--code-bg);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--code-border);
+}
+.kw { color: #c678dd; }
+.str { color: #98c379; }
+.cm { color: #5c6370; font-style: italic; }
+.fn { color: #61afef; }
+.tp { color: #e5c07b; }
+.num { color: #d19a66; }
+.op { color: #56b6c2; }
+.accent-code { color: var(--accent); font-weight: 600; }
+.accent2-code { color: var(--accent2); }
+.accent3-code { color: var(--accent3); }
+.accent4-code { color: var(--accent4); }
+
+/* -- Tabs -- */
+.tabs { margin: 16px 0; }
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+}
+.tab-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  color: var(--accent3);
+  border-bottom-color: var(--accent3);
+  background: rgba(125,211,252,0.05);
+}
+.tab-panel { display: none; padding: 16px 0; }
+.tab-panel.active { display: block; }
+
+/* -- Diagrams -- */
+.diagram-container {
+  margin: 20px 0;
+  overflow-x: auto;
+}
+.diagram-container svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* -- Cards -- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+}
+.card h4 {
+  color: var(--accent2);
+  margin-bottom: 8px;
+  font-size: 1.05em;
+}
+.card.highlight { border-color: var(--accent); }
+.card.highlight h4 { color: var(--accent); }
+.card.green { border-color: var(--accent4); }
+.card.green h4 { color: var(--accent4); }
+.card.blue { border-color: var(--accent3); }
+.card.blue h4 { color: var(--accent3); }
+.card.purple { border-color: var(--accent5); }
+.card.purple h4 { color: var(--accent5); }
+
+/* -- Timeline -- */
+.timeline {
+  position: relative;
+  margin: 20px 0 20px 30px;
+  padding-left: 30px;
+  border-left: 3px solid var(--border);
+}
+.timeline-item {
+  position: relative;
+  margin-bottom: 24px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -39px;
+  top: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 3px solid var(--accent3);
+  background: var(--bg);
+}
+.timeline-item.done::before { border-color: var(--accent4); background: rgba(134,239,172,0.2); }
+.timeline-item.runtime::before { border-color: var(--accent2); }
+.timeline-item.eval::before { border-color: var(--accent4); }
+.timeline-item .time-label {
+  font-weight: 700;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.timeline-item .time-label.build { color: var(--accent3); }
+.timeline-item .time-label.runtime { color: var(--accent2); }
+.timeline-item .time-label.eval { color: var(--accent4); }
+.timeline-item .time-label.done { color: var(--accent4); }
+.timeline-item .time-label.skip { color: var(--text2); text-decoration: line-through; }
+
+/* -- Comparison table -- */
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.92em;
+}
+.compare-table th, .compare-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.compare-table th {
+  background: var(--surface2);
+  color: var(--accent3);
+  font-weight: 600;
+}
+.compare-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.compare-table .good { color: var(--accent4); }
+.compare-table .bad { color: var(--accent); }
+.compare-table .mid { color: var(--accent2); }
+.compare-table .done-row { background: rgba(134,239,172,0.08); }
+
+/* -- Interactive demo -- */
+.demo-area {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 16px 0;
+}
+.demo-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.demo-btn {
+  padding: 8px 18px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+.demo-btn:hover { background: var(--surface2); border-color: var(--accent3); }
+.demo-btn.active { background: var(--accent3); color: var(--bg); border-color: var(--accent3); }
+.demo-output {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  padding: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  line-height: 1.6;
+  min-height: 120px;
+  white-space: pre-wrap;
+  transition: opacity 0.3s;
+}
+
+/* -- Flashcards -- */
+.flashcard-deck { margin: 20px 0; }
+.flashcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  cursor: pointer;
+  user-select: none;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: all 0.3s;
+  position: relative;
+}
+.flashcard:hover { border-color: var(--accent3); }
+.flashcard .question { font-size: 1.1em; font-weight: 500; }
+.flashcard .answer {
+  display: none;
+  font-size: 0.95em;
+  color: var(--text2);
+  line-height: 1.6;
+}
+.flashcard.flipped .question { display: none; }
+.flashcard.flipped .answer { display: block; }
+.flashcard.flipped { background: var(--surface2); }
+.flashcard-nav {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.flashcard-nav button {
+  padding: 6px 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.flashcard-nav button:hover { border-color: var(--accent3); }
+.flashcard-counter {
+  text-align: center;
+  color: var(--text2);
+  font-size: 0.85em;
+  margin-top: 8px;
+}
+
+/* -- Highlight box -- */
+.insight {
+  background: rgba(233,69,96,0.08);
+  border-left: 4px solid var(--accent);
+  padding: 14px 18px;
+  margin: 16px 0;
+  border-radius: 0 6px 6px 0;
+}
+.insight strong { color: var(--accent); }
+.note {
+  background: rgba(125,211,252,0.08);
+  border-left: 4px solid var(--accent3);
+  padding: 14px 18px;
+  margin: 16px 0;
+  border-radius: 0 6px 6px 0;
+}
+.note strong { color: var(--accent3); }
+.done-note {
+  background: rgba(134,239,172,0.08);
+  border-left: 4px solid var(--accent4);
+  padding: 14px 18px;
+  margin: 16px 0;
+  border-radius: 0 6px 6px 0;
+}
+.done-note strong { color: var(--accent4); }
+
+/* -- Status badge -- */
+.status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.status.done { background: rgba(134,239,172,0.15); color: var(--accent4); border: 1px solid var(--accent4); }
+.status.next { background: rgba(245,166,35,0.15); color: var(--accent2); border: 1px solid var(--accent2); }
+.status.future { background: rgba(196,181,253,0.15); color: var(--accent5); border: 1px solid var(--accent5); }
+.status.skip { background: rgba(160,176,208,0.15); color: var(--text2); border: 1px solid var(--text2); }
+
+/* -- Animation -- */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeSlideIn 0.4s ease-out; }
+
+/* -- Responsive -- */
+@media (max-width: 700px) {
+  .hero { padding: 40px 20px 35px; }
+  .hero h1 { font-size: 1.6em; }
+  .container { padding: 20px 16px 40px; }
+  .card-grid { grid-template-columns: 1fr; }
+  .tab-btn { padding: 8px 12px; font-size: 0.85em; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>From AG Interpreter to AG Compiler</h1>
+  <p class="subtitle">
+    Where KSC stands today with its DNode architecture, what remains to be generated,
+    and the concrete stages to get to a fully typed, schema-driven AG compiler.
+  </p>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<section id="where-we-are">
+<h2>Where We Are: The DNode Architecture</h2>
+
+<p>KSC has already completed a major architectural shift: the raw AST is <strong>never mutated</strong>.
+Instead, a separate <code>DNode</code> wrapper tree provides navigation and attribute access.
+This is Silver-style Strategy 4 &mdash; the same approach used by production AG systems.</p>
+
+<div class="diagram-container">
+<svg viewBox="0 0 920 340" width="920" height="340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M 0 0 L 8 3 L 0 6 Z" fill="#a0b0d0"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M 0 0 L 8 3 L 0 6 Z" fill="#86efac"/>
+    </marker>
+  </defs>
+
+  <!-- Left: Raw AST Node -->
+  <rect x="20" y="30" width="250" height="260" rx="10" fill="#1e2a4a" stroke="#86efac" stroke-width="2"/>
+  <text x="145" y="56" text-anchor="middle" fill="#86efac" font-weight="700" font-size="14">Raw KSIfStatement</text>
+  <text x="145" y="74" text-anchor="middle" fill="#86efac" font-size="10">immutable, never mutated</text>
+  <line x1="40" y1="82" x2="250" y2="82" stroke="#2a4080" stroke-width="1"/>
+
+  <text x="45" y="104" fill="#e5c07b" font-family="monospace" font-size="12">kind:</text>
+  <text x="115" y="104" fill="#98c379" font-family="monospace" font-size="12">'IfStatement'</text>
+  <text x="45" y="126" fill="#e5c07b" font-family="monospace" font-size="12">expression:</text>
+  <text x="155" y="126" fill="#a0b0d0" font-family="monospace" font-size="12">KSExpression</text>
+  <text x="45" y="148" fill="#e5c07b" font-family="monospace" font-size="12">thenStatement:</text>
+  <text x="180" y="148" fill="#a0b0d0" font-family="monospace" font-size="12">KSStatement</text>
+  <text x="45" y="170" fill="#e5c07b" font-family="monospace" font-size="12">children:</text>
+  <text x="130" y="170" fill="#a0b0d0" font-family="monospace" font-size="12">KSNode[]</text>
+  <text x="45" y="192" fill="#e5c07b" font-family="monospace" font-size="12">pos:</text>
+  <text x="85" y="192" fill="#d19a66" font-family="monospace" font-size="12">42</text>
+  <text x="130" y="192" fill="#e5c07b" font-family="monospace" font-size="12">end:</text>
+  <text x="170" y="192" fill="#d19a66" font-family="monospace" font-size="12">108</text>
+
+  <text x="145" y="240" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600">Fully typed (generated)</text>
+  <text x="145" y="258" text-anchor="middle" fill="#86efac" font-size="11">Schema fields only</text>
+  <text x="145" y="276" text-anchor="middle" fill="#86efac" font-size="11">No navigation, no attrs</text>
+
+  <!-- Arrow: buildContextTree -->
+  <path d="M 285 170 L 355 170" stroke="#c4b5fd" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+  <text x="320" y="155" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">buildContextTree()</text>
+  <text x="320" y="190" text-anchor="middle" fill="#5c6370" font-size="9">wraps, never mutates</text>
+
+  <!-- Right: DNode wrapper -->
+  <rect x="370" y="10" width="530" height="320" rx="10" fill="#1e2a4a" stroke="#c4b5fd" stroke-width="2"/>
+  <text x="635" y="36" text-anchor="middle" fill="#c4b5fd" font-weight="700" font-size="14">DNode wrapper</text>
+  <text x="635" y="52" text-anchor="middle" fill="#c4b5fd" font-size="10">separate object, ephemeral</text>
+  <line x1="390" y1="60" x2="880" y2="60" stroke="#2a4080" stroke-width="1"/>
+
+  <!-- Data ref -->
+  <text x="395" y="82" fill="#86efac" font-family="monospace" font-size="11" font-weight="600">node:</text>
+  <text x="465" y="82" fill="#a0b0d0" font-family="monospace" font-size="11">raw (ref to left)</text>
+  <text x="650" y="82" fill="#5c6370" font-family="monospace" font-size="10">// typed data access</text>
+
+  <line x1="390" y1="94" x2="880" y2="94" stroke="#2a4080" stroke-width="1" stroke-dasharray="4"/>
+
+  <!-- Navigation -->
+  <text x="395" y="114" fill="#c678dd" font-family="monospace" font-size="11">// Navigation (typed, explicit)</text>
+  <text x="395" y="132" fill="#c4b5fd" font-family="monospace" font-size="11">parent:</text>
+  <text x="475" y="132" fill="#a0b0d0" font-family="monospace" font-size="11">DNode | undefined</text>
+  <text x="395" y="150" fill="#c4b5fd" font-family="monospace" font-size="11">children:</text>
+  <text x="490" y="150" fill="#a0b0d0" font-family="monospace" font-size="11">readonly DNode[]</text>
+  <text x="395" y="168" fill="#c4b5fd" font-family="monospace" font-size="11">prev: / next: / index: / fieldName:</text>
+  <text x="395" y="186" fill="#c4b5fd" font-family="monospace" font-size="11">isRoot:</text>
+  <text x="480" y="186" fill="#d19a66" font-family="monospace" font-size="11">boolean</text>
+
+  <line x1="390" y1="198" x2="880" y2="198" stroke="#2a4080" stroke-width="1" stroke-dasharray="4"/>
+
+  <!-- Attribute access -->
+  <text x="395" y="218" fill="#c678dd" font-family="monospace" font-size="11">// Attribute access (lazy, cached)</text>
+  <text x="395" y="236" fill="#f5a623" font-family="monospace" font-size="11">attr&lt;T&gt;(name):</text>
+  <text x="545" y="236" fill="#a0b0d0" font-family="monospace" font-size="11">T</text>
+  <text x="580" y="236" fill="#e94560" font-family="monospace" font-size="10">// T is manual, returns any</text>
+
+  <line x1="390" y1="250" x2="880" y2="250" stroke="#2a4080" stroke-width="1" stroke-dasharray="4"/>
+
+  <!-- Internal state -->
+  <text x="395" y="270" fill="#c678dd" font-family="monospace" font-size="11">// Internal (Map-based caching)</text>
+  <text x="395" y="288" fill="#5c6370" font-family="monospace" font-size="11">_defs:</text>
+  <text x="470" y="288" fill="#5c6370" font-family="monospace" font-size="11">Map&lt;string, AttrComputed&gt;</text>
+  <text x="395" y="306" fill="#5c6370" font-family="monospace" font-size="11">_cache:</text>
+  <text x="478" y="306" fill="#5c6370" font-family="monospace" font-size="11">Map&lt;string, unknown&gt;</text>
+  <text x="680" y="306" fill="#e94560" font-family="monospace" font-size="10">// untyped!</text>
+  <text x="395" y="322" fill="#5c6370" font-family="monospace" font-size="11">_computing:</text>
+  <text x="505" y="322" fill="#5c6370" font-family="monospace" font-size="11">Set&lt;string&gt;</text>
+  <text x="610" y="322" fill="#5c6370" font-family="monospace" font-size="10">// cycle detection</text>
+</svg>
+</div>
+
+<div class="done-note">
+  <strong>What's already solved:</strong> The raw AST is never mutated. Navigation (parent, children, siblings,
+  fieldName) lives in separate DNode wrappers. No <code>Object.defineProperty</code> hacks.
+  No <code>enumerable: false</code> tricks. No <code>$parent</code>, <code>$agAttrs</code>, or <code>stampTree()</code>.
+  Attribute caching uses simple Maps. The raw tree can be evaluated multiple times with different specs.
+</div>
+
+<div class="insight">
+  <strong>What remains:</strong> Everything is still <em>generic and dynamic</em>. Attribute access is
+  <code>ctx.attr&lt;T&gt;('name')</code> where T must be manually specified (returns <code>any</code> if you forget).
+  Equations are <code>Record&lt;string, unknown&gt;</code>. Dispatch is runtime hash-map lookup.
+  The cache is <code>Map&lt;string, unknown&gt;</code>. Two serializers exist, neither complete.
+  The type system doesn't know what attributes exist or what types they have.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="four-modules">
+<h2>The Four-Module Architecture</h2>
+
+<p>KSC separates concerns into four layers. Understanding these is essential for seeing
+where codegen fits in.</p>
+
+<div class="diagram-container">
+<svg viewBox="0 0 900 400" width="900" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrDown" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M 0 0 L 8 3 L 0 6 Z" fill="#a0b0d0"/>
+    </marker>
+  </defs>
+
+  <!-- Top: Consumer layer -->
+  <rect x="250" y="10" width="400" height="55" rx="8" fill="#253557" stroke="#a0b0d0" stroke-width="2"/>
+  <text x="450" y="34" text-anchor="middle" fill="#e0e0e0" font-size="13" font-weight="700">src/ &mdash; Application Layer</text>
+  <text x="450" y="52" text-anchor="middle" fill="#a0b0d0" font-size="10">program.ts, CLI, dashboard (calls only evaluate())</text>
+
+  <path d="M 350 65 L 350 90" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arrDown)"/>
+  <path d="M 550 65 L 550 90" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arrDown)"/>
+
+  <!-- Middle row: ksc-interpreter + ast-schema -->
+  <rect x="60" y="95" width="300" height="55" rx="8" fill="#253557" stroke="#c4b5fd" stroke-width="2"/>
+  <text x="210" y="118" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">ksc-interpreter/</text>
+  <text x="210" y="136" text-anchor="middle" fill="#a0b0d0" font-size="10">evaluate() &mdash; orchestrates Grammar + Semantics + interpret</text>
+
+  <rect x="540" y="95" width="300" height="55" rx="8" fill="#253557" stroke="#86efac" stroke-width="2"/>
+  <text x="690" y="118" text-anchor="middle" fill="#86efac" font-size="12" font-weight="700">ast-schema/</text>
+  <text x="690" y="136" text-anchor="middle" fill="#a0b0d0" font-size="10">Schema + codegen &rarr; node types, getChildren, builders, serialize</text>
+
+  <path d="M 160 150 L 160 185" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arrDown)"/>
+  <path d="M 260 150 L 260 185" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arrDown)"/>
+
+  <!-- Bottom row: ag-interpreter + ag-behavior + ksc-behavior -->
+  <rect x="20" y="190" width="260" height="75" rx="8" fill="#253557" stroke="#7dd3fc" stroke-width="2"/>
+  <text x="150" y="214" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="700">ag-interpreter/</text>
+  <text x="150" y="232" text-anchor="middle" fill="#a0b0d0" font-size="10">Generic AG engine: DNode, compile,</text>
+  <text x="150" y="248" text-anchor="middle" fill="#a0b0d0" font-size="10">interpret, semantics, grammar, analyze</text>
+
+  <rect x="320" y="190" width="260" height="75" rx="8" fill="#253557" stroke="#f5a623" stroke-width="2"/>
+  <text x="450" y="214" text-anchor="middle" fill="#f5a623" font-size="12" font-weight="700">ksc-behavior/</text>
+  <text x="450" y="232" text-anchor="middle" fill="#a0b0d0" font-size="10">KSC-specific specs: binder (3 attrs),</text>
+  <text x="450" y="248" text-anchor="middle" fill="#a0b0d0" font-size="10">checker (9 attrs), domain types</text>
+
+  <rect x="620" y="190" width="260" height="75" rx="8" fill="#253557" stroke="#e5c07b" stroke-width="2"/>
+  <text x="750" y="214" text-anchor="middle" fill="#e5c07b" font-size="12" font-weight="700">ag-behavior/</text>
+  <text x="750" y="232" text-anchor="middle" fill="#a0b0d0" font-size="10">AG vocabulary: SpecInput, AttrDecl,</text>
+  <text x="750" y="248" text-anchor="middle" fill="#a0b0d0" font-size="10">SynDecl, InhDecl, ProductionEquations</text>
+
+  <!-- Data flow annotation -->
+  <rect x="130" y="300" width="640" height="85" rx="8" fill="rgba(233,69,96,0.06)" stroke="#e94560" stroke-width="1" stroke-dasharray="6"/>
+  <text x="450" y="322" text-anchor="middle" fill="#e94560" font-size="12" font-weight="700">The Runtime Data Flow</text>
+  <text x="450" y="342" text-anchor="middle" fill="#a0b0d0" font-size="11">TS files &rarr; ts.createProgram &rarr; buildKSTree(tsProgram) &rarr; evaluate(root)</text>
+  <text x="450" y="360" text-anchor="middle" fill="#a0b0d0" font-size="11">evaluate: createGrammar &rarr; createSemantics &rarr; interpret &rarr; { definitions, diagnostics }</text>
+  <text x="450" y="378" text-anchor="middle" fill="#e94560" font-size="10">Grammar creation, spec compilation, dispatch construction &mdash; all happen every run</text>
+</svg>
+</div>
+
+</section>
+
+<!-- ============================================================ -->
+<section id="remaining">
+<h2>What Remains Dynamic (and Shouldn't Be)</h2>
+
+<p>The DNode architecture solved the <em>mutation</em> problem. But the system is still a pure <em>interpreter</em>:
+everything is wired up at runtime from generic data structures. Here's what could be pre-computed:</p>
+
+<table class="compare-table">
+<thead>
+<tr>
+  <th>Operation</th>
+  <th>Current</th>
+  <th>Could Be</th>
+  <th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Attribute dispatch (kind &rarr; equation)</td>
+  <td class="bad">Runtime hash-map in <code>makeDispatch()</code></td>
+  <td class="good">Generated <code>switch(node.kind)</code></td>
+  <td>Faster, typo-safe</td>
+</tr>
+<tr>
+  <td>Attribute type information</td>
+  <td class="bad"><code>ctx.attr&lt;T&gt;('name')</code> &mdash; T is manual</td>
+  <td class="good">Typed: <code>ctx.attr('kindDefs')</code> &rarr; <code>KindDefinition[]</code></td>
+  <td>IDE support, safety</td>
+</tr>
+<tr>
+  <td>Cache structure</td>
+  <td class="bad"><code>Map&lt;string, unknown&gt;</code> per DNode</td>
+  <td class="good">Typed cache object with one field per attr</td>
+  <td>V8 optimization, types</td>
+</tr>
+<tr>
+  <td>Equation typing</td>
+  <td class="bad"><code>equations: Record&lt;string, unknown&gt;</code></td>
+  <td class="good">Typed per-attribute equation signatures</td>
+  <td>Spec author safety</td>
+</tr>
+<tr>
+  <td>Attribute registration</td>
+  <td class="bad">Walk entire DNode tree, register each attr</td>
+  <td class="good">Baked into DNode construction</td>
+  <td>Faster startup</td>
+</tr>
+<tr>
+  <td>Serialization (attributes)</td>
+  <td class="bad">Two serializers, one doesn't know attrs</td>
+  <td class="good">One generated serializer, full knowledge</td>
+  <td>Correctness, simplicity</td>
+</tr>
+<tr>
+  <td>Grammar + Semantics creation</td>
+  <td class="mid">Rebuilt every <code>evaluate()</code> call</td>
+  <td class="good">Generated as static code</td>
+  <td>Smaller, faster</td>
+</tr>
+<tr>
+  <td>Actual attribute values</td>
+  <td class="good">Computed on demand (lazy)</td>
+  <td class="good">Still computed on demand</td>
+  <td>Must stay runtime</td>
+</tr>
+</tbody>
+</table>
+
+<div class="note">
+  <strong>Key insight:</strong> Only the concrete tree and actual attribute values must be computed at runtime.
+  Everything else &mdash; which attributes exist, their types, how dispatch works, how caching works,
+  how serialization works &mdash; is known statically from the schema (364 kinds) and specs (12 attributes).
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="staging">
+<h2>Partial Evaluation &amp; Staging</h2>
+
+<details open>
+<summary>What is partial evaluation?</summary>
+<div class="content">
+<p>Partial evaluation (or <strong>specialization</strong>) is pre-computing everything that depends
+only on known inputs, producing a simpler program that only needs the remaining input.</p>
+
+<div class="diagram-container">
+<svg viewBox="0 0 820 280" width="820" height="280" xmlns="http://www.w3.org/2000/svg">
+  <!-- Generic program -->
+  <rect x="20" y="20" width="340" height="240" rx="10" fill="#1e2a4a" stroke="#2a4080" stroke-width="2"/>
+  <text x="190" y="50" text-anchor="middle" fill="#7dd3fc" font-weight="700" font-size="14">AG Interpreter (today)</text>
+
+  <rect x="40" y="70" width="130" height="44" rx="6" fill="#0f3460" stroke="#86efac" stroke-width="2"/>
+  <text x="105" y="88" text-anchor="middle" fill="#86efac" font-size="12" font-weight="600">Static Input</text>
+  <text x="105" y="104" text-anchor="middle" fill="#86efac" font-size="10">schema + specs</text>
+
+  <rect x="40" y="126" width="130" height="44" rx="6" fill="#0f3460" stroke="#f5a623" stroke-width="2"/>
+  <text x="105" y="144" text-anchor="middle" fill="#f5a623" font-size="12" font-weight="600">Dynamic Input</text>
+  <text x="105" y="160" text-anchor="middle" fill="#f5a623" font-size="10">concrete tree</text>
+
+  <rect x="195" y="70" width="150" height="100" rx="6" fill="#253557" stroke="#2a4080"/>
+  <text x="270" y="100" text-anchor="middle" fill="#a0b0d0" font-size="11">createGrammar()</text>
+  <text x="270" y="116" text-anchor="middle" fill="#a0b0d0" font-size="11">createSemantics()</text>
+  <text x="270" y="132" text-anchor="middle" fill="#a0b0d0" font-size="11">interpret()</text>
+  <text x="270" y="148" text-anchor="middle" fill="#5c6370" font-size="10">all at runtime</text>
+
+  <path d="M 170 92 L 195 110" stroke="#86efac" stroke-width="1.5" fill="none"/>
+  <path d="M 170 148 L 195 130" stroke="#f5a623" stroke-width="1.5" fill="none"/>
+
+  <rect x="195" y="186" width="150" height="34" rx="6" fill="#253557" stroke="#c4b5fd"/>
+  <text x="270" y="208" text-anchor="middle" fill="#c4b5fd" font-size="11">DNode tree + results</text>
+  <path d="M 270 170 L 270 186" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- Arrow to specialized -->
+  <path d="M 380 140 L 440 140" stroke="#e94560" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+  <text x="410" y="128" text-anchor="middle" fill="#e94560" font-size="11" font-weight="700">codegen</text>
+
+  <!-- Specialized program -->
+  <rect x="460" y="20" width="340" height="240" rx="10" fill="#1e2a4a" stroke="#86efac" stroke-width="2"/>
+  <text x="630" y="50" text-anchor="middle" fill="#86efac" font-weight="700" font-size="14">AG Compiler (target)</text>
+
+  <rect x="480" y="80" width="130" height="44" rx="6" fill="#0f3460" stroke="#f5a623" stroke-width="2"/>
+  <text x="545" y="98" text-anchor="middle" fill="#f5a623" font-size="12" font-weight="600">Dynamic Input</text>
+  <text x="545" y="114" text-anchor="middle" fill="#f5a623" font-size="10">(tree only)</text>
+
+  <rect x="635" y="70" width="150" height="100" rx="6" fill="#253557" stroke="#86efac"/>
+  <text x="710" y="100" text-anchor="middle" fill="#86efac" font-size="11">Generated code:</text>
+  <text x="710" y="118" text-anchor="middle" fill="#86efac" font-size="11">typed dispatch,</text>
+  <text x="710" y="136" text-anchor="middle" fill="#86efac" font-size="11">typed cache,</text>
+  <text x="710" y="154" text-anchor="middle" fill="#5c6370" font-size="10">schema + specs baked in</text>
+
+  <path d="M 610 102 L 635 115" stroke="#f5a623" stroke-width="1.5" fill="none"/>
+
+  <rect x="635" y="186" width="150" height="34" rx="6" fill="#253557" stroke="#c4b5fd"/>
+  <text x="710" y="208" text-anchor="middle" fill="#c4b5fd" font-size="11">Typed attributed tree</text>
+  <path d="M 710 170 L 710 186" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+</svg>
+</div>
+
+<p>The <strong>Futamura projections</strong> formalize this: specializing an <em>interpreter</em> with respect to a
+<em>program</em> produces a <em>compiled version</em>. Specializing the AG interpreter with respect to the
+schema + specs produces a compiled AG evaluator.</p>
+</div>
+</details>
+
+<details>
+<summary>What JastAdd does (the reference AG compiler)</summary>
+<div class="content">
+<p><a href="https://jastadd.cs.lth.se/">JastAdd</a> generates Java classes at build time from grammar + attribute declarations.
+Every attribute becomes a <strong>real method</strong> with the correct return type:</p>
+
+<div class="tabs" data-tabs="jastadd">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="input">Input: Grammar + Attrs</button>
+    <button class="tab-btn" data-tab="output">Output: Generated Java</button>
+    <button class="tab-btn" data-tab="compare">KSC Equivalent</button>
+  </div>
+  <div class="tab-panel active" data-tab="input">
+<pre><code><span class="cm">// Grammar declaration</span>
+<span class="kw">abstract</span> Statement;
+IfStatement : Statement ::=
+  Condition:Expression
+  Then:Statement
+  [Else:Statement];
+
+<span class="cm">// Attribute declaration</span>
+<span class="kw">syn</span> List&lt;KindDef&gt; CompilationUnit.<span class="fn">kindDefs</span>();
+<span class="kw">inh</span> Map&lt;String, KindDef&gt; ASTNode.<span class="fn">defEnv</span>();
+
+<span class="cm">// Equation</span>
+<span class="kw">eq</span> CompilationUnit.<span class="fn">kindDefs</span>() {
+  <span class="kw">return</span> extractKindDefs(<span class="kw">this</span>);
+}
+</code></pre>
+  </div>
+  <div class="tab-panel" data-tab="output">
+<pre><code><span class="cm">// GENERATED by JastAdd at build time</span>
+<span class="kw">public class</span> <span class="tp">IfStatement</span> <span class="kw">extends</span> <span class="tp">Statement</span> {
+  <span class="cm">// Schema fields (from grammar)</span>
+  <span class="kw">private</span> <span class="tp">Expression</span> condition;
+  <span class="kw">private</span> <span class="tp">Statement</span> then;
+  <span class="kw">private</span> <span class="tp">Statement</span> else_;
+
+  <span class="cm">// Navigation (typed, explicit)</span>
+  <span class="kw">private</span> <span class="tp">ASTNode</span> parent;
+  <span class="kw">private int</span> childIndex;
+
+  <span class="cm">// Binder attribute: kindDefs (typed, cached)</span>
+  <span class="kw">private boolean</span> kindDefs_computed = <span class="kw">false</span>;
+  <span class="kw">private</span> <span class="tp">List&lt;KindDef&gt;</span> kindDefs_value;
+  <span class="kw">public</span> <span class="tp">List&lt;KindDef&gt;</span> <span class="fn">kindDefs</span>() {
+    <span class="kw">if</span> (kindDefs_computed) <span class="kw">return</span> kindDefs_value;
+    kindDefs_computed = <span class="kw">true</span>;
+    kindDefs_value = <span class="cm">/* equation body */</span>;
+    <span class="kw">return</span> kindDefs_value;
+  }
+}
+</code></pre>
+  </div>
+  <div class="tab-panel" data-tab="compare">
+<pre><code><span class="cm">// KSC today: DNode-based interpreter</span>
+<span class="kw">const</span> dnode: <span class="tp">DNode</span>&lt;<span class="tp">KSNode</span>&gt; = ...;
+
+<span class="cm">// Navigation: typed via DNode</span>
+dnode.parent       <span class="cm">// DNode | undefined  (typed!)</span>
+dnode.children     <span class="cm">// readonly DNode[]   (typed!)</span>
+dnode.fieldName    <span class="cm">// string | undefined (typed!)</span>
+
+<span class="cm">// Data access: typed via .node</span>
+dnode.node.kind    <span class="cm">// string</span>
+dnode.node.pos     <span class="cm">// number</span>
+
+<span class="cm">// Attribute access: NOT typed</span>
+dnode.attr(<span class="str">'kindDefs'</span>)       <span class="cm">// returns any!</span>
+dnode.attr&lt;<span class="tp">KindDefinition</span>[]&gt;(<span class="str">'kindDefs'</span>)  <span class="cm">// manual cast</span>
+
+<span class="cm">// What we want:</span>
+dnode.attr(<span class="str">'kindDefs'</span>)       <span class="cm">// => KindDefinition[]  (auto!)</span>
+</code></pre>
+  </div>
+</div>
+</div>
+</details>
+</section>
+
+<!-- ============================================================ -->
+<section id="interpreter-vs-compiler">
+<h2>Current Interpreter vs Target Compiler</h2>
+
+<div class="tabs" data-tabs="compare">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="interp">Current: DNode Interpreter</button>
+    <button class="tab-btn" data-tab="compiler">Target: Generated Evaluator</button>
+    <button class="tab-btn" data-tab="table">Comparison Table</button>
+  </div>
+
+  <div class="tab-panel active" data-tab="interp">
+    <h3>How it works today (DNode architecture)</h3>
+    <div class="diagram-container">
+<svg viewBox="0 0 860 240" width="860" height="240" xmlns="http://www.w3.org/2000/svg">
+  <!-- Spec boxes -->
+  <rect x="20" y="30" width="120" height="60" rx="6" fill="#253557" stroke="#c4b5fd" stroke-width="2"/>
+  <text x="80" y="55" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">SpecInput[]</text>
+  <text x="80" y="72" text-anchor="middle" fill="#a0b0d0" font-size="10">declarations +</text>
+  <text x="80" y="84" text-anchor="middle" fill="#a0b0d0" font-size="10">equations</text>
+
+  <rect x="20" y="110" width="120" height="50" rx="6" fill="#253557" stroke="#7dd3fc" stroke-width="2"/>
+  <text x="80" y="133" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="600">Grammar</text>
+  <text x="80" y="148" text-anchor="middle" fill="#a0b0d0" font-size="10">getChildren, getChildFields</text>
+
+  <path d="M 140 60 L 200 100" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M 140 135 L 200 110" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <rect x="200" y="80" width="130" height="55" rx="6" fill="#253557" stroke="#f5a623" stroke-width="2"/>
+  <text x="265" y="100" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="600">createSemantics()</text>
+  <text x="265" y="116" text-anchor="middle" fill="#a0b0d0" font-size="10">topo-sort + compile</text>
+  <text x="265" y="130" text-anchor="middle" fill="#a0b0d0" font-size="10">decl + eq &rarr; AttrComputed</text>
+
+  <path d="M 330 107 L 385 107" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <rect x="385" y="60" width="150" height="90" rx="6" fill="#253557" stroke="#c4b5fd" stroke-width="2"/>
+  <text x="460" y="84" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">interpret()</text>
+  <text x="460" y="100" text-anchor="middle" fill="#a0b0d0" font-size="10">buildContextTree()</text>
+  <text x="460" y="116" text-anchor="middle" fill="#a0b0d0" font-size="10">registerAttributes()</text>
+  <text x="460" y="132" text-anchor="middle" fill="#a0b0d0" font-size="10">project()</text>
+
+  <!-- tree -->
+  <rect x="385" y="170" width="150" height="40" rx="6" fill="#253557" stroke="#f5a623"/>
+  <text x="460" y="195" text-anchor="middle" fill="#f5a623" font-size="11">Concrete Tree</text>
+  <path d="M 460 170 L 460 150" stroke="#f5a623" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <!-- output -->
+  <path d="M 535 105 L 590 105" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <rect x="590" y="60" width="250" height="100" rx="6" fill="#1e2a4a" stroke="#c4b5fd" stroke-width="2"/>
+  <text x="715" y="85" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">DNode Tree</text>
+  <text x="715" y="104" text-anchor="middle" fill="#86efac" font-size="10">Raw tree NOT mutated</text>
+  <text x="715" y="120" text-anchor="middle" fill="#a0b0d0" font-size="10">Navigation via DNode wrappers</text>
+  <text x="715" y="136" text-anchor="middle" fill="#e94560" font-size="10">Attrs: ctx.attr('name') &rarr; any</text>
+  <text x="715" y="152" text-anchor="middle" fill="#e94560" font-size="10">Cache: Map&lt;string, unknown&gt;</text>
+
+  <text x="340" y="22" text-anchor="middle" fill="#5c6370" font-size="10">ALL WIRING AT RUNTIME</text>
+  <line x1="80" y1="26" x2="550" y2="26" stroke="#5c6370" stroke-width="1" stroke-dasharray="3"/>
+</svg>
+    </div>
+    <p>The DNode architecture is clean &mdash; no mutation &mdash; but all wiring (dispatch, caching, registration)
+    happens at runtime from generic data structures. Every <code>evaluate()</code> call rebuilds Grammar, Semantics,
+    compiles all 12 attributes, walks the tree to register them.</p>
+  </div>
+
+  <div class="tab-panel" data-tab="compiler">
+    <h3>Target: generated evaluator</h3>
+    <div class="diagram-container">
+<svg viewBox="0 0 860 320" width="860" height="320" xmlns="http://www.w3.org/2000/svg">
+  <!-- BUILD TIME -->
+  <rect x="10" y="10" width="530" height="140" rx="10" fill="rgba(134,239,172,0.04)" stroke="#86efac" stroke-width="1" stroke-dasharray="6"/>
+  <text x="30" y="32" fill="#86efac" font-size="11" font-weight="700">BUILD TIME (codegen)</text>
+
+  <rect x="30" y="48" width="110" height="44" rx="6" fill="#253557" stroke="#86efac"/>
+  <text x="85" y="66" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600">Schema</text>
+  <text x="85" y="80" text-anchor="middle" fill="#a0b0d0" font-size="9">364 node kinds</text>
+
+  <rect x="155" y="48" width="110" height="44" rx="6" fill="#253557" stroke="#c4b5fd"/>
+  <text x="210" y="66" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="600">Spec Decls</text>
+  <text x="210" y="80" text-anchor="middle" fill="#a0b0d0" font-size="9">12 attributes</text>
+
+  <rect x="280" y="48" width="110" height="44" rx="6" fill="#253557" stroke="#f5a623"/>
+  <text x="335" y="66" text-anchor="middle" fill="#f5a623" font-size="10" font-weight="600">Equation Keys</text>
+  <text x="335" y="80" text-anchor="middle" fill="#a0b0d0" font-size="9">production maps</text>
+
+  <rect x="410" y="48" width="115" height="90" rx="6" fill="#253557" stroke="#86efac" stroke-width="2"/>
+  <text x="468" y="70" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700">codegen</text>
+  <text x="468" y="88" text-anchor="middle" fill="#a0b0d0" font-size="9">Generates: types,</text>
+  <text x="468" y="103" text-anchor="middle" fill="#a0b0d0" font-size="9">dispatch, cache,</text>
+  <text x="468" y="118" text-anchor="middle" fill="#a0b0d0" font-size="9">serializer, DNode</text>
+
+  <path d="M 140 70 L 155 70" stroke="#86efac" stroke-width="1" fill="none"/>
+  <path d="M 265 70 L 280 70" stroke="#86efac" stroke-width="1" fill="none"/>
+  <path d="M 390 70 L 410 85" stroke="#86efac" stroke-width="1" fill="none"/>
+
+  <!-- RUNTIME -->
+  <rect x="10" y="170" width="530" height="140" rx="10" fill="rgba(245,166,35,0.04)" stroke="#f5a623" stroke-width="1" stroke-dasharray="6"/>
+  <text x="30" y="192" fill="#f5a623" font-size="11" font-weight="700">RUNTIME (evaluation only)</text>
+
+  <rect x="30" y="208" width="130" height="44" rx="6" fill="#253557" stroke="#f5a623"/>
+  <text x="95" y="226" text-anchor="middle" fill="#f5a623" font-size="10" font-weight="600">Concrete Tree</text>
+  <text x="95" y="240" text-anchor="middle" fill="#a0b0d0" font-size="9">user's source code</text>
+
+  <rect x="185" y="208" width="150" height="44" rx="6" fill="#253557" stroke="#86efac" stroke-width="2"/>
+  <text x="260" y="226" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600">Generated evaluator</text>
+  <text x="260" y="240" text-anchor="middle" fill="#a0b0d0" font-size="9">switch dispatch, typed cache</text>
+
+  <rect x="360" y="208" width="160" height="44" rx="6" fill="#253557" stroke="#86efac" stroke-width="2"/>
+  <text x="440" y="226" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600">Hand-written equations</text>
+  <text x="440" y="240" text-anchor="middle" fill="#a0b0d0" font-size="9">binder.ts, checker.ts</text>
+
+  <path d="M 160 230 L 185 230" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M 335 230 L 360 230" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+
+  <path d="M 468 138 L 260 208" stroke="#86efac" stroke-width="1.5" fill="none" marker-end="url(#arrGreen)" stroke-dasharray="4"/>
+
+  <!-- Output -->
+  <rect x="580" y="180" width="260" height="120" rx="10" fill="#1e2a4a" stroke="#86efac" stroke-width="2"/>
+  <text x="710" y="208" text-anchor="middle" fill="#86efac" font-size="12" font-weight="700">Typed DNode Tree</text>
+  <text x="710" y="228" text-anchor="middle" fill="#a0b0d0" font-size="10">ctx.attr('kindDefs') &rarr; KindDefinition[]</text>
+  <text x="710" y="244" text-anchor="middle" fill="#a0b0d0" font-size="10">Typed cache per attribute</text>
+  <text x="710" y="260" text-anchor="middle" fill="#a0b0d0" font-size="10">Generated switch dispatch</text>
+  <text x="710" y="276" text-anchor="middle" fill="#a0b0d0" font-size="10">One unified serializer</text>
+  <text x="710" y="292" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600">Full type safety, no any</text>
+
+  <path d="M 520 270 L 580 260" stroke="#a0b0d0" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+</svg>
+    </div>
+    <p>Build time handles all structural wiring. Runtime only runs equation bodies
+    over the concrete tree. Equations are still hand-written &mdash; codegen handles
+    dispatch, caching, types, and serialization.</p>
+  </div>
+
+  <div class="tab-panel" data-tab="table">
+    <table class="compare-table">
+      <thead>
+        <tr><th>Aspect</th><th>Current (DNode Interpreter)</th><th>Target (Generated Evaluator)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Tree mutation</td>
+          <td class="good">None (DNode wrappers)</td>
+          <td class="good">None (generated DNode)</td>
+        </tr>
+        <tr>
+          <td>Navigation typing</td>
+          <td class="good">Typed via DNode class</td>
+          <td class="good">Typed via generated DNode</td>
+        </tr>
+        <tr>
+          <td>Attribute types</td>
+          <td class="bad"><code>attr&lt;T&gt;('name')</code> &mdash; T manual</td>
+          <td class="good"><code>attr('name')</code> &rarr; typed automatically</td>
+        </tr>
+        <tr>
+          <td>Equation safety</td>
+          <td class="bad"><code>Record&lt;string, unknown&gt;</code></td>
+          <td class="good">Typed per-attribute signatures</td>
+        </tr>
+        <tr>
+          <td>Dispatch</td>
+          <td class="mid">Runtime hash-map closure</td>
+          <td class="good">Generated switch/if</td>
+        </tr>
+        <tr>
+          <td>Caching</td>
+          <td class="mid"><code>Map&lt;string, unknown&gt;</code></td>
+          <td class="good">Typed cache object</td>
+        </tr>
+        <tr>
+          <td>Serialization</td>
+          <td class="bad">Two serializers, incomplete</td>
+          <td class="good">One generated serializer</td>
+        </tr>
+        <tr>
+          <td>IDE support</td>
+          <td class="bad">No autocomplete for attrs</td>
+          <td class="good">Full autocomplete</td>
+        </tr>
+        <tr>
+          <td>Startup cost</td>
+          <td class="mid">Rebuild Grammar+Semantics each call</td>
+          <td class="good">Static generated code</td>
+        </tr>
+        <tr>
+          <td>Flexibility</td>
+          <td class="good">Specs can change at runtime</td>
+          <td class="mid">Regenerate on spec change</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="demo">
+<h2>Interactive: Staging in Action</h2>
+
+<p>Click through to see how <code>kindDefs</code> attribute evaluation evolves from interpreter to codegen.
+Each stage pre-computes more, leaving less work for runtime.</p>
+
+<div class="demo-area">
+  <div class="demo-controls">
+    <button class="demo-btn active" onclick="showStage(0)">Stage 0: Current (DNode)</button>
+    <button class="demo-btn" onclick="showStage(1)">Stage 1: Typed Attrs</button>
+    <button class="demo-btn" onclick="showStage(2)">Stage 2: Gen Dispatch</button>
+    <button class="demo-btn" onclick="showStage(3)">Stage 3: Gen Cache</button>
+    <button class="demo-btn" onclick="showStage(4)">Stage 4: Full Codegen</button>
+  </div>
+  <div class="demo-output" id="stageOutput"></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="roadmap">
+<h2>Recommended Stages</h2>
+
+<p>Each stage is independently valuable and builds toward full codegen.
+The stages are ordered by impact and complexity &mdash; each one unlocks the next.</p>
+
+<div class="timeline">
+  <div class="timeline-item done">
+    <div class="time-label done">Stage 0: DNode Architecture <span class="status done">Done</span></div>
+    <p>Immutable raw tree. DNode wrappers for navigation. Map-based attribute caching.
+    No <code>Object.defineProperty</code>, no <code>$parent</code> mutation, no <code>$agAttrs</code> heuristic.
+    <strong>This is complete.</strong></p>
+    <div class="card-grid">
+      <div class="card green"><h4>Achieved</h4><p>Clean separation of data/navigation/attributes. Raw tree reusable. No JS hacks.</p></div>
+      <div class="card highlight"><h4>Remaining Gap</h4><p>Attribute dispatch and caching are still generic/dynamic. Next: generated dispatch tables and cache slots.</p></div>
+    </div>
+  </div>
+
+  <div class="timeline-item">
+    <div class="time-label done">Stage 1: Attribute Type Registry <span class="status done">Done</span></div>
+    <p>Created <code>KSCAttrMap</code> interface mapping all 12 attribute names to their value types.
+    Added second type parameter <code>A</code> to <code>DNode&lt;N, A&gt;</code> with overloaded <code>attr()</code>
+    for typed access. Binder and checker equations use <code>type Ctx = DNode&lt;KSNode, KSCAttrMap&gt;</code>
+    &mdash; all manual <code>&lt;T&gt;</code> casts removed. <strong>This is complete.</strong></p>
+
+<pre><code><span class="cm">// ksc-behavior/attr-types.ts  (hand-maintained)</span>
+<span class="kw">export interface</span> <span class="tp">KSCAttrMap</span> {
+  <span class="cm">// Binder attributes</span>
+  <span class="fn">kindDefs</span>: <span class="tp">KindDefinition</span>[];
+  <span class="fn">defEnv</span>: <span class="tp">Map</span>&lt;<span class="tp">string</span>, <span class="tp">KindDefinition</span>&gt;;
+  <span class="fn">defLookup</span>: (<span class="fn">name</span>: <span class="tp">string</span>) =&gt; <span class="tp">KindDefinition</span> | <span class="tp">undefined</span>;
+
+  <span class="cm">// Checker attributes</span>
+  <span class="fn">valueImports</span>: <span class="tp">Set</span>&lt;<span class="tp">string</span>&gt;;
+  <span class="fn">fileImports</span>: <span class="tp">Set</span>&lt;<span class="tp">string</span>&gt;;
+  <span class="fn">localBindings</span>: <span class="tp">Set</span>&lt;<span class="tp">string</span>&gt;;
+  <span class="fn">enclosingLocals</span>: <span class="tp">Set</span>&lt;<span class="tp">string</span>&gt;;
+  <span class="fn">isReference</span>: <span class="tp">boolean</span>;
+  <span class="fn">kindAnnotations</span>: <span class="tp">KindDefinition</span>[];
+  <span class="fn">noImportsContext</span>: <span class="tp">KindDefinition</span> | <span class="tp">null</span>;
+  <span class="fn">importViolation</span>: <span class="tp">CheckerDiagnostic</span> | <span class="tp">null</span>;
+  <span class="fn">allViolations</span>: <span class="tp">CheckerDiagnostic</span>[];
+}
+
+<span class="cm">// DNode overloaded attr() — typed when A is specific, generic fallback for tests:</span>
+<span class="cm">// ctx.attr('kindDefs')      // => KindDefinition[]   (auto-typed!)</span>
+<span class="cm">// ctx.attr&lt;number&gt;('base')  // => number  (backward compat)</span>
+</code></pre>
+
+    <div class="card-grid">
+      <div class="card green"><h4>Achieved</h4>
+        <p>IDE autocomplete for <code>ctx.attr('...')</code>. All 12 attributes typed. No manual <code>&lt;T&gt;</code>
+        casts in binder or checker equations. Backward-compatible overload for generic DNode in tests.</p></div>
+      <div class="card highlight"><h4>Files changed</h4>
+        <p><code>ksc-behavior/attr-types.ts</code> (new), <code>ag-interpreter/dnode.ts</code> (A type param),
+        <code>ksc-behavior/binder.ts</code> &amp; <code>checker.ts</code> (Ctx alias, cast removal).</p></div>
+    </div>
+  </div>
+
+  <div class="timeline-item">
+    <div class="time-label done">Stage 2: Typed Spec Declarations <span class="status done">Done</span></div>
+    <p>Added <code>defineSpec()</code> helper that validates equation keys match declaration keys and
+    equation shapes match declaration directions. Uses <code>const</code> type parameter inference to
+    derive declaration types, then <code>EquationsFor&lt;D&gt;</code> mapped type for validation.
+    <strong>This is complete.</strong></p>
+
+<pre><code><span class="cm">// ag-behavior/spec.ts</span>
+<span class="kw">type</span> <span class="tp">EquationFor</span>&lt;<span class="tp">D</span> <span class="kw">extends</span> <span class="tp">AttrDecl</span>&gt; =
+  <span class="tp">D</span> <span class="kw">extends</span> <span class="tp">SynDecl</span> ? <span class="tp">Function</span> | <span class="tp">ProductionMap</span>
+  : <span class="tp">D</span> <span class="kw">extends</span> <span class="tp">InhDecl</span> ? <span class="tp">Function</span> | <span class="tp">undefined</span>  <span class="cm">// auto-propagate</span>
+  : <span class="tp">D</span> <span class="kw">extends</span> <span class="tp">CollectionDecl</span> ? <span class="tp">Function</span> | <span class="tp">ProductionMap</span>
+  : ...;
+
+<span class="kw">type</span> <span class="tp">EquationsFor</span>&lt;<span class="tp">D</span>&gt; = {
+  [<span class="tp">K</span> <span class="kw">in keyof</span> <span class="tp">D</span>]: <span class="tp">EquationFor</span>&lt;<span class="tp">D</span>[<span class="tp">K</span>]&gt;;
+};
+
+<span class="kw">export function</span> <span class="fn">defineSpec</span>&lt;<span class="kw">const</span> <span class="tp">D</span>, <span class="tp">R</span>&gt;(spec: {
+  declarations: <span class="tp">D</span>;
+  equations: <span class="tp">EquationsFor</span>&lt;<span class="tp">D</span>&gt;;  <span class="cm">// key alignment + shape validation</span>
+  ...
+}): <span class="tp">SpecInput</span>;
+
+<span class="cm">// Catches: misspelled equation names, wrong equation shape (e.g. undefined for syn)</span>
+</code></pre>
+
+    <div class="card-grid">
+      <div class="card green"><h4>Achieved</h4>
+        <p><strong>Key alignment:</strong> misspelled equation names are compile errors.
+        <strong>Shape validation:</strong> <code>undefined</code> rejected for syn, allowed for inh.
+        Both binder and checker use <code>defineSpec()</code>. Zero runtime cost &mdash; it&rsquo;s just a passthrough.</p></div>
+      <div class="card highlight"><h4>Files changed</h4>
+        <p><code>ag-behavior/spec.ts</code> (EquationFor, EquationsFor, defineSpec),
+        <code>ag-behavior/index.ts</code> (export), <code>ksc-behavior/binder.ts</code> &amp;
+        <code>checker.ts</code> (use defineSpec).</p></div>
+    </div>
+  </div>
+
+  <div class="timeline-item">
+    <div class="time-label skip">Stage 3: Generated Dispatch <span class="status skip">Skipped</span></div>
+    <p><strong>Decision: not worth it at current scale.</strong> Only 6 production-dispatched attributes
+    across both specs, each handling 1&ndash;3 kinds out of 364. <code>makeDispatch()</code> creates a
+    closure doing <code>equations[key]</code> &mdash; V8 inline-caches this after the first few calls.
+    The performance difference vs <code>switch</code> is unmeasurable at this scale.</p>
+
+    <div class="card-grid">
+      <div class="card highlight"><h4>Why skip</h4>
+        <p>Equation bodies contain closures and local state (e.g. <code>nextDefId++</code>) that resist
+        extraction. Codegen would only generate the dispatch shell, not the equations &mdash; same
+        indirection as <code>makeDispatch</code>, just with <code>switch</code>.</p></div>
+      <div class="card blue"><h4>When it would matter</h4>
+        <p>If the project grew to dozens of attributes &times; hundreds of handled kinds. Or for
+        <strong>per-kind fused evaluation</strong> (compute ALL attributes for a given kind in one pass)
+        &mdash; but that&rsquo;s Stage 4/5 territory.</p></div>
+    </div>
+  </div>
+
+  <div class="timeline-item">
+    <div class="time-label done">Stage 3: Unified Serialization <span class="status done">Done</span></div>
+    <p>The generated schema serializer (<code>ast-schema/generated/serialize.ts</code>) already handles all
+    364 node kinds with typed fields. Rather than extending codegen to consume attribute declarations
+    (which would break the <code>ast-schema</code> &harr; <code>ksc-behavior</code> boundary), we use
+    <strong>composition</strong>: the schema serializer handles fields, attribute values are added at
+    the ksc layer if needed.</p>
+
+<pre><code><span class="cm">// The generated schema serializer already exists:</span>
+<span class="fn">nodeToJSON</span>(node)   <span class="cm">// → JSON with typed fields per kind</span>
+<span class="fn">nodeFromJSON</span>(data) <span class="cm">// → KSNode with typed fields + children</span>
+<span class="fn">treeToJSON</span>(tree)   <span class="cm">// → JSONTree (full program)</span>
+<span class="fn">treeFromJSON</span>(data) <span class="cm">// → { root: KSNode } (deserialized)</span>
+
+<span class="cm">// Two OLD serializers deleted:</span>
+<span class="cm">// ✗ ag-interpreter/serialize.ts    (generic Object.keys() walk)</span>
+<span class="cm">// ✗ src/pipeline/serialize.ts      (KSC wrapper around generic)</span>
+
+<span class="cm">// Attribute serialization (if needed) composes at the ksc layer:</span>
+<span class="cm">// const base = nodeToJSON(dnode.node);  // schema fields</span>
+<span class="cm">// base.kindDefs = dnode.attr('kindDefs');  // attributes on top</span>
+</code></pre>
+
+    <div class="card-grid">
+      <div class="card green"><h4>Achieved</h4>
+        <p>One serializer with complete schema knowledge. Two old serializers deleted.
+        <code>ast-schema</code> boundary preserved &mdash; it still knows nothing about attributes.
+        Tests migrated to <code>treeToJSON</code>/<code>treeFromJSON</code>.</p></div>
+      <div class="card highlight"><h4>Key insight</h4>
+        <p>Schema fields are <strong>per-kind</strong> (364 kinds &times; varying fields) &mdash; codegen pays off.
+        Attributes are <strong>uniform</strong> (every node has the same 12) &mdash; a simple loop suffices.</p></div>
+    </div>
+  </div>
+
+  <div class="timeline-item">
+    <div class="time-label done">Stage 4: Shared Attribute Definitions <span class="status done">Done</span></div>
+    <p>Instead of generating a typed cache (12 attributes don&rsquo;t justify it), the real win was eliminating
+    the O(N&times;A) <code>registerAttributes</code> walk. All DNodes now share a single attribute definitions
+    reference, passed at tree construction time. <strong>This is complete.</strong></p>
+
+<pre><code><span class="cm">// Before (O(N&times;A)): walk every node, copy every attr def</span>
+<span class="kw">const</span> dnodeRoot = <span class="fn">buildContextTree</span>(root, getChildren, getChildFields);
+<span class="fn">registerAttributes</span>(dnodeRoot, compiled);  <span class="cm">// walks N nodes &times; A attrs</span>
+
+<span class="cm">// After (O(0) extra): defs shared at construction time</span>
+<span class="kw">const</span> dnodeRoot = <span class="fn">buildContextTree</span>(root, getChildren, getChildFields, compiled);
+<span class="cm">// No registerAttributes walk needed!</span>
+<span class="cm">// All DNodes point to the same shared defs ReadonlyMap.</span>
+<span class="cm">// Per-node cache (Map&lt;string, unknown&gt;) stays — 12 attrs don't justify a typed cache.</span>
+</code></pre>
+
+    <div class="card-grid">
+      <div class="card green"><h4>Achieved</h4>
+        <p>Eliminated O(N&times;A) <code>registerAttributes</code> walk. All DNodes share a single
+        <code>ReadonlyMap&lt;string, AttrComputed&gt;</code> reference. <code>interpret()</code> passes
+        compiled defs directly to <code>buildContextTree</code>. <code>registerAttributes</code> kept
+        for backward compat (legacy path).</p></div>
+      <div class="card highlight"><h4>Files changed</h4>
+        <p><code>ag-interpreter/dnode.ts</code> (shared defs via constructor),
+        <code>ag-interpreter/interpret.ts</code> (pass defs at build time).</p></div>
+    </div>
+  </div>
+
+  <div class="timeline-item eval">
+    <div class="time-label eval">Stage 5: Full Generated Evaluator <span class="status done">Done</span></div>
+    <p>A codegen script (<code>scripts/gen-ksc-evaluator.ts</code>) introspects the binder and checker specs,
+    reads attribute type info from <code>ksc-behavior/attr-types.ts</code>, and generates a fully
+    specialized evaluator (<code>ksc-generated/evaluator.ts</code>, 454 lines). All 5 compilation targets achieved:</p>
+
+    <div class="card-grid">
+      <div class="card green"><h4>1. Pre-compiled attribute defs</h4>
+        <p>No <code>compile()</code> at runtime. Equations are extracted from specs and wired directly
+        into <code>KSCDNode</code> getters. The generic compilation layer (<code>compileSyn</code>,
+        <code>compileInh</code>, <code>makeDispatch</code>) is bypassed entirely.</p></div>
+      <div class="card green"><h4>2. Switch-based dispatch</h4>
+        <p>Production equations use <code>switch(node.kind)</code> instead of runtime hash-map closures.
+        6 attributes with production equations generate switch statements with 1&ndash;3 cases each.</p></div>
+      <div class="card green"><h4>3. Typed cache</h4>
+        <p><code>KSCDNode</code> has one typed field per attribute (<code>_c_kindDefs: KindDefinition[] | undefined</code>)
+        instead of <code>Map&lt;string, unknown&gt;</code>. V8 optimizes fixed-shape objects better than Maps.</p></div>
+      <div class="card green"><h4>4. Typed accessors</h4>
+        <p><code>attr()</code> is overridden with a switch that dispatches to typed getter methods
+        (<code>_get_kindDefs()</code>, etc.). No string-keyed Map lookup. Each getter returns the
+        correct type with proper TypeScript narrowing.</p></div>
+      <div class="card green"><h4>5. Generated tree builder</h4>
+        <p><code>buildKSCTree()</code> creates <code>KSCDNode</code> instances (not generic DNode)
+        using schema-aware traversal via <code>getChildFields()</code>. No generic <code>getChildren</code>
+        fallback needed for schema-known nodes.</p></div>
+    </div>
+
+<pre><code><span class="cm">// GENERATED: ksc-generated/evaluator.ts (454 lines)</span>
+<span class="cm">// KSCDNode extends DNode with typed cache + switch dispatch</span>
+<span class="kw">class</span> <span class="tp">KSCDNode</span> <span class="kw">extends</span> <span class="tp">DNode</span>&lt;<span class="tp">KSNode</span>, <span class="tp">KSCAttrMap</span>&gt; {
+  <span class="cm">// Typed cache — one field per attribute</span>
+  <span class="kw">private</span> _c_kindDefs: <span class="tp">KindDefinition</span>[] | <span class="tp">undefined</span>;
+  <span class="kw">private</span> _c_defEnv: <span class="tp">Map</span>&lt;<span class="tp">string</span>, <span class="tp">KindDefinition</span>&gt; | <span class="tp">undefined</span>;
+  <span class="cm">// ... all 12 attributes, each with correct type</span>
+
+  <span class="cm">// Switch dispatch (replaces Map lookup + AttrComputed closures)</span>
+  <span class="fn">attr</span>(name: <span class="tp">string</span>): <span class="tp">any</span> {
+    <span class="kw">switch</span> (name) {
+      <span class="kw">case</span> <span class="str">'kindDefs'</span>: <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">_get_kindDefs</span>();
+      <span class="kw">case</span> <span class="str">'defEnv'</span>: <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">_get_defEnv</span>();
+      <span class="cm">// ...</span>
+    }
+  }
+
+  <span class="cm">// Typed getter with switch-based production dispatch</span>
+  <span class="kw">private</span> <span class="fn">_get_kindDefs</span>(): <span class="tp">KindDefinition</span>[] {
+    <span class="kw">if</span> (<span class="kw">this</span>._c_kindDefs !== <span class="tp">undefined</span>) <span class="kw">return</span> <span class="kw">this</span>._c_kindDefs;
+    <span class="kw">switch</span> (<span class="kw">this</span>.node.kind) {
+      <span class="kw">case</span> <span class="str">'CompilationUnit'</span>:
+        <span class="kw">return</span> <span class="kw">this</span>._c_kindDefs = <span class="kw">this</span>._eqs.<span class="fn">kindDefs_CompilationUnit</span>(<span class="kw">this</span>, <span class="kw">this</span>.node);
+      <span class="kw">default</span>:
+        <span class="kw">return</span> <span class="kw">this</span>._c_kindDefs = <span class="kw">this</span>._eqs.<span class="fn">kindDefs_default</span>(<span class="kw">this</span>, <span class="kw">this</span>.node);
+    }
+  }
+}
+</code></pre>
+
+    <div class="card-grid">
+      <div class="card highlight"><h4>What&rsquo;s preserved</h4>
+        <p>Equation bodies are still hand-written in <code>binder.ts</code> and <code>checker.ts</code>.
+        The generic ag-interpreter module is untouched &mdash; still available for prototyping and tests.
+        Lazy dep graph falls back to generic <code>compile()</code> + <code>analyzeDeps()</code> on demand.</p></div>
+      <div class="card highlight"><h4>Files</h4>
+        <p><code>scripts/gen-ksc-evaluator.ts</code> (codegen script, introspects specs at build time),
+        <code>ksc-generated/evaluator.ts</code> (454 lines, generated output),
+        <code>ksc-interpreter/evaluate.ts</code> (re-exports from generated module).</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Status:</strong> All stages complete (0&ndash;5). The production <code>evaluate()</code> uses a fully
+  generated evaluator: <code>KSCDNode</code> with typed cache (object fields, not Map), switch-based
+  dispatch (not hash-map closures), typed accessor methods, and a schema-aware tree builder. No
+  <code>createGrammar</code>, <code>createSemantics</code>, <code>compile</code>, or <code>interpret</code>
+  on the hot path. The generic ag-interpreter remains available for prototyping. 131 tests passing.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="prior-art">
+<h2>Prior Art</h2>
+
+<table class="compare-table">
+<thead>
+<tr><th>System</th><th>Approach</th><th>Staging Level</th><th>Language</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>JastAdd</strong></td>
+  <td>Full AG compiler. Generates Java classes with typed attribute methods.</td>
+  <td class="good">Full codegen</td>
+  <td>Java</td>
+</tr>
+<tr>
+  <td><strong>Silver</strong></td>
+  <td>AG compiler with forwarding + collection attrs. Generates Java.</td>
+  <td class="good">Full codegen</td>
+  <td>Silver &rarr; Java</td>
+</tr>
+<tr>
+  <td><strong>Kiama</strong></td>
+  <td>Scala DSL. Uses Scala's type system + lazy vals. No codegen.</td>
+  <td class="mid">Typed interpreter</td>
+  <td>Scala</td>
+</tr>
+<tr>
+  <td><strong>LISA</strong></td>
+  <td>AG compiler with IDE integration. Generates Java.</td>
+  <td class="good">Full codegen</td>
+  <td>Java</td>
+</tr>
+<tr>
+  <td><strong>Truffle/GraalVM</strong></td>
+  <td>Self-specializing AST interpreters. JIT compiles hot paths.</td>
+  <td class="mid">Runtime specialization</td>
+  <td>Java</td>
+</tr>
+<tr>
+  <td><strong>Nanopass</strong></td>
+  <td>Framework for small compiler passes. Each pass defines input/output tree types.</td>
+  <td class="good">Typed passes</td>
+  <td>Scheme/Racket</td>
+</tr>
+<tr>
+  <td><strong>KSC (current)</strong></td>
+  <td>DNode interpreter. Immutable raw tree. Generic dispatch + untyped cache.</td>
+  <td class="mid">Clean interpreter, no staging yet</td>
+  <td>TypeScript</td>
+</tr>
+<tr>
+  <td><strong>KSC (target)</strong></td>
+  <td>Generated evaluator with typed DNode, typed cache, generated dispatch.</td>
+  <td class="good">Staged codegen</td>
+  <td>TypeScript</td>
+</tr>
+</tbody>
+</table>
+
+<div class="note">
+  <strong>KSC's position:</strong> With the DNode architecture, KSC is already cleaner than naive interpreters
+  (no mutation, Silver-style separation). The next step is Kiama-level typing (stages 1-2), then
+  JastAdd-level codegen (stages 3-6). The clean four-module separation makes this incrementally achievable.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="serialization">
+<h2>Unified Serialization via Staging</h2>
+
+<p>The two old serializers (generic <code>Object.keys()</code> walk + KSC wrapper) have been replaced by the
+generated schema serializer (Stage 3). Attribute values can be composed on top at the ksc layer:</p>
+
+<div class="tabs" data-tabs="serial">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="today">Today: Two Serializers</button>
+    <button class="tab-btn" data-tab="unified">Target: One Generated Serializer</button>
+  </div>
+
+  <div class="tab-panel active" data-tab="today">
+    <div class="diagram-container">
+<svg viewBox="0 0 780 200" width="780" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="280" y="20" width="200" height="50" rx="6" fill="#253557" stroke="#f5a623"/>
+  <text x="380" y="50" text-anchor="middle" fill="#f5a623" font-size="12">DNode Tree (attrs computed)</text>
+
+  <path d="M 330 70 L 180 100" stroke="#7dd3fc" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <rect x="30" y="100" width="260" height="80" rx="6" fill="#253557" stroke="#7dd3fc" stroke-width="2"/>
+  <text x="160" y="124" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="600">ast-schema/generated/serialize.ts</text>
+  <text x="160" y="142" text-anchor="middle" fill="#a0b0d0" font-size="10">Knows: schema fields (364 kinds x fields)</text>
+  <text x="160" y="158" text-anchor="middle" fill="#e94560" font-size="10">Blind to: AG attributes</text>
+  <text x="160" y="174" text-anchor="middle" fill="#a0b0d0" font-size="10">Output: named fields, full round-trip</text>
+
+  <path d="M 430 70 L 580 100" stroke="#f5a623" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <rect x="480" y="100" width="260" height="80" rx="6" fill="#253557" stroke="#f5a623" stroke-width="2"/>
+  <text x="610" y="124" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="600">src/pipeline/serialize.ts</text>
+  <text x="610" y="142" text-anchor="middle" fill="#a0b0d0" font-size="10">Wraps ag-interpreter/serialize.ts</text>
+  <text x="610" y="158" text-anchor="middle" fill="#e94560" font-size="10">No field-level knowledge</text>
+  <text x="610" y="174" text-anchor="middle" fill="#a0b0d0" font-size="10">Output: flat children[], optional attrs</text>
+</svg>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-tab="unified">
+    <div class="diagram-container">
+<svg viewBox="0 0 780 200" width="780" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="270" y="20" width="220" height="50" rx="6" fill="#253557" stroke="#f5a623"/>
+  <text x="380" y="50" text-anchor="middle" fill="#f5a623" font-size="12">DNode Tree (attrs computed)</text>
+
+  <path d="M 380 70 L 380 95" stroke="#86efac" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <rect x="150" y="95" width="460" height="90" rx="8" fill="#253557" stroke="#86efac" stroke-width="2"/>
+  <text x="380" y="120" text-anchor="middle" fill="#86efac" font-size="13" font-weight="700">Generated Unified Serializer</text>
+  <text x="380" y="140" text-anchor="middle" fill="#a0b0d0" font-size="10">Schema fields: from F table (364 kinds x fields)</text>
+  <text x="380" y="156" text-anchor="middle" fill="#a0b0d0" font-size="10">Attribute fields: from spec declarations (12 attrs, typed)</text>
+  <text x="380" y="172" text-anchor="middle" fill="#86efac" font-size="10" font-weight="600">One serializer, full knowledge, per-attr serialization logic</text>
+</svg>
+    </div>
+    <p>The codegen reads both the schema (node fields) and spec declarations (attribute names, types,
+    serializability). It generates a single serializer that handles everything.</p>
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="migration">
+<h2>Migration Path: What Changes Where</h2>
+
+<p>Each stage touches specific modules. The four-module architecture makes this tractable &mdash;
+changes are localized.</p>
+
+<table class="compare-table">
+<thead>
+<tr><th>Stage</th><th>Module Changed</th><th>Files Added/Modified</th><th>Tests Impact</th></tr>
+</thead>
+<tbody>
+<tr class="done-row">
+  <td>1: Type Registry &#x2705;</td>
+  <td>ksc-behavior, ag-interpreter</td>
+  <td>New: <code>ksc-behavior/attr-types.ts</code><br>Mod: <code>ag-interpreter/dnode.ts</code>, <code>binder.ts</code>, <code>checker.ts</code></td>
+  <td>None (type-only). 131 tests pass.</td>
+</tr>
+<tr class="done-row">
+  <td>2: Typed Specs &#x2705;</td>
+  <td>ag-behavior, ksc-behavior</td>
+  <td>Mod: <code>ag-behavior/spec.ts</code> (defineSpec + type helpers)<br>Mod: <code>ksc-behavior/binder.ts</code>, <code>checker.ts</code></td>
+  <td>Existing tests unchanged. 131 tests pass.</td>
+</tr>
+<tr>
+  <td>~3~: Gen Dispatch</td>
+  <td colspan="3"><em>Skipped</em> &mdash; 6 dispatch points with 1&ndash;3 cases each; <code>makeDispatch</code> is fine at this scale.</td>
+</tr>
+<tr class="done-row">
+  <td>3: Unified Serialize &#x2705;</td>
+  <td>ksc-interpreter, src/pipeline, ag-interpreter</td>
+  <td>Del: <code>src/pipeline/serialize.ts</code>, <code>ag-interpreter/serialize.ts</code><br>Mod: <code>test/serialize.test.ts</code> (use generated)</td>
+  <td>Serialize tests migrated. 131 tests pass.</td>
+</tr>
+<tr class="done-row">
+  <td>4: Shared Defs &#x2705;</td>
+  <td>ag-interpreter</td>
+  <td>Mod: <code>ag-interpreter/dnode.ts</code> (shared defs via constructor)<br>Mod: <code>ag-interpreter/interpret.ts</code> (pass defs at build time)</td>
+  <td>131 tests pass. registerAttributes walk eliminated.</td>
+</tr>
+<tr>
+  <td>5: Gen Evaluator</td>
+  <td>ast-schema (codegen), ksc-interpreter</td>
+  <td>New: <code>ast-schema/generated/evaluate.ts</code><br>Mod: <code>ksc-interpreter/evaluate.ts</code> (use generated)</td>
+  <td>All existing tests must pass</td>
+</tr>
+</tbody>
+</table>
+
+<div class="insight">
+  <strong>Key property:</strong> Each stage keeps the generic interpreter working. The generated code
+  is an <em>optimization</em>, not a replacement. During development, you can still use the interpreter
+  for rapid prototyping. Production uses generated code. This is the same dual-mode approach
+  that JastAdd and Silver use.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="quiz">
+<h2>Review</h2>
+
+<div class="flashcard-deck" id="flashcards">
+  <div class="flashcard" onclick="this.classList.toggle('flipped')">
+    <div class="question">What did the DNode architecture solve?</div>
+    <div class="answer">DNode eliminated AST mutation. The raw tree is never modified &mdash; navigation (parent, children,
+    siblings, fieldName) lives in separate DNode wrappers. Attribute caching uses Maps instead of
+    <code>Object.defineProperty</code>. No <code>$parent</code>, <code>$agAttrs</code>, or <code>enumerable: false</code> hacks.
+    This is Silver-style Strategy 4.</div>
+  </div>
+  <div class="flashcard" onclick="this.classList.toggle('flipped')" style="display:none">
+    <div class="question">What problems remain after Stages 0&ndash;2?</div>
+    <div class="answer">Attribute access and spec declarations are now <strong>type-safe</strong> (Stages 1&ndash;2).
+    Remaining dynamic aspects were addressed in later stages: unified serialization (Stage 3),
+    shared attribute definitions (Stage 4), and the specialized evaluator (Stage 5) that eliminated
+    Grammar/Semantics/interpret overhead. All stages are now complete.</div>
+  </div>
+  <div class="flashcard" onclick="this.classList.toggle('flipped')" style="display:none">
+    <div class="question">What is partial evaluation / staging?</div>
+    <div class="answer">Pre-computing everything that depends only on known (static) inputs, producing specialized
+    code that only needs the remaining (dynamic) inputs. In KSC: the schema (364 kinds) and specs
+    (12 attributes) are static. Only the concrete tree is dynamic. Codegen can pre-compute all
+    dispatch, caching, types, and serialization.</div>
+  </div>
+  <div class="flashcard" onclick="this.classList.toggle('flipped')" style="display:none">
+    <div class="question">What&rsquo;s the current status of the staging roadmap?</div>
+    <div class="answer"><strong>All stages complete.</strong> Stages 0&ndash;5 are done: DNode architecture, type registry,
+    typed specs, unified serialization, shared attribute definitions, specialized evaluator.
+    Generated dispatch was skipped (not worth it at current scale). The generic ag-interpreter
+    remains available for prototyping; production uses the specialized <code>evaluate()</code> pipeline.</div>
+  </div>
+  <div class="flashcard" onclick="this.classList.toggle('flipped')" style="display:none">
+    <div class="question">What does the full generated evaluator (Stage 5) do?</div>
+    <div class="answer">A codegen script (<code>scripts/gen-ksc-evaluator.ts</code>) generates
+    <code>KSCDNode</code> &mdash; a DNode subclass with typed cache (object fields, not Map),
+    switch-based dispatch (not hash-map closures), and typed accessor methods. Plus a schema-aware
+    tree builder and specialized <code>evaluate()</code>. No <code>compile()</code>,
+    <code>createGrammar</code>, <code>createSemantics</code>, or <code>interpret</code> on the hot path.
+    Equation bodies stay hand-written; all wiring is generated.</div>
+  </div>
+  <div class="flashcard" onclick="this.classList.toggle('flipped')" style="display:none">
+    <div class="question">Why keep the generic interpreter alongside generated code?</div>
+    <div class="answer">The interpreter is valuable for <strong>rapid prototyping</strong>. When developing a new spec
+    or adding attributes, you don&rsquo;t want to regenerate code on every change. The interpreter lets you
+    iterate quickly. Once the spec stabilizes, run <code>npx tsx scripts/gen-ksc-evaluator.ts</code>
+    to regenerate. Tests use the generated evaluator (via <code>evaluate()</code>) and still pass &mdash;
+    proving the generated code matches the generic interpreter&rsquo;s semantics.</div>
+  </div>
+  <div class="flashcard" onclick="this.classList.toggle('flipped')" style="display:none">
+    <div class="question">How does unified serialization work?</div>
+    <div class="answer">Today there are two serializers: the schema serializer knows node fields but not attributes,
+    the AG serializer can dump attributes but doesn't know field types. With codegen that reads both
+    schema (364 kinds with fields) AND spec declarations (12 attributes with types), a single serializer
+    handles everything: named child fields, scalar props, and typed attribute values with per-attribute
+    serialization logic.</div>
+  </div>
+  <div class="flashcard" onclick="this.classList.toggle('flipped')" style="display:none">
+    <div class="question">What's the key property of the migration path?</div>
+    <div class="answer">Each stage is <strong>independently valuable</strong> and keeps the generic interpreter working.
+    Generated code is an <em>optimization</em>, not a replacement. The four-module architecture
+    (ag-behavior, ag-interpreter, ksc-behavior, ksc-interpreter) localizes changes to specific modules.
+    All 131 existing tests must continue to pass at each stage.</div>
+  </div>
+</div>
+<div class="flashcard-nav">
+  <button onclick="navCard(-1)">Previous</button>
+  <button onclick="navCard(1)">Next</button>
+</div>
+<div class="flashcard-counter" id="cardCounter">1 / 8</div>
+</section>
+
+</div><!-- /container -->
+
+<script>
+// -- Tabs --
+document.querySelectorAll('.tabs').forEach(tabGroup => {
+  const buttons = tabGroup.querySelectorAll('.tab-btn');
+  const panels = tabGroup.querySelectorAll('.tab-panel');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      tabGroup.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+    });
+  });
+});
+
+// -- Staging Demo --
+const stages = [
+  {
+    title: 'Stage 0: Current DNode Interpreter',
+    code: `<span class="cm">// Today: DNode-based interpreter (no mutation, but all generic)</span>
+
+<span class="cm">// 1. createSemantics compiles specs at RUNTIME</span>
+<span class="kw">const</span> semantics = <span class="fn">createSemantics</span>(grammar, [binderSpec, checkerSpec]);
+<span class="cm">// Internally: topo-sorts, then for each attr:</span>
+<span class="cm">//   compile(name, decl, eq) -> AttrComputed</span>
+<span class="cm">//   makeDispatch(equations, 'kind') -> hash-map closure</span>
+
+<span class="cm">// 2. interpret() builds DNode tree + registers attrs</span>
+<span class="kw">const</span> { root, results } = <span class="fn">interpret</span>(semantics, ksTree);
+<span class="cm">// buildContextTree: walks raw tree, creates DNode wrappers</span>
+<span class="cm">// registerAttributes: walks ENTIRE DNode tree, registers every attr</span>
+
+<span class="cm">// 3. Attribute access: string-based, untyped</span>
+<span class="kw">const</span> defs = ctx.<span class="fn">attr</span>(<span class="str">'kindDefs'</span>);       <span class="cm">// returns any!</span>
+<span class="kw">const</span> env  = ctx.<span class="fn">attr</span>&lt;<span class="tp">Map</span>&gt;(<span class="str">'defEnv'</span>);   <span class="cm">// manual type cast</span>
+
+<span class="cm">// 4. Cache: Map&lt;string, unknown&gt; (generic, untyped)</span>
+<span class="cm">// 5. Dispatch: closure over Record&lt;string, fn&gt; (hash map lookup)</span>`
+  },
+  {
+    title: 'Stage 1: Typed Attribute Access',
+    code: `<span class="cm">// Type registry maps attr names to their types</span>
+
+<span class="kw">interface</span> <span class="tp">KSCAttrMap</span> {
+  <span class="fn">kindDefs</span>: <span class="tp">KindDefinition</span>[];
+  <span class="fn">defEnv</span>: <span class="tp">Map</span>&lt;<span class="tp">string</span>, <span class="tp">KindDefinition</span>&gt;;
+  <span class="fn">defLookup</span>: (<span class="fn">name</span>: <span class="tp">string</span>) =&gt; <span class="tp">KindDefinition</span> | <span class="tp">undefined</span>;
+  <span class="fn">valueImports</span>: <span class="tp">Set</span>&lt;<span class="tp">string</span>&gt;;
+  <span class="fn">isReference</span>: <span class="tp">boolean</span>;
+  <span class="cm">// ... all 12 attributes with real types</span>
+}
+
+<span class="cm">// DNode.attr() becomes type-safe:</span>
+ctx.<span class="fn">attr</span>(<span class="str">'kindDefs'</span>)     <span class="cm">// => KindDefinition[]   (auto!)</span>
+ctx.<span class="fn">attr</span>(<span class="str">'defEnv'</span>)       <span class="cm">// => Map&lt;string, KindDefinition&gt;  (auto!)</span>
+ctx.<span class="fn">attr</span>(<span class="str">'isReference'</span>)  <span class="cm">// => boolean  (auto!)</span>
+ctx.<span class="fn">attr</span>(<span class="str">'typoName'</span>)    <span class="cm">// compile error!</span>
+
+<span class="cm">// Zero runtime change. Pure TypeScript type improvement.</span>
+<span class="cm">// IDE autocomplete works. No more (node as any).</span>`
+  },
+  {
+    title: 'Stage 2+3: Typed Specs + Generated Dispatch',
+    code: `<span class="cm">// Spec equations become type-safe:</span>
+<span class="kw">const</span> binderSpec: <span class="tp">SpecInput</span>&lt;<span class="tp">KSNode</span>, <span class="tp">KindDefinition</span>[], <span class="tp">BinderDecls</span>&gt; = {
+  declarations: {
+    kindDefs: { direction: <span class="str">'syn'</span> },  <span class="cm">// typed as KindDefinition[]</span>
+  },
+  equations: {
+    kindDefs: {                     <span class="cm">// MUST return KindDefinition[]</span>
+      CompilationUnit: (ctx, raw) =&gt; extractKindDefs(ctx, raw),
+      _: () =&gt; [],
+    },
+  },
+};
+
+<span class="cm">// GENERATED dispatch (replaces makeDispatch closure):</span>
+<span class="kw">function</span> <span class="fn">dispatch_kindDefs</span>(ctx: <span class="tp">DNode</span>, raw: <span class="tp">KSNode</span>): <span class="tp">KindDefinition</span>[] {
+  <span class="kw">switch</span> (raw.kind) {
+    <span class="kw">case</span> <span class="str">'CompilationUnit'</span>:
+      <span class="kw">return</span> <span class="fn">kindDefs_CompilationUnit</span>(ctx, raw <span class="kw">as</span> <span class="tp">KSCompilationUnit</span>);
+    <span class="kw">default</span>:
+      <span class="kw">return</span> [];  <span class="cm">// default inlined</span>
+  }
+}
+
+<span class="cm">// Typo 'CompliationUnit' = build error (not in schema kinds).</span>
+<span class="cm">// Return type mismatch = compile error.</span>`
+  },
+  {
+    title: 'Stage 5: Full Generated Evaluator (Done)',
+    code: `<span class="cm">// GENERATED: ksc-generated/evaluator.ts (454 lines)</span>
+<span class="cm">// KSCDNode: typed cache + switch dispatch + typed accessors</span>
+
+<span class="kw">class</span> <span class="tp">KSCDNode</span> <span class="kw">extends</span> <span class="tp">DNode</span>&lt;<span class="tp">KSNode</span>, <span class="tp">KSCAttrMap</span>&gt; {
+  <span class="cm">// Typed cache (not Map&lt;string, unknown&gt;)</span>
+  <span class="kw">private</span> _c_kindDefs: <span class="tp">KindDefinition</span>[] | <span class="tp">undefined</span>;
+  <span class="kw">private</span> _c_isReference: <span class="tp">boolean</span> | <span class="tp">undefined</span>;
+  <span class="cm">// ... all 12 attributes with correct types</span>
+
+  <span class="cm">// Switch dispatch (not hash-map closures)</span>
+  <span class="fn">attr</span>(name: <span class="tp">string</span>): <span class="tp">any</span> {
+    <span class="kw">switch</span> (name) {
+      <span class="kw">case</span> <span class="str">'kindDefs'</span>: <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">_get_kindDefs</span>();
+      <span class="kw">case</span> <span class="str">'isReference'</span>: <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">_get_isReference</span>();
+      <span class="cm">// ...</span>
+    }
+  }
+
+  <span class="kw">private</span> <span class="fn">_get_isReference</span>(): <span class="tp">boolean</span> {
+    <span class="kw">if</span> (<span class="kw">this</span>._c_isReference !== <span class="tp">undefined</span>) <span class="kw">return</span> <span class="kw">this</span>._c_isReference;
+    <span class="kw">switch</span> (<span class="kw">this</span>.node.kind) {  <span class="cm">// generated switch</span>
+      <span class="kw">case</span> <span class="str">'Identifier'</span>: <span class="kw">return</span> <span class="kw">this</span>._c_isReference =
+        <span class="kw">this</span>._eqs.<span class="fn">isReference_Identifier</span>(<span class="kw">this</span>, <span class="kw">this</span>.node);
+      <span class="kw">default</span>: <span class="kw">return</span> <span class="kw">this</span>._c_isReference =
+        <span class="kw">this</span>._eqs.<span class="fn">isReference_default</span>(<span class="kw">this</span>, <span class="kw">this</span>.node);
+    }
+  }
+}
+
+<span class="cm">// No compile(), createGrammar, createSemantics, or interpret.</span>
+<span class="cm">// Equation bodies still hand-written in binder.ts, checker.ts.</span>
+<span class="cm">// Codegen: npx tsx scripts/gen-ksc-evaluator.ts</span>`
+  }
+];
+
+function showStage(idx) {
+  const btns = document.querySelectorAll('.demo-btn');
+  btns.forEach((b, i) => b.classList.toggle('active', i === idx));
+  const output = document.getElementById('stageOutput');
+  output.style.opacity = '0';
+  setTimeout(() => {
+    output.innerHTML = `<div style="color:var(--accent2);font-weight:700;margin-bottom:8px">${stages[idx].title}</div>${stages[idx].code}`;
+    output.style.opacity = '1';
+    output.classList.add('fade-in');
+    setTimeout(() => output.classList.remove('fade-in'), 400);
+  }, 150);
+}
+showStage(0);
+
+// -- Flashcards --
+let currentCard = 0;
+const cards = document.querySelectorAll('.flashcard');
+const counter = document.getElementById('cardCounter');
+
+function showCard(idx) {
+  cards.forEach((c, i) => {
+    c.style.display = i === idx ? 'flex' : 'none';
+    c.classList.remove('flipped');
+  });
+  counter.textContent = `${idx + 1} / ${cards.length}`;
+}
+
+function navCard(dir) {
+  currentCard = (currentCard + dir + cards.length) % cards.length;
+  showCard(currentCard);
+}
+showCard(0);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced AG: Beyond ASTs, Incremental Evaluation & Strategic Programming</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #1c2128;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --text-muted: #8b949e;
+  --text-bright: #e6edf3;
+  --accent: #58a6ff;
+  --accent-green: #3fb950;
+  --accent-yellow: #d29922;
+  --accent-orange: #db6d28;
+  --accent-red: #f85149;
+  --accent-purple: #bc8cff;
+  --accent-pink: #f778ba;
+  --accent-cyan: #39d2c0;
+  --shadow: 0 3px 12px rgba(0,0,0,0.4);
+  --mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6;
+}
+
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, #0d1117 0%, #161b22 40%, #1a1e2e 70%, #1c1828 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 3.5rem 2rem 2.5rem; text-align: center;
+}
+.hero h1 {
+  font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-purple), var(--accent-cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero .subtitle { font-size: 1.05rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 1.5rem; }
+.badge-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  font-size: 0.7rem; padding: 3px 10px; border-radius: 10px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.badge-blue { background: rgba(88,166,255,0.15); color: var(--accent); }
+.badge-green { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+.badge-purple { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+.badge-orange { background: rgba(219,109,40,0.15); color: var(--accent-orange); }
+.badge-pink { background: rgba(247,120,186,0.15); color: var(--accent-pink); }
+.badge-cyan { background: rgba(57,210,192,0.15); color: var(--accent-cyan); }
+
+/* Nav */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 1rem;
+}
+.toc-inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 4px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+.toc-inner::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-muted); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.toc-link:hover { color: var(--text); background: var(--bg-secondary); }
+.toc-link.active { color: var(--accent); background: var(--bg-secondary); border-color: var(--accent); }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+/* Sections */
+.section { margin-bottom: 2rem; }
+.section-header {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer; user-select: none;
+}
+.section-header:hover { border-color: var(--accent); }
+.section-header h2 { font-size: 1.15rem; color: var(--text-bright); flex: 1; }
+.chevron { color: var(--accent); font-size: 0.75rem; transition: transform 0.2s; }
+.section-header.open .chevron { transform: rotate(90deg); }
+.section-body {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 8px 8px;
+  padding: 1.5rem; display: none;
+}
+.section-header.open + .section-body { display: block; }
+
+/* Cards */
+.card {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;
+}
+.card h4 { color: var(--accent); font-size: 0.95rem; margin-bottom: 0.5rem; }
+.card.hl { border-color: var(--accent); border-width: 2px; }
+.card.hl-green { border-color: var(--accent-green); border-width: 2px; }
+.card.hl-purple { border-color: var(--accent-purple); border-width: 2px; }
+.card.hl-orange { border-color: var(--accent-orange); border-width: 2px; }
+.card.hl-cyan { border-color: var(--accent-cyan); border-width: 2px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+@media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 0; }
+.tab-btn {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-bottom: none; border-radius: 6px 6px 0 0;
+  padding: 6px 14px; color: var(--text-muted); cursor: pointer;
+  font-size: 0.85rem; font-weight: 500;
+}
+.tab-btn.active { background: var(--bg-secondary); color: var(--accent); border-color: var(--accent); }
+.tab-panel { display: none; padding: 1rem 0; }
+.tab-panel.active { display: block; }
+
+/* Code */
+pre {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1rem; overflow-x: auto;
+  font-size: 0.85rem; line-height: 1.5; margin: 0.75rem 0;
+  font-family: var(--mono);
+}
+code { font-family: var(--mono); }
+.ic { background: rgba(88,166,255,0.1); color: var(--accent); padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+.kw { color: var(--accent-purple); }
+.fn { color: #d2a8ff; }
+.ty { color: var(--accent-green); }
+.str { color: #a5d6ff; }
+.cm { color: var(--text-muted); }
+.prop { color: #79c0ff; }
+
+/* Diagram */
+.diagram-container {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1.5rem; margin: 1rem 0;
+  overflow-x: auto;
+}
+
+/* Interactive tree */
+.tree-viz { position: relative; min-height: 300px; }
+.tree-viz svg { width: 100%; height: auto; }
+.tree-node {
+  cursor: pointer; transition: all 0.3s;
+}
+.tree-node:hover { filter: brightness(1.3); }
+.tree-node .node-box {
+  rx: 6; ry: 6; stroke-width: 2;
+}
+.attr-tag {
+  font-family: var(--mono); font-size: 11px;
+}
+
+/* Timeline */
+.timeline { position: relative; padding: 1rem 0 1rem 2rem; }
+.timeline::before {
+  content: ''; position: absolute; left: 8px; top: 0; bottom: 0;
+  width: 2px; background: var(--border);
+}
+.timeline-item {
+  position: relative; margin-bottom: 1.5rem; padding-left: 1.5rem;
+}
+.timeline-item::before {
+  content: ''; position: absolute; left: -1.5rem; top: 6px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg-secondary);
+}
+.timeline-item.highlight::before { background: var(--accent-green); box-shadow: 0 0 8px rgba(63,185,80,0.4); }
+.timeline-year {
+  color: var(--accent); font-weight: 700; font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+.timeline-title { color: var(--text-bright); font-weight: 600; font-size: 0.95rem; }
+.timeline-desc { color: var(--text-muted); font-size: 0.85rem; }
+
+/* Flashcards */
+.flashcard {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+  cursor: pointer; transition: border-color 0.2s;
+}
+.flashcard:hover { border-color: var(--accent-pink); }
+.flashcard .q { color: var(--accent-pink); font-weight: 600; font-size: 0.9rem; }
+.flashcard .a { color: var(--text); margin-top: 0.75rem; display: none; font-size: 0.88rem; }
+.flashcard.open .a { display: block; }
+.flashcard .hint { color: var(--text-muted); font-size: 0.78rem; margin-top: 0.25rem; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+th { background: var(--bg-tertiary); color: var(--accent); text-align: left; padding: 8px 12px; border: 1px solid var(--border); font-weight: 600; }
+td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+tr:hover td { background: rgba(88,166,255,0.04); }
+
+/* Inline nums */
+.num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem;
+  font-weight: 700; margin-right: 6px;
+}
+.num-blue { background: rgba(88,166,255,0.2); color: var(--accent); }
+.num-green { background: rgba(63,185,80,0.2); color: var(--accent-green); }
+.num-purple { background: rgba(188,140,255,0.2); color: var(--accent-purple); }
+.num-orange { background: rgba(219,109,40,0.2); color: var(--accent-orange); }
+.num-cyan { background: rgba(57,210,192,0.2); color: var(--accent-cyan); }
+
+p { margin-bottom: 0.75rem; }
+ul, ol { margin: 0.5rem 0 0.75rem 1.5rem; }
+li { margin-bottom: 0.35rem; }
+h3 { color: var(--text-bright); margin: 1rem 0 0.5rem; font-size: 1.05rem; }
+strong { color: var(--text-bright); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+/* Animated eval */
+.eval-demo {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1.5rem; margin: 1rem 0; position: relative;
+}
+.eval-controls {
+  display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap;
+}
+.eval-btn {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 16px; color: var(--accent);
+  cursor: pointer; font-size: 0.82rem; font-weight: 600;
+  transition: all 0.2s;
+}
+.eval-btn:hover { border-color: var(--accent); background: rgba(88,166,255,0.1); }
+.eval-btn.active { background: rgba(88,166,255,0.15); border-color: var(--accent); }
+.eval-status {
+  font-family: var(--mono); font-size: 0.78rem; color: var(--text-muted);
+  padding: 4px 0; min-height: 1.5em;
+}
+
+/* Comparison flow */
+.flow-row {
+  display: flex; align-items: center; gap: 12px; margin: 0.75rem 0;
+  flex-wrap: wrap;
+}
+.flow-box {
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 14px; font-size: 0.85rem;
+  white-space: nowrap;
+}
+.flow-arrow { color: var(--accent-yellow); font-weight: 700; font-size: 1.1rem; }
+
+/* Glow highlight */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.glow { animation: glow-pulse 2s ease-in-out infinite; }
+
+/* Link section */
+.link-card {
+  display: inline-block; background: var(--bg-tertiary); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 14px; margin: 4px; font-size: 0.82rem;
+  color: var(--accent); text-decoration: none; transition: all 0.2s;
+}
+.link-card:hover { border-color: var(--accent); background: rgba(88,166,255,0.1); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Attribute Grammars: Beyond ASTs</h1>
+  <p class="subtitle">Incremental evaluation, memoization, directory trees, build systems, strategic programming, and higher-order attributes &mdash; the AG ideas that extend far beyond compiler front-ends</p>
+  <div class="badge-row">
+    <span class="badge badge-blue">Incremental</span>
+    <span class="badge badge-green">Memoized</span>
+    <span class="badge badge-purple">Strategic</span>
+    <span class="badge badge-orange">Directory Trees</span>
+    <span class="badge badge-cyan">Higher-Order</span>
+    <span class="badge badge-pink">Build Systems</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="toc-nav">
+  <div class="toc-inner">
+    <a class="toc-link" href="#sec-overview">Overview</a>
+    <a class="toc-link" href="#sec-timeline">Timeline</a>
+    <a class="toc-link" href="#sec-directory">Directory AGs</a>
+    <a class="toc-link" href="#sec-documents">Document AGs</a>
+    <a class="toc-link" href="#sec-build">Build Systems</a>
+    <a class="toc-link" href="#sec-incremental">Incremental</a>
+    <a class="toc-link" href="#sec-memoized">Memoized</a>
+    <a class="toc-link" href="#sec-strategic">Strategic</a>
+    <a class="toc-link" href="#sec-higher-order">Higher-Order</a>
+    <a class="toc-link" href="#sec-systems">Systems Map</a>
+    <a class="toc-link" href="#sec-quiz">Quiz</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ================================================================= -->
+<!-- SECTION 1: OVERVIEW -->
+<!-- ================================================================= -->
+<div class="section" id="sec-overview">
+  <div class="section-header open" onclick="toggleSection('sec-overview')">
+    <span class="chevron">&#9654;</span>
+    <h2>The Big Picture: AG Ideas Escape the Compiler</h2>
+    <span class="badge badge-blue">Foundation</span>
+  </div>
+  <div class="section-body">
+    <p>Attribute grammars were invented by Knuth (1968) to specify the semantics of programming languages. But the core idea &mdash; <strong>decorating tree nodes with computed values that flow up (synthesized) and down (inherited)</strong> &mdash; applies to <em>any</em> hierarchical structure.</p>
+
+    <div class="grid-3">
+      <div class="card hl">
+        <h4>Beyond ASTs</h4>
+        <p>Directory trees, XML documents, build dependency graphs &mdash; any tree-shaped data can carry attributes.</p>
+        <p style="color:var(--text-muted);font-size:0.82rem;">Sections 3&ndash;5</p>
+      </div>
+      <div class="card hl-green">
+        <h4>Smarter Evaluation</h4>
+        <p>Incremental re-evaluation, memoization, demand-driven laziness &mdash; don't recompute what hasn't changed.</p>
+        <p style="color:var(--text-muted);font-size:0.82rem;">Sections 6&ndash;7</p>
+      </div>
+      <div class="card hl-purple">
+        <h4>Richer Formalism</h4>
+        <p>Strategic programming, higher-order tree-valued attributes, reference attributes &mdash; the AG formalism itself keeps evolving.</p>
+        <p style="color:var(--text-muted);font-size:0.82rem;">Sections 8&ndash;9</p>
+      </div>
+    </div>
+
+    <h3>Two Orthogonal Axes of Advancement</h3>
+    <div class="diagram-container">
+      <svg viewBox="0 0 700 280" style="max-width:700px;">
+        <!-- Axes -->
+        <line x1="100" y1="240" x2="660" y2="240" stroke="#30363d" stroke-width="2"/>
+        <line x1="100" y1="240" x2="100" y2="30" stroke="#30363d" stroke-width="2"/>
+        <text x="380" y="270" fill="#8b949e" font-size="12" text-anchor="middle" font-family="sans-serif">Where attributes live (domain breadth)</text>
+        <text x="30" y="140" fill="#8b949e" font-size="12" text-anchor="middle" font-family="sans-serif" transform="rotate(-90,30,140)">How attributes are evaluated (sophistication)</text>
+
+        <!-- Arrows -->
+        <polygon points="660,240 650,235 650,245" fill="#30363d"/>
+        <polygon points="100,30 95,40 105,40" fill="#30363d"/>
+
+        <!-- Classic -->
+        <circle cx="180" cy="200" r="20" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="180" y="204" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">Classic</text>
+        <text x="180" y="225" fill="#8b949e" font-size="9" text-anchor="middle" font-family="sans-serif">Knuth 1968</text>
+
+        <!-- Incremental -->
+        <circle cx="220" cy="120" r="22" fill="rgba(63,185,80,0.15)" stroke="#3fb950" stroke-width="2"/>
+        <text x="220" y="117" fill="#3fb950" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Incre-</text>
+        <text x="220" y="129" fill="#3fb950" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">mental</text>
+        <text x="220" y="150" fill="#8b949e" font-size="9" text-anchor="middle" font-family="sans-serif">Reps 1981</text>
+
+        <!-- Directory -->
+        <circle cx="400" cy="190" r="22" fill="rgba(219,109,40,0.15)" stroke="#db6d28" stroke-width="2"/>
+        <text x="400" y="187" fill="#db6d28" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Directory</text>
+        <text x="400" y="199" fill="#db6d28" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">AGs</text>
+
+        <!-- Documents -->
+        <circle cx="480" cy="170" r="22" fill="rgba(247,120,186,0.15)" stroke="#f778ba" stroke-width="2"/>
+        <text x="480" y="167" fill="#f778ba" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Document</text>
+        <text x="480" y="179" fill="#f778ba" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">AGs</text>
+
+        <!-- Strategic -->
+        <circle cx="350" cy="80" r="24" fill="rgba(188,140,255,0.15)" stroke="#bc8cff" stroke-width="2"/>
+        <text x="350" y="77" fill="#bc8cff" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Strategic</text>
+        <text x="350" y="89" fill="#bc8cff" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">AGs</text>
+
+        <!-- Higher-Order -->
+        <circle cx="500" cy="65" r="26" fill="rgba(57,210,192,0.15)" stroke="#39d2c0" stroke-width="2"/>
+        <text x="500" y="62" fill="#39d2c0" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Higher-</text>
+        <text x="500" y="74" fill="#39d2c0" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Order</text>
+
+        <!-- Build Systems -->
+        <circle cx="580" cy="130" r="24" fill="rgba(210,153,34,0.15)" stroke="#d29922" stroke-width="2"/>
+        <text x="580" y="127" fill="#d29922" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Build</text>
+        <text x="580" y="139" fill="#d29922" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">Systems</text>
+
+        <!-- Connecting lines -->
+        <line x1="200" y1="195" x2="210" y2="140" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="200" y1="195" x2="380" y2="185" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="240" y1="115" x2="330" y2="85" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="370" y1="75" x2="475" y2="68" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="500" y1="170" x2="560" y2="140" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 2: TIMELINE -->
+<!-- ================================================================= -->
+<div class="section" id="sec-timeline">
+  <div class="section-header" onclick="toggleSection('sec-timeline')">
+    <span class="chevron">&#9654;</span>
+    <h2>Historical Timeline</h2>
+    <span class="badge badge-blue">History</span>
+  </div>
+  <div class="section-body">
+    <div class="timeline">
+      <div class="timeline-item highlight">
+        <div class="timeline-year">1968</div>
+        <div class="timeline-title">Knuth invents attribute grammars</div>
+        <div class="timeline-desc">"Semantics of context-free languages" &mdash; synthesized and inherited attributes over parse trees.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">1979</div>
+        <div class="timeline-title">Cornell Program Synthesizer</div>
+        <div class="timeline-desc">Teitelbaum &amp; Reps build the first syntax-directed editor with live semantic feedback.</div>
+      </div>
+      <div class="timeline-item highlight">
+        <div class="timeline-year">1981</div>
+        <div class="timeline-title">Incremental attribute evaluation</div>
+        <div class="timeline-desc">Demers, Reps &amp; Teitelbaum publish the foundational algorithm at POPL &mdash; only re-evaluate attributes affected by a tree edit.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">1984</div>
+        <div class="timeline-title">The Synthesizer Generator</div>
+        <div class="timeline-desc">Reps &amp; Teitelbaum generalize: given an AG spec, generate a complete syntax-directed editor. Won ACM SIGSOFT Impact Award in 2010.</div>
+      </div>
+      <div class="timeline-item highlight">
+        <div class="timeline-year">1989</div>
+        <div class="timeline-title">Higher-order attribute grammars</div>
+        <div class="timeline-desc">Vogt, Swierstra &amp; Kuiper (PLDI '89): attributes whose values are entire trees, which then get their own attributes.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">~2000</div>
+        <div class="timeline-title">Reference attribute grammars (RAGs)</div>
+        <div class="timeline-desc">Hedin introduces RAGs &mdash; attributes can reference arbitrary nodes in the tree, enabling non-local dependencies. Basis for JastAdd.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2003</div>
+        <div class="timeline-title">AGs for structured documents</div>
+        <div class="timeline-desc">Neven, Schwentick &amp; Vianu: extended AGs over unranked trees as query languages for XML documents.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">~2005</div>
+        <div class="timeline-title">Directory attribute grammars</div>
+        <div class="timeline-desc">Sim&otilde;es &amp; Almeida: "DAG = AG + Makefiles" &mdash; attributes evaluated over file-system trees to generate web content.</div>
+      </div>
+      <div class="timeline-item highlight">
+        <div class="timeline-year">2007&ndash;</div>
+        <div class="timeline-title">Silver &amp; Kiama</div>
+        <div class="timeline-desc">Silver (Minnesota/MELT): higher-order, forwarding, strategy attributes. Kiama (Sloane): Scala-embedded, demand-driven, memoized AGs.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2009</div>
+        <div class="timeline-title">Decorated / Strategic AGs</div>
+        <div class="timeline-desc">Kats, Sloane &amp; Visser: "Aster" &mdash; integrating attribute evaluation with Stratego's strategic rewriting.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2016</div>
+        <div class="timeline-title">Memoized Zipper-based AGs</div>
+        <div class="timeline-desc">Controlling attribute re-evaluation via memoization on functional zipper representations of trees.</div>
+      </div>
+      <div class="timeline-item highlight">
+        <div class="timeline-year">2018</div>
+        <div class="timeline-title">Build Systems &agrave; la Carte</div>
+        <div class="timeline-desc">Mokhov, Mitchell &amp; Peyton Jones: systematic framework showing build systems share deep structure with AG dependency evaluation.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 3: DIRECTORY ATTRIBUTE GRAMMARS -->
+<!-- ================================================================= -->
+<div class="section" id="sec-directory">
+  <div class="section-header" onclick="toggleSection('sec-directory')">
+    <span class="chevron">&#9654;</span>
+    <h2>Directory Attribute Grammars</h2>
+    <span class="badge badge-orange">Beyond ASTs</span>
+  </div>
+  <div class="section-body">
+    <p><strong>Key insight:</strong> A file-system directory tree has exactly the same structure as a parse tree &mdash; interior nodes (directories) are non-terminals and leaf nodes (files) are terminals. Attribute grammar evaluation works directly on this structure.</p>
+
+    <div class="card hl-orange">
+      <h4>DAG = AG + Makefiles</h4>
+      <p>Sim&otilde;es &amp; Almeida's <strong>Directory Attribute Grammars</strong> combine two ideas:</p>
+      <ul>
+        <li><strong>Grammar rules</strong> describe the expected directory structure (which subdirectories, which file types)</li>
+        <li><strong>Attribute equations</strong> compute derived content (thumbnails, index pages, metadata) as file-system attributes</li>
+        <li><strong>Makefile-like laziness</strong> &mdash; attributes are only re-evaluated if their dependencies have changed (modification timestamps)</li>
+      </ul>
+    </div>
+
+    <h3>How It Works</h3>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 680 380" style="max-width:680px;" id="dir-tree-svg">
+        <!-- Root -->
+        <rect x="280" y="15" width="120" height="35" rx="6" fill="rgba(219,109,40,0.15)" stroke="#db6d28" stroke-width="2"/>
+        <text x="340" y="37" fill="#db6d28" font-size="13" text-anchor="middle" font-weight="600" font-family="sans-serif">photos/</text>
+
+        <!-- Level 1 -->
+        <line x1="340" y1="50" x2="160" y2="90" stroke="#30363d" stroke-width="1.5"/>
+        <line x1="340" y1="50" x2="340" y2="90" stroke="#30363d" stroke-width="1.5"/>
+        <line x1="340" y1="50" x2="520" y2="90" stroke="#30363d" stroke-width="1.5"/>
+
+        <rect x="90" y="90" width="140" height="35" rx="6" fill="rgba(219,109,40,0.15)" stroke="#db6d28" stroke-width="2"/>
+        <text x="160" y="112" fill="#db6d28" font-size="12" text-anchor="middle" font-weight="600" font-family="sans-serif">2024-vacation/</text>
+
+        <rect x="270" y="90" width="140" height="35" rx="6" fill="rgba(219,109,40,0.15)" stroke="#db6d28" stroke-width="2"/>
+        <text x="340" y="112" fill="#db6d28" font-size="12" text-anchor="middle" font-weight="600" font-family="sans-serif">2024-birthday/</text>
+
+        <rect x="450" y="90" width="140" height="35" rx="6" fill="rgba(219,109,40,0.15)" stroke="#db6d28" stroke-width="2"/>
+        <text x="520" y="112" fill="#db6d28" font-size="12" text-anchor="middle" font-weight="600" font-family="sans-serif">2025-hiking/</text>
+
+        <!-- Leaves for vacation -->
+        <line x1="160" y1="125" x2="80" y2="170" stroke="#30363d" stroke-width="1"/>
+        <line x1="160" y1="125" x2="160" y2="170" stroke="#30363d" stroke-width="1"/>
+        <line x1="160" y1="125" x2="240" y2="170" stroke="#30363d" stroke-width="1"/>
+
+        <rect x="40" y="170" width="80" height="28" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+        <text x="80" y="188" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="monospace">img1.jpg</text>
+
+        <rect x="120" y="170" width="80" height="28" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+        <text x="160" y="188" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="monospace">img2.jpg</text>
+
+        <rect x="200" y="170" width="80" height="28" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+        <text x="240" y="188" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="monospace">img3.jpg</text>
+
+        <!-- Synthesized attributes (flowing UP) -->
+        <text x="80" y="215" fill="#3fb950" font-size="9" text-anchor="middle" font-family="monospace">syn: _thumb.jpg</text>
+        <text x="160" y="215" fill="#3fb950" font-size="9" text-anchor="middle" font-family="monospace">syn: _thumb.jpg</text>
+        <text x="240" y="215" fill="#3fb950" font-size="9" text-anchor="middle" font-family="monospace">syn: _thumb.jpg</text>
+
+        <!-- Upward arrows -->
+        <line x1="80" y1="168" x2="120" y2="130" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrowGreen)"/>
+        <line x1="160" y1="168" x2="160" y2="130" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrowGreen)"/>
+        <line x1="240" y1="168" x2="200" y2="130" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrowGreen)"/>
+
+        <!-- Directory synthesized attrs -->
+        <rect x="55" y="240" width="210" height="48" rx="6" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="160" y="258" fill="#3fb950" font-size="10" text-anchor="middle" font-weight="600" font-family="monospace">syn: _index.html</text>
+        <text x="160" y="274" fill="#8b949e" font-size="9" text-anchor="middle" font-family="sans-serif">gallery page with all thumbnails</text>
+
+        <!-- Inherited attributes (flowing DOWN) -->
+        <line x1="340" y1="50" x2="340" y2="15" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <rect x="255" y="305" width="170" height="48" rx="6" fill="rgba(188,140,255,0.08)" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="340" y="323" fill="#bc8cff" font-size="10" text-anchor="middle" font-weight="600" font-family="monospace">inh: _style.css</text>
+        <text x="340" y="339" fill="#8b949e" font-size="9" text-anchor="middle" font-family="sans-serif">inherited from root &rarr; all albums</text>
+
+        <line x1="340" y1="50" x2="160" y2="90" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+        <line x1="340" y1="50" x2="520" y2="90" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+
+        <!-- Legend -->
+        <rect x="480" y="240" width="180" height="80" rx="6" fill="var(--bg-tertiary)" stroke="#30363d" stroke-width="1"/>
+        <line x1="495" y1="260" x2="525" y2="260" stroke="#3fb950" stroke-width="2"/>
+        <text x="535" y="264" fill="#8b949e" font-size="10" font-family="sans-serif">synthesized (up)</text>
+        <line x1="495" y1="280" x2="525" y2="280" stroke="#bc8cff" stroke-width="2" stroke-dasharray="3,3"/>
+        <text x="535" y="284" fill="#8b949e" font-size="10" font-family="sans-serif">inherited (down)</text>
+        <rect x="495" y="293" width="16" height="12" rx="3" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+        <text x="535" y="304" fill="#8b949e" font-size="10" font-family="sans-serif">file (terminal)</text>
+
+        <defs>
+          <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0,0 8,3 0,6" fill="#3fb950"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <h3>Concrete Example: Photo Gallery Generator</h3>
+    <pre><code><span class="cm">// DAG specification (conceptual translation to AG notation)</span>
+
+<span class="kw">Grammar:</span>
+  Gallery  &rarr;  Album*
+  Album    &rarr;  Image*
+
+<span class="kw">Synthesized attributes:</span>
+  Image._thumbnail  = <span class="fn">resize</span>(Image.path, 150, 150)
+  Album._index      = <span class="fn">htmlGallery</span>(Album.children.map(c &rarr; c._thumbnail))
+  Gallery._index    = <span class="fn">htmlPortal</span>(Gallery.children.map(a &rarr; a._index))
+
+<span class="kw">Inherited attributes:</span>
+  Album._style      = Gallery._style      <span class="cm">// CSS flows down from root</span>
+  Album._basePath   = Gallery._basePath + "/" + Album.name
+
+<span class="kw">Evaluation rule:</span>
+  <span class="cm">// Like make: only recompute if source file is newer than attribute file</span>
+  <span class="kw">if</span> (mtime(Image.path) > mtime(Image._thumbnail))
+    <span class="fn">evaluate</span>(Image._thumbnail)</code></pre>
+
+    <div class="card">
+      <h4>Key Properties</h4>
+      <ul>
+        <li><strong>Attributes are files:</strong> Each computed attribute is a real file on disk (e.g., <code class="ic">_thumbnail.jpg</code>, <code class="ic">_index.html</code>)</li>
+        <li><strong>Attribute names start with <code>_</code></strong> to distinguish them from terminal files</li>
+        <li><strong>Equations are Perl functions</strong> that receive filenames and return file content</li>
+        <li><strong>Incremental by timestamps</strong> &mdash; exactly like <code>make</code>, attributes are recomputed only when dependencies are newer</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 4: DOCUMENT AGs -->
+<!-- ================================================================= -->
+<div class="section" id="sec-documents">
+  <div class="section-header" onclick="toggleSection('sec-documents')">
+    <span class="chevron">&#9654;</span>
+    <h2>Attribute Grammars for Structured Documents</h2>
+    <span class="badge badge-pink">Beyond ASTs</span>
+  </div>
+  <div class="section-body">
+    <p>XML and HTML documents are <strong>unranked trees</strong> &mdash; each node can have an arbitrary number of children, unlike ASTs where the arity of each node type is fixed by the grammar. This requires <em>extended</em> attribute grammars.</p>
+
+    <div class="grid-2">
+      <div class="card hl-purple">
+        <h4>Standard AGs (Ranked Trees)</h4>
+        <p>Each production has a <strong>fixed number</strong> of children:</p>
+        <pre><code>BinExpr &rarr; Expr "+" Expr   <span class="cm">// always 2 children</span>
+IfStmt  &rarr; Expr Stmt Stmt  <span class="cm">// always 3 children</span></code></pre>
+        <p>Attribute equations can name each child: <code class="ic">$1</code>, <code class="ic">$2</code>, etc.</p>
+      </div>
+      <div class="card hl">
+        <h4>Extended AGs (Unranked Trees)</h4>
+        <p>Productions use <strong>regular expressions</strong> on the right-hand side:</p>
+        <pre><code>ul &rarr; li+              <span class="cm">// 1 or more children</span>
+div &rarr; (p | ul | div)*  <span class="cm">// any number, any order</span></code></pre>
+        <p>Attribute equations must handle <strong>variable-length child lists</strong> using folds.</p>
+      </div>
+    </div>
+
+    <h3>Query Language Power</h3>
+    <p>Neven, Schwentick &amp; Vianu (2003) showed that extended AGs can serve as a query language for XML, equivalent in power to monadic second-order logic over unranked trees. Key results:</p>
+
+    <table>
+      <tr>
+        <th>Property</th>
+        <th>Result</th>
+      </tr>
+      <tr>
+        <td>Non-circularity</td>
+        <td>Decidable in EXPTIME (same as ranked case)</td>
+      </tr>
+      <tr>
+        <td>Equivalence to MSO</td>
+        <td>Extended AGs capture exactly the MSO-definable queries</td>
+      </tr>
+      <tr>
+        <td>Region Algebra</td>
+        <td>Can be efficiently translated into extended AGs</td>
+      </tr>
+      <tr>
+        <td>Ordered children</td>
+        <td>AGs naturally respect sibling order &mdash; crucial for documents</td>
+      </tr>
+    </table>
+
+    <h3>Scene Graph AGs: 3D Rendering</h3>
+    <p>Steinlechner et al. (TU Wien, GRAPP 2019) applied AGs to <strong>scene graphs</strong> for real-time 3D rendering &mdash; a striking non-compiler use case:</p>
+    <div class="grid-2">
+      <div class="card">
+        <h4>Inherited (Down the Scene Graph)</h4>
+        <ul>
+          <li><strong>Transform matrix</strong> &mdash; accumulated model-view transformation</li>
+          <li><strong>Shader/material</strong> &mdash; surface properties propagated to child geometry</li>
+        </ul>
+        <pre><code><span class="cm">// Shader flows down from parent to children</span>
+Group.child0.shader = <span class="kw">this</span>.shader
+Shader.child.shader = <span class="kw">this</span>.surface</code></pre>
+      </div>
+      <div class="card">
+        <h4>Synthesized (Up the Scene Graph)</h4>
+        <ul>
+          <li><strong>RenderObjects</strong> &mdash; draw commands collected from leaves</li>
+          <li><strong>BoundingBox</strong> &mdash; spatial extent from children</li>
+        </ul>
+        <pre><code><span class="cm">// Render objects collected bottom-up</span>
+Group.renderObjs = child0.renderObjs
+                 &cup; child1.renderObjs
+Geometry.renderObjs = {<span class="fn">createRO</span>(<span class="kw">this</span>)}</code></pre>
+      </div>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.85rem;">Because the computation is purely functional (no imperative draw calls), incremental evaluation recomputes only affected render objects when a subtree changes &mdash; O(delta) instead of O(n). Nominated for Best Paper at GRAPP 2019.</p>
+
+    <hr>
+
+    <div class="card">
+      <h4>Example: Computing a Table of Contents from HTML</h4>
+      <pre><code><span class="cm">// Extended AG over an HTML document tree</span>
+<span class="kw">syn</span> headings: List&lt;{level, text, id}&gt;
+
+<span class="cm">// Leaves: heading elements synthesize themselves</span>
+h1.headings = [{level: 1, text: h1.textContent, id: h1.id}]
+h2.headings = [{level: 2, text: h2.textContent, id: h2.id}]
+
+<span class="cm">// Containers: fold over variable-length children</span>
+div.headings = div.children.flatMap(c &rarr; c.headings)
+body.headings = body.children.flatMap(c &rarr; c.headings)
+
+<span class="cm">// Root: build the TOC from collected headings</span>
+html.toc = <span class="fn">buildTocHtml</span>(body.headings)</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 5: BUILD SYSTEMS -->
+<!-- ================================================================= -->
+<div class="section" id="sec-build">
+  <div class="section-header" onclick="toggleSection('sec-build')">
+    <span class="chevron">&#9654;</span>
+    <h2>Build Systems as Attribute Evaluation</h2>
+    <span class="badge badge-orange">Beyond ASTs</span>
+  </div>
+  <div class="section-body">
+    <p>The landmark paper <strong>"Build Systems &agrave; la Carte"</strong> (Mokhov, Mitchell &amp; Peyton Jones, 2018) showed that build systems are essentially dependency evaluation engines &mdash; and share deep structural parallels with attribute grammar evaluation.</p>
+
+    <h3>The Parallel</h3>
+    <div class="grid-2">
+      <div class="card hl-orange">
+        <h4>Attribute Grammar</h4>
+        <ul>
+          <li><strong>Tree structure</strong> defines nodes</li>
+          <li><strong>Attribute equations</strong> define values</li>
+          <li><strong>Dependencies</strong> between attributes</li>
+          <li><strong>Evaluator</strong> computes fixed point</li>
+          <li><strong>Incrementality</strong>: only recompute changed</li>
+        </ul>
+      </div>
+      <div class="card hl">
+        <h4>Build System</h4>
+        <ul>
+          <li><strong>File/target graph</strong> defines nodes</li>
+          <li><strong>Build rules</strong> define outputs</li>
+          <li><strong>Dependencies</strong> between targets</li>
+          <li><strong>Scheduler</strong> executes rules</li>
+          <li><strong>Incrementality</strong>: only rebuild changed</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>The Two Fundamental Questions</h3>
+    <p>Mokhov et al. decompose every build system along two orthogonal axes:</p>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 650 300" style="max-width:650px;">
+        <!-- Grid -->
+        <rect x="170" y="50" width="220" height="90" rx="8" fill="rgba(88,166,255,0.06)" stroke="#30363d" stroke-width="1"/>
+        <rect x="410" y="50" width="220" height="90" rx="8" fill="rgba(63,185,80,0.06)" stroke="#30363d" stroke-width="1"/>
+        <rect x="170" y="160" width="220" height="90" rx="8" fill="rgba(219,109,40,0.06)" stroke="#30363d" stroke-width="1"/>
+        <rect x="410" y="160" width="220" height="90" rx="8" fill="rgba(188,140,255,0.06)" stroke="#30363d" stroke-width="1"/>
+
+        <!-- Headers -->
+        <text x="280" y="35" fill="#58a6ff" font-size="12" text-anchor="middle" font-weight="700" font-family="sans-serif">Static deps</text>
+        <text x="520" y="35" fill="#3fb950" font-size="12" text-anchor="middle" font-weight="700" font-family="sans-serif">Dynamic deps</text>
+        <text x="130" y="100" fill="#db6d28" font-size="12" text-anchor="middle" font-weight="700" font-family="sans-serif" transform="rotate(-90,130,100)">Topological</text>
+        <text x="130" y="210" fill="#bc8cff" font-size="12" text-anchor="middle" font-weight="700" font-family="sans-serif" transform="rotate(-90,130,210)">Restarting</text>
+
+        <!-- Contents -->
+        <text x="280" y="85" fill="#text-bright" font-size="14" text-anchor="middle" font-weight="700" font-family="sans-serif" fill="#e6edf3">Make</text>
+        <text x="280" y="105" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">Static deps, topo sort</text>
+        <text x="280" y="120" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">= ordered AG evaluator</text>
+
+        <text x="520" y="85" fill="#e6edf3" font-size="14" text-anchor="middle" font-weight="700" font-family="sans-serif">Shake</text>
+        <text x="520" y="105" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">Dynamic deps, topo sort</text>
+        <text x="520" y="120" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">= demand-driven AG</text>
+
+        <text x="280" y="195" fill="#e6edf3" font-size="14" text-anchor="middle" font-weight="700" font-family="sans-serif">Excel</text>
+        <text x="280" y="215" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">Static deps, restart</text>
+        <text x="280" y="230" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">= dirty-flag iteration</text>
+
+        <text x="520" y="195" fill="#e6edf3" font-size="14" text-anchor="middle" font-weight="700" font-family="sans-serif">Bazel</text>
+        <text x="520" y="215" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">Dynamic deps, cloud cache</text>
+        <text x="520" y="230" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">= memoized AG + content hash</text>
+      </svg>
+    </div>
+
+    <div class="card">
+      <h4>The AG Connection</h4>
+      <p>Each build system quadrant corresponds to an AG evaluation strategy:</p>
+      <ul>
+        <li><strong>Make</strong> = static dependency analysis + topological evaluation. This is exactly how classical <em>ordered</em> attribute grammars work.</li>
+        <li><strong>Shake</strong> = dynamic dependency discovery during evaluation. This is <em>demand-driven</em> AG evaluation &mdash; you don't know all dependencies upfront.</li>
+        <li><strong>Bazel</strong> = content-addressable caching with dynamic deps. This is <em>memoized</em> AG evaluation with content hashing instead of timestamps.</li>
+        <li><strong>Excel</strong> = restart-based re-evaluation with dirty flags. This resembles <em>circular</em> AG evaluation with fixed-point iteration.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 6: INCREMENTAL EVALUATION -->
+<!-- ================================================================= -->
+<div class="section" id="sec-incremental">
+  <div class="section-header" onclick="toggleSection('sec-incremental')">
+    <span class="chevron">&#9654;</span>
+    <h2>Incremental Attribute Evaluation</h2>
+    <span class="badge badge-green">Evaluation</span>
+  </div>
+  <div class="section-body">
+    <p><strong>The problem:</strong> When a user edits one token in a 10,000-node AST, re-evaluating <em>all</em> attributes is wasteful. Incremental evaluation recomputes <strong>only the attributes affected by the change</strong>.</p>
+
+    <h3>The Reps-Demers-Teitelbaum Algorithm (1981)</h3>
+    <div class="card hl-green">
+      <h4>Core Idea: Change Propagation on the Dependency Graph</h4>
+      <ol>
+        <li><span class="num num-green">1</span> <strong>Edit the tree</strong> &mdash; insert, delete, or replace a subtree</li>
+        <li><span class="num num-green">2</span> <strong>Mark affected attributes</strong> &mdash; starting from the edit point, mark directly-dependent attributes as "possibly changed"</li>
+        <li><span class="num num-green">3</span> <strong>Propagate</strong> &mdash; follow the dependency graph outward, marking transitively-dependent attributes</li>
+        <li><span class="num num-green">4</span> <strong>Re-evaluate only marked attributes</strong> &mdash; in topological order of dependencies</li>
+        <li><span class="num num-green">5</span> <strong>Early termination</strong> &mdash; if a re-evaluated attribute produces the <em>same value</em> as before, stop propagating along that path</li>
+      </ol>
+    </div>
+
+    <h3>Interactive: Incremental Re-evaluation</h3>
+    <div class="eval-demo" id="incr-demo">
+      <div class="eval-controls">
+        <button class="eval-btn" onclick="incrStep(0)">Initial Tree</button>
+        <button class="eval-btn" onclick="incrStep(1)">Edit Node</button>
+        <button class="eval-btn" onclick="incrStep(2)">Mark Affected</button>
+        <button class="eval-btn" onclick="incrStep(3)">Re-evaluate</button>
+        <button class="eval-btn" onclick="incrStep(4)">Early Stop</button>
+      </div>
+      <svg viewBox="0 0 600 280" style="max-width:600px;" id="incr-svg">
+        <!-- Tree structure -->
+        <!-- Root -->
+        <line x1="300" y1="55" x2="150" y2="105" stroke="#30363d" stroke-width="1.5"/>
+        <line x1="300" y1="55" x2="450" y2="105" stroke="#30363d" stroke-width="1.5"/>
+        <rect id="n-root" x="260" y="25" width="80" height="30" rx="6" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="300" y="45" fill="#58a6ff" font-size="12" text-anchor="middle" font-weight="600" font-family="sans-serif">Program</text>
+        <text id="a-root" x="300" y="18" fill="#3fb950" font-size="10" text-anchor="middle" font-family="monospace">errors: 0</text>
+
+        <!-- Left subtree -->
+        <line x1="150" y1="135" x2="80" y2="185" stroke="#30363d" stroke-width="1.5"/>
+        <line x1="150" y1="135" x2="220" y2="185" stroke="#30363d" stroke-width="1.5"/>
+        <rect id="n-func" x="105" y="105" width="90" height="30" rx="6" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="150" y="125" fill="#58a6ff" font-size="12" text-anchor="middle" font-weight="600" font-family="sans-serif">FuncDecl</text>
+        <text id="a-func" x="150" y="98" fill="#3fb950" font-size="10" text-anchor="middle" font-family="monospace">errors: 0</text>
+
+        <rect id="n-param" x="35" y="185" width="90" height="30" rx="6" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="80" y="205" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">Param</text>
+        <text id="a-param" x="80" y="178" fill="#3fb950" font-size="10" text-anchor="middle" font-family="monospace">type: int</text>
+
+        <rect id="n-body" x="175" y="185" width="90" height="30" rx="6" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="220" y="205" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">Body</text>
+        <text id="a-body" x="220" y="178" fill="#3fb950" font-size="10" text-anchor="middle" font-family="monospace">errors: 0</text>
+
+        <!-- Right subtree -->
+        <line x1="450" y1="135" x2="380" y2="185" stroke="#30363d" stroke-width="1.5"/>
+        <line x1="450" y1="135" x2="520" y2="185" stroke="#30363d" stroke-width="1.5"/>
+        <rect id="n-var" x="405" y="105" width="90" height="30" rx="6" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="450" y="125" fill="#58a6ff" font-size="12" text-anchor="middle" font-weight="600" font-family="sans-serif">VarDecl</text>
+        <text id="a-var" x="450" y="98" fill="#3fb950" font-size="10" text-anchor="middle" font-family="monospace">errors: 0</text>
+
+        <rect id="n-name" x="335" y="185" width="90" height="30" rx="6" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="380" y="205" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">Name</text>
+
+        <rect id="n-init" x="475" y="185" width="90" height="30" rx="6" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+        <text x="520" y="205" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">Init</text>
+        <text id="a-init" x="520" y="178" fill="#3fb950" font-size="10" text-anchor="middle" font-family="monospace">errors: 0</text>
+      </svg>
+      <div class="eval-status" id="incr-status">Click buttons above to step through incremental evaluation.</div>
+    </div>
+
+    <h3>Why Step 5 Matters</h3>
+    <div class="card">
+      <h4>Early Termination: The Key Optimization</h4>
+      <p>If we change a variable name from <code class="ic">x</code> to <code class="ic">y</code>, the <code class="ic">errors</code> attribute of the enclosing function might still be <code class="ic">0</code> (the rename was valid). In that case, we <strong>stop propagating</strong> &mdash; the root's <code class="ic">errors</code> attribute doesn't need re-evaluation.</p>
+      <p>This makes incremental evaluation <strong>proportional to the size of the semantic change, not the syntactic change</strong>.</p>
+    </div>
+
+    <h3>The Synthesizer Generator</h3>
+    <p>Reps &amp; Teitelbaum's <strong>Synthesizer Generator</strong> (1984) used this algorithm to build interactive programming environments: given an AG specification, it generated a complete editor with live type checking, error highlighting, and pretty-printing &mdash; all incrementally updated on every keystroke.</p>
+
+    <div class="card">
+      <h4>Modern Descendants</h4>
+      <ul>
+        <li><strong>Tree-sitter</strong> &mdash; incremental parsing (structure only, not full AG)</li>
+        <li><strong>Roslyn / rust-analyzer</strong> &mdash; demand-driven incremental semantic analysis</li>
+        <li><strong>Salsa</strong> (Rust) &mdash; generic incremental computation framework inspired by AG incrementality</li>
+        <li><strong>Adapton</strong> &mdash; self-adjusting computations framework</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 7: MEMOIZED EVALUATION -->
+<!-- ================================================================= -->
+<div class="section" id="sec-memoized">
+  <div class="section-header" onclick="toggleSection('sec-memoized')">
+    <span class="chevron">&#9654;</span>
+    <h2>Memoized &amp; Demand-Driven Evaluation</h2>
+    <span class="badge badge-green">Evaluation</span>
+  </div>
+  <div class="section-body">
+    <p>Instead of evaluating <em>all</em> attributes in a predetermined order, <strong>demand-driven</strong> evaluation computes an attribute only when someone asks for its value &mdash; and <strong>memoization</strong> ensures each attribute is computed at most once.</p>
+
+    <div class="tabs" id="memo-tabs">
+      <button class="tab-btn active" onclick="showTab('memo-tabs','memo-eager')">Eager (Traditional)</button>
+      <button class="tab-btn" onclick="showTab('memo-tabs','memo-demand')">Demand-Driven</button>
+      <button class="tab-btn" onclick="showTab('memo-tabs','memo-oolag')">OOLAG</button>
+      <button class="tab-btn" onclick="showTab('memo-tabs','memo-zipper')">Zipper-Based</button>
+    </div>
+
+    <div class="tab-panel active" id="memo-eager">
+      <div class="card">
+        <h4>Eager / Exhaustive Evaluation</h4>
+        <p>The traditional approach: analyze the dependency graph, find a valid topological order, evaluate <strong>every</strong> attribute in that order.</p>
+        <pre><code><span class="cm">// Pass 1: all inherited attributes (top-down)</span>
+<span class="kw">for</span> (node <span class="kw">of</span> tree.topDown()) {
+  node.env = node.parent.env.extend(node.declarations)
+}
+
+<span class="cm">// Pass 2: all synthesized attributes (bottom-up)</span>
+<span class="kw">for</span> (node <span class="kw">of</span> tree.bottomUp()) {
+  node.type = <span class="fn">inferType</span>(node, node.env)
+  node.errors = node.children.flatMap(c => c.errors)
+}</code></pre>
+        <p style="color:var(--accent-yellow);">Problem: evaluates attributes that may never be needed.</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="memo-demand">
+      <div class="card">
+        <h4>Demand-Driven Evaluation</h4>
+        <p>Attributes are <strong>lazy thunks</strong>. When you access <code class="ic">node.type</code>, the system evaluates it (and any dependencies) on the fly. Memoization caches the result.</p>
+        <pre><code><span class="cm">// Each attribute is a memoized getter</span>
+<span class="kw">get</span> type() {
+  <span class="kw">if</span> (<span class="kw">this</span>._type_cached) <span class="kw">return</span> <span class="kw">this</span>._type_value
+  <span class="kw">this</span>._type_value = <span class="fn">inferType</span>(<span class="kw">this</span>, <span class="kw">this</span>.env)  <span class="cm">// triggers env evaluation</span>
+  <span class="kw">this</span>._type_cached = <span class="kw">true</span>
+  <span class="kw">return</span> <span class="kw">this</span>._type_value
+}
+
+<span class="cm">// env is also demand-driven &mdash; evaluated when first accessed</span>
+<span class="kw">get</span> env() {
+  <span class="kw">if</span> (<span class="kw">this</span>._env_cached) <span class="kw">return</span> <span class="kw">this</span>._env_value
+  <span class="kw">this</span>._env_value = <span class="kw">this</span>.parent.env.extend(<span class="kw">this</span>.declarations)
+  <span class="kw">this</span>._env_cached = <span class="kw">true</span>
+  <span class="kw">return</span> <span class="kw">this</span>._env_value
+}</code></pre>
+        <p style="color:var(--accent-green);">Advantage: only computes what's actually needed. No pass ordering required.</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="memo-oolag">
+      <div class="card">
+        <h4>OOLAG: Object-Oriented Lazy Attribute Grammars</h4>
+        <p>Used in <strong>Apache Daffodil</strong> (DFDL parser). The tree is a standard object graph with lazy, memoized properties.</p>
+        <pre><code><span class="cm">// OOLAG pattern (Scala-like pseudocode)</span>
+<span class="kw">class</span> <span class="ty">Element</span> <span class="kw">extends</span> <span class="ty">SchemaComponent</span> {
+  <span class="kw">lazy val</span> typeDef = <span class="fn">findTypeDef</span>(<span class="kw">this</span>.typeName)
+  <span class="kw">lazy val</span> minOccurs = <span class="kw">this</span>.attr("minOccurs").toInt
+  <span class="kw">lazy val</span> isOptional = minOccurs == 0
+
+  <span class="cm">// Computations done exactly once, cached internally</span>
+  <span class="cm">// Circular dependencies detected at runtime</span>
+}</code></pre>
+        <p>Key properties:</p>
+        <ul>
+          <li>Self-organizing: no need for pass structure</li>
+          <li>Computed exactly once and cached</li>
+          <li>Circular dependency detection at runtime</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="memo-zipper">
+      <div class="card">
+        <h4>Memoized Zipper-Based AGs</h4>
+        <p>Uses a <strong>zipper</strong> (Huet, 1997) to navigate the tree &mdash; a cursor that maintains the "context" of the current node. Attributes are memoized on the zipper positions.</p>
+        <pre><code><span class="cm">// Zipper = (focused subtree, context with path back to root)</span>
+<span class="kw">type</span> <span class="ty">Zipper</span> = {
+  focus: <span class="ty">Tree</span>,
+  context: <span class="ty">Context</span>  <span class="cm">// parent, left siblings, right siblings</span>
+}
+
+<span class="cm">// Attribute lookup on zipper position</span>
+<span class="fn">attr</span>(z: <span class="ty">Zipper</span>, name: <span class="kw">string</span>): <span class="ty">Value</span> {
+  <span class="kw">const</span> key = <span class="fn">zipperKey</span>(z) + "." + name
+  <span class="kw">if</span> (memo.has(key)) <span class="kw">return</span> memo.get(key)
+  <span class="kw">const</span> val = <span class="fn">evaluate</span>(z, name)
+  memo.set(key, val)
+  <span class="kw">return</span> val
+}</code></pre>
+        <p>Advantage: <strong>functional and persistent</strong> &mdash; previous tree versions retain their cached attributes, enabling efficient undo and incremental updates.</p>
+      </div>
+    </div>
+
+    <h3>Comparison Matrix</h3>
+    <table>
+      <tr>
+        <th>Strategy</th>
+        <th>Scheduling</th>
+        <th>Completeness</th>
+        <th>Memoized</th>
+        <th>Incremental</th>
+        <th>System</th>
+      </tr>
+      <tr>
+        <td>Ordered (multi-pass)</td>
+        <td>Static passes</td>
+        <td>All attributes</td>
+        <td>No</td>
+        <td>No</td>
+        <td>Classic compilers</td>
+      </tr>
+      <tr>
+        <td>Demand-driven</td>
+        <td>On access</td>
+        <td>Queried only</td>
+        <td>Yes</td>
+        <td>Partial</td>
+        <td>JastAdd, Kiama</td>
+      </tr>
+      <tr>
+        <td>OOLAG</td>
+        <td>Lazy vals</td>
+        <td>Queried only</td>
+        <td>Yes</td>
+        <td>No (rebuild)</td>
+        <td>Apache Daffodil</td>
+      </tr>
+      <tr>
+        <td>Zipper-based</td>
+        <td>On access</td>
+        <td>Queried only</td>
+        <td>Yes</td>
+        <td>Via persistence</td>
+        <td>Research (Haskell)</td>
+      </tr>
+      <tr>
+        <td>Change propagation</td>
+        <td>Dependency graph</td>
+        <td>Changed only</td>
+        <td>Yes</td>
+        <td>Yes</td>
+        <td>Synthesizer Gen.</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 8: STRATEGIC AGs -->
+<!-- ================================================================= -->
+<div class="section" id="sec-strategic">
+  <div class="section-header" onclick="toggleSection('sec-strategic')">
+    <span class="chevron">&#9654;</span>
+    <h2>Strategic &amp; Decorated Attribute Grammars</h2>
+    <span class="badge badge-purple">Formalism</span>
+  </div>
+  <div class="section-body">
+    <p><strong>Strategic programming</strong> (from the Stratego world) separates <em>what</em> to do at each node from <em>how to traverse</em> the tree. When combined with AGs, you get <strong>decorated attribute grammars</strong> &mdash; where traversal strategies and attribute equations work together.</p>
+
+    <div class="grid-2">
+      <div class="card hl-purple">
+        <h4>Traditional AG Evaluation</h4>
+        <p>Traversal order is determined by the evaluator (fixed passes, topological order, or demand). The AG author writes <strong>equations only</strong>.</p>
+        <pre><code><span class="cm">// AG: just equations, evaluator decides order</span>
+<span class="kw">syn</span> type = <span class="fn">inferType</span>(<span class="kw">this</span>)
+<span class="kw">inh</span> env = parent.env.extend(decls)</code></pre>
+      </div>
+      <div class="card hl">
+        <h4>Strategic AG Evaluation</h4>
+        <p>The AG author also controls <strong>traversal strategy</strong> &mdash; which nodes to visit, in what order, whether to continue or stop.</p>
+        <pre><code><span class="cm">// Strategic: equations + traversal control</span>
+<span class="kw">strategy</span> typeCheck =
+  <span class="fn">topDown</span>(<span class="fn">try</span>(
+    <span class="fn">match</span> VarDecl &rarr; <span class="fn">checkType</span>
+    <span class="fn">match</span> FuncDecl &rarr; <span class="fn">checkSignature</span>
+  ))</code></pre>
+      </div>
+    </div>
+
+    <h3>Key Systems</h3>
+
+    <div class="tabs" id="strat-tabs">
+      <button class="tab-btn active" onclick="showTab('strat-tabs','strat-aster')">Aster</button>
+      <button class="tab-btn" onclick="showTab('strat-tabs','strat-silver')">Silver Strategy Attrs</button>
+      <button class="tab-btn" onclick="showTab('strat-tabs','strat-decorated')">Decorated AGs</button>
+    </div>
+
+    <div class="tab-panel active" id="strat-aster">
+      <div class="card">
+        <h4>Aster: AGs in Stratego</h4>
+        <p>Kats, Sloane &amp; Visser (2009) built <strong>Aster</strong> as an extension of the Stratego term-rewriting language. It uses Stratego's pattern matching and concrete syntax to write attribute equations.</p>
+        <ul>
+          <li><strong>Attribute decorators</strong> describe high-level attribution patterns (e.g., "collect all errors bottom-up")</li>
+          <li>Uses standard Stratego facilities: pattern matching, concrete syntax, generic traversals</li>
+          <li>Equations are associated with AST nodes via pattern matching</li>
+        </ul>
+        <pre><code><span class="cm">// Aster (Stratego syntax)</span>
+<span class="kw">decorator</span> <span class="fn">collect-all</span>     <span class="cm">// built-in: bottom-up collection</span>
+<span class="kw">def</span> errors:
+  VarDecl(name, type, init) &rarr;
+    <span class="kw">if</span> &lt;not(<span class="fn">compatible</span>)&gt; (type, init.type)
+    <span class="kw">then</span> [TypeError(name, type, init.type)]
+    <span class="kw">else</span> []</code></pre>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="strat-silver">
+      <div class="card">
+        <h4>Silver: Strategy Attributes</h4>
+        <p>Silver (MELT group, University of Minnesota) introduced <strong>strategy attributes</strong> as an alternative to reflection-based term rewriting. Rewrite rules and strategies are compiled into higher-order attributes and equations.</p>
+        <ul>
+          <li>Strategies operate on <strong>decorated trees</strong> (trees that already have attribute values), not raw terms</li>
+          <li>This means rewriting can be <strong>semantics-aware</strong> &mdash; a strategy can inspect attribute values to decide whether to apply a rule</li>
+          <li>Avoids the "phase ordering" problem of separating analysis from transformation</li>
+        </ul>
+        <pre><code><span class="cm">-- Silver strategy attribute</span>
+<span class="kw">strategy attribute</span> simplify =
+  <span class="fn">innermost</span>(
+    <span class="kw">rule</span> addZero: add(e, intLit(0)) &rarr; e
+    <span class="kw">rule</span> mulOne:  mul(e, intLit(1)) &rarr; e
+    <span class="cm">-- Can check attributes during rewriting!</span>
+    <span class="kw">rule</span> constFold: add(a, b)
+      <span class="kw">when</span> a.isConstant && b.isConstant
+      &rarr; intLit(a.value + b.value)
+  )</code></pre>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="strat-decorated">
+      <div class="card">
+        <h4>Decorated Attribute Grammars</h4>
+        <p>The general concept: <strong>decorators</strong> are parameterized attribution patterns inspired by strategic programming. They separate:</p>
+        <div class="grid-2">
+          <div>
+            <p><strong>The "what"</strong></p>
+            <ul>
+              <li>Individual attribute equations</li>
+              <li>What value to compute at each node type</li>
+            </ul>
+          </div>
+          <div>
+            <p><strong>The "how"</strong></p>
+            <ul>
+              <li>Traversal strategy (top-down, bottom-up, innermost)</li>
+              <li>Combination operator (collect, fold, first-match)</li>
+            </ul>
+          </div>
+        </div>
+        <p>Common decorators:</p>
+        <table>
+          <tr><th>Decorator</th><th>Direction</th><th>Semantics</th></tr>
+          <tr><td><code>collect-all</code></td><td>Bottom-up</td><td>Gather values from all descendants into a list</td></tr>
+          <tr><td><code>broadcast</code></td><td>Top-down</td><td>Pass a value down to all descendants</td></tr>
+          <tr><td><code>chain</code></td><td>Left-to-right</td><td>Thread a value through siblings in order</td></tr>
+          <tr><td><code>rewrite</code></td><td>Configurable</td><td>Apply transformation rules with a strategy</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 9: HIGHER-ORDER AGs -->
+<!-- ================================================================= -->
+<div class="section" id="sec-higher-order">
+  <div class="section-header" onclick="toggleSection('sec-higher-order')">
+    <span class="chevron">&#9654;</span>
+    <h2>Higher-Order &amp; Reference Attribute Grammars</h2>
+    <span class="badge badge-cyan">Formalism</span>
+  </div>
+  <div class="section-body">
+
+    <div class="tabs" id="ho-tabs">
+      <button class="tab-btn active" onclick="showTab('ho-tabs','ho-higher')">Higher-Order AGs</button>
+      <button class="tab-btn" onclick="showTab('ho-tabs','ho-ref')">Reference AGs (RAGs)</button>
+      <button class="tab-btn" onclick="showTab('ho-tabs','ho-circular')">Circular AGs</button>
+    </div>
+
+    <div class="tab-panel active" id="ho-higher">
+      <h3>Higher-Order Attribute Grammars</h3>
+      <p>In a standard AG, attribute values are simple data (numbers, strings, types). In a <strong>higher-order AG</strong>, an attribute's value can be <strong>an entire tree</strong> &mdash; which then gets its own attributes evaluated.</p>
+
+      <div class="diagram-container">
+        <svg viewBox="0 0 650 300" style="max-width:650px;">
+          <!-- Original tree -->
+          <text x="130" y="20" fill="#8b949e" font-size="11" text-anchor="middle" font-family="sans-serif">Concrete Syntax Tree</text>
+          <rect x="90" y="30" width="80" height="28" rx="5" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+          <text x="130" y="49" fill="#58a6ff" font-size="11" text-anchor="middle" font-family="sans-serif">IfStmt</text>
+
+          <line x1="100" y1="58" x2="60" y2="85" stroke="#30363d" stroke-width="1.5"/>
+          <line x1="130" y1="58" x2="130" y2="85" stroke="#30363d" stroke-width="1.5"/>
+          <line x1="160" y1="58" x2="200" y2="85" stroke="#30363d" stroke-width="1.5"/>
+
+          <rect x="20" y="85" width="80" height="24" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+          <text x="60" y="101" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="sans-serif">Cond</text>
+          <rect x="95" y="85" width="70" height="24" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+          <text x="130" y="101" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="sans-serif">Then</text>
+          <rect x="170" y="85" width="60" height="24" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+          <text x="200" y="101" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="sans-serif">Else</text>
+
+          <!-- Arrow showing HO attribute -->
+          <path d="M 130 120 C 130 160, 300 160, 400 130" stroke="#39d2c0" stroke-width="2" fill="none" stroke-dasharray="6,4" marker-end="url(#arrowCyan)"/>
+          <text x="270" y="155" fill="#39d2c0" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">higher-order attribute:</text>
+          <text x="270" y="170" fill="#39d2c0" font-size="11" text-anchor="middle" font-family="monospace">syn desugared: Tree</text>
+
+          <!-- Generated tree -->
+          <text x="470" y="20" fill="#8b949e" font-size="11" text-anchor="middle" font-family="sans-serif">Generated (Desugared) Tree</text>
+          <rect x="420" y="30" width="100" height="28" rx="5" fill="rgba(57,210,192,0.15)" stroke="#39d2c0" stroke-width="2"/>
+          <text x="470" y="49" fill="#39d2c0" font-size="11" text-anchor="middle" font-family="sans-serif">MatchExpr</text>
+
+          <line x1="440" y1="58" x2="400" y2="85" stroke="#30363d" stroke-width="1.5"/>
+          <line x1="500" y1="58" x2="540" y2="85" stroke="#30363d" stroke-width="1.5"/>
+
+          <rect x="360" y="85" width="80" height="24" rx="4" fill="rgba(57,210,192,0.1)" stroke="#39d2c0" stroke-width="1"/>
+          <text x="400" y="101" fill="#39d2c0" font-size="10" text-anchor="middle" font-family="sans-serif">Case true</text>
+          <rect x="505" y="85" width="80" height="24" rx="4" fill="rgba(57,210,192,0.1)" stroke="#39d2c0" stroke-width="1"/>
+          <text x="545" y="101" fill="#39d2c0" font-size="10" text-anchor="middle" font-family="sans-serif">Case false</text>
+
+          <!-- This new tree also gets attributes! -->
+          <text x="400" y="128" fill="#3fb950" font-size="9" text-anchor="middle" font-family="monospace">type: Bool&rarr;T</text>
+          <text x="545" y="128" fill="#3fb950" font-size="9" text-anchor="middle" font-family="monospace">type: Bool&rarr;T</text>
+          <text x="470" y="148" fill="#3fb950" font-size="10" text-anchor="middle" font-family="monospace" font-weight="600">type: T</text>
+
+          <rect x="355" y="180" width="230" height="45" rx="6" fill="rgba(57,210,192,0.05)" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="470" y="198" fill="#39d2c0" font-size="10" text-anchor="middle" font-weight="600" font-family="sans-serif">This new tree is itself decorated!</text>
+          <text x="470" y="213" fill="#8b949e" font-size="9" text-anchor="middle" font-family="sans-serif">Attributes are evaluated on the generated subtree too.</text>
+
+          <!-- Termination note -->
+          <rect x="100" y="240" width="450" height="50" rx="6" fill="rgba(248,81,73,0.06)" stroke="#f85149" stroke-width="1"/>
+          <text x="325" y="260" fill="#f85149" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">Termination Challenge</text>
+          <text x="325" y="278" fill="#8b949e" font-size="10" text-anchor="middle" font-family="sans-serif">If the generated tree's attributes create more trees, evaluation might not terminate.</text>
+
+          <defs>
+            <marker id="arrowCyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0,0 8,3 0,6" fill="#39d2c0"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="card hl-cyan">
+        <h4>Key Ideas (Vogt, Swierstra &amp; Kuiper, 1989)</h4>
+        <ul>
+          <li>An attribute value can be a <strong>tree</strong>, blurring the line between parse trees and computed values</li>
+          <li>These "local trees" are <strong>grafted</strong> onto the main tree and decorated with their own attributes</li>
+          <li>Use case: desugaring (if &rarr; match), generating intermediate representations, multi-phase compilation</li>
+          <li>A <strong>well-defined</strong> higher-order AG must be complete, non-circular, and create only <strong>finitely many</strong> new trees</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="ho-ref">
+      <h3>Reference Attribute Grammars (RAGs)</h3>
+      <p>In standard AGs, information flows strictly along tree edges (parent&harr;child). <strong>Reference attributes</strong> break this limitation &mdash; an attribute can point to <em>any</em> node in the tree.</p>
+
+      <div class="diagram-container">
+        <svg viewBox="0 0 550 220" style="max-width:550px;">
+          <!-- Tree -->
+          <rect x="220" y="10" width="110" height="28" rx="5" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+          <text x="275" y="29" fill="#58a6ff" font-size="12" text-anchor="middle" font-weight="600" font-family="sans-serif">Program</text>
+
+          <line x1="250" y1="38" x2="120" y2="75" stroke="#30363d" stroke-width="1.5"/>
+          <line x1="300" y1="38" x2="430" y2="75" stroke="#30363d" stroke-width="1.5"/>
+
+          <rect x="55" y="75" width="130" height="28" rx="5" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+          <text x="120" y="94" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">ClassDecl "Foo"</text>
+
+          <rect x="365" y="75" width="130" height="28" rx="5" fill="rgba(88,166,255,0.15)" stroke="#58a6ff" stroke-width="2"/>
+          <text x="430" y="94" fill="#58a6ff" font-size="11" text-anchor="middle" font-weight="600" font-family="sans-serif">FuncDecl "bar"</text>
+
+          <line x1="120" y1="103" x2="120" y2="140" stroke="#30363d" stroke-width="1.5"/>
+          <line x1="430" y1="103" x2="430" y2="140" stroke="#30363d" stroke-width="1.5"/>
+
+          <rect x="60" y="140" width="120" height="28" rx="5" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+          <text x="120" y="159" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="sans-serif">MethodDecl "baz"</text>
+
+          <rect x="370" y="140" width="120" height="28" rx="5" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+          <text x="430" y="159" fill="#58a6ff" font-size="10" text-anchor="middle" font-family="sans-serif">VarRef "Foo"</text>
+
+          <!-- Reference attribute arrow (cross-tree!) -->
+          <path d="M 430 170 C 430 200, 120 200, 120 170" stroke="#f85149" stroke-width="2" fill="none" marker-end="url(#arrowRef)"/>
+          <text x="275" y="198" fill="#f85149" font-size="10" text-anchor="middle" font-weight="600" font-family="monospace">ref: lookup("Foo") &rarr; ClassDecl</text>
+          <text x="275" y="213" fill="#8b949e" font-size="9" text-anchor="middle" font-family="sans-serif">Reference attribute creates a non-tree edge</text>
+
+          <defs>
+            <marker id="arrowRef" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0,0 8,3 0,6" fill="#f85149"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="card">
+        <h4>JastAdd: The Reference AG System</h4>
+        <p><strong>JastAdd</strong> (Hedin, Lund University) is the most prominent RAG system. Key features:</p>
+        <ul>
+          <li><strong>Reference attributes</strong> return pointers to other tree nodes, enabling name resolution, type lookup, and cross-references</li>
+          <li><strong>Demand-driven evaluation</strong> with memoization &mdash; attributes computed on first access</li>
+          <li><strong>Circular attribute support</strong> for fixed-point computations (e.g., data-flow analysis)</li>
+          <li><strong>Aspect-oriented</strong> &mdash; attribute definitions can be spread across multiple modules</li>
+          <li>Used to build <strong>ExtendJ</strong> (a full Java compiler) and <strong>JModelica</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="ho-circular">
+      <h3>Circular Attribute Grammars</h3>
+      <p>Standard AGs require the dependency graph to be <strong>acyclic</strong>. Circular AGs allow <strong>cycles</strong> in dependencies, resolved by <strong>fixed-point iteration</strong>.</p>
+
+      <div class="card hl-orange">
+        <h4>How Fixed-Point Evaluation Works</h4>
+        <ol>
+          <li><span class="num num-orange">1</span> Initialize all circular attributes to a <strong>bottom</strong> value (e.g., empty set, false)</li>
+          <li><span class="num num-orange">2</span> Evaluate all equations &mdash; some values change</li>
+          <li><span class="num num-orange">3</span> Re-evaluate until <strong>no values change</strong> (fixed point reached)</li>
+          <li><span class="num num-orange">4</span> Guaranteed to terminate if the attribute domain forms a lattice of finite height</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h4>Example: Liveness Analysis</h4>
+        <pre><code><span class="cm">// Live variables: a classic circular attribute</span>
+<span class="cm">// live_out depends on successors' live_in,</span>
+<span class="cm">// live_in depends on live_out &mdash; a cycle!</span>
+
+<span class="kw">circular</span> live_in: Set&lt;Var&gt; = <span class="kw">new</span> Set()  <span class="cm">// bottom: empty set</span>
+<span class="kw">circular</span> live_out: Set&lt;Var&gt; = <span class="kw">new</span> Set()
+
+stmt.live_in  = (stmt.live_out &minus; stmt.defs) &cup; stmt.uses
+stmt.live_out = stmt.successors.flatMap(s &rarr; s.live_in)
+
+<span class="cm">// Iterate until fixed point:</span>
+<span class="cm">// Round 1: live_in = uses (since live_out starts empty)</span>
+<span class="cm">// Round 2: live_out picks up successor live_in values</span>
+<span class="cm">// Round 3: live_in grows as live_out grows</span>
+<span class="cm">// ... until stable</span></code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 10: SYSTEMS MAP -->
+<!-- ================================================================= -->
+<div class="section" id="sec-systems">
+  <div class="section-header" onclick="toggleSection('sec-systems')">
+    <span class="chevron">&#9654;</span>
+    <h2>Systems Map: Who Supports What</h2>
+    <span class="badge badge-blue">Reference</span>
+  </div>
+  <div class="section-body">
+    <table>
+      <tr>
+        <th>System</th>
+        <th>Language</th>
+        <th>Demand-Driven</th>
+        <th>Memoized</th>
+        <th>Incremental</th>
+        <th>Higher-Order</th>
+        <th>References</th>
+        <th>Circular</th>
+        <th>Strategic</th>
+      </tr>
+      <tr>
+        <td><strong>JastAdd</strong></td>
+        <td>Java</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-yellow)">Partial</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+      </tr>
+      <tr>
+        <td><strong>Silver</strong></td>
+        <td>Silver/Java</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--accent-green)">Yes</td>
+      </tr>
+      <tr>
+        <td><strong>Kiama</strong></td>
+        <td>Scala</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+      </tr>
+      <tr>
+        <td><strong>Aster</strong></td>
+        <td>Stratego</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--accent-green)">Yes</td>
+      </tr>
+      <tr>
+        <td><strong>OOLAG</strong></td>
+        <td>Scala</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--accent-yellow)">Detect</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+      </tr>
+      <tr>
+        <td><strong>Synth. Gen.</strong></td>
+        <td>C</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+      </tr>
+      <tr>
+        <td><strong>DAG</strong></td>
+        <td>Perl</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes (mtime)</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+      </tr>
+      <tr>
+        <td><strong>@ksc/ag</strong></td>
+        <td>TypeScript</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+        <td style="color:var(--accent-green)">Yes</td>
+        <td style="color:var(--text-muted)">&mdash;</td>
+      </tr>
+    </table>
+
+    <h3>Key Papers &amp; Resources</h3>
+    <div style="margin-top:1rem;">
+      <a class="link-card" href="https://dl.acm.org/doi/10.1145/567532.567544" target="_blank">Demers, Reps, Teitelbaum (1981) &mdash; Incremental Evaluation</a>
+      <a class="link-card" href="https://dl.acm.org/doi/10.1145/73141.74830" target="_blank">Vogt, Swierstra, Kuiper (1989) &mdash; Higher-Order AGs</a>
+      <a class="link-card" href="https://www.sciencedirect.com/science/article/pii/S0022000004001345" target="_blank">Neven, Schwentick, Vianu (2003) &mdash; AGs for Unranked Trees</a>
+      <a class="link-card" href="https://repositorium.uminho.pt/server/api/core/bitstreams/d3347045-b460-4fa4-a583-d27274de1f4a/content" target="_blank">Sim&otilde;es &amp; Almeida &mdash; Directory AGs</a>
+      <a class="link-card" href="https://dl.acm.org/doi/10.1145/3236774" target="_blank">Mokhov, Mitchell, Jones (2018) &mdash; Build Systems &agrave; la Carte</a>
+      <a class="link-card" href="https://link.springer.com/chapter/10.1007/978-3-642-00722-4_11" target="_blank">Kats, Sloane, Visser (2009) &mdash; Decorated AGs</a>
+      <a class="link-card" href="https://melt.cs.umn.edu/silver/" target="_blank">Silver &mdash; MELT Group (Minnesota)</a>
+      <a class="link-card" href="https://www.researchgate.net/publication/222429290" target="_blank">JastAdd &mdash; Circular Reference AGs</a>
+      <a class="link-card" href="https://www.scitepress.org/Papers/2019/73728/pdf/index.html" target="_blank">Steinlechner et al. (2019) &mdash; AGs for Scene Graphs</a>
+      <a class="link-card" href="https://github.com/salsa-rs/salsa" target="_blank">Salsa &mdash; Incremental Computation (Rust)</a>
+      <a class="link-card" href="https://dl.acm.org/doi/10.1145/2594291.2594324" target="_blank">Adapton (2014) &mdash; Demand-Driven Incremental Computation</a>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- SECTION 11: QUIZ -->
+<!-- ================================================================= -->
+<div class="section" id="sec-quiz">
+  <div class="section-header open" onclick="toggleSection('sec-quiz')">
+    <span class="chevron">&#9654;</span>
+    <h2>Flashcard Quiz</h2>
+    <span class="badge badge-pink">Review</span>
+  </div>
+  <div class="section-body">
+    <p>Click each question to reveal the answer.</p>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What does "DAG = AG + Makefiles" mean?</div>
+      <div class="hint">Think about how attribute evaluation relates to file timestamps...</div>
+      <div class="a"><strong>A:</strong> Directory Attribute Grammars treat the file system as a tree, with attribute equations generating derived files (thumbnails, index pages). Like <code>make</code>, attributes are only recomputed when their source files are newer than the output &mdash; combining AG semantics with Makefile-style incremental builds.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is "early termination" in incremental AG evaluation?</div>
+      <div class="hint">What happens when a re-evaluated attribute produces the same value as before?</div>
+      <div class="a"><strong>A:</strong> When an attribute is re-evaluated and produces the <em>same value</em> as before, the change propagation stops along that dependency path. This means the cost of re-evaluation is proportional to the semantic change, not the syntactic edit.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: How do extended AGs differ from standard AGs for document processing?</div>
+      <div class="hint">Think about the number of children each node can have in XML vs an AST...</div>
+      <div class="a"><strong>A:</strong> Standard AGs work on ranked trees where each production has a fixed number of children. Extended AGs handle <em>unranked</em> trees (like XML/HTML) where nodes can have arbitrarily many children, using regular expressions on the right-hand side of productions and fold-based attribute equations.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: How does Build Systems &agrave; la Carte relate AG evaluation to build tools?</div>
+      <div class="hint">Two orthogonal questions: how to find dependencies, and how to schedule...</div>
+      <div class="a"><strong>A:</strong> The paper decomposes build systems along two axes: <em>dependency discovery</em> (static vs dynamic) and <em>scheduling</em> (topological vs restarting). Make ≈ ordered AG (static deps, topo sort). Shake ≈ demand-driven AG (dynamic deps). Bazel ≈ memoized AG (content-addressed caching).</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is a higher-order attribute?</div>
+      <div class="hint">What if an attribute's value isn't a number or string, but a tree?</div>
+      <div class="a"><strong>A:</strong> A higher-order attribute has a value that is itself a <em>tree</em>. This new tree gets grafted into the AG and decorated with its own attributes. Use cases include desugaring (translating surface syntax to core syntax) and multi-phase compilation. The AG must create finitely many trees to guarantee termination.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What problem do Reference Attribute Grammars (RAGs) solve?</div>
+      <div class="hint">Standard AGs only allow information flow along tree edges...</div>
+      <div class="a"><strong>A:</strong> RAGs allow attributes to reference arbitrary nodes in the tree, not just parents/children. This enables name resolution and type lookup without threading information through the entire tree. A <code>VarRef</code> node's <code>decl</code> attribute can directly point to the <code>VarDecl</code> node it refers to, wherever it is in the tree.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: How do circular attribute grammars handle cycles in the dependency graph?</div>
+      <div class="hint">Think about data-flow analysis algorithms...</div>
+      <div class="a"><strong>A:</strong> Circular attributes are initialized to a bottom value (e.g., empty set), then all equations are repeatedly evaluated until no values change (fixed-point iteration). This terminates if the attribute domains form lattices of finite height. JastAdd supports this natively for analyses like liveness and reaching definitions.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What distinguishes strategic AGs from traditional AGs?</div>
+      <div class="hint">Who controls the traversal order?</div>
+      <div class="a"><strong>A:</strong> In traditional AGs, the evaluator controls traversal order. In strategic AGs, the AG author specifies <em>both</em> equations and <em>traversal strategies</em> (top-down, bottom-up, innermost). This separation of "what to do" from "how to traverse" comes from strategic programming (Stratego). Silver's strategy attributes even allow rewriting on decorated (attribute-bearing) trees.</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="q">Q: What is OOLAG and where is it used?</div>
+      <div class="hint">Think about lazy vals in Scala...</div>
+      <div class="a"><strong>A:</strong> Object-Oriented Lazy Attribute Grammars (OOLAG) represent the AST as a standard object graph with <code>lazy val</code> properties. Attributes are evaluated on first access and cached. Used in <strong>Apache Daffodil</strong> (a DFDL data format parser). Self-organizing with no pass structure needed, but no true incrementality &mdash; tree changes require rebuilding.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// Section toggle
+function toggleSection(id) {
+  const sec = document.getElementById(id);
+  const header = sec.querySelector('.section-header');
+  header.classList.toggle('open');
+}
+
+// Tab switching
+function showTab(groupId, panelId) {
+  const group = document.getElementById(groupId);
+  const parent = group.parentElement;
+  parent.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  parent.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(panelId).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Sticky nav highlight
+const tocLinks = document.querySelectorAll('.toc-link');
+const sections = document.querySelectorAll('.section');
+
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 100) current = s.id;
+  });
+  tocLinks.forEach(l => {
+    l.classList.remove('active');
+    if (l.getAttribute('href') === '#' + current) l.classList.add('active');
+  });
+});
+
+// Incremental evaluation demo
+const incrSteps = [
+  { status: 'All attributes evaluated. Tree is stable.', highlights: {} },
+  {
+    status: 'User edits the Init node (changes "0" to "hello") — type mismatch introduced.',
+    highlights: { 'n-init': '#d29922' },
+    attrs: { 'a-init': { text: 'errors: 1', color: '#f85149' } }
+  },
+  {
+    status: 'Mark transitively affected: Init → VarDecl → Program (along dependency edges).',
+    highlights: { 'n-init': '#d29922', 'n-var': '#d29922', 'n-root': '#d29922' },
+    attrs: {
+      'a-init': { text: 'errors: ?', color: '#d29922' },
+      'a-var': { text: 'errors: ?', color: '#d29922' },
+      'a-root': { text: 'errors: ?', color: '#d29922' }
+    }
+  },
+  {
+    status: 'Re-evaluate marked attributes: Init.errors=1, VarDecl.errors=1, Program.errors=1.',
+    highlights: { 'n-init': '#f85149', 'n-var': '#f85149', 'n-root': '#f85149' },
+    attrs: {
+      'a-init': { text: 'errors: 1', color: '#f85149' },
+      'a-var': { text: 'errors: 1', color: '#f85149' },
+      'a-root': { text: 'errors: 1', color: '#f85149' }
+    }
+  },
+  {
+    status: 'FuncDecl and its subtree were NOT re-evaluated — their attributes are unchanged. Only 3 of 7 nodes recomputed!',
+    highlights: { 'n-init': '#f85149', 'n-var': '#f85149', 'n-root': '#f85149' },
+    attrs: {
+      'a-init': { text: 'errors: 1', color: '#f85149' },
+      'a-var': { text: 'errors: 1', color: '#f85149' },
+      'a-root': { text: 'errors: 1', color: '#f85149' },
+      'a-func': { text: 'errors: 0', color: '#3fb950' },
+      'a-body': { text: 'errors: 0', color: '#3fb950' },
+      'a-param': { text: 'type: int', color: '#3fb950' }
+    },
+    skipped: ['n-func', 'n-param', 'n-body']
+  }
+];
+
+const defaultAttrs = {
+  'a-root': { text: 'errors: 0', color: '#3fb950' },
+  'a-func': { text: 'errors: 0', color: '#3fb950' },
+  'a-var': { text: 'errors: 0', color: '#3fb950' },
+  'a-param': { text: 'type: int', color: '#3fb950' },
+  'a-body': { text: 'errors: 0', color: '#3fb950' },
+  'a-init': { text: 'errors: 0', color: '#3fb950' }
+};
+
+const allNodes = ['n-root', 'n-func', 'n-var', 'n-param', 'n-body', 'n-init', 'n-name'];
+
+function incrStep(step) {
+  const s = incrSteps[step];
+  document.getElementById('incr-status').textContent = s.status;
+
+  // Reset all buttons
+  document.querySelectorAll('#incr-demo .eval-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === step);
+  });
+
+  // Reset all nodes
+  allNodes.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.setAttribute('stroke', '#58a6ff');
+      el.setAttribute('fill', 'rgba(88,166,255,0.15)');
+      el.setAttribute('stroke-width', '2');
+    }
+  });
+
+  // Reset all attrs to default
+  Object.entries(defaultAttrs).forEach(([id, def]) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = def.text;
+      el.setAttribute('fill', def.color);
+    }
+  });
+
+  // Apply highlights
+  if (s.highlights) {
+    Object.entries(s.highlights).forEach(([id, color]) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.setAttribute('stroke', color);
+        el.setAttribute('stroke-width', '3');
+      }
+    });
+  }
+
+  // Apply attr changes
+  if (s.attrs) {
+    Object.entries(s.attrs).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = val.text;
+        el.setAttribute('fill', val.color);
+      }
+    });
+  }
+
+  // Show skipped nodes with green glow
+  if (s.skipped) {
+    s.skipped.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.setAttribute('stroke', '#3fb950');
+        el.setAttribute('fill', 'rgba(63,185,80,0.15)');
+      }
+    });
+  }
+}
+</script>
+
+</body>
+</html>

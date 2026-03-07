@@ -7,19 +7,31 @@ How to structure the system so we can change the AG library specialization strat
 
 Before proposing solutions, here is every coupling point in the system today.
 
+> **Updated:** The architecture has been restructured into four AG modules.
+> `libs/ag/` was split into `ag-behavior/` (spec vocabulary) and `ag-interpreter/`
+> (evaluation engine). KSC specs moved to `ksc-behavior/`, orchestration to
+> `ksc-interpreter/`. `src/` no longer imports from any `ag-*` module directly.
+
 ```
                        CONSUMERS
                     (CLI, dashboard, tests)
                           |
                     KSProgramInterface        <-- clean boundary
                           |
-                      program.ts              <-- orchestration (tightly coupled)
-                     /    |    \
-           getChildren  specs   AG library
-               |       /   \      |
-          node-defs  binder checker
-             |         \   /
-          ag-schema   AST types (KSNode union)
+                      program.ts              <-- uses evaluate() from ksc-interpreter
+                     /         \
+           ast-schema        ksc-interpreter
+           /generated           |
+          (getChildren,     evaluate()
+           allKinds)       /    |    \
+                     ag-interpreter  ksc-behavior
+                     (grammar,       (binder, checker,
+                      semantics,      KindDefinition, etc.)
+                      interpret)         |
+                          |           ag-behavior
+                          |           (SpecInput, AttrDecl)
+                          |
+                       AST types (KSNode union)
 ```
 
 ### Coupling inventory
@@ -27,30 +39,34 @@ Before proposing solutions, here is every coupling point in the system today.
 | Boundary | Current coupling | Severity |
 |----------|-----------------|----------|
 | Consumer <-> Program | `KSProgramInterface` (6 methods) | **Clean** — consumers don't know about AG |
-| Program <-> AG library | Direct imports: `createGrammar`, `createSemantics`, `interpret`, `analyzeDeps` | **Tight** — program.ts is an AG client |
-| Program <-> Specs | Direct imports: `createBinderSpec()`, `createCheckerSpec()` | **Tight** — hard-coded spec list |
-| Specs <-> AG library | `SpecInput<KSNode>` format: `declarations` + `equations` + `deps` + `project` | **Tight** — specs are written in AG's vocabulary |
-| Specs <-> AST types | Import specific interfaces (`KSTypeAliasDeclaration`, etc.), cast for attribute access (`(node as any).defLookup`) | **Tight** — coupled to node shape AND to computed attribute names |
-| AG library <-> Node type | Generic `N extends object` | **Clean** — AG is node-agnostic |
-| node-defs <-> ag-schema | `defineNode()` / `defineLeaf()` calls | **Moderate** — schema library is a build-time concern |
+| Program <-> ksc-interpreter | `evaluate(root)` returns `EvaluationResult` | **Clean** — one function call |
+| ksc-interpreter <-> ag-interpreter | `createGrammar`, `createSemantics`, `interpret`, `analyzeDeps` | **Tight** — but isolated inside ksc-interpreter |
+| ksc-interpreter <-> ksc-behavior | `createBinderSpec()`, `createCheckerSpec()` | **Tight** — but isolated inside ksc-interpreter |
+| ksc-behavior <-> ag-behavior | `SpecInput<KSNode>` format: `declarations` + `equations` + `deps` + `project` | **Tight** — specs are written in AG's vocabulary |
+| ksc-behavior <-> AST types | Import specific interfaces (`KSTypeAliasDeclaration`, etc.), cast for attribute access (`(node as any).defLookup`) | **Tight** — coupled to node shape AND to computed attribute names |
+| ag-interpreter <-> ag-behavior | Generic `AttrDecl`, `SpecInput` types | **Clean** — only type imports |
+| ag-interpreter <-> Node type | Generic `N extends object` | **Clean** — AG is node-agnostic |
+| ast.ts <-> ast-schema/generated | Re-exports `getChildren`, `allKinds`, `getChildFields` | **Clean** — pure generated code, no runtime library |
 
 ### What is already well-isolated
 
 1. **Consumers** see only `KSProgramInterface`. The CLI, dashboard, and tests never touch the AG library directly. Changing the AG evaluation strategy is invisible to them.
 
-2. **The AG library itself** is generic over `N`. It doesn't know about `KSNode`. Swapping the library for a different implementation is theoretically possible without touching the library internals.
+2. **`src/` is fully insulated from AG internals.** `program.ts` calls `evaluate()` from `ksc-interpreter/` — it doesn't know about `createGrammar`, `createSemantics`, or `interpret`. All AG orchestration is encapsulated in `ksc-interpreter/evaluate.ts`.
 
-3. **Tree structure** is abstracted through `getChildren`. The AG library receives this as a function parameter, not a hard dependency.
+3. **The AG engine (`ag-interpreter/` + `ag-behavior/`)** is generic over `N`. It doesn't know about `KSNode`. Swapping the engine is possible without touching KSC-specific code.
+
+4. **Tree structure** is abstracted through `getChildren`. The AG engine receives this as a function parameter, not a hard dependency.
+
+5. **Behavior and interpretation are separated.** `ksc-behavior/` defines WHAT to compute (specs + domain types). `ksc-interpreter/` defines HOW to run it (orchestration). `ag-behavior/` defines the generic AG vocabulary. `ag-interpreter/` is the generic evaluation engine.
 
 ### What is tightly coupled
 
-1. **Specs are written in AG vocabulary.** `SpecInput` with `declarations` + `equations` is the AG library's format. A spec is not portable to a different evaluation engine without rewriting.
+1. **Specs are written in AG vocabulary.** `SpecInput` with `declarations` + `equations` is the AG library's format (from `ag-behavior/`). A spec is not portable to a different evaluation engine without rewriting.
 
 2. **Specs use `(node as any).attrName` for attribute access.** This creates invisible runtime coupling between specs — the checker reads `defLookup` which is defined by the binder, but there's no type-level or import-level trace of this dependency.
 
-3. **program.ts hard-codes the orchestration.** It knows the exact sequence: `createGrammar` -> `createSemantics` -> `interpret` -> `analyzeDeps`. Changing the evaluation strategy means rewriting program.ts.
-
-4. **Specs hard-code equation bodies as closures.** The computation logic (how to extract kind definitions, how to check imports) is fused with the AG framework's equation format. You can't take the "business logic" and plug it into a different framework without extracting it.
+3. **Specs hard-code equation bodies as closures.** The computation logic (how to extract kind definitions, how to check imports) is fused with the AG framework's equation format. You can't take the "business logic" and plug it into a different framework without extracting it.
 
 ---
 
@@ -458,26 +474,33 @@ Replace `(node as any).defLookup` with `readAttr(node, 'defLookup')` throughout.
 
 ### Resulting coupling map
 
+> **Note:** The four-module refactor (ag-behavior, ag-interpreter, ksc-behavior,
+> ksc-interpreter) has already achieved the first goal — `program.ts` no longer
+> calls AG directly. The remaining options below address the deeper coupling
+> within specs (untyped equations, `(node as any).attrName`).
+
 ```
                        CONSUMERS
                     (CLI, dashboard, tests)
                           |
                     KSProgramInterface        <-- clean (unchanged)
                           |
-                      program.ts              <-- calls AG directly (tighten later via Option 1)
-                     /    |    \
-           getChildren  specs   AG library
-               |       /   \      |
-          node-defs  wiring wiring     <-- thin layers
-                     /       \
-               analysis/       <-- pure business logic (framework-independent)
-               kind-extraction
-               import-analysis
-               violation-check
-                     |
-                  AST types
-                     |
-                  attributes.ts   <-- typed attribute access
+                      program.ts              <-- calls evaluate() from ksc-interpreter
+                          |
+                   ksc-interpreter            <-- encapsulates AG orchestration
+                     /         \
+           ksc-behavior     ag-interpreter
+              /   \
+         wiring  wiring                       <-- thin layers (if Option 2 applied)
+                  /       \
+            analysis/       <-- pure business logic (framework-independent)
+            kind-extraction
+            import-analysis
+            violation-check
+                  |
+               AST types
+                  |
+            attributes.ts   <-- typed attribute access (if Option 4 applied)
 ```
 
 The business logic layer (the expensive part to write) is now fully decoupled from the AG framework. If we later adopt a different evaluation engine, we:

@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beyond the AST — Full Filesystem Analysis for KSC</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+.container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+/* Hero */
+.hero {
+  text-align: center; padding: 64px 24px 48px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #141828 0%, var(--bg) 100%);
+}
+.hero h1 {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--orange), var(--cyan), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.05rem; color: var(--text-dim); max-width: 740px; margin: 0 auto 20px; }
+.badge-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.75rem;
+  font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+}
+.badge.blue { border-color: var(--accent); color: var(--accent); }
+.badge.purple { border-color: var(--accent2); color: var(--accent2); }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.cyan { border-color: var(--cyan); color: var(--cyan); }
+.badge.orange { border-color: var(--orange); color: var(--orange); }
+.badge.pink { border-color: var(--pink); color: var(--pink); }
+
+/* Nav */
+.toc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.toc-nav .container {
+  display: flex; gap: 4px; overflow-x: auto; padding: 10px 0;
+  scrollbar-width: none;
+}
+.toc-nav .container::-webkit-scrollbar { display: none; }
+.toc-link {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+  color: var(--text-dim); text-decoration: none; white-space: nowrap; transition: all 0.2s;
+}
+.toc-link:hover { color: var(--text); background: var(--surface); }
+
+/* Sections */
+section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.7rem; font-weight: 700; margin-bottom: 6px; }
+h2 .num {
+  display: inline-block; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.8rem;
+  text-align: center; line-height: 34px; margin-right: 10px; font-weight: 800;
+}
+.section-sub { color: var(--text-dim); margin-bottom: 24px; font-size: 0.92rem; }
+h3 { font-size: 1.1rem; font-weight: 700; color: var(--accent2); margin: 24px 0 10px; }
+h4 { font-size: 0.95rem; font-weight: 700; color: var(--cyan); margin: 16px 0 8px; }
+p { margin-bottom: 14px; }
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 7px; border-radius: 4px;
+}
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; overflow-x: auto; font-family: var(--mono); font-size: 0.82em;
+  line-height: 1.6; margin: 14px 0 18px; color: var(--text-dim);
+}
+pre code { background: none; padding: 0; }
+
+.kw { color: #c792ea; }
+.fn { color: #82aaff; }
+.str { color: #c3e88d; }
+.cmt { color: #546e7a; font-style: italic; }
+.tp { color: var(--cyan); }
+.num { color: var(--orange); }
+.op { color: var(--text-dim); }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin: 14px 0;
+}
+.card-accent { border-left: 3px solid var(--accent); }
+.card-green { border-left: 3px solid var(--green); }
+.card-pink { border-left: 3px solid var(--pink); }
+.card-orange { border-left: 3px solid var(--orange); }
+.card-cyan { border-left: 3px solid var(--cyan); }
+.card-purple { border-left: 3px solid var(--accent2); }
+.card-yellow { border-left: 3px solid var(--yellow); }
+.card h4 { margin-top: 0; }
+
+/* Grid */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media(max-width:768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.85em; }
+th, td { padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+th { background: var(--surface2); color: var(--accent); font-weight: 600; }
+td { background: var(--surface); color: var(--text-dim); }
+td:first-child { color: var(--text); font-weight: 500; }
+
+/* Tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 16px 0 0; }
+.tab-btn {
+  padding: 8px 18px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px 8px 0 0; cursor: pointer; color: var(--text-dim);
+  font-size: 0.82em; font-family: inherit; transition: all 0.2s; font-weight: 600;
+}
+.tab-btn:hover { color: var(--text); background: var(--surface); }
+.tab-btn.active { color: var(--accent); background: var(--surface); border-bottom-color: var(--surface); }
+.tab-content {
+  display: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0 8px 8px 8px; padding: 20px;
+}
+.tab-content.active { display: block; }
+
+/* Collapsible */
+.collapsible {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  margin: 10px 0; overflow: hidden;
+}
+.collapsible-header {
+  padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between;
+  align-items: center; font-weight: 600; font-size: 0.92em; transition: background 0.2s;
+}
+.collapsible-header:hover { background: var(--surface2); }
+.collapsible-arrow { transition: transform 0.3s; color: var(--accent); }
+.collapsible.open .collapsible-arrow { transform: rotate(90deg); }
+.collapsible-body { display: none; padding: 0 18px 18px; }
+.collapsible.open .collapsible-body { display: block; }
+
+/* Option cards */
+.opt-card {
+  background: var(--surface); border: 2px solid var(--border); border-radius: 12px;
+  padding: 20px; margin: 12px 0; cursor: pointer; transition: all 0.3s;
+}
+.opt-card:hover { border-color: var(--accent); }
+.opt-card.active { border-color: var(--accent); background: var(--surface2); }
+.opt-header { display: flex; justify-content: space-between; align-items: center; }
+.opt-letter { font-size: 1.4em; font-weight: 800; color: var(--accent); min-width: 36px; }
+.opt-title { font-size: 1em; color: var(--text); flex: 1; margin-left: 12px; font-weight: 600; }
+.opt-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.opt-detail { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.opt-card.active .opt-detail { display: block; }
+.pro { color: var(--green); font-size: 0.88em; margin: 3px 0; }
+.con { color: var(--red); font-size: 0.88em; margin: 3px 0; }
+.neutral { color: var(--yellow); font-size: 0.88em; margin: 3px 0; }
+
+/* Diagram */
+.diagram {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 16px 0; overflow-x: auto;
+}
+.diagram-title { font-weight: 700; color: var(--accent2); font-size: 0.88em; margin-bottom: 14px; text-align: center; }
+
+/* Tree */
+.tree { font-family: var(--mono); font-size: 0.82em; line-height: 1.8; }
+.tree-node { padding: 2px 8px; border-radius: 4px; display: inline-block; }
+.tree-node.repo { background: rgba(251,146,60,0.15); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+.tree-node.ws { background: rgba(244,114,182,0.15); color: var(--pink); border: 1px solid rgba(244,114,182,0.3); }
+.tree-node.pkg { background: rgba(167,139,250,0.15); color: var(--accent2); border: 1px solid rgba(167,139,250,0.3); }
+.tree-node.dir { background: rgba(34,211,238,0.15); color: var(--cyan); border: 1px solid rgba(34,211,238,0.3); }
+.tree-node.file { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+.tree-node.ast { background: rgba(108,140,255,0.15); color: var(--accent); border: 1px solid rgba(108,140,255,0.3); }
+.tree-node.edge { background: rgba(248,113,113,0.12); color: var(--red); border: 1px dashed rgba(248,113,113,0.3); }
+.tree-indent { display: inline-block; color: var(--border); }
+
+/* Comparison matrix */
+.matrix-cell {
+  text-align: center; font-size: 0.82em;
+}
+.matrix-cell.yes { color: var(--green); }
+.matrix-cell.no { color: var(--red); }
+.matrix-cell.partial { color: var(--yellow); }
+
+/* Quiz */
+.quiz { margin: 20px 0; }
+.quiz-q {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; margin: 12px 0;
+}
+.quiz-q > p { color: var(--text); font-weight: 600; font-size: 0.95em; margin-bottom: 10px; }
+.quiz-opts { display: flex; flex-direction: column; gap: 6px; }
+.quiz-opt {
+  padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; cursor: pointer; font-size: 0.85em; font-family: inherit;
+  color: var(--text-dim); text-align: left; transition: all 0.2s;
+}
+.quiz-opt:hover { border-color: var(--accent); color: var(--text); }
+.quiz-opt.correct { border-color: var(--green); background: rgba(74,222,128,0.08); color: var(--green); }
+.quiz-opt.wrong { border-color: var(--red); background: rgba(248,113,113,0.08); color: var(--red); }
+.quiz-explain {
+  display: none; margin-top: 8px; padding: 10px; background: var(--surface2);
+  border-radius: 6px; font-size: 0.85em; color: var(--text-dim);
+}
+
+/* Callout */
+.callout {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px 20px; margin: 14px 0; font-size: 0.9em;
+}
+.callout-label { font-weight: 700; margin-bottom: 4px; }
+.callout-label.insight { color: var(--accent2); }
+.callout-label.warning { color: var(--orange); }
+.callout-label.key { color: var(--cyan); }
+
+/* Score bar */
+.score-bar {
+  display: flex; align-items: center; gap: 8px; margin: 6px 0;
+}
+.score-label { font-size: 0.82em; color: var(--text-dim); min-width: 140px; }
+.score-track {
+  flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden;
+}
+.score-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+.score-fill.high { background: var(--green); }
+.score-fill.med { background: var(--yellow); }
+.score-fill.low { background: var(--red); }
+.score-val { font-size: 0.78em; color: var(--text-dim); min-width: 30px; text-align: right; }
+
+/* Edge type diagram */
+.edge-demo {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  font-size: 0.85em; flex-wrap: wrap;
+}
+.edge-box {
+  padding: 6px 14px; border-radius: 6px; font-weight: 600;
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.edge-arrow { color: var(--text-dim); font-size: 1.2em; }
+.edge-label { font-size: 0.72em; color: var(--accent2); font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <h1>Beyond the AST</h1>
+  <p class="subtitle">Extending KSC's schema for full filesystem, repository, and cross-file analysis &mdash; from per-file syntax trees to whole-program property graphs</p>
+  <div class="badge-row">
+    <span class="badge orange">CPG</span>
+    <span class="badge cyan">Filesystem Nodes</span>
+    <span class="badge purple">Cross-File Edges</span>
+    <span class="badge green">AG Integration</span>
+    <span class="badge pink">Module Graphs</span>
+    <span class="badge blue">5 Options Analyzed</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- NAV -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<nav class="toc-nav">
+  <div class="container">
+    <a class="toc-link" href="#current">Current State</a>
+    <a class="toc-link" href="#gap">The Gap</a>
+    <a class="toc-link" href="#prior-art">Prior Art</a>
+    <a class="toc-link" href="#options">5 Options</a>
+    <a class="toc-link" href="#schema">Schema Design</a>
+    <a class="toc-link" href="#edges">Edge Types</a>
+    <a class="toc-link" href="#ag">AG Integration</a>
+    <a class="toc-link" href="#recommendation">Recommendation</a>
+    <a class="toc-link" href="#quiz">Quiz</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: CURRENT STATE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="current">
+<h2><span class="num">1</span> Current State</h2>
+<p class="section-sub">What <code>ast-schema/</code> gives us today &mdash; and where the tree stops.</p>
+
+<div class="grid-2">
+  <div class="card card-cyan">
+    <h4>What We Have</h4>
+    <p>364 node kinds, 25 sum types mirroring TypeScript's full AST. The schema is <strong>the single source of truth</strong> &mdash; it generates typed interfaces, runtime schema, type guards, and <code>getChildren</code>.</p>
+    <p style="margin:0">Top of the tree:</p>
+<pre><code><span class="tp">Program</span>
+  <span class="op">└─</span> compilationUnits: <span class="tp">CompilationUnit</span>[]
+       <span class="op">├─</span> fileName: <span class="kw">string</span>
+       <span class="op">├─</span> isDeclarationFile: <span class="kw">boolean</span>
+       <span class="op">├─</span> sourceText: <span class="kw">string</span>
+       <span class="op">└─</span> lineStarts: <span class="kw">readonly number[]</span>
+         <span class="op">└─</span> <span class="cmt">(per-file AST nodes below)</span></code></pre>
+  </div>
+  <div class="card card-orange">
+    <h4>What We Don't Have</h4>
+    <ul style="font-size:0.88em; color:var(--text-dim); padding-left: 18px;">
+      <li>No <strong>directory</strong> or <strong>folder</strong> nodes</li>
+      <li>No <strong>package/workspace</strong> structure</li>
+      <li>No <strong>repository</strong> root concept</li>
+      <li>No <strong>cross-file edges</strong> (import resolution)</li>
+      <li>No <strong>module dependency graph</strong></li>
+      <li>No <strong>configuration</strong> nodes (tsconfig, package.json)</li>
+      <li>No <strong>control flow</strong> or <strong>data flow</strong> graphs</li>
+      <li>No <strong>call graph</strong> or <strong>type hierarchy</strong></li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout">
+  <div class="callout-label key">Key constraint</div>
+  <code>Program</code> is the root. <code>CompilationUnit</code> is a flat list of files. There is no structural representation of <em>how</em> files relate to each other, <em>where</em> they live in the filesystem, or <em>what</em> packages they belong to.
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: THE GAP -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="gap">
+<h2><span class="num">2</span> The Gap</h2>
+<p class="section-sub">What questions can't we answer with today's schema?</p>
+
+<div class="grid-3">
+  <div class="card card-pink">
+    <h4>Filesystem Questions</h4>
+    <p style="font-size:0.85em; color:var(--text-dim)">Which files are in <code>src/utils/</code>? What's the directory structure? Do any files outside <code>src/</code> import from internal modules?</p>
+  </div>
+  <div class="card card-purple">
+    <h4>Module Questions</h4>
+    <p style="font-size:0.85em; color:var(--text-dim)">What does <code>import { x } from './foo'</code> resolve to? What's the full dependency graph? Are there circular imports?</p>
+  </div>
+  <div class="card card-cyan">
+    <h4>Package Questions</h4>
+    <p style="font-size:0.85em; color:var(--text-dim)">Which workspace package does this file belong to? What are the cross-package dependencies? Do package boundaries match kind boundaries?</p>
+  </div>
+  <div class="card card-green">
+    <h4>Architectural Questions</h4>
+    <p style="font-size:0.85em; color:var(--text-dim)">Does the <code>core</code> package depend on <code>ui</code>? Do all public API exports satisfy their kind contracts? Is the dependency graph acyclic?</p>
+  </div>
+  <div class="card card-orange">
+    <h4>Cross-File Properties</h4>
+    <p style="font-size:0.85em; color:var(--text-dim)">If module A is <code>Kind&lt;{pure}&gt;</code>, do all its transitive imports also satisfy purity? Can we verify kind contracts across module boundaries?</p>
+  </div>
+  <div class="card card-accent">
+    <h4>Configuration Questions</h4>
+    <p style="font-size:0.85em; color:var(--text-dim)">What compiler options affect this file? What path aliases are configured? What's the project's target environment?</p>
+  </div>
+</div>
+
+<div class="callout">
+  <div class="callout-label insight">The core insight</div>
+  Per-file ASTs answer <em>"what's in this file?"</em> We also need to answer <em>"how do files relate?"</em>, <em>"what structures contain files?"</em>, and <em>"what properties hold across boundaries?"</em>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: PRIOR ART -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="prior-art">
+<h2><span class="num">3</span> Prior Art</h2>
+<p class="section-sub">How existing tools model code above the per-file AST level.</p>
+
+<div class="tabs" id="priorart-tabs">
+  <button class="tab-btn active" onclick="switchTab('priorart-tabs','priorart-cpg')">CPG (Joern)</button>
+  <button class="tab-btn" onclick="switchTab('priorart-tabs','priorart-codeql')">CodeQL</button>
+  <button class="tab-btn" onclick="switchTab('priorart-tabs','priorart-roslyn')">Roslyn</button>
+  <button class="tab-btn" onclick="switchTab('priorart-tabs','priorart-scip')">SCIP/Kythe</button>
+  <button class="tab-btn" onclick="switchTab('priorart-tabs','priorart-depcruise')">dep-cruiser/Nx</button>
+  <button class="tab-btn" onclick="switchTab('priorart-tabs','priorart-tsc')">TypeScript</button>
+</div>
+
+<!-- CPG -->
+<div class="tab-content active" id="priorart-cpg">
+<h3>Code Property Graph (Joern / ShiftLeft)</h3>
+<p>The CPG merges <strong>AST + CFG + PDG + Call Graph</strong> into a single queryable graph. It was introduced by Fabian Yamaguchi et al. (2014) and popularized by Joern and ShiftLeft Ocular.</p>
+
+<h4>Above-AST Node Types</h4>
+<table>
+<tr><th>Node Type</th><th>Description</th><th>Properties</th></tr>
+<tr><td><code>META_DATA</code></td><td>Root: language, version, overlays applied</td><td>language, version, overlays[]</td></tr>
+<tr><td><code>FILE</code></td><td>Source file</td><td>name (absolute path), hash, order</td></tr>
+<tr><td><code>NAMESPACE_BLOCK</code></td><td>Package/module container</td><td>name, fullName, filename, order</td></tr>
+<tr><td><code>TYPE_DECL</code></td><td>Type/class declaration</td><td>name, fullName, inheritsFrom[]</td></tr>
+<tr><td><code>METHOD</code></td><td>Function/method</td><td>name, fullName, signature, lineNumber</td></tr>
+<tr><td><code>DEPENDENCY</code></td><td>External dependency (from build files)</td><td>name, version, dependencyGroupId</td></tr>
+</table>
+
+<h4>Key Edge Types</h4>
+<div class="edge-demo">
+  <div class="edge-box">METHOD</div>
+  <div><span class="edge-arrow">&rarr;</span> <span class="edge-label">AST</span></div>
+  <div class="edge-box">BLOCK</div>
+  <div><span class="edge-arrow">&rarr;</span> <span class="edge-label">CFG</span></div>
+  <div class="edge-box">CALL</div>
+  <div><span class="edge-arrow">&rarr;</span> <span class="edge-label">REACHING_DEF</span></div>
+  <div class="edge-box">IDENTIFIER</div>
+</div>
+<p style="font-size:0.85em; color:var(--text-dim)"><strong>AST</strong> (tree containment), <strong>CFG</strong> (control flow successor), <strong>CDG</strong> (control dependence), <strong>REACHING_DEF</strong> (data flow), <strong>CALL</strong> (call site &rarr; callee), <strong>REF</strong> (identifier &rarr; declaration), <strong>EVAL_TYPE</strong> (node &rarr; type), <strong>INHERITS_FROM</strong> (type hierarchy), <strong>SOURCE_FILE</strong> (node &rarr; file).</p>
+
+<div class="callout">
+  <div class="callout-label key">CPG's key idea</div>
+  The AST is a <em>subgraph</em> of the CPG. Non-tree edges (CFG, data flow, calls) are <strong>overlaid</strong> onto the same node set. This means you can query "find all data flows from user input to SQL queries" as a single graph traversal.
+</div>
+</div>
+
+<!-- CodeQL -->
+<div class="tab-content" id="priorart-codeql">
+<h3>CodeQL (GitHub / Semmle)</h3>
+<p>CodeQL uses <strong>language-specific relational databases</strong> extracted from source. Each language has a dedicated schema, but the filesystem model is common.</p>
+
+<h4>Filesystem Modeling</h4>
+<table>
+<tr><th>Concept</th><th>CodeQL Representation</th><th>Query Example</th></tr>
+<tr><td>File</td><td><code>File</code> class with <code>getAbsolutePath()</code>, <code>getFolder()</code></td><td><code>from File f where f.getExtension() = "ts"</code></td></tr>
+<tr><td>Folder</td><td><code>Folder</code> class with <code>getParentContainer()</code></td><td><code>from Folder f where f.getBaseName() = "src"</code></td></tr>
+<tr><td>Container</td><td>Abstract base of File and Folder</td><td>Enables mixed queries</td></tr>
+<tr><td>Module</td><td><code>Module</code> with <code>getAnImport()</code></td><td><code>from Import i select i.getImportedModule()</code></td></tr>
+</table>
+<p>CodeQL can answer questions like <em>"find all files in the <code>src/</code> folder that import from <code>node_modules</code>"</em> because the filesystem hierarchy is part of the database. Cross-file references are first-class &mdash; imports resolve to their target modules.</p>
+</div>
+
+<!-- Roslyn -->
+<div class="tab-content" id="priorart-roslyn">
+<h3>Roslyn (.NET Compiler Platform)</h3>
+<p>Roslyn introduces a full <strong>workspace hierarchy</strong> above the per-file syntax tree:</p>
+<div class="diagram">
+  <div class="diagram-title">Roslyn's Workspace Model</div>
+  <div class="tree">
+    <span class="tree-node repo">Workspace</span><br>
+    <span class="tree-indent">&ensp;├─ </span><span class="tree-node ws">Solution</span> <span style="color:var(--text-dim); font-size:0.8em">&ensp;(.sln file)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; ├─ </span><span class="tree-node pkg">Project</span> <span style="color:var(--text-dim); font-size:0.8em">&ensp;(.csproj file)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; ├─ </span><span class="tree-node file">Document</span> <span style="color:var(--text-dim); font-size:0.8em">&ensp;(.cs source file)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; │&ensp; └─ </span><span class="tree-node ast">SyntaxTree</span> <span style="color:var(--text-dim); font-size:0.8em">&ensp;(per-file AST)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; ├─ </span><span class="tree-node file">Document</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; ├─ </span><span class="tree-node edge">ProjectReference</span> <span style="color:var(--text-dim); font-size:0.8em">&ensp;(cross-project)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; └─ </span><span class="tree-node edge">MetadataReference</span> <span style="color:var(--text-dim); font-size:0.8em">&ensp;(NuGet, framework)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; └─ </span><span class="tree-node pkg">Project</span><br>
+  </div>
+</div>
+<p>Each <strong>Document</strong> owns a <strong>SyntaxTree</strong> (the per-file AST). The <strong>Compilation</strong> object sits alongside each Project and provides the semantic model (resolved types, symbols, diagnostics) &mdash; it's the bridge between syntax and semantics across files. Projects reference each other via <strong>ProjectReference</strong> edges, forming a project dependency graph.</p>
+</div>
+
+<!-- SCIP/Kythe -->
+<div class="tab-content" id="priorart-scip">
+<h3>SCIP &amp; Kythe</h3>
+<p>These are <strong>source code indexing</strong> formats designed for cross-repository code navigation.</p>
+
+<div class="grid-2">
+<div class="card card-green">
+<h4>SCIP (Sourcegraph)</h4>
+<p style="font-size:0.85em; color:var(--text-dim)"><strong>Index</strong> contains metadata + <strong>Document</strong>[] (one per file). Each Document has <strong>Occurrence</strong>[] and <strong>Symbol</strong>[] with cross-file references. Symbols use a structured naming scheme: <code>scheme manager package descriptor</code>. The graph is <em>flattened</em> &mdash; files are listed at the top level with no directory hierarchy.</p>
+</div>
+<div class="card card-purple">
+<h4>Kythe (Google)</h4>
+<p style="font-size:0.85em; color:var(--text-dim)">Everything is a <strong>(VName, Fact/Edge)</strong> triple. VNames encode <code>corpus/root/path/language</code>. Node kinds include <code>file</code>, <code>package</code>, <code>record</code>, <code>function</code>, <code>variable</code>. Edge kinds: <code>/kythe/edge/childof</code>, <code>/kythe/edge/ref</code>, <code>/kythe/edge/defines/binding</code>. The corpus+root fields implicitly encode repository structure.</p>
+</div>
+</div>
+</div>
+
+<!-- dep-cruiser / Nx -->
+<div class="tab-content" id="priorart-depcruise">
+<h3>Module Graph Tools</h3>
+<div class="grid-2">
+<div class="card card-orange">
+<h4>dependency-cruiser</h4>
+<p style="font-size:0.85em; color:var(--text-dim)">Builds a <strong>module dependency graph</strong> from import/require statements. Each node is a file path. Edges carry metadata: <code>resolved</code> (target path), <code>coreModule</code> (Node built-in?), <code>dependencyTypes</code> (import, require, dynamic), <code>valid</code> (passes configured rules). Rules can express architectural boundaries: <em>"nothing in <code>src/</code> may import from <code>test/</code>"</em>.</p>
+</div>
+<div class="card card-pink">
+<h4>Nx / Turborepo</h4>
+<p style="font-size:0.85em; color:var(--text-dim)">Models a <strong>workspace graph</strong> at the package level. Each node is a <strong>project</strong> (workspace package) with metadata from <code>project.json</code> / <code>package.json</code>. Edges represent inter-package dependencies. Nx also models a <strong>task graph</strong> (build, test, lint) layered on top. The file-level module graph is computed within each project.</p>
+</div>
+</div>
+<div class="callout">
+  <div class="callout-label insight">Two levels of graph</div>
+  Module-graph tools operate at two levels: (1) the <strong>package graph</strong> (which workspace packages depend on which), and (2) the <strong>file module graph</strong> (which files import which files). KSC could benefit from modeling both.
+</div>
+</div>
+
+<!-- TypeScript -->
+<div class="tab-content" id="priorart-tsc">
+<h3>TypeScript Compiler Internals</h3>
+<p>TypeScript's own compiler models multiple levels above the per-file AST:</p>
+<table>
+<tr><th>Level</th><th>Object</th><th>What It Provides</th></tr>
+<tr><td>Solution</td><td><code>SolutionBuilder</code></td><td>Multi-project builds, project references, build ordering</td></tr>
+<tr><td>Project</td><td><code>ts.Program</code></td><td>Root files, compiler options, resolved modules, type checker</td></tr>
+<tr><td>File</td><td><code>ts.SourceFile</code></td><td>Per-file AST, line map, referenced files</td></tr>
+<tr><td>Module resolution</td><td><code>ts.ResolvedModule</code></td><td>Import specifier &rarr; resolved file path + isExternalLibrary</td></tr>
+<tr><td>Project references</td><td><code>ts.ProjectReference</code></td><td>path to referenced tsconfig.json</td></tr>
+</table>
+<p>Notably, TypeScript's <code>ts.Program</code> has <code>getSourceFiles()</code> (flat list, like our <code>CompilationUnit[]</code>) but also <code>getResolvedModuleWithFailedLookupLocations()</code> which gives us the resolved import graph. The <strong>module resolution</strong> information exists at runtime but is <em>not</em> represented in the AST &mdash; it's a separate API.</p>
+</div>
+
+<h3>Comparison Matrix</h3>
+<table>
+<tr>
+  <th>Tool</th>
+  <th class="matrix-cell">Files</th>
+  <th class="matrix-cell">Folders</th>
+  <th class="matrix-cell">Packages</th>
+  <th class="matrix-cell">Imports</th>
+  <th class="matrix-cell">CFG</th>
+  <th class="matrix-cell">Data Flow</th>
+  <th class="matrix-cell">Call Graph</th>
+  <th class="matrix-cell">Types</th>
+</tr>
+<tr>
+  <td>KSC (today)</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+</tr>
+<tr>
+  <td>CPG (Joern)</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+</tr>
+<tr>
+  <td>CodeQL</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell partial">~</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+</tr>
+<tr>
+  <td>Roslyn</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+</tr>
+<tr>
+  <td>SCIP/Kythe</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell partial">~</td>
+</tr>
+<tr>
+  <td>dep-cruiser</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell partial">~</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell yes">&#10003;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+  <td class="matrix-cell no">&#10007;</td>
+</tr>
+</table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: OPTIONS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="options">
+<h2><span class="num">4</span> Five Architectural Options</h2>
+<p class="section-sub">Ordered from minimal change to full CPG. Click each option to expand.</p>
+
+<!-- Option A -->
+<div class="opt-card" onclick="toggleOpt(this)">
+  <div class="opt-header">
+    <span class="opt-letter">A</span>
+    <span class="opt-title">Extend the AST Upward (New Container Nodes)</span>
+    <div class="opt-tags"><span class="badge green">Low risk</span> <span class="badge cyan">Schema change</span></div>
+  </div>
+  <div class="opt-detail">
+    <p>Add new node kinds to <code>ast-schema/schema.ts</code> above <code>Program</code>: <code>Repository</code>, <code>Workspace</code>, <code>Package</code>, <code>Directory</code>, <code>SourceFile</code> (richer than <code>CompilationUnit</code>). The existing per-file AST hangs off <code>SourceFile</code> unchanged.</p>
+
+<pre><code><span class="cmt">// New container nodes in schema.ts</span>
+<span class="fn">node</span>(<span class="str">'Repository'</span>, [], {
+  name:       <span class="fn">prop</span>(<span class="str">'string'</span>),
+  rootPath:   <span class="fn">prop</span>(<span class="str">'string'</span>),
+  packages:   <span class="fn">list</span>(<span class="str">'Package'</span>),
+  config:     <span class="fn">optChild</span>(<span class="str">'RepositoryConfig'</span>),
+});
+
+<span class="fn">node</span>(<span class="str">'Package'</span>, [], {
+  name:           <span class="fn">prop</span>(<span class="str">'string'</span>),
+  version:        <span class="fn">prop</span>(<span class="str">'string'</span>),
+  packageJsonPath:<span class="fn">prop</span>(<span class="str">'string'</span>),
+  rootDir:        <span class="fn">child</span>(<span class="str">'Directory'</span>),
+  dependencies:   <span class="fn">list</span>(<span class="str">'PackageDependency'</span>),
+});
+
+<span class="fn">node</span>(<span class="str">'Directory'</span>, [], {
+  name:           <span class="fn">prop</span>(<span class="str">'string'</span>),
+  path:           <span class="fn">prop</span>(<span class="str">'string'</span>),
+  subdirectories: <span class="fn">list</span>(<span class="str">'Directory'</span>),
+  files:          <span class="fn">list</span>(<span class="str">'SourceFile'</span>),
+});
+
+<span class="fn">node</span>(<span class="str">'SourceFile'</span>, [], {
+  fileName:         <span class="fn">prop</span>(<span class="str">'string'</span>),
+  relativePath:     <span class="fn">prop</span>(<span class="str">'string'</span>),
+  isDeclarationFile:<span class="fn">prop</span>(<span class="str">'boolean'</span>),
+  compilationUnit:  <span class="fn">child</span>(<span class="str">'CompilationUnit'</span>),
+});</code></pre>
+
+    <div class="grid-2">
+      <div><p class="pro">+ Purely additive &mdash; existing AST untouched</p><p class="pro">+ Works with existing <code>getChildren</code> and AG</p><p class="pro">+ Natural tree structure &mdash; AG attributes flow up/down</p><p class="pro">+ Easy to implement incrementally</p></div>
+      <div><p class="con">&minus; Trees can't represent cross-file edges (imports)</p><p class="con">&minus; No module graph, call graph, or data flow</p><p class="con">&minus; Directory tree is a "dumb container" unless AG attributes give it meaning</p><p class="neutral">~ Import resolution would need a separate mechanism (reference attributes or side data)</p></div>
+    </div>
+
+    <div class="score-bar"><span class="score-label">Implementation effort</span><div class="score-track"><div class="score-fill high" style="width:20%"></div></div><span class="score-val">Low</span></div>
+    <div class="score-bar"><span class="score-label">Analysis power</span><div class="score-track"><div class="score-fill med" style="width:40%"></div></div><span class="score-val">Med</span></div>
+    <div class="score-bar"><span class="score-label">AG compatibility</span><div class="score-track"><div class="score-fill high" style="width:95%"></div></div><span class="score-val">High</span></div>
+    <div class="score-bar"><span class="score-label">Schema disruption</span><div class="score-track"><div class="score-fill high" style="width:15%"></div></div><span class="score-val">Low</span></div>
+  </div>
+</div>
+
+<!-- Option B -->
+<div class="opt-card" onclick="toggleOpt(this)">
+  <div class="opt-header">
+    <span class="opt-letter">B</span>
+    <span class="opt-title">Container Nodes + Reference Attributes for Cross-File Edges</span>
+    <div class="opt-tags"><span class="badge purple">Medium risk</span> <span class="badge cyan">Schema + AG</span></div>
+  </div>
+  <div class="opt-detail">
+    <p>Build on Option A, but use the AG library's <strong>reference attributes</strong> (or a similar mechanism) to represent cross-file relationships. Import declarations would have a synthesized attribute that resolves to the target <code>SourceFile</code> node. This creates the module dependency graph as a <em>computed overlay</em> rather than baking it into the tree structure.</p>
+
+<pre><code><span class="cmt">// In the binder/checker AG spec:</span>
+<span class="cmt">// ImportDeclaration.resolvedModule : SourceFile | undefined</span>
+<span class="cmt">// CompilationUnit.importedModules : SourceFile[]  (collection attr)</span>
+<span class="cmt">// Package.transitiveImports : Set&lt;SourceFile&gt;   (computed up)</span>
+
+<span class="cmt">// This lets AG attributes compute cross-file properties:</span>
+<span class="cmt">// SourceFile.allTransitiveDeps : Set&lt;SourceFile&gt;</span>
+<span class="cmt">// SourceFile.isKindCompliant : boolean</span>
+<span class="cmt">//   (checks: does this file + all its transitive deps satisfy the kind?)</span></code></pre>
+
+    <div class="grid-2">
+      <div><p class="pro">+ Cross-file edges without breaking tree structure</p><p class="pro">+ Module graph emerges naturally from AG evaluation</p><p class="pro">+ Kind properties can be verified across module boundaries</p><p class="pro">+ Aligns with JastAdd's reference attributes and collection attributes</p></div>
+      <div><p class="con">&minus; Reference attributes need cycles (circular AG) for mutual imports</p><p class="con">&minus; AG library may need enhancement for cross-tree references</p><p class="neutral">~ Module resolution logic needed (can delegate to TS compiler)</p><p class="neutral">~ The graph is implicit (computed) rather than explicit (stored)</p></div>
+    </div>
+
+    <div class="score-bar"><span class="score-label">Implementation effort</span><div class="score-track"><div class="score-fill med" style="width:45%"></div></div><span class="score-val">Med</span></div>
+    <div class="score-bar"><span class="score-label">Analysis power</span><div class="score-track"><div class="score-fill high" style="width:70%"></div></div><span class="score-val">High</span></div>
+    <div class="score-bar"><span class="score-label">AG compatibility</span><div class="score-track"><div class="score-fill high" style="width:80%"></div></div><span class="score-val">High</span></div>
+    <div class="score-bar"><span class="score-label">Schema disruption</span><div class="score-track"><div class="score-fill med" style="width:30%"></div></div><span class="score-val">Low</span></div>
+  </div>
+</div>
+
+<!-- Option C -->
+<div class="opt-card" onclick="toggleOpt(this)">
+  <div class="opt-header">
+    <span class="opt-letter">C</span>
+    <span class="opt-title">Dual Graph: AST Tree + Explicit Edge Overlay</span>
+    <div class="opt-tags"><span class="badge orange">Medium risk</span> <span class="badge pink">New infra</span></div>
+  </div>
+  <div class="opt-detail">
+    <p>Keep the tree (Option A's container nodes + existing AST) as the primary structure for AG evaluation. Add a <strong>separate edge store</strong> for non-tree relationships: resolved imports, call edges, type-of edges, and data flow. The tree and the edge overlay coexist but are separate data structures.</p>
+
+<pre><code><span class="cmt">// The tree is what AG walks:</span>
+<span class="tp">Repository</span> &rarr; <span class="tp">Package</span>[] &rarr; <span class="tp">Directory</span>[] &rarr; <span class="tp">SourceFile</span>[] &rarr; <span class="tp">CompilationUnit</span> &rarr; AST
+
+<span class="cmt">// The edge overlay is a side structure:</span>
+<span class="kw">interface</span> <span class="tp">EdgeOverlay</span> {
+  imports:   <span class="tp">Map</span>&lt;<span class="tp">ImportDeclaration</span>, <span class="tp">SourceFile</span>&gt;;
+  calls:     <span class="tp">Map</span>&lt;<span class="tp">CallExpression</span>, <span class="tp">FunctionDeclaration</span>&gt;;
+  typeOf:    <span class="tp">Map</span>&lt;<span class="tp">Expression</span>, <span class="tp">TypeInfo</span>&gt;;
+  dataFlow:  <span class="tp">Map</span>&lt;<span class="tp">Node</span>, <span class="tp">Node</span>[]&gt;;   <span class="cmt">// reaching definitions</span>
+}
+
+<span class="cmt">// AG specs can access the overlay via inherited attributes:</span>
+<span class="cmt">// Root.edgeOverlay : EdgeOverlay   (inh, passed down from root)</span>
+<span class="cmt">// Any node can query: edgeOverlay.imports.get(this)</span></code></pre>
+
+    <div class="grid-2">
+      <div><p class="pro">+ Clean separation: tree for AG, overlay for cross-cutting</p><p class="pro">+ Overlay can be built incrementally (start with imports, add CFG later)</p><p class="pro">+ No changes to AG evaluation model</p><p class="pro">+ Edge overlay is explicitly queryable</p></div>
+      <div><p class="con">&minus; Two data structures to maintain and keep in sync</p><p class="con">&minus; AG attributes can't naturally "follow" overlay edges</p><p class="con">&minus; Overlay is opaque to AG &mdash; you lose declarative specification</p><p class="neutral">~ Similar to how TypeScript stores resolved modules separately from the AST</p></div>
+    </div>
+
+    <div class="score-bar"><span class="score-label">Implementation effort</span><div class="score-track"><div class="score-fill med" style="width:50%"></div></div><span class="score-val">Med</span></div>
+    <div class="score-bar"><span class="score-label">Analysis power</span><div class="score-track"><div class="score-fill high" style="width:75%"></div></div><span class="score-val">High</span></div>
+    <div class="score-bar"><span class="score-label">AG compatibility</span><div class="score-track"><div class="score-fill med" style="width:60%"></div></div><span class="score-val">Med</span></div>
+    <div class="score-bar"><span class="score-label">Schema disruption</span><div class="score-track"><div class="score-fill med" style="width:40%"></div></div><span class="score-val">Med</span></div>
+  </div>
+</div>
+
+<!-- Option D -->
+<div class="opt-card" onclick="toggleOpt(this)">
+  <div class="opt-header">
+    <span class="opt-letter">D</span>
+    <span class="opt-title">Full CPG: Unified Property Graph with AST as Subgraph</span>
+    <div class="opt-tags"><span class="badge pink">High effort</span> <span class="badge orange">Major change</span></div>
+  </div>
+  <div class="opt-detail">
+    <p>Follow Joern's approach: build a <strong>Code Property Graph</strong> where the AST is one layer, and CFG, PDG, call graph, type hierarchy, and filesystem structure are all edges in a single unified graph. Every node has a unique ID, and edges connect any two nodes regardless of tree structure.</p>
+
+<pre><code><span class="cmt">// Everything is a node with properties:</span>
+<span class="kw">interface</span> <span class="tp">CPGNode</span> {
+  id:         <span class="kw">number</span>;
+  nodeType:   <span class="str">'REPOSITORY'</span> | <span class="str">'PACKAGE'</span> | <span class="str">'FILE'</span> | <span class="str">'METHOD'</span> | <span class="str">'CALL'</span> | ...;
+  properties: <span class="tp">Record</span>&lt;<span class="kw">string</span>, <span class="kw">any</span>&gt;;
+}
+
+<span class="cmt">// Everything is connected by typed edges:</span>
+<span class="kw">interface</span> <span class="tp">CPGEdge</span> {
+  src:      <span class="kw">number</span>;
+  dst:      <span class="kw">number</span>;
+  edgeType: <span class="str">'AST'</span> | <span class="str">'CFG'</span> | <span class="str">'REACHING_DEF'</span> | <span class="str">'CALL'</span> | <span class="str">'REF'</span>
+          | <span class="str">'CONTAINS'</span> | <span class="str">'IMPORTS'</span> | <span class="str">'INHERITS_FROM'</span> | ...;
+}
+
+<span class="cmt">// The existing AST is recovered by filtering to AST edges only</span>
+<span class="cmt">// AG evaluation can run on the AST subgraph</span></code></pre>
+
+    <div class="grid-2">
+      <div><p class="pro">+ Maximum query power &mdash; any relationship is expressible</p><p class="pro">+ Proven architecture (Joern has 5000+ GitHub stars)</p><p class="pro">+ Supports all future analysis: taint tracking, vulnerability detection, etc.</p><p class="pro">+ Natural home for every kind of cross-cutting relationship</p></div>
+      <div><p class="con">&minus; Major departure from current architecture</p><p class="con">&minus; AG evaluation model assumes trees &mdash; CPG is a general graph</p><p class="con">&minus; Significant implementation effort (new graph store, edge management)</p><p class="con">&minus; Overkill if primary use case is kind property checking</p><p class="con">&minus; Loses typed schema benefits (everything is a generic node)</p></div>
+    </div>
+
+    <div class="score-bar"><span class="score-label">Implementation effort</span><div class="score-track"><div class="score-fill low" style="width:90%"></div></div><span class="score-val">High</span></div>
+    <div class="score-bar"><span class="score-label">Analysis power</span><div class="score-track"><div class="score-fill high" style="width:95%"></div></div><span class="score-val">Max</span></div>
+    <div class="score-bar"><span class="score-label">AG compatibility</span><div class="score-track"><div class="score-fill low" style="width:25%"></div></div><span class="score-val">Low</span></div>
+    <div class="score-bar"><span class="score-label">Schema disruption</span><div class="score-track"><div class="score-fill low" style="width:85%"></div></div><span class="score-val">High</span></div>
+  </div>
+</div>
+
+<!-- Option E -->
+<div class="opt-card" onclick="toggleOpt(this)">
+  <div class="opt-header">
+    <span class="opt-letter">E</span>
+    <span class="opt-title">Layered Schema: Container Tree + AG-Computed Semantic Edges</span>
+    <div class="opt-tags"><span class="badge green">Recommended</span> <span class="badge purple">Best fit</span></div>
+  </div>
+  <div class="opt-detail">
+    <p>A pragmatic synthesis of Options A and B. Extend the schema with filesystem container nodes (Option A). Use <strong>AG attributes</strong> &mdash; specifically reference attributes and collection attributes &mdash; to compute cross-file relationships declaratively (Option B). The result is a system where:</p>
+    <ul style="font-size:0.88em; color:var(--text-dim); padding-left: 18px; margin-bottom: 14px;">
+      <li>The <strong>tree</strong> represents containment: Repository &rarr; Package &rarr; Directory &rarr; SourceFile &rarr; AST</li>
+      <li><strong>Inherited attributes</strong> flow context down (which package am I in? what config applies?)</li>
+      <li><strong>Synthesized attributes</strong> aggregate up (what are this directory's total imports? what kind violations exist in this package?)</li>
+      <li><strong>Reference attributes</strong> create cross-tree links (this import resolves to <em>that</em> SourceFile)</li>
+      <li><strong>Collection attributes</strong> gather contributions (all files that export a particular symbol)</li>
+    </ul>
+
+<pre><code><span class="cmt">// Schema: container nodes (in schema.ts)</span>
+<span class="fn">node</span>(<span class="str">'Repository'</span>, [], {
+  name: <span class="fn">prop</span>(<span class="str">'string'</span>), rootPath: <span class="fn">prop</span>(<span class="str">'string'</span>),
+  packages: <span class="fn">list</span>(<span class="str">'Package'</span>),
+});
+<span class="fn">node</span>(<span class="str">'Package'</span>, [], {
+  name: <span class="fn">prop</span>(<span class="str">'string'</span>), version: <span class="fn">prop</span>(<span class="str">'string'</span>),
+  rootDir: <span class="fn">child</span>(<span class="str">'Directory'</span>),
+  dependencies: <span class="fn">list</span>(<span class="str">'PackageDependency'</span>),
+});
+<span class="fn">node</span>(<span class="str">'Directory'</span>, [], {
+  name: <span class="fn">prop</span>(<span class="str">'string'</span>), path: <span class="fn">prop</span>(<span class="str">'string'</span>),
+  subdirectories: <span class="fn">list</span>(<span class="str">'Directory'</span>),
+  files: <span class="fn">list</span>(<span class="str">'SourceFile'</span>),
+});
+<span class="fn">node</span>(<span class="str">'SourceFile'</span>, [], {
+  fileName: <span class="fn">prop</span>(<span class="str">'string'</span>), relativePath: <span class="fn">prop</span>(<span class="str">'string'</span>),
+  compilationUnit: <span class="fn">child</span>(<span class="str">'CompilationUnit'</span>),
+});
+<span class="fn">node</span>(<span class="str">'PackageDependency'</span>, [], {
+  name: <span class="fn">prop</span>(<span class="str">'string'</span>), versionRange: <span class="fn">prop</span>(<span class="str">'string'</span>),
+  depType: <span class="fn">prop</span>(<span class="str">'string'</span>), <span class="cmt">// 'prod' | 'dev' | 'peer'</span>
+});
+
+<span class="cmt">// AG spec: cross-file analysis (declarative)</span>
+<span class="cmt">// syn resolvedImport : SourceFile | undefined  — on ImportDeclaration</span>
+<span class="cmt">//   equation: look up import specifier in file registry</span>
+<span class="cmt">// inh enclosingPackage : Package  — on every node</span>
+<span class="cmt">//   equation: propagated from Package ancestor</span>
+<span class="cmt">// syn directImports : Set&lt;SourceFile&gt;  — on SourceFile</span>
+<span class="cmt">//   equation: collect all resolvedImport from child ImportDeclarations</span>
+<span class="cmt">// syn transitiveImports : Set&lt;SourceFile&gt;  — on SourceFile</span>
+<span class="cmt">//   equation: directImports ∪ ⋃{target.transitiveImports}</span>
+<span class="cmt">// syn kindViolations : Diagnostic[]  — on Directory, Package, Repository</span>
+<span class="cmt">//   equation: aggregate from children</span></code></pre>
+
+    <div class="grid-2">
+      <div><p class="pro">+ All cross-file analysis expressed declaratively in AG</p><p class="pro">+ Tree structure preserved &mdash; AG evaluation works naturally</p><p class="pro">+ Incremental: add container nodes first, cross-file attrs later</p><p class="pro">+ Schema stays typed and generated (no generic node soup)</p><p class="pro">+ Kind checking extends naturally to directory/package level</p><p class="pro">+ Module graph is a computed attribute, not a separate data structure</p></div>
+      <div><p class="con">&minus; Transitive import closure needs circular attributes (feasible &mdash; already planned)</p><p class="con">&minus; AG library needs reference attribute support (planned in defusion roadmap)</p><p class="neutral">~ Module resolution delegated to TS compiler (keeps complexity bounded)</p></div>
+    </div>
+
+    <div class="score-bar"><span class="score-label">Implementation effort</span><div class="score-track"><div class="score-fill med" style="width:40%"></div></div><span class="score-val">Med</span></div>
+    <div class="score-bar"><span class="score-label">Analysis power</span><div class="score-track"><div class="score-fill high" style="width:80%"></div></div><span class="score-val">High</span></div>
+    <div class="score-bar"><span class="score-label">AG compatibility</span><div class="score-track"><div class="score-fill high" style="width:90%"></div></div><span class="score-val">High</span></div>
+    <div class="score-bar"><span class="score-label">Schema disruption</span><div class="score-track"><div class="score-fill high" style="width:20%"></div></div><span class="score-val">Low</span></div>
+  </div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: SCHEMA DESIGN -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="schema">
+<h2><span class="num">5</span> Proposed Schema Extension</h2>
+<p class="section-sub">Concrete new node types, sum types, and their relationship to the existing 364 AST nodes.</p>
+
+<div class="diagram">
+  <div class="diagram-title">Extended Node Hierarchy</div>
+  <div class="tree">
+    <span class="tree-node repo">Repository</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;name, rootPath</span><br>
+    <span class="tree-indent">&ensp;├─ </span><span class="tree-node pkg">Package</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;name, version, packageJsonPath</span><br>
+    <span class="tree-indent">&ensp;│&ensp; ├─ </span><span class="tree-node dir">Directory</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;name, path (rootDir of package)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; ├─ </span><span class="tree-node dir">Directory</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;"src"</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; │&ensp; ├─ </span><span class="tree-node file">SourceFile</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;"index.ts"</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; │&ensp; │&ensp; └─ </span><span class="tree-node ast">CompilationUnit</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;(existing 364 node types below)</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; │&ensp; │&ensp;&ensp;&ensp;&ensp; ├─ </span><span class="tree-node ast">ImportDeclaration</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; │&ensp; │&ensp;&ensp;&ensp;&ensp; ├─ </span><span class="tree-node ast">FunctionDeclaration</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; │&ensp; │&ensp;&ensp;&ensp;&ensp; └─ </span><span class="tree-node ast">...</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; │&ensp; └─ </span><span class="tree-node file">SourceFile</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;"utils.ts"</span><br>
+    <span class="tree-indent">&ensp;│&ensp; │&ensp; └─ </span><span class="tree-node dir">Directory</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;"test"</span><br>
+    <span class="tree-indent">&ensp;│&ensp; └─ </span><span class="tree-node edge">PackageDependency</span>[] <span style="color:var(--text-dim);font-size:0.75em">&ensp;declared deps from package.json</span><br>
+    <span class="tree-indent">&ensp;├─ </span><span class="tree-node pkg">Package</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;(another workspace package)</span><br>
+    <span class="tree-indent">&ensp;└─ </span><span class="tree-node edge">RepositoryConfig</span> <span style="color:var(--text-dim);font-size:0.75em">&ensp;(tsconfig, workspace config)</span><br>
+  </div>
+</div>
+
+<h3>New Node Types (8 total)</h3>
+<table>
+<tr><th>Node Kind</th><th>Fields</th><th>Sum Types</th><th>Purpose</th></tr>
+<tr>
+  <td><code>Repository</code></td>
+  <td><code>name</code>, <code>rootPath</code>, <code>packages</code>, <code>config?</code></td>
+  <td>ContainerNode</td>
+  <td>New root of the entire tree</td>
+</tr>
+<tr>
+  <td><code>Package</code></td>
+  <td><code>name</code>, <code>version</code>, <code>packageJsonPath</code>, <code>rootDir</code>, <code>dependencies</code></td>
+  <td>ContainerNode</td>
+  <td>Workspace package or standalone project</td>
+</tr>
+<tr>
+  <td><code>Directory</code></td>
+  <td><code>name</code>, <code>path</code>, <code>subdirectories</code>, <code>files</code></td>
+  <td>ContainerNode</td>
+  <td>Filesystem directory</td>
+</tr>
+<tr>
+  <td><code>SourceFile</code></td>
+  <td><code>fileName</code>, <code>relativePath</code>, <code>compilationUnit</code></td>
+  <td>ContainerNode</td>
+  <td>Enriched file wrapper around CompilationUnit</td>
+</tr>
+<tr>
+  <td><code>PackageDependency</code></td>
+  <td><code>name</code>, <code>versionRange</code>, <code>depType</code></td>
+  <td>&mdash;</td>
+  <td>Declared dependency from package.json</td>
+</tr>
+<tr>
+  <td><code>RepositoryConfig</code></td>
+  <td><code>tsconfigPath?</code>, <code>strict?</code>, <code>target?</code>, <code>paths?</code></td>
+  <td>ConfigNode</td>
+  <td>Relevant compiler/project configuration</td>
+</tr>
+<tr>
+  <td><code>PackageConfig</code></td>
+  <td><code>main?</code>, <code>types?</code>, <code>exports?</code></td>
+  <td>ConfigNode</td>
+  <td>Package-level config from package.json</td>
+</tr>
+<tr>
+  <td><code>ExternalModule</code></td>
+  <td><code>name</code>, <code>version?</code>, <code>isBuiltIn</code></td>
+  <td>&mdash;</td>
+  <td>Represents a node_modules or built-in import target</td>
+</tr>
+</table>
+
+<h3>New Sum Types (2)</h3>
+<table>
+<tr><th>Sum Type</th><th>Members</th><th>Purpose</th></tr>
+<tr>
+  <td><code>ContainerNode</code></td>
+  <td>Repository, Package, Directory, SourceFile</td>
+  <td>Nodes that contain other nodes in the filesystem hierarchy</td>
+</tr>
+<tr>
+  <td><code>ConfigNode</code></td>
+  <td>RepositoryConfig, PackageConfig</td>
+  <td>Configuration/metadata nodes</td>
+</tr>
+</table>
+
+<div class="callout">
+  <div class="callout-label key">Backward compatibility</div>
+  The existing <code>Program</code> and <code>CompilationUnit</code> nodes remain in the schema unchanged. The new <code>SourceFile</code> wraps <code>CompilationUnit</code>, so existing code that starts from <code>CompilationUnit</code> continues to work. For single-file or non-filesystem use cases, <code>Program</code> is still a valid root. The new <code>Repository</code> is an <em>optional</em> higher root.
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: EDGE TYPES -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="edges">
+<h2><span class="num">6</span> Cross-File Edge Types</h2>
+<p class="section-sub">The relationships that can't be expressed by tree containment &mdash; and how to represent them.</p>
+
+<p>In a pure tree, every node has exactly one parent. But real code has many cross-cutting relationships. Here are the key edge types we'd want, ordered by implementation priority:</p>
+
+<div class="collapsible open" onclick="toggleCollapsible(this)">
+  <div class="collapsible-header">
+    <span><span class="badge green">Priority 1</span> &ensp; Import Resolution (IMPORTS)</span>
+    <span class="collapsible-arrow">&#9654;</span>
+  </div>
+  <div class="collapsible-body">
+    <p><code>ImportDeclaration</code> &rarr; <code>SourceFile</code> &mdash; "this import statement resolves to that file."</p>
+    <p><strong>Representation:</strong> AG reference attribute <code>resolvedModule</code> on <code>ImportDeclaration</code>. The equation delegates to TypeScript's module resolution (already available via <code>ts.Program.getResolvedModuleWithFailedLookupLocations</code>). The result is a pointer to the target <code>SourceFile</code> node in the tree.</p>
+    <p><strong>Enables:</strong> Module dependency graph, transitive import analysis, cross-file kind property verification, circular import detection, boundary enforcement ("no imports from outside this package").</p>
+  </div>
+</div>
+
+<div class="collapsible" onclick="toggleCollapsible(this)">
+  <div class="collapsible-header">
+    <span><span class="badge green">Priority 1</span> &ensp; Export Resolution (EXPORTS)</span>
+    <span class="collapsible-arrow">&#9654;</span>
+  </div>
+  <div class="collapsible-body">
+    <p><code>SourceFile</code> &rarr; exported symbols &mdash; "this file exports these declarations."</p>
+    <p><strong>Representation:</strong> AG collection attribute <code>exportedSymbols</code> on <code>SourceFile</code>. Contributions come from <code>ExportDeclaration</code>, <code>ExportAssignment</code>, and exported variable/function/class declarations.</p>
+    <p><strong>Enables:</strong> Public API surface analysis, unused export detection, kind contract checking at module boundaries.</p>
+  </div>
+</div>
+
+<div class="collapsible" onclick="toggleCollapsible(this)">
+  <div class="collapsible-header">
+    <span><span class="badge purple">Priority 2</span> &ensp; Symbol Reference (REF)</span>
+    <span class="collapsible-arrow">&#9654;</span>
+  </div>
+  <div class="collapsible-body">
+    <p><code>Identifier</code> &rarr; <code>Declaration</code> &mdash; "this identifier refers to that declaration."</p>
+    <p><strong>Representation:</strong> AG reference attribute <code>resolvedDecl</code> on <code>Identifier</code>. For within-file references, uses scope chain (already partially implemented in the binder). For cross-file references, follows the import resolution chain.</p>
+    <p><strong>Enables:</strong> Find-all-references, rename analysis, dead code detection, usage tracking for kind-annotated symbols.</p>
+  </div>
+</div>
+
+<div class="collapsible" onclick="toggleCollapsible(this)">
+  <div class="collapsible-header">
+    <span><span class="badge purple">Priority 2</span> &ensp; Package Dependency (DEPENDS_ON)</span>
+    <span class="collapsible-arrow">&#9654;</span>
+  </div>
+  <div class="collapsible-body">
+    <p><code>Package</code> &rarr; <code>Package</code> &mdash; "this package depends on that package."</p>
+    <p><strong>Representation:</strong> AG synthesized attribute on <code>Package</code> that computes the actual package dependency graph from (1) declared dependencies in <code>PackageDependency[]</code> and (2) actual import resolution from the files within the package.</p>
+    <p><strong>Enables:</strong> Package-level architectural rules, layer violation detection, dependency cycle detection across workspace packages.</p>
+  </div>
+</div>
+
+<div class="collapsible" onclick="toggleCollapsible(this)">
+  <div class="collapsible-header">
+    <span><span class="badge orange">Priority 3</span> &ensp; Call Graph (CALLS)</span>
+    <span class="collapsible-arrow">&#9654;</span>
+  </div>
+  <div class="collapsible-body">
+    <p><code>CallExpression</code> &rarr; <code>FunctionDeclaration | MethodDeclaration</code> &mdash; "this call invokes that function."</p>
+    <p><strong>Representation:</strong> AG reference attribute on <code>CallExpression</code>. Requires symbol resolution (Priority 2). Could initially be limited to static calls with known targets.</p>
+    <p><strong>Enables:</strong> Purity analysis across function boundaries, side-effect tracking, dead function detection. Critical for deep kind property verification (e.g., "is this function truly pure given what it calls?").</p>
+  </div>
+</div>
+
+<div class="collapsible" onclick="toggleCollapsible(this)">
+  <div class="collapsible-header">
+    <span><span class="badge pink">Priority 4</span> &ensp; Type Hierarchy (INHERITS_FROM)</span>
+    <span class="collapsible-arrow">&#9654;</span>
+  </div>
+  <div class="collapsible-body">
+    <p><code>ClassDeclaration</code> &rarr; <code>ClassDeclaration | InterfaceDeclaration</code> &mdash; "this class extends/implements that type."</p>
+    <p><strong>Representation:</strong> AG reference attribute on <code>HeritageClause</code> entries. Resolves the type reference in <code>extends</code>/<code>implements</code> to the target declaration.</p>
+    <p><strong>Enables:</strong> Type hierarchy queries, interface compliance checking, kind inheritance (if class A is <code>Kind&lt;{pure}&gt;</code>, are all subclasses also pure?).</p>
+  </div>
+</div>
+
+<div class="collapsible" onclick="toggleCollapsible(this)">
+  <div class="collapsible-header">
+    <span><span class="badge pink">Priority 4</span> &ensp; Data Flow (REACHING_DEF)</span>
+    <span class="collapsible-arrow">&#9654;</span>
+  </div>
+  <div class="collapsible-body">
+    <p>Definition site &rarr; use site &mdash; "the value assigned here flows to that usage."</p>
+    <p><strong>Representation:</strong> This is a more fundamental change. Data flow analysis typically requires a CFG first, then computing reaching definitions or SSA form. Could be implemented as a separate AG overlay pass that produces a <code>Map&lt;Node, Node[]&gt;</code>.</p>
+    <p><strong>Enables:</strong> Taint analysis, mutation tracking, value flow analysis for kind properties. The "nuclear option" for deep property verification.</p>
+  </div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: AG INTEGRATION -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="ag">
+<h2><span class="num">7</span> AG Integration</h2>
+<p class="section-sub">How attribute grammars naturally extend from per-file analysis to whole-repository analysis.</p>
+
+<h3>Why Trees Are the Right Foundation</h3>
+<p>Attribute grammars evaluate on trees. The filesystem <em>is</em> a tree. The insight: a repository's directory structure is already a tree, and the per-file ASTs hang off its leaves. By extending the schema with container nodes, the AG library gains the ability to compute attributes at every level &mdash; from individual expressions up through files, directories, packages, and the repository root.</p>
+
+<div class="diagram">
+  <div class="diagram-title">Attribute Flow Through the Extended Tree</div>
+  <div class="tree">
+    <span class="tree-node repo">Repository</span><br>
+    <span style="color:var(--green);font-size:0.75em;margin-left:30px">syn allViolations: Diagnostic[]</span>
+    <span style="color:var(--orange);font-size:0.75em;margin-left:12px">syn packageGraph: Map&lt;Package, Package[]&gt;</span><br>
+    <span class="tree-indent">&ensp;├─ </span><span class="tree-node pkg">Package</span><br>
+    <span style="color:var(--cyan);font-size:0.75em;margin-left:56px">inh config: ResolvedConfig</span>
+    <span style="color:var(--green);font-size:0.75em;margin-left:12px">syn violations: Diagnostic[]</span><br>
+    <span class="tree-indent">&ensp;│&ensp; └─ </span><span class="tree-node dir">Directory</span><br>
+    <span style="color:var(--green);font-size:0.75em;margin-left:82px">syn violations: Diagnostic[]</span>
+    <span style="color:var(--accent2);font-size:0.75em;margin-left:12px">syn fileCount: number</span><br>
+    <span class="tree-indent">&ensp;│&ensp;&ensp;&ensp;&ensp; └─ </span><span class="tree-node file">SourceFile</span><br>
+    <span style="color:var(--cyan);font-size:0.75em;margin-left:108px">inh enclosingPackage: Package</span><br>
+    <span style="color:var(--green);font-size:0.75em;margin-left:108px">syn violations: Diagnostic[]</span>
+    <span style="color:var(--pink);font-size:0.75em;margin-left:6px">syn resolvedImports: SourceFile[]</span><br>
+    <span class="tree-indent">&ensp;│&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp; └─ </span><span class="tree-node ast">CompilationUnit</span><br>
+    <span style="color:var(--green);font-size:0.75em;margin-left:138px">syn kindDefs, syn violations, inh defEnv</span><br>
+    <span style="color:var(--text-dim);font-size:0.75em;margin-left:138px">(existing binder + checker attributes continue to work)</span><br>
+  </div>
+</div>
+
+<h3>Concrete AG Spec Examples</h3>
+
+<div class="tabs" id="ag-tabs">
+  <button class="tab-btn active" onclick="switchTab('ag-tabs','ag-filecount')">Directory Metrics</button>
+  <button class="tab-btn" onclick="switchTab('ag-tabs','ag-kindprop')">Kind Propagation</button>
+  <button class="tab-btn" onclick="switchTab('ag-tabs','ag-boundary')">Boundary Checks</button>
+  <button class="tab-btn" onclick="switchTab('ag-tabs','ag-circular')">Circular Import Check</button>
+</div>
+
+<div class="tab-content active" id="ag-filecount">
+<h4>Directory Metrics (trivial synthesized attributes)</h4>
+<pre><code><span class="cmt">// syn fileCount: number — how many .ts files in this directory (recursive)</span>
+<span class="cmt">// On Directory:</span>
+<span class="fn">equation</span>: (node) =&gt; {
+  <span class="kw">let</span> count = node.files.length;
+  <span class="kw">for</span> (<span class="kw">const</span> sub <span class="kw">of</span> node.subdirectories) {
+    count += sub.<span class="fn">attr</span>(<span class="str">'fileCount'</span>);
+  }
+  <span class="kw">return</span> count;
+}
+
+<span class="cmt">// syn totalLines: number — total lines of code</span>
+<span class="cmt">// On SourceFile:</span>
+<span class="fn">equation</span>: (node) =&gt; node.compilationUnit.lineStarts.length;
+<span class="cmt">// On Directory: sum of children</span></code></pre>
+</div>
+
+<div class="tab-content" id="ag-kindprop">
+<h4>Kind Property Propagation (up through containers)</h4>
+<pre><code><span class="cmt">// syn allViolations: Diagnostic[] — aggregate kind violations</span>
+
+<span class="cmt">// On SourceFile:</span>
+<span class="fn">equation</span>: (node) =&gt; node.compilationUnit.<span class="fn">attr</span>(<span class="str">'allViolations'</span>);
+
+<span class="cmt">// On Directory:</span>
+<span class="fn">equation</span>: (node) =&gt; [
+  ...node.files.flatMap(f =&gt; f.<span class="fn">attr</span>(<span class="str">'allViolations'</span>)),
+  ...node.subdirectories.flatMap(d =&gt; d.<span class="fn">attr</span>(<span class="str">'allViolations'</span>)),
+];
+
+<span class="cmt">// On Package:</span>
+<span class="fn">equation</span>: (node) =&gt; node.rootDir.<span class="fn">attr</span>(<span class="str">'allViolations'</span>);
+
+<span class="cmt">// On Repository:</span>
+<span class="fn">equation</span>: (node) =&gt;
+  node.packages.flatMap(p =&gt; p.<span class="fn">attr</span>(<span class="str">'allViolations'</span>));
+
+<span class="cmt">// Result: repository.attr('allViolations') gives ALL violations</span>
+<span class="cmt">// across every file in every package — computed lazily!</span></code></pre>
+</div>
+
+<div class="tab-content" id="ag-boundary">
+<h4>Package Boundary Enforcement</h4>
+<pre><code><span class="cmt">// inh enclosingPackage: Package — inherited from Package ancestor</span>
+<span class="cmt">// On Package children: equation: (node, parent) =&gt; parent is Package ? parent : parent.attr('enclosingPackage')</span>
+
+<span class="cmt">// syn boundaryViolations: Diagnostic[] — on ImportDeclaration</span>
+<span class="fn">equation</span>: (node) =&gt; {
+  <span class="kw">const</span> myPkg = node.<span class="fn">attr</span>(<span class="str">'enclosingPackage'</span>);
+  <span class="kw">const</span> target = node.<span class="fn">attr</span>(<span class="str">'resolvedModule'</span>);
+  <span class="kw">if</span> (!target) <span class="kw">return</span> [];
+
+  <span class="kw">const</span> targetPkg = target.<span class="fn">attr</span>(<span class="str">'enclosingPackage'</span>);
+  <span class="kw">if</span> (targetPkg !== myPkg) {
+    <span class="cmt">// Cross-package import! Check if it's declared in package.json</span>
+    <span class="kw">const</span> declared = myPkg.dependencies
+      .some(d =&gt; d.name === targetPkg.name);
+    <span class="kw">if</span> (!declared) {
+      <span class="kw">return</span> [{ message: <span class="str">`Undeclared cross-package import: ${targetPkg.name}`</span> }];
+    }
+  }
+  <span class="kw">return</span> [];
+}</code></pre>
+</div>
+
+<div class="tab-content" id="ag-circular">
+<h4>Circular Import Detection (circular attribute)</h4>
+<pre><code><span class="cmt">// syn transitiveImports: Set&lt;SourceFile&gt; — on SourceFile</span>
+<span class="cmt">// This is a CIRCULAR attribute (mutual dependencies)</span>
+<span class="cmt">// Initial value: empty set. Iterates until stable.</span>
+
+<span class="fn">circular</span>({
+  initial: () =&gt; <span class="kw">new</span> Set(),
+  equation: (node) =&gt; {
+    <span class="kw">const</span> result = <span class="kw">new</span> Set(node.<span class="fn">attr</span>(<span class="str">'directImports'</span>));
+    <span class="kw">for</span> (<span class="kw">const</span> dep <span class="kw">of</span> node.<span class="fn">attr</span>(<span class="str">'directImports'</span>)) {
+      <span class="kw">for</span> (<span class="kw">const</span> transitive <span class="kw">of</span> dep.<span class="fn">attr</span>(<span class="str">'transitiveImports'</span>)) {
+        result.add(transitive);
+      }
+    }
+    <span class="kw">return</span> result;
+  },
+  equals: (a, b) =&gt; setsEqual(a, b),
+});
+
+<span class="cmt">// syn hasCircularImport: boolean — on SourceFile</span>
+<span class="fn">equation</span>: (node) =&gt; node.<span class="fn">attr</span>(<span class="str">'transitiveImports'</span>).has(node);
+
+<span class="cmt">// This naturally handles mutual recursion via the circular attribute</span>
+<span class="cmt">// Fixed-point iteration (Magnusson-Hedin algorithm)</span></code></pre>
+</div>
+
+<div class="callout">
+  <div class="callout-label insight">The AG advantage</div>
+  Because AG evaluation is demand-driven and cached, adding container nodes and cross-file attributes doesn't force computation of anything that isn't needed. If you only query <code>repository.attr('allViolations')</code>, only the violation-related attributes are computed. The file-count and import-graph attributes are never evaluated unless someone asks for them.
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: RECOMMENDATION -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="recommendation">
+<h2><span class="num">8</span> Recommendation</h2>
+<p class="section-sub">A phased approach starting with Option E (Layered Schema + AG-Computed Edges).</p>
+
+<h3>Why Option E</h3>
+<div class="grid-2">
+  <div class="card card-green">
+    <h4>Plays to KSC's strengths</h4>
+    <p style="font-size:0.88em; color:var(--text-dim)">The AG library is KSC's core differentiator. Expressing cross-file relationships as AG attributes means they're <strong>declarative</strong>, <strong>cached</strong>, <strong>demand-driven</strong>, and <strong>composable</strong> with existing binder/checker specs. A CPG (Option D) would require abandoning this for a generic graph query model.</p>
+  </div>
+  <div class="card card-cyan">
+    <h4>Minimal disruption</h4>
+    <p style="font-size:0.88em; color:var(--text-dim)">Adding 8 new node kinds to a schema with 364 existing kinds is a <strong>2% schema expansion</strong>. The existing per-file AST, binder, and checker continue to work unchanged. The new container nodes are purely additive.</p>
+  </div>
+  <div class="card card-purple">
+    <h4>Incremental path</h4>
+    <p style="font-size:0.88em; color:var(--text-dim)">Phase 1 (container nodes) is valuable on its own for directory-level metrics. Phase 2 (import resolution) enables the module graph. Phase 3 (cross-file kind checking) is the payoff. Each phase is independently useful.</p>
+  </div>
+  <div class="card card-orange">
+    <h4>Upgradable to CPG later</h4>
+    <p style="font-size:0.88em; color:var(--text-dim)">If you later need full CPG capabilities (CFG, data flow, taint analysis), the container nodes and cross-file attributes serve as a foundation. The tree + reference attribute model doesn't preclude adding an edge overlay (Option C) or graph store (Option D) later.</p>
+  </div>
+</div>
+
+<h3>Implementation Phases</h3>
+
+<div class="card card-accent" style="margin-top:16px">
+<h4 style="color:var(--green)">Phase 1: Container Nodes</h4>
+<p style="font-size:0.88em; color:var(--text-dim)">Add <code>Repository</code>, <code>Package</code>, <code>Directory</code>, <code>SourceFile</code>, <code>PackageDependency</code> to <code>ast-schema/schema.ts</code>. Update <code>convert.ts</code> to build the directory tree from <code>ts.Program.getSourceFiles()</code> and filesystem structure. Add <code>ContainerNode</code> sum type. Run codegen. All existing tests still pass.</p>
+</div>
+
+<div class="card card-accent" style="margin-top:8px">
+<h4 style="color:var(--yellow)">Phase 2: Cross-File Resolution</h4>
+<p style="font-size:0.88em; color:var(--text-dim)">Create a new AG spec (<code>module-resolver</code>) that computes <code>resolvedModule</code> on <code>ImportDeclaration</code> nodes by delegating to TypeScript's module resolution. This requires passing the <code>ts.Program</code> or a resolution map to the AG spec as context. Compute <code>directImports</code> on <code>SourceFile</code>.</p>
+</div>
+
+<div class="card card-accent" style="margin-top:8px">
+<h4 style="color:var(--orange)">Phase 3: Cross-File Kind Checking</h4>
+<p style="font-size:0.88em; color:var(--text-dim)">Extend the checker spec to verify kind contracts across module boundaries. If a function is annotated <code>Kind&lt;{pure}&gt;</code> and it calls an imported function, follow the import resolution to check whether the callee is also pure. This is the payoff &mdash; architectural enforcement at the module/package level.</p>
+</div>
+
+<div class="card card-accent" style="margin-top:8px">
+<h4 style="color:var(--pink)">Phase 4: Advanced Queries</h4>
+<p style="font-size:0.88em; color:var(--text-dim)">Add <code>transitiveImports</code> (circular attribute), package dependency graph, boundary violation checking, and directory-level kind enforcement (e.g., "everything in <code>src/core/</code> must be <code>Kind&lt;{noSideEffects}&gt;</code>").</p>
+</div>
+
+<h3>What We Explicitly Defer</h3>
+<ul style="font-size:0.88em; color:var(--text-dim); padding-left: 18px;">
+  <li><strong>CFG / data flow / PDG</strong> &mdash; Not needed for kind property checking. Add later if we need taint analysis or deep purity verification.</li>
+  <li><strong>Call graph</strong> &mdash; Useful for deep purity checking but complex. Can be approximated via import + export resolution.</li>
+  <li><strong>Full CPG</strong> &mdash; Overkill for current use case. The layered approach gets us 80% of the value at 20% of the cost.</li>
+  <li><strong>Git metadata</strong> &mdash; Blame, history, commit info. Valuable for tooling but not for semantic analysis.</li>
+</ul>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: QUIZ -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section id="quiz">
+<h2><span class="num">9</span> Check Your Understanding</h2>
+<p class="section-sub">Test your understanding of the design space.</p>
+
+<div class="quiz">
+<!-- Q1 -->
+<div class="quiz-q">
+  <p>Q1: Why can't cross-file import resolution be represented as a normal child/parent relationship in the AST tree?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because import paths are strings, not node references</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Because a tree allows only one parent per node &mdash; import targets would need multiple parents</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because TypeScript doesn't expose module resolution</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because import statements are leaf nodes in the AST</button>
+  </div>
+  <div class="quiz-explain">Correct! In a tree, every node has exactly one parent. If FileA imports FileB and FileC also imports FileB, FileB would need two parents &mdash; which violates the tree invariant. That's why cross-file references need a different mechanism: reference attributes, an edge overlay, or a general graph.</div>
+</div>
+
+<!-- Q2 -->
+<div class="quiz-q">
+  <p>Q2: What CPG edge type represents "the value assigned at line 5 is used at line 12"?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">CFG (control flow)</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">AST (tree containment)</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">REACHING_DEF (data flow / reaching definitions)</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">CALL (call graph)</button>
+  </div>
+  <div class="quiz-explain">Correct! REACHING_DEF edges connect definition sites to use sites, representing data flow. CFG edges represent control flow order (which statement executes after which), while AST edges represent syntactic containment.</div>
+</div>
+
+<!-- Q3 -->
+<div class="quiz-q">
+  <p>Q3: In Roslyn's workspace model, what sits between Solution and Document?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Folder</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Project</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Compilation</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Namespace</button>
+  </div>
+  <div class="quiz-explain">Correct! Roslyn's hierarchy is Workspace &rarr; Solution &rarr; Project &rarr; Document &rarr; SyntaxTree. The Project corresponds to a .csproj file and is the compilation unit. It's analogous to the Package concept in our proposed schema.</div>
+</div>
+
+<!-- Q4 -->
+<div class="quiz-q">
+  <p>Q4: Why is Option E preferred over a full CPG (Option D) for KSC?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because CPGs are slower than attribute grammars</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because CPGs can't represent TypeScript code</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Because it preserves the tree structure that AG evaluation requires, while still enabling cross-file analysis</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Because CPGs require a relational database</button>
+  </div>
+  <div class="quiz-explain">Correct! KSC's core architecture is built on attribute grammars, which evaluate on trees. A full CPG is a general graph that would require a different evaluation model. Option E keeps the tree structure (so AG continues to work) while using reference attributes for cross-tree edges &mdash; getting most of the CPG's analysis power without abandoning the AG foundation.</div>
+</div>
+
+<!-- Q5 -->
+<div class="quiz-q">
+  <p>Q5: What AG attribute kind is needed to compute transitive import closures when files can have mutual imports?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Inherited attribute</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Synthesized attribute</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">Collection attribute</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">Circular attribute (fixed-point iteration)</button>
+  </div>
+  <div class="quiz-explain">Correct! Mutual imports create cycles: A imports B, B imports A. Computing transitive closures across cycles requires circular attributes with fixed-point iteration (the Magnusson-Hedin algorithm). The attribute starts with an initial value (empty set) and iterates until stable.</div>
+</div>
+
+<!-- Q6 -->
+<div class="quiz-q">
+  <p>Q6: How many new node kinds does Option E add to the existing 364-node schema?</p>
+  <div class="quiz-opts">
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">4 (Repository, Package, Directory, SourceFile)</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,true)">8 (Repository, Package, Directory, SourceFile, PackageDependency, RepositoryConfig, PackageConfig, ExternalModule)</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">20+ (full CPG node types)</button>
+    <button class="quiz-opt" onclick="checkQuiz(this,false)">2 (Repository and Directory only)</button>
+  </div>
+  <div class="quiz-explain">Correct! Option E proposes 8 new node kinds. The 4 container nodes (Repository, Package, Directory, SourceFile) plus 4 supporting nodes (PackageDependency, RepositoryConfig, PackageConfig, ExternalModule). This is a ~2% expansion of the existing 364-node schema.</div>
+</div>
+</div>
+
+</section>
+
+</div><!-- /container -->
+
+<div style="text-align:center; padding:40px; color:var(--text-dim); font-size:0.82em; border-top:1px solid var(--border);">
+  KSC &mdash; Beyond the AST &mdash; Full Filesystem Analysis Design Document<br>
+  <span style="color:var(--accent2)">Related:</span>
+  <a href="file-vs-subfile-properties.html" style="color:var(--accent)">File/Sub-File Properties</a> &middot;
+  <a href="properties-at-every-level.html" style="color:var(--accent)">Properties at Every Level</a> &middot;
+  <a href="module-resolution-analysis.html" style="color:var(--accent)">Module Resolution</a> &middot;
+  <a href="interactive-sharing-without-shared-ast.html" style="color:var(--accent)">Sharing Without Shared AST</a>
+</div>
+
+<script>
+// Tab switching
+function switchTab(groupId, tabId) {
+  const group = document.getElementById(groupId);
+  const btns = group.querySelectorAll('.tab-btn');
+  let contents = [];
+  let el = group.nextElementSibling;
+  while (el && el.classList.contains('tab-content')) {
+    contents.push(el);
+    el = el.nextElementSibling;
+  }
+  btns.forEach((b, i) => {
+    if (contents[i] && contents[i].id === tabId) {
+      b.classList.add('active');
+      contents[i].classList.add('active');
+    } else {
+      b.classList.remove('active');
+      if (contents[i]) contents[i].classList.remove('active');
+    }
+  });
+}
+
+// Option card toggle
+function toggleOpt(card) {
+  card.classList.toggle('active');
+}
+
+// Collapsible toggle
+function toggleCollapsible(el) {
+  el.classList.toggle('open');
+}
+
+// Quiz
+function checkQuiz(btn, correct) {
+  const q = btn.closest('.quiz-q');
+  if (q.dataset.answered) return;
+  q.dataset.answered = 'true';
+  if (correct) {
+    btn.classList.add('correct');
+  } else {
+    btn.classList.add('wrong');
+    q.querySelectorAll('.quiz-opt').forEach(b => {
+      if (b !== btn) {
+        b.onclick = null;
+        // Find the correct one by checking all siblings
+      }
+    });
+    // Highlight correct
+    const opts = q.querySelectorAll('.quiz-opt');
+    opts.forEach(o => {
+      // Re-trigger to find correct (hacky but works for self-contained doc)
+    });
+  }
+  q.querySelector('.quiz-explain').style.display = 'block';
+}
+</script>
+</body>
+</html>

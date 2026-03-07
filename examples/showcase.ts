@@ -1,6 +1,9 @@
 #!/usr/bin/env tsx
 /**
- * KindScript Compiler Dashboard Showcase
+ * KindScript AST Explorer Showcase
+ *
+ * Parses TypeScript files into KS AST and serves an interactive
+ * AST visualization dashboard.
  *
  * Usage:
  *   npx tsx examples/showcase.ts              # Fixed commit mode (default)
@@ -14,16 +17,14 @@
  */
 
 import { parseArgs } from 'node:util';
-import * as path from 'node:path';
 import {
   setupTempProject,
   cleanupTemp,
   discoverRootFiles,
   serveDashboard,
 } from './showcase-utils.js';
-import { createProgram } from '../src/program.js';
-import { defineConfig } from '../src/api/config.js';
-import { exportDashboardData } from '../src/dashboard/export.js';
+import { parseOnly } from '../src/pipeline/parse.js';
+import { extractASTData } from '../ast-schema/export.js';
 
 const { values } = parseArgs({
   options: {
@@ -35,9 +36,9 @@ const { values } = parseArgs({
 const mode = (values.mode as string) ?? 'fixed';
 
 async function main() {
-  console.log('\n  ┌─────────────────────────────────────────┐');
-  console.log('  │  KindScript Compiler Dashboard Showcase  │');
-  console.log('  └─────────────────────────────────────────┘\n');
+  console.log('\n  ┌──────────────────────────────────────┐');
+  console.log('  │  KindScript AST Explorer Showcase     │');
+  console.log('  └──────────────────────────────────────┘\n');
   console.log(`  Mode: ${mode}\n`);
 
   let rootDir: string;
@@ -57,28 +58,21 @@ async function main() {
   }
 
   if (rootFiles.length === 0) {
-    console.error('  No TypeScript files found to compile.');
+    console.error('  No TypeScript files found to parse.');
     process.exit(1);
   }
 
-  // Compile with targets pointing at src/
-  console.log('  Compiling...');
-  const config = defineConfig({
-    strict: true,
-  });
-  const program = createProgram(rootFiles, config, {
+  // Parse only — no binder/checker
+  console.log('  Parsing...');
+  const ksTree = parseOnly(rootFiles, {
     strict: true,
     noEmit: true,
     rootDir,
   });
 
-  const data = exportDashboardData(program, {
-    includeSource: true,
-    root: rootDir,
-  });
-
-  console.log(`  Parse: ${data.parse.sourceFiles.length} source files`);
-  console.log(`  Kinds: ${data.kinds.definitions.length} definitions\n`);
+  // Extract AST data for dashboard
+  const data = extractASTData(ksTree);
+  console.log(`  Parsed ${data.files.length} source files\n`);
 
   // Serve
   const server = await serveDashboard(data);
