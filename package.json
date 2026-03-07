@@ -11,8 +11,8 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dashboard:dev": "vite --config vite.config.dashboard.ts",
-    "dashboard:build": "vite build --config vite.config.dashboard.ts",
+    "dashboard:dev": "vite --config dashboard/vite.config.ts",
+    "dashboard:build": "vite build --config dashboard/vite.config.ts",
     "showcase": "tsx examples/showcase.ts",
     "showcase:fixed": "tsx examples/showcase.ts --mode=fixed",
     "showcase:live": "tsx examples/showcase.ts --mode=live"

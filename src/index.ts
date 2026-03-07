@@ -10,26 +10,20 @@
 // Compiler
 export { createProgram, createProgramFromTSProgram } from './program.js';
 
+// Parse-only (no binder/checker)
+export { parseOnly } from './pipeline/parse.js';
+
 // Config (compiler settings only)
 export { defineConfig } from './api/config.js';
 export type { KindScriptConfig } from './api/config.js';
 
 // Kind type API (for users defining kinds in source code)
-export type { Kind, PropertySet } from './api/kinds.js';
+export type { Kind, PropertySet } from '../ksc-behavior/index.js';
 
 // Types
-export type {
-  KSProgramInterface,
-  KindDefinition,
-  CheckerDiagnostic,
-} from './pipeline/types.js';
+export type { KSProgramInterface } from './pipeline/types.js';
+export type { KindDefinition, CheckerDiagnostic } from '../ksc-behavior/index.js';
 
-// Binder
-export { createBinderSpec } from './pipeline/binder.js';
-
-// Checker
-export { createCheckerSpec } from './pipeline/checker.js';
-
-// Dashboard export
-export { exportDashboardData } from './dashboard/export.js';
-export type { DashboardExportData, ExportOptions } from './dashboard/export.js';
+// AST export (dashboard-friendly data from KS tree)
+export { extractASTData } from '../ast-schema/export.js';
+export type { ASTDashboardData, ASTNode } from '../ast-schema/export.js';
