@@ -8,6 +8,12 @@ interface Props {
   payload: unknown;
 }
 
+const depthColors: Record<string, string> = {
+  parse: 'var(--parse-color)',
+  bind: 'var(--bind-color)',
+  check: 'var(--check-color)',
+};
+
 export function FileViewer({ payload }: Props) {
   const { data } = useDashboardState();
   const [tab, setTab] = useState<'source' | 'ast' | 'graph'>('source');
@@ -19,6 +25,8 @@ export function FileViewer({ payload }: Props) {
   if (!sf) return null;
 
   const hasAST = !!(sf.ast && sf.ast.children);
+  const depth = data.analysisDepth ?? 'parse';
+  const depthColor = depthColors[depth] ?? depthColors.parse;
 
   return (
     <>
@@ -27,6 +35,17 @@ export function FileViewer({ payload }: Props) {
         <span className="fv-stat-badge" style={{ background: 'var(--bg4)', color: 'var(--text3)' }}>
           {sf.lineCount} lines
         </span>
+        <span
+          className="fv-stat-badge"
+          style={{ background: `${depthColor}22`, color: depthColor }}
+        >
+          {depth}
+        </span>
+        {hasAST && (
+          <span className="fv-stat-badge" style={{ background: 'var(--bg4)', color: 'var(--text3)' }}>
+            {countNodes(sf.ast)} nodes
+          </span>
+        )}
       </div>
 
       {/* Tabs */}
@@ -61,7 +80,12 @@ export function FileViewer({ payload }: Props) {
         )}
 
         {tab === 'ast' && hasAST && (
-          <ASTTab astNode={sf.ast} source={sf.source} schema={data.schema} />
+          <ASTTab
+            astNode={sf.ast}
+            source={sf.source}
+            schema={data.schema}
+            analysisDepth={depth}
+          />
         )}
 
         {tab === 'graph' && hasAST && (
@@ -70,4 +94,12 @@ export function FileViewer({ payload }: Props) {
       </div>
     </>
   );
+}
+
+function countNodes(node: { children?: any[] }): number {
+  let count = 1;
+  if (node.children) {
+    for (const child of node.children) count += countNodes(child);
+  }
+  return count;
 }

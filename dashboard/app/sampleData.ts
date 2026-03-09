@@ -2,6 +2,7 @@ import type { ASTDashboardData } from './types';
 
 export const SAMPLE_DATA: ASTDashboardData = {
   version: 2,
+  analysisDepth: 'check',
   schema: {
     fieldDefs: {
       'ImportDeclaration': [
@@ -11,6 +12,7 @@ export const SAMPLE_DATA: ASTDashboardData = {
         { name: 'modifiers', tag: 'list', typeRef: 'Modifier' },
       ],
       'ImportClause': [
+        { name: 'isTypeOnly', tag: 'prop', typeRef: 'boolean' },
         { name: 'name', tag: 'optChild', typeRef: 'Identifier' },
         { name: 'namedBindings', tag: 'optChild', typeRef: 'NamedImportBindings' },
       ],
@@ -18,6 +20,7 @@ export const SAMPLE_DATA: ASTDashboardData = {
         { name: 'elements', tag: 'list', typeRef: 'ImportSpecifier' },
       ],
       'ImportSpecifier': [
+        { name: 'isTypeOnly', tag: 'prop', typeRef: 'boolean' },
         { name: 'name', tag: 'child', typeRef: 'Identifier' },
         { name: 'propertyName', tag: 'optChild', typeRef: 'Identifier' },
       ],
@@ -33,6 +36,7 @@ export const SAMPLE_DATA: ASTDashboardData = {
       ],
       'VariableDeclarationList': [
         { name: 'declarations', tag: 'list', typeRef: 'VariableDeclaration' },
+        { name: 'declarationKind', tag: 'prop', typeRef: 'string' },
       ],
       'VariableDeclaration': [
         { name: 'name', tag: 'child', typeRef: 'BindingName' },
@@ -57,6 +61,7 @@ export const SAMPLE_DATA: ASTDashboardData = {
       ],
       'Block': [
         { name: 'statements', tag: 'list', typeRef: 'Statement' },
+        { name: 'localCount', tag: 'prop', typeRef: 'number' },
       ],
       'ExpressionStatement': [
         { name: 'expression', tag: 'child', typeRef: 'Expression' },
@@ -87,6 +92,27 @@ export const SAMPLE_DATA: ASTDashboardData = {
       ],
       'Identifier': [
         { name: 'escapedText', tag: 'prop', typeRef: 'string' },
+        { name: 'resolvesToImport', tag: 'prop', typeRef: 'boolean' },
+        { name: 'isDefinitionSite', tag: 'prop', typeRef: 'boolean' },
+        { name: 'resolvedFileName', tag: 'prop', typeRef: 'string' },
+        { name: 'symIsVariable', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsFunctionScopedVariable', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsBlockScopedVariable', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsFunction', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsClass', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsInterface', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsTypeAlias', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsAlias', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsProperty', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsMethod', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsEnum', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsEnumMember', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsNamespace', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsExportValue', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsType', tag: 'prop', typeRef: 'boolean' },
+        { name: 'symIsValue', tag: 'prop', typeRef: 'boolean' },
+        { name: 'importModuleSpecifier', tag: 'prop', typeRef: 'string' },
+        { name: 'typeString', tag: 'prop', typeRef: 'string' },
       ],
     },
     sumTypes: {
@@ -122,13 +148,14 @@ export const SAMPLE_DATA: ASTDashboardData = {
             fields: [{ name: 'importClause', indices: [0] }, { name: 'moduleSpecifier', indices: [1] }],
             children: [
               { kind: 'ImportClause', pos: 7, end: 36, text: 'type { Kind, PropertySet }',
+                props: { isTypeOnly: true },
                 fields: [{ name: 'namedBindings', indices: [0] }],
                 children: [
                   { kind: 'NamedImports', pos: 12, end: 36, text: '{ Kind, PropertySet }',
                     fields: [{ name: 'elements', indices: [0, 1] }],
                     children: [
-                      { kind: 'ImportSpecifier', name: 'Kind', pos: 14, end: 18, text: 'Kind', children: [], props: { escapedText: 'Kind' } },
-                      { kind: 'ImportSpecifier', name: 'PropertySet', pos: 20, end: 31, text: 'PropertySet', children: [], props: { escapedText: 'PropertySet' } },
+                      { kind: 'ImportSpecifier', name: 'Kind', pos: 14, end: 18, text: 'Kind', children: [], props: { isTypeOnly: false } },
+                      { kind: 'ImportSpecifier', name: 'PropertySet', pos: 20, end: 31, text: 'PropertySet', children: [], props: { isTypeOnly: false } },
                     ] },
                 ] },
               { kind: 'StringLiteral', pos: 42, end: 52, text: "'kindscript'", children: [], props: { value: 'kindscript' } },
@@ -136,19 +163,19 @@ export const SAMPLE_DATA: ASTDashboardData = {
           { kind: 'TypeAliasDeclaration', name: 'NoConsole', pos: 54, end: 95, text: "type NoConsole = Kind<{ noConsole: true }>",
             fields: [{ name: 'name', indices: [0] }, { name: 'type', indices: [1] }],
             children: [
-              { kind: 'Identifier', name: 'NoConsole', pos: 59, end: 68, text: 'NoConsole', children: [], props: { escapedText: 'NoConsole' } },
+              { kind: 'Identifier', name: 'NoConsole', pos: 59, end: 68, text: 'NoConsole', children: [], props: { escapedText: 'NoConsole', isDefinitionSite: true, symIsTypeAlias: true, symIsType: true, symIsVariable: false, symIsFunction: false, symIsClass: false, symIsInterface: false, symIsAlias: false, symIsProperty: false, symIsMethod: false, symIsEnum: false, symIsEnumMember: false, symIsNamespace: false, symIsExportValue: false, symIsValue: false, symIsFunctionScopedVariable: false, symIsBlockScopedVariable: false, resolvesToImport: false, typeString: 'Kind<{ noConsole: true; }>' } },
               { kind: 'TypeReference', name: 'Kind', pos: 71, end: 95, text: 'Kind<{ noConsole: true }>', children: [] },
             ] },
           { kind: 'TypeAliasDeclaration', name: 'NoMutation', pos: 97, end: 141, text: "type NoMutation = Kind<{ noMutation: true }>",
             fields: [{ name: 'name', indices: [0] }, { name: 'type', indices: [1] }],
             children: [
-              { kind: 'Identifier', name: 'NoMutation', pos: 102, end: 112, text: 'NoMutation', children: [], props: { escapedText: 'NoMutation' } },
+              { kind: 'Identifier', name: 'NoMutation', pos: 102, end: 112, text: 'NoMutation', children: [], props: { escapedText: 'NoMutation', isDefinitionSite: true, symIsTypeAlias: true, symIsType: true, typeString: 'Kind<{ noMutation: true; }>' } },
               { kind: 'TypeReference', name: 'Kind', pos: 115, end: 141, text: 'Kind<{ noMutation: true }>', children: [] },
             ] },
           { kind: 'TypeAliasDeclaration', name: 'NoImports', pos: 143, end: 185, text: "type NoImports = Kind<{ noImports: true }>",
             fields: [{ name: 'name', indices: [0] }, { name: 'type', indices: [1] }],
             children: [
-              { kind: 'Identifier', name: 'NoImports', pos: 148, end: 157, text: 'NoImports', children: [], props: { escapedText: 'NoImports' } },
+              { kind: 'Identifier', name: 'NoImports', pos: 148, end: 157, text: 'NoImports', children: [], props: { escapedText: 'NoImports', isDefinitionSite: true, symIsTypeAlias: true, symIsType: true, typeString: 'Kind<{ noImports: true; }>' } },
               { kind: 'TypeReference', name: 'Kind', pos: 160, end: 185, text: 'Kind<{ noImports: true }>', children: [] },
             ] },
         ],
@@ -164,6 +191,7 @@ export const SAMPLE_DATA: ASTDashboardData = {
             fields: [{ name: 'importClause', indices: [0] }, { name: 'moduleSpecifier', indices: [1] }],
             children: [
               { kind: 'ImportClause', pos: 7, end: 27, text: 'type { NoConsole }',
+                props: { isTypeOnly: true },
                 fields: [{ name: 'namedBindings', indices: [0] }],
                 children: [
                   { kind: 'NamedImports', pos: 14, end: 27, text: '{ NoConsole }',
@@ -178,12 +206,13 @@ export const SAMPLE_DATA: ASTDashboardData = {
             fields: [{ name: 'declarationList', indices: [0] }],
             children: [
               { kind: 'VariableDeclarationList', pos: 44, end: 149, text: 'const greet: NoConsole & ...',
+                props: { declarationKind: 'const' },
                 fields: [{ name: 'declarations', indices: [0] }],
                 children: [
                   { kind: 'VariableDeclaration', name: 'greet', pos: 50, end: 149, text: 'greet: NoConsole & ...',
                     fields: [{ name: 'name', indices: [0] }, { name: 'type', indices: [1] }, { name: 'initializer', indices: [2] }],
                     children: [
-                      { kind: 'Identifier', name: 'greet', pos: 50, end: 55, text: 'greet', children: [], props: { escapedText: 'greet' } },
+                      { kind: 'Identifier', name: 'greet', pos: 50, end: 55, text: 'greet', children: [], props: { escapedText: 'greet', isDefinitionSite: true, symIsBlockScopedVariable: true, symIsVariable: true, symIsValue: true, typeString: 'NoConsole & ((name: string) => void)' } },
                       { kind: 'IntersectionType', pos: 57, end: 93, text: 'NoConsole & ((name: string) => void)',
                         fields: [{ name: 'types', indices: [0, 1] }],
                         children: [
@@ -195,6 +224,7 @@ export const SAMPLE_DATA: ASTDashboardData = {
                         children: [
                           { kind: 'Parameter', name: 'name', pos: 97, end: 101, text: 'name', children: [] },
                           { kind: 'Block', pos: 106, end: 149, text: '{ console.log(...) }',
+                            props: { localCount: 0 },
                             fields: [{ name: 'statements', indices: [0] }],
                             children: [
                               { kind: 'ExpressionStatement', pos: 110, end: 141, text: "console.log('Hello, ' + name);",
@@ -206,15 +236,15 @@ export const SAMPLE_DATA: ASTDashboardData = {
                                       { kind: 'PropertyAccessExpression', pos: 110, end: 121, text: 'console.log',
                                         fields: [{ name: 'expression', indices: [0] }, { name: 'name', indices: [1] }],
                                         children: [
-                                          { kind: 'Identifier', name: 'console', pos: 110, end: 117, text: 'console', children: [], props: { escapedText: 'console' } },
-                                          { kind: 'Identifier', name: 'log', pos: 118, end: 121, text: 'log', children: [], props: { escapedText: 'log' } },
+                                          { kind: 'Identifier', name: 'console', pos: 110, end: 117, text: 'console', children: [], props: { escapedText: 'console', symIsVariable: true, symIsValue: true, importModuleSpecifier: '', typeString: 'Console' } },
+                                          { kind: 'Identifier', name: 'log', pos: 118, end: 121, text: 'log', children: [], props: { escapedText: 'log', symIsMethod: true, symIsValue: true, typeString: '(...data: any[]) => void' } },
                                         ] },
                                       { kind: 'BinaryExpression', pos: 122, end: 139, text: "'Hello, ' + name",
                                         fields: [{ name: 'left', indices: [0] }, { name: 'operatorToken', indices: [1] }, { name: 'right', indices: [2] }],
                                         children: [
                                           { kind: 'StringLiteral', pos: 122, end: 131, text: "'Hello, '", children: [] },
                                           { kind: 'PlusToken', pos: 132, end: 133, text: '+', children: [] },
-                                          { kind: 'Identifier', name: 'name', pos: 134, end: 138, text: 'name', children: [], props: { escapedText: 'name' } },
+                                          { kind: 'Identifier', name: 'name', pos: 134, end: 138, text: 'name', children: [], props: { escapedText: 'name', symIsVariable: true, symIsFunctionScopedVariable: true, symIsValue: true, typeString: 'string' } },
                                         ] },
                                     ] },
                                 ] },

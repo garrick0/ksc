@@ -23,6 +23,7 @@ export interface ASTSchemaInfo {
 
 export interface ASTDashboardData {
   version: number;
+  analysisDepth?: 'parse' | 'bind' | 'check';
   schema?: ASTSchemaInfo;
   files: Array<{
     fileName: string;
