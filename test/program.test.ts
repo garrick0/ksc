@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram, createProgramFromTSProgram } from '../src/program.js';
+import { createProgram, createProgramFromTSProgram } from '../app/lib/program.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
@@ -12,15 +12,22 @@ function getRootFiles(fixtureDir: string): string[] {
   );
 }
 
+const _programCache = new Map();
+function cachedProgram(fixtureDir: string, withOpts = true) {
+  const key = `${fixtureDir}:${withOpts}`;
+  if (_programCache.has(key)) return _programCache.get(key);
+  const program = withOpts
+    ? createProgram(getRootFiles(fixtureDir), undefined, { strict: true, noEmit: true })
+    : createProgram(getRootFiles(fixtureDir));
+  _programCache.set(key, program);
+  return program;
+}
+
 // ────────────────────────────────────────────────────────────────────────
 
 describe('createProgram', () => {
   it('creates a KSProgram with the full API', () => {
-    const rootFiles = getRootFiles('kind-basic');
-    const program = createProgram(rootFiles, undefined, {
-      strict: true,
-      noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     expect(program).toBeDefined();
     expect(program.getRootFileNames).toBeTypeOf('function');
@@ -31,11 +38,7 @@ describe('createProgram', () => {
   });
 
   it('provides compilation units for source files', () => {
-    const rootFiles = getRootFiles('kind-basic');
-    const program = createProgram(rootFiles, undefined, {
-      strict: true,
-      noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const units = program.getCompilationUnits();
     expect(units.length).toBeGreaterThan(0);
@@ -45,8 +48,7 @@ describe('createProgram', () => {
   });
 
   it('finds kind definitions from source files', () => {
-    const rootFiles = getRootFiles('kind-basic');
-    const program = createProgram(rootFiles);
+    const program = cachedProgram('kind-basic', false);
 
     const defs = program.getKindDefinitions();
     const names = defs.map(d => d.name);
@@ -54,8 +56,7 @@ describe('createProgram', () => {
   });
 
   it('works with no config', () => {
-    const rootFiles = getRootFiles('kind-basic');
-    const program = createProgram(rootFiles);
+    const program = cachedProgram('kind-basic', false);
 
     expect(program.getKindDefinitions().length).toBeGreaterThan(0);
   });
@@ -68,11 +69,7 @@ describe('createProgram', () => {
   });
 
   it('getDiagnostics returns empty for clean code', () => {
-    const rootFiles = getRootFiles('kind-basic');
-    const program = createProgram(rootFiles, undefined, {
-      strict: true,
-      noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const diagnostics = program.getDiagnostics();
     expect(Array.isArray(diagnostics)).toBe(true);
@@ -80,11 +77,7 @@ describe('createProgram', () => {
   });
 
   it('getDiagnostics detects violations', () => {
-    const rootFiles = getRootFiles('kind-violations');
-    const program = createProgram(rootFiles, undefined, {
-      strict: true,
-      noEmit: true,
-    });
+    const program = cachedProgram('kind-violations');
 
     const diagnostics = program.getDiagnostics();
     expect(diagnostics.length).toBeGreaterThanOrEqual(1);

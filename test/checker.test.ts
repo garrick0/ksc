@@ -4,13 +4,15 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { buildKSTree } from '../ast-schema/generated/convert.js';
-import { evaluate, buildTree, KSCDNode } from '../ksc-generated/evaluator.js';
-import type { KindDefinition, CheckerDiagnostic } from '../ksc-behavior/types.js';
+import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
+import { evaluate, buildTree, KSCDNode } from '../generated/ts-ast/kind-checking/evaluator.js';
+import type { Diagnostic } from '../specs/ts-ast/kind-checking/types.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
+const _buildCache = new Map();
 function buildAndCheck(fixtureDir: string) {
+  if (_buildCache.has(fixtureDir)) return _buildCache.get(fixtureDir);
   const files = ts.sys.readDirectory(
     path.join(FIXTURES, fixtureDir, 'src'),
     ['.ts'],
@@ -23,7 +25,9 @@ function buildAndCheck(fixtureDir: string) {
   const ksTree = buildKSTree(tsProgram);
   const { definitions: allDefs, diagnostics } = evaluate(ksTree.root);
   const dnodeRoot = buildTree(ksTree.root);
-  return { ksTree, dnodeRoot, allDefs, diagnostics };
+  const result = { ksTree, dnodeRoot, allDefs, diagnostics };
+  _buildCache.set(fixtureDir, result);
+  return result;
 }
 
 /** Find a CU DNode by filename substring. */
@@ -101,14 +105,56 @@ describe('checker — individual attributes', () => {
     expect(annotations[0].properties.noImports).toBe(true);
   });
 
-  it('noImportsContext is non-null inside annotated function body', () => {
+  it('contextFor("noImports") is non-null inside annotated function body', () => {
     const { dnodeRoot } = buildAndCheck('kind-violations');
     const violating = findCU(dnodeRoot, 'violating.ts')!;
     const arrowFn = findDNodeByKind(violating, 'ArrowFunction');
     expect(arrowFn).toBeDefined();
-    const ctx = arrowFn!.noImportsContext();
+    const ctx = arrowFn!.contextFor('noImports');
     expect(ctx).not.toBeNull();
     expect(ctx!.name).toBe('NoImports');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+
+describe('checker — nodeCount (collection attribute)', () => {
+  it('root nodeCount equals total number of nodes in the tree', () => {
+    const { dnodeRoot } = buildAndCheck('kind-basic');
+    const rootCount = dnodeRoot.nodeCount();
+    expect(rootCount).toBeGreaterThan(0);
+
+    // Verify by manual DFS count
+    let manualCount = 0;
+    const stack: KSCDNode[] = [dnodeRoot];
+    while (stack.length > 0) {
+      manualCount++;
+      const d = stack.pop()!;
+      stack.push(...d.children as KSCDNode[]);
+    }
+    expect(rootCount).toBe(manualCount);
+  });
+
+  it('leaf nodes have nodeCount of 1', () => {
+    const { dnodeRoot } = buildAndCheck('kind-basic');
+
+    function findLeaf(d: KSCDNode): KSCDNode | undefined {
+      if (d.children.length === 0) return d;
+      for (const child of d.children as KSCDNode[]) {
+        const leaf = findLeaf(child);
+        if (leaf) return leaf;
+      }
+      return undefined;
+    }
+    const leaf = findLeaf(dnodeRoot);
+    expect(leaf).toBeDefined();
+    expect(leaf!.nodeCount()).toBe(1);
+  });
+
+  it('parent nodeCount >= child nodeCount + 1', () => {
+    const { dnodeRoot } = buildAndCheck('kind-basic');
+    const cu = dnodeRoot.children[0] as KSCDNode;
+    expect(dnodeRoot.nodeCount()).toBeGreaterThanOrEqual(cu.nodeCount() + 1);
   });
 });
 

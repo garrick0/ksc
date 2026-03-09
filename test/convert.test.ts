@@ -4,15 +4,15 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { buildKSTree } from '../ast-schema/generated/convert.js';
-import { buildTree, KSCDNode } from '../ksc-generated/evaluator.js';
+import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
+import { buildTree, KSCDNode } from '../generated/ts-ast/kind-checking/evaluator.js';
 import type {
   KSNode, KSCompilationUnit, KSTypeAliasDeclaration, KSTypeReference,
   KSTypeLiteral, KSIdentifier, KSFunctionDeclaration,
   KSVariableStatement, KSVariableDeclarationList, KSVariableDeclaration,
   KSImportDeclaration, KSStringLiteral, KSPropertySignature,
   KSArrowFunction,
-} from '../ast-schema/generated/index.js';
+} from '../generated/ts-ast/grammar/index.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 

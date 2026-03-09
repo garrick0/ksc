@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { buildKSTree } from '../ast-schema/generated/convert.js';
-import { buildTree, KSCDNode } from '../ksc-generated/evaluator.js';
-import type { KindDefinition } from '../ksc-behavior/types.js';
+import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
+import { buildTree, KSCDNode } from '../generated/ts-ast/kind-checking/evaluator.js';
+import type { KindDefinition } from '../specs/ts-ast/kind-checking/types.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
+const _treeCache = new Map();
 function createKSTree(fixtureDir: string) {
+  if (_treeCache.has(fixtureDir)) return _treeCache.get(fixtureDir);
   const files = ts.sys.readDirectory(
     path.join(FIXTURES, fixtureDir, 'src'),
     ['.ts'],
@@ -19,7 +21,9 @@ function createKSTree(fixtureDir: string) {
   });
   const ksTree = buildKSTree(tsProgram);
   const dnodeRoot = buildTree(ksTree.root);
-  return { ksTree, dnodeRoot };
+  const result = { ksTree, dnodeRoot };
+  _treeCache.set(fixtureDir, result);
+  return result;
 }
 
 /** Find a CU DNode by filename substring. */

@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getChildren, allKinds, getChildFields } from '../ast-schema/generated/index.js';
-import { buildKSTree } from '../ast-schema/generated/convert.js';
+import { getChildren, allKinds, getChildFields } from '../generated/ts-ast/grammar/index.js';
+import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
 import ts from 'typescript';
 
 describe('generated schema', () => {

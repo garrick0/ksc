@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../src/program.js';
+import { createProgram } from '../app/lib/program.js';
 import {
   treeToJSON, treeFromJSON, nodeToJSON, type JSONNode,
-} from '../ast-schema/generated/index.js';
+} from '../generated/ts-ast/grammar/index.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
@@ -15,13 +15,21 @@ function getRootFiles(fixtureDir: string): string[] {
   );
 }
 
+const _programCache = new Map();
+function cachedProgram(fixtureDir: string) {
+  if (_programCache.has(fixtureDir)) return _programCache.get(fixtureDir);
+  const program = createProgram(getRootFiles(fixtureDir), undefined, {
+    strict: true, noEmit: true,
+  });
+  _programCache.set(fixtureDir, program);
+  return program;
+}
+
 // ────────────────────────────────────────────────────────────────────────
 
 describe('treeToJSON (replaces serializeKSTree)', () => {
   it('produces a JSON-safe tree with correct structure', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
 
@@ -39,9 +47,7 @@ describe('treeToJSON (replaces serializeKSTree)', () => {
   });
 
   it('preserves CompilationUnit scalar properties', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
     const cus = serialized.root.compilationUnits as JSONNode[];
@@ -54,9 +60,7 @@ describe('treeToJSON (replaces serializeKSTree)', () => {
   });
 
   it('strips tsNode and tsProgram references', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
 
@@ -67,9 +71,7 @@ describe('treeToJSON (replaces serializeKSTree)', () => {
   });
 
   it('does not contain navigation properties', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
     const json = JSON.stringify(serialized);
@@ -80,9 +82,7 @@ describe('treeToJSON (replaces serializeKSTree)', () => {
   });
 
   it('preserves Identifier.escapedText', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
 
@@ -113,9 +113,7 @@ describe('treeToJSON (replaces serializeKSTree)', () => {
   });
 
   it('preserves full text (no truncation)', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
     const cus = serialized.root.compilationUnits as JSONNode[];
@@ -130,9 +128,7 @@ describe('treeToJSON (replaces serializeKSTree)', () => {
 
 describe('nodeToJSON (replaces serializeKSNode)', () => {
   it('serializes a single CompilationUnit', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const ksTree = program.getKSTree();
     const cu = ksTree.root.compilationUnits[0];
@@ -151,9 +147,7 @@ describe('nodeToJSON (replaces serializeKSNode)', () => {
 
 describe('treeFromJSON (replaces deserializeKSTree)', () => {
   it('round-trips: serialize -> JSON -> deserialize', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
     const json = JSON.stringify(serialized);
@@ -170,9 +164,7 @@ describe('treeFromJSON (replaces deserializeKSTree)', () => {
   });
 
   it('deserialized tree has correct children', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const serialized = treeToJSON(program.getKSTree());
     const json = JSON.stringify(serialized);

@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram, createProgramFromTSProgram } from '../src/program.js';
+import { createProgram, createProgramFromTSProgram } from '../app/lib/program.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 
@@ -18,13 +18,21 @@ function getRootFiles(fixtureDir: string): string[] {
   );
 }
 
+const _programCache = new Map();
+function cachedProgram(fixtureDir: string) {
+  if (_programCache.has(fixtureDir)) return _programCache.get(fixtureDir);
+  const program = createProgram(getRootFiles(fixtureDir), undefined, {
+    strict: true, noEmit: true,
+  });
+  _programCache.set(fixtureDir, program);
+  return program;
+}
+
 // ────────────────────────────────────────────────────────────────────────
 
 describe('e2e — kind-basic (clean, type-only imports)', () => {
   it('finds kind definitions and produces 0 diagnostics', () => {
-    const program = createProgram(getRootFiles('kind-basic'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-basic');
 
     const defs = program.getKindDefinitions();
     expect(defs.length).toBeGreaterThan(0);
@@ -39,9 +47,7 @@ describe('e2e — kind-basic (clean, type-only imports)', () => {
 
 describe('e2e — kind-violations (import reference in annotated function)', () => {
   it('detects the import violation', () => {
-    const program = createProgram(getRootFiles('kind-violations'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-violations');
 
     const diagnostics = program.getDiagnostics();
     expect(diagnostics.length).toBeGreaterThanOrEqual(1);
@@ -57,9 +63,7 @@ describe('e2e — kind-violations (import reference in annotated function)', () 
   });
 
   it('does not flag clean.ts', () => {
-    const program = createProgram(getRootFiles('kind-violations'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-violations');
 
     const cleanViolations = program.getDiagnostics().filter(
       d => d.fileName.includes('clean.ts'),
@@ -68,9 +72,7 @@ describe('e2e — kind-violations (import reference in annotated function)', () 
   });
 
   it('binder and checker work together — definitions are available', () => {
-    const program = createProgram(getRootFiles('kind-violations'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('kind-violations');
 
     expect(program.getKindDefinitions().map(d => d.name)).toContain('NoImports');
   });
@@ -80,9 +82,7 @@ describe('e2e — kind-violations (import reference in annotated function)', () 
 
 describe('e2e — checker edge cases', () => {
   it('parameter shadowing: no violation when param shadows import', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const paramShadow = program.getDiagnostics().filter(
       d => d.fileName.includes('param-shadow.ts'),
@@ -91,9 +91,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('nested function with outer param shadow: no violation', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const nestedShadow = program.getDiagnostics().filter(
       d => d.fileName.includes('nested-shadow.ts'),
@@ -102,9 +100,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('nested function referencing import: violation detected', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const nestedViolation = program.getDiagnostics().filter(
       d => d.fileName.includes('nested-violation.ts'),
@@ -114,9 +110,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('local variable shadowing import: no violation', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const localShadow = program.getDiagnostics().filter(
       d => d.fileName.includes('local-shadow.ts'),
@@ -125,9 +119,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('no annotation: no violations even with imports used', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const noAnnotation = program.getDiagnostics().filter(
       d => d.fileName.includes('no-annotation.ts'),
@@ -136,9 +128,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('multiple imports: flags all used imports in annotated function', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const multiViolations = program.getDiagnostics().filter(
       d => d.fileName.includes('multiple-imports.ts'),
@@ -154,9 +144,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('type-only imports: no violations', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const typeOnly = program.getDiagnostics().filter(
       d => d.fileName.includes('type-only-import.ts'),
@@ -165,9 +153,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('destructured parameter shadowing import: no violation', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const destructured = program.getDiagnostics().filter(
       d => d.fileName.includes('destructured-param.ts'),
@@ -176,9 +162,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('destructured local variable shadowing import: no violation', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const destructured = program.getDiagnostics().filter(
       d => d.fileName.includes('destructured-local.ts'),
@@ -187,9 +171,7 @@ describe('e2e — checker edge cases', () => {
   });
 
   it('array-destructured parameter shadowing import: no violation', () => {
-    const program = createProgram(getRootFiles('checker-edges'), undefined, {
-      strict: true, noEmit: true,
-    });
+    const program = cachedProgram('checker-edges');
 
     const destructured = program.getDiagnostics().filter(
       d => d.fileName.includes('array-destructured.ts'),
@@ -203,10 +185,9 @@ describe('e2e — checker edge cases', () => {
 describe('e2e — createProgramFromTSProgram integration', () => {
   it('produces same diagnostics as createProgram', () => {
     const rootFiles = getRootFiles('kind-violations');
-    const opts = { strict: true, noEmit: true };
 
-    const fromCreate = createProgram(rootFiles, undefined, opts);
-    const tsProgram = ts.createProgram(rootFiles, opts);
+    const fromCreate = cachedProgram('kind-violations');
+    const tsProgram = ts.createProgram(rootFiles, { strict: true, noEmit: true });
     const fromTS = createProgramFromTSProgram(tsProgram);
 
     const diags1 = fromCreate.getDiagnostics();

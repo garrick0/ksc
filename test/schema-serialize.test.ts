@@ -4,15 +4,15 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../src/program.js';
-import { buildKSTree } from '../ast-schema/generated/convert.js';
+import { createProgram } from '../app/lib/program.js';
+import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
 import {
   nodeToJSON,
   nodeFromJSON,
   treeToJSON,
   treeFromJSON,
-} from '../ast-schema/generated/serialize.js';
-import type { JSONNode } from '../ast-schema/generated/serialize.js';
+} from '../generated/ts-ast/grammar/serialize.js';
+import type { JSONNode } from '../generated/ts-ast/grammar/serialize.js';
 import {
   createIdentifier,
   createIfStatement,
@@ -30,8 +30,8 @@ import {
   createVariableDeclaration,
   createProgram as createProgramNode,
   createCompilationUnit,
-} from '../ast-schema/generated/builders.js';
-import type { KSNode, KSIdentifier, KSIfStatement } from '../ast-schema/generated/node-types.js';
+} from '../generated/ts-ast/grammar/builders.js';
+import type { KSNode, KSIdentifier, KSIfStatement } from '../generated/ts-ast/grammar/node-types.js';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
 

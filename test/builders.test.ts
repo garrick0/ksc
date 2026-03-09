@@ -34,8 +34,8 @@ import {
   createImportSpecifier,
   createProgram,
   createCompilationUnit,
-} from '../ast-schema/generated/builders.js';
-import { getChildren } from '../ast-schema/generated/index.js';
+} from '../generated/ts-ast/grammar/builders.js';
+import { getChildren } from '../generated/ts-ast/grammar/index.js';
 
 describe('Node Builders', () => {
   describe('leaf nodes', () => {
