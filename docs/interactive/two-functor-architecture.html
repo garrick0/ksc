@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two-Functor Architecture — KSC Specialization Pipeline</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --bg3: #0f3460;
+  --surface: #1e2a4a;
+  --surface2: #253557;
+  --border: #2a4080;
+  --text: #e0e0e0;
+  --text2: #a0b0d0;
+  --accent: #e94560;
+  --accent2: #f5a623;
+  --accent3: #7dd3fc;
+  --accent4: #86efac;
+  --accent5: #c4b5fd;
+  --code-bg: #0d1b2a;
+  --code-border: #1b3a5c;
+  --functor1: #f5a623;
+  --functor2: #7dd3fc;
+  --grammar: #e94560;
+  --analysis: #86efac;
+  --generated: #c4b5fd;
+  --property: #f472b6;
+  --structural: #38bdf8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+a { color: var(--accent3); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* -- Hero -- */
+.hero {
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 50%, #1a1040 100%);
+  padding: 60px 40px 50px;
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle at 25% 50%, rgba(245,166,35,0.08) 0%, transparent 50%),
+              radial-gradient(circle at 75% 50%, rgba(125,211,252,0.08) 0%, transparent 50%);
+  animation: heroGlow 15s ease-in-out infinite alternate;
+}
+@keyframes heroGlow {
+  0% { transform: translateX(-5%); }
+  100% { transform: translateX(5%); }
+}
+.hero h1 {
+  font-size: 2.4em;
+  font-weight: 700;
+  position: relative;
+  background: linear-gradient(90deg, var(--functor1), var(--functor2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.hero .subtitle {
+  font-size: 1.15em;
+  color: var(--text2);
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* -- Layout -- */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+section { padding: 50px 0; }
+section + section { border-top: 1px solid var(--border); }
+h2 {
+  font-size: 1.6em;
+  margin-bottom: 20px;
+  color: var(--accent3);
+}
+h3 {
+  font-size: 1.2em;
+  margin: 20px 0 10px;
+  color: var(--accent2);
+}
+p { margin-bottom: 14px; color: var(--text2); }
+p strong { color: var(--text); }
+
+/* -- Code -- */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.6;
+  margin: 12px 0 18px;
+  color: var(--text);
+}
+code {
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  font-size: 0.92em;
+}
+:not(pre) > code {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent3);
+}
+
+/* -- Cards -- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 16px 0;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.card h4 {
+  color: var(--accent2);
+  margin-bottom: 8px;
+  font-size: 1.05em;
+}
+
+/* -- Tags -- */
+.tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+.tag-functor1 { background: rgba(245,166,35,0.2); color: var(--functor1); border: 1px solid rgba(245,166,35,0.3); }
+.tag-functor2 { background: rgba(125,211,252,0.2); color: var(--functor2); border: 1px solid rgba(125,211,252,0.3); }
+.tag-grammar { background: rgba(233,69,96,0.2); color: var(--grammar); border: 1px solid rgba(233,69,96,0.3); }
+.tag-analysis { background: rgba(134,239,172,0.2); color: var(--analysis); border: 1px solid rgba(134,239,172,0.3); }
+.tag-generated { background: rgba(196,181,253,0.2); color: var(--generated); border: 1px solid rgba(196,181,253,0.3); }
+.tag-property { background: rgba(244,114,182,0.2); color: var(--property); border: 1px solid rgba(244,114,182,0.3); }
+.tag-structural { background: rgba(56,189,248,0.2); color: var(--structural); border: 1px solid rgba(56,189,248,0.3); }
+
+/* -- Collapsible -- */
+.collapsible {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.collapsible-header {
+  padding: 14px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  transition: background 0.2s;
+  user-select: none;
+}
+.collapsible-header:hover { background: var(--surface2); }
+.collapsible-header .arrow {
+  transition: transform 0.3s;
+  font-size: 0.8em;
+  color: var(--accent3);
+}
+.collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+.collapsible-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+.collapsible.open .collapsible-body { max-height: 3000px; }
+.collapsible-content { padding: 0 20px 20px; }
+
+/* -- Tabs -- */
+.tab-container { margin: 16px 0; }
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 0;
+}
+.tab-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  color: var(--accent3);
+  border-bottom-color: var(--accent3);
+}
+.tab-panel { display: none; padding: 20px 0; }
+.tab-panel.active { display: block; }
+
+/* -- Pipeline Diagram -- */
+.pipeline-diagram {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 12px;
+  padding: 30px;
+  margin: 20px 0;
+  overflow-x: auto;
+}
+.pipeline-diagram svg { display: block; margin: 0 auto; }
+
+/* -- Interactive Dep Graph -- */
+.dep-graph-container {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+/* -- Property Explorer -- */
+.property-explorer {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+.property-list {
+  background: var(--code-bg);
+  border-right: 1px solid var(--border);
+  padding: 8px 0;
+}
+.property-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+  font-size: 0.92em;
+  color: var(--text2);
+}
+.property-item:hover { background: var(--surface); color: var(--text); }
+.property-item.active {
+  background: var(--surface);
+  border-left-color: var(--accent3);
+  color: var(--accent3);
+  font-weight: 600;
+}
+.property-detail {
+  padding: 24px;
+  min-height: 300px;
+}
+
+/* -- Before/After -- */
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0;
+}
+.comparison-side {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.comparison-header {
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.comparison-side.before .comparison-header {
+  background: rgba(233,69,96,0.15);
+  color: var(--accent);
+  border-bottom: 1px solid rgba(233,69,96,0.3);
+}
+.comparison-side.after .comparison-header {
+  background: rgba(134,239,172,0.15);
+  color: var(--analysis);
+  border-bottom: 1px solid rgba(134,239,172,0.3);
+}
+.comparison-body { padding: 16px; }
+.comparison-body pre { margin: 0; font-size: 0.82em; }
+
+/* -- Generation Flow -- */
+.gen-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+.gen-flow-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.gen-flow-item:hover { border-color: var(--accent3); transform: translateX(4px); }
+.gen-flow-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+  flex-shrink: 0;
+}
+.gen-flow-text { flex: 1; }
+.gen-flow-text .label { font-weight: 600; font-size: 0.95em; }
+.gen-flow-text .desc { font-size: 0.82em; color: var(--text2); }
+
+/* -- File tree -- */
+.file-tree {
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.85em;
+  line-height: 1.9;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin: 16px 0;
+}
+.file-tree .dir { color: var(--accent2); font-weight: 600; }
+.file-tree .file { color: var(--text2); }
+.file-tree .new { color: var(--analysis); }
+.file-tree .gen { color: var(--generated); }
+.file-tree .unchanged { color: var(--text2); opacity: 0.6; }
+.file-tree .indent { margin-left: 20px; }
+.file-tree .indent2 { margin-left: 40px; }
+
+/* -- Flashcards -- */
+.flashcard-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+.flashcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.flashcard:hover { border-color: var(--accent3); }
+.flashcard-q {
+  padding: 14px 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.flashcard-q::before {
+  content: 'Q';
+  background: var(--accent);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  flex-shrink: 0;
+}
+.flashcard-a {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.flashcard.open .flashcard-a { max-height: 500px; }
+.flashcard-a-inner {
+  padding: 0 20px 16px 54px;
+  color: var(--text2);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* -- Stat badges -- */
+.stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  text-align: center;
+  min-width: 120px;
+}
+.stat-value {
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1;
+}
+.stat-label {
+  font-size: 0.78em;
+  color: var(--text2);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* -- Animated arrow -- */
+.flow-arrow {
+  text-align: center;
+  font-size: 1.6em;
+  color: var(--accent3);
+  animation: pulse 2s ease-in-out infinite;
+  margin: 8px 0;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* -- Highlight animation for SVG -- */
+@keyframes drawLine {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+.animated-line {
+  stroke-dasharray: 8 4;
+  animation: flowDash 1.5s linear infinite;
+}
+@keyframes flowDash {
+  to { stroke-dashoffset: -24; }
+}
+
+/* -- TOC -- */
+.toc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 28px;
+  margin: 20px 0;
+}
+.toc h3 { color: var(--text); margin-bottom: 12px; }
+.toc ol { padding-left: 20px; }
+.toc li { margin: 6px 0; }
+.toc a { font-size: 0.95em; }
+
+@media (max-width: 768px) {
+  .hero h1 { font-size: 1.6em; }
+  .comparison { grid-template-columns: 1fr; }
+  .property-explorer { grid-template-columns: 1fr; }
+  .property-list { border-right: none; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; }
+  .property-item { white-space: nowrap; }
+  .card-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ========== HERO ========== -->
+<div class="hero">
+  <h1>Two-Functor Architecture</h1>
+  <p class="subtitle">
+    KSC's specialization pipeline as two typed functors: Grammar compilation and Analysis compilation.
+    Each stage takes explicit inputs, produces explicit outputs, and the dependency between them is a function parameter — not an import path.
+  </p>
+</div>
+
+<!-- ========== TOC ========== -->
+<div class="container">
+<section>
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#big-picture">The Big Picture</a></li>
+      <li><a href="#three-inputs">Three Inputs, Two Stages</a></li>
+      <li><a href="#functor1">Functor 1: Grammar Compilation</a></li>
+      <li><a href="#functor2">Functor 2: Analysis Compilation</a></li>
+      <li><a href="#property-explorer">Property Explorer</a></li>
+      <li><a href="#dep-graph">Dependency Graph Derivation</a></li>
+      <li><a href="#type-safety">Type Safety via KindToNode</a></li>
+      <li><a href="#before-after">Before vs After</a></li>
+      <li><a href="#file-structure">File Structure</a></li>
+      <li><a href="#futamura">Futamura Projection Mapping</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ========== 1. BIG PICTURE ========== -->
+<section id="big-picture">
+  <h2>1. The Big Picture</h2>
+  <p>KSC's build pipeline is structured as <strong>two typed functors</strong> that specialize the system in sequence. The output of Functor 1 becomes an explicit input to Functor 2.</p>
+
+  <div class="pipeline-diagram">
+    <svg width="980" height="260" viewBox="0 0 980 260" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background boxes -->
+      <!-- Grammar Spec -->
+      <rect x="10" y="75" width="140" height="110" rx="10" fill="#2a1525" stroke="#e94560" stroke-width="2"/>
+      <text x="80" y="118" text-anchor="middle" fill="#e94560" font-weight="700" font-size="13">Grammar</text>
+      <text x="80" y="138" text-anchor="middle" fill="#e94560" font-size="11" opacity="0.8">Spec</text>
+      <text x="80" y="160" text-anchor="middle" fill="#a08090" font-size="10">schema.ts</text>
+
+      <!-- Functor 1 -->
+      <rect x="210" y="55" width="180" height="150" rx="12" fill="#2a2210" stroke="#f5a623" stroke-width="2.5"/>
+      <text x="300" y="88" text-anchor="middle" fill="#f5a623" font-weight="800" font-size="14">FUNCTOR 1</text>
+      <text x="300" y="110" text-anchor="middle" fill="#f5a623" font-size="11" opacity="0.8">compileGrammar()</text>
+      <line x1="230" y1="120" x2="370" y2="120" stroke="#f5a623" stroke-width="1" opacity="0.3"/>
+      <text x="300" y="142" text-anchor="middle" fill="#c0a060" font-size="10">node-types.ts</text>
+      <text x="300" y="157" text-anchor="middle" fill="#c0a060" font-size="10">schema.ts, convert.ts</text>
+      <text x="300" y="172" text-anchor="middle" fill="#c0a060" font-size="10">kind-map.ts</text>
+      <text x="300" y="192" text-anchor="middle" fill="#f5a623" font-size="10" font-weight="600">CompiledGrammar</text>
+
+      <!-- Arrow 1 -->
+      <line x1="150" y1="130" x2="208" y2="130" stroke="#e94560" stroke-width="2" class="animated-line"/>
+      <polygon points="206,124 216,130 206,136" fill="#e94560"/>
+
+      <!-- Analysis Spec -->
+      <rect x="440" y="10" width="140" height="100" rx="10" fill="#102520" stroke="#86efac" stroke-width="2"/>
+      <text x="510" y="48" text-anchor="middle" fill="#86efac" font-weight="700" font-size="13">Analysis</text>
+      <text x="510" y="68" text-anchor="middle" fill="#86efac" font-size="11" opacity="0.8">Spec</text>
+      <text x="510" y="88" text-anchor="middle" fill="#70a080" font-size="10">spec.ts</text>
+
+      <!-- Functor 2 -->
+      <rect x="530" y="55" width="180" height="150" rx="12" fill="#102028" stroke="#7dd3fc" stroke-width="2.5"/>
+      <text x="620" y="88" text-anchor="middle" fill="#7dd3fc" font-weight="800" font-size="14">FUNCTOR 2</text>
+      <text x="620" y="110" text-anchor="middle" fill="#7dd3fc" font-size="11" opacity="0.8">compileAnalysis()</text>
+      <line x1="550" y1="120" x2="690" y2="120" stroke="#7dd3fc" stroke-width="1" opacity="0.3"/>
+      <text x="620" y="142" text-anchor="middle" fill="#80a0c0" font-size="10">evaluator.ts</text>
+      <text x="620" y="157" text-anchor="middle" fill="#80a0c0" font-size="10">attr-types.ts</text>
+      <text x="620" y="172" text-anchor="middle" fill="#80a0c0" font-size="10">dep graph</text>
+      <text x="620" y="192" text-anchor="middle" fill="#7dd3fc" font-size="10" font-weight="600">CompiledAnalyzer</text>
+
+      <!-- Arrow: Grammar → Functor 2 -->
+      <path d="M 390 130 Q 460 130 528 130" fill="none" stroke="#f5a623" stroke-width="2" class="animated-line"/>
+      <polygon points="526,124 536,130 526,136" fill="#f5a623"/>
+      <text x="460" y="122" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="600">grammar param</text>
+
+      <!-- Arrow: Analysis Spec → Functor 2 -->
+      <line x1="510" y1="110" x2="528" y2="125" stroke="#86efac" stroke-width="2" class="animated-line"/>
+      <polygon points="524,118 534,125 524,131" fill="#86efac"/>
+
+      <!-- Output -->
+      <rect x="770" y="75" width="180" height="110" rx="10" fill="#1a1530" stroke="#c4b5fd" stroke-width="2"/>
+      <text x="860" y="115" text-anchor="middle" fill="#c4b5fd" font-weight="700" font-size="13">KSC Analyzer</text>
+      <text x="860" y="138" text-anchor="middle" fill="#c4b5fd" font-size="11" opacity="0.8">analyze(program)</text>
+      <text x="860" y="165" text-anchor="middle" fill="#9090c0" font-size="10">Runtime entry point</text>
+
+      <!-- Arrow 3 -->
+      <line x1="710" y1="130" x2="768" y2="130" stroke="#c4b5fd" stroke-width="2" class="animated-line"/>
+      <polygon points="766,124 776,130 766,136" fill="#c4b5fd"/>
+
+      <!-- Runtime program input (bottom) -->
+      <rect x="770" y="210" width="180" height="40" rx="8" fill="#1a2520" stroke="#86efac" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="860" y="235" text-anchor="middle" fill="#86efac" font-size="11">TS Program (runtime)</text>
+      <line x1="860" y1="210" x2="860" y2="187" stroke="#86efac" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <polygon points="854,189 860,183 866,189" fill="#86efac"/>
+    </svg>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" style="color:var(--functor1)">2</div>
+      <div class="stat-label">Typed Functors</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color:var(--grammar)">364</div>
+      <div class="stat-label">AST Kinds</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color:var(--analysis)">8</div>
+      <div class="stat-label">Properties</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color:var(--accent5)">26</div>
+      <div class="stat-label">Dep Edges</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color:var(--accent3)">0</div>
+      <div class="stat-label">Regex Scans</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 2. THREE INPUTS ========== -->
+<section id="three-inputs">
+  <h2>2. Three Inputs, Two Stages</h2>
+  <p>KSC has three inputs that determine its behavior. The two-functor design processes these inputs at different times.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4><span class="tag tag-grammar">Build-time</span> Grammar</h4>
+      <p>AST node kinds, fields, sum type hierarchy. Defined in <code>schema.ts</code>. Processed by <strong>Functor 1</strong> at build time.</p>
+      <p style="font-size:0.85em; color:var(--text2)">364 node kinds, each with typed fields and parent-child relationships. Changes rarely.</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag tag-analysis">Build-time</span> Analysis</h4>
+      <p>AG equations: structural attributes (binder) + property enforcement (checker). Defined in <code>spec.ts</code>. Processed by <strong>Functor 2</strong> at build time.</p>
+      <p style="font-size:0.85em; color:var(--text2)">22 attributes, 8 properties, each bundling its violation rules. Changes when adding new checks.</p>
+    </div>
+    <div class="card">
+      <h4><span class="tag" style="background:rgba(255,255,255,0.1);color:var(--text);border:1px solid rgba(255,255,255,0.2)">Runtime</span> Program</h4>
+      <p>TypeScript source files to analyze. Provided at runtime by the user. Not known at build time.</p>
+      <p style="font-size:0.85em; color:var(--text2)">The "dynamic input" in partial evaluation terms. Each run gets a different program.</p>
+    </div>
+  </div>
+
+  <div class="card" style="border-color: var(--accent2);">
+    <h4 style="color:var(--accent2)">The Core Insight</h4>
+    <p><strong>Grammar and Analysis are static inputs</strong> — they don't change between runs. The two-functor architecture specializes the evaluator on these static inputs at build time, producing a residual program (the generated evaluator) that only needs the dynamic input (the TS program) at runtime.</p>
+    <p>This is exactly the <strong>first Futamura projection</strong>: <code>mix(interpreter, static_input) → residual_program</code>.</p>
+  </div>
+</section>
+
+<!-- ========== 3. FUNCTOR 1 ========== -->
+<section id="functor1">
+  <h2>3. Functor 1: Grammar Compilation</h2>
+  <p>Takes a grammar spec, produces a <code>CompiledGrammar</code> — typed runtime capabilities and generated source files.</p>
+
+  <div class="tab-container" id="functor1-tabs">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="f1-interface">Interface</button>
+      <button class="tab-btn" data-tab="f1-input">Input</button>
+      <button class="tab-btn" data-tab="f1-output">Output</button>
+      <button class="tab-btn" data-tab="f1-files">Generated Files</button>
+    </div>
+
+    <div class="tab-panel active" id="f1-interface">
+      <pre><code><span style="color:var(--accent5)">interface</span> <span style="color:var(--functor1)">GrammarSpec</span> {
+  nodes:           ReadonlyMap&lt;string, NodeEntry&gt;;
+  sumTypes:        ReadonlyMap&lt;string, SumTypeEntry&gt;;
+  fieldExtractors: Record&lt;string, Record&lt;string, string&gt;&gt;;
+}
+
+<span style="color:var(--accent5)">interface</span> <span style="color:var(--functor1)">CompiledGrammar</span> {
+  files:       GeneratedFile[];          <span style="color:var(--text2)">// source files to emit</span>
+  kinds:       ReadonlySet&lt;string&gt;;      <span style="color:var(--text2)">// all 364 kind strings</span>
+  childFields: (kind: string) =&gt; readonly string[];
+  convert:     (program: ts.Program, depth: AnalysisDepth) =&gt; KSTree;
+  hasKind(kind: string): boolean;        <span style="color:var(--text2)">// validation helper</span>
+}
+
+<span style="color:var(--accent5)">function</span> <span style="color:var(--functor1)">compileGrammar</span>(spec: GrammarSpec): CompiledGrammar;</code></pre>
+    </div>
+
+    <div class="tab-panel" id="f1-input">
+      <p>The grammar spec is the existing <code>schema.ts</code> — the DSL that defines all TypeScript AST node kinds, their fields, and sum type hierarchies.</p>
+      <pre><code><span style="color:var(--text2)">// schema.ts — the grammar definition (unchanged)</span>
+const Identifier = node('Identifier', {
+  escapedText:           { type: 'string' },
+  resolvesToImport:      { type: 'boolean' },
+  importModuleSpecifier: { type: 'string | undefined' },
+  <span style="color:var(--text2)">// ... 18 sym* booleans, typeString, etc.</span>
+});
+
+const PropertyAccessExpression = node('PropertyAccessExpression', {
+  expression: { type: 'Expression' },  <span style="color:var(--text2)">// sum type child</span>
+  name:       { type: 'MemberName' },
+});</code></pre>
+    </div>
+
+    <div class="tab-panel" id="f1-output">
+      <p>The compiled grammar provides both <strong>generated source files</strong> and <strong>typed runtime capabilities</strong> that Functor 2 can use.</p>
+      <div class="gen-flow">
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(245,166,35,0.2); color:var(--functor1)">TS</div>
+          <div class="gen-flow-text">
+            <div class="label">Runtime: <code>kinds</code></div>
+            <div class="desc">Set of all 364 kind strings — used by Functor 2 for build-time validation</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(245,166,35,0.2); color:var(--functor1)">fn</div>
+          <div class="gen-flow-text">
+            <div class="label">Runtime: <code>childFields(kind)</code></div>
+            <div class="desc">Returns ordered child field names for any kind — drives tree traversal</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(245,166,35,0.2); color:var(--functor1)">fn</div>
+          <div class="gen-flow-text">
+            <div class="label">Runtime: <code>convert(program, depth)</code></div>
+            <div class="desc">Converts a TS program to KSC's decorated tree at the specified analysis depth</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">[]</div>
+          <div class="gen-flow-text">
+            <div class="label">Source: Generated files</div>
+            <div class="desc">node-types.ts, schema.ts, convert.ts, builders.ts, serialize.ts, kind-map.ts</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="f1-files">
+      <div class="gen-flow">
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">TS</div>
+          <div class="gen-flow-text">
+            <div class="label">node-types.ts</div>
+            <div class="desc">TypeScript interfaces for all 364 AST node types (KSIdentifier, KSBinaryExpression, etc.)</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">TS</div>
+          <div class="gen-flow-text">
+            <div class="label">schema.ts</div>
+            <div class="desc">getChildFields() map — exhaustive mapping of kind → child field names</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">TS</div>
+          <div class="gen-flow-text">
+            <div class="label">convert.ts</div>
+            <div class="desc">buildKSTree() — converts TS AST to KSC's decorated tree with stamped fields</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(245,166,35,0.2); color:var(--functor1)">NEW</div>
+          <div class="gen-flow-text">
+            <div class="label">kind-map.ts</div>
+            <div class="desc">KindToNode type mapping — enables type-safe violation predicates in Functor 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 4. FUNCTOR 2 ========== -->
+<section id="functor2">
+  <h2>4. Functor 2: Analysis Compilation</h2>
+  <p>Takes a <strong>CompiledGrammar</strong> (from Functor 1) and an <strong>AnalysisSpec</strong>, produces a <code>CompiledAnalyzer</code>. The grammar dependency is an explicit function parameter.</p>
+
+  <div class="card" style="border-color:var(--accent3)">
+    <h4 style="color:var(--accent3)">Key Design: Properties and Rules Are One Concern</h4>
+    <p>A property <em>is</em> its rules. <code>noConsole</code> means nothing without "detect <code>console.x</code> on <code>PropertyAccessExpression</code>." The context equation, violation detection, and collection wiring are all aspects of enforcing one behavioral constraint. They should be declared together in a single <code>PropertyDecl</code>.</p>
+  </div>
+
+  <div class="tab-container" id="functor2-tabs">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="f2-spec">AnalysisSpec</button>
+      <button class="tab-btn" data-tab="f2-structural">Structural Attrs</button>
+      <button class="tab-btn" data-tab="f2-properties">Property Decls</button>
+      <button class="tab-btn" data-tab="f2-output">Output</button>
+    </div>
+
+    <div class="tab-panel active" id="f2-spec">
+      <pre><code><span style="color:var(--accent5)">interface</span> <span style="color:var(--accent3)">AnalysisSpec</span> {
+  structural: StructuralAttr[];   <span style="color:var(--text2)">// binder + kindAnnotations (4 attrs)</span>
+  properties: PropertyDecl[];     <span style="color:var(--text2)">// checker properties (8 decls)</span>
+}
+
+<span style="color:var(--accent5)">interface</span> <span style="color:var(--structural)">StructuralAttr</span> {
+  name:      string;
+  direction: 'syn' | 'inh' | 'collection';
+  type:      string;
+  deps:      string[];            <span style="color:var(--text2)">// explicit (only ~4 of these)</span>
+  equations: EquationSet;         <span style="color:var(--text2)">// functions, not data</span>
+}
+
+<span style="color:var(--accent5)">interface</span> <span style="color:var(--property)">PropertyDecl</span> {
+  name:          string;          <span style="color:var(--text2)">// 'noConsole'</span>
+  annotationKey: string;          <span style="color:var(--text2)">// key in PropertySet to check</span>
+  violations:    ViolationRule[]; <span style="color:var(--text2)">// the detection rules</span>
+}
+
+<span style="color:var(--accent5)">function</span> <span style="color:var(--accent3)">compileAnalysis</span>(
+  grammar: CompiledGrammar,       <span style="color:var(--text2)">// ← grammar is explicit input!</span>
+  spec:    AnalysisSpec,
+): CompiledAnalyzer;</code></pre>
+    </div>
+
+    <div class="tab-panel" id="f2-structural">
+      <p><span class="tag tag-structural">4 Attributes</span> The structural attributes are the binder system — they resolve kind definitions and annotations. Their dependencies are <strong>explicit</strong> in the spec.</p>
+      <div class="pipeline-diagram" style="padding:20px">
+        <svg width="700" height="100" viewBox="0 0 700 100" xmlns="http://www.w3.org/2000/svg">
+          <!-- kindDefs -->
+          <rect x="10" y="30" width="120" height="40" rx="8" fill="#102028" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="70" y="55" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">kindDefs</text>
+          <text x="70" y="85" text-anchor="middle" fill="#60809c" font-size="9">syn · leaf</text>
+
+          <!-- Arrow -->
+          <line x1="130" y1="50" x2="170" y2="50" stroke="#38bdf8" stroke-width="1.5" class="animated-line"/>
+          <polygon points="168,45 178,50 168,55" fill="#38bdf8"/>
+
+          <!-- defEnv -->
+          <rect x="180" y="30" width="120" height="40" rx="8" fill="#102028" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="240" y="55" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">defEnv</text>
+          <text x="240" y="85" text-anchor="middle" fill="#60809c" font-size="9">inh · deps: [kindDefs]</text>
+
+          <!-- Arrow -->
+          <line x1="300" y1="50" x2="340" y2="50" stroke="#38bdf8" stroke-width="1.5" class="animated-line"/>
+          <polygon points="338,45 348,50 338,55" fill="#38bdf8"/>
+
+          <!-- defLookup -->
+          <rect x="350" y="30" width="120" height="40" rx="8" fill="#102028" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="410" y="55" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">defLookup</text>
+          <text x="410" y="85" text-anchor="middle" fill="#60809c" font-size="9">syn · deps: [defEnv]</text>
+
+          <!-- Arrow -->
+          <line x1="470" y1="50" x2="510" y2="50" stroke="#38bdf8" stroke-width="1.5" class="animated-line"/>
+          <polygon points="508,45 518,50 508,55" fill="#38bdf8"/>
+
+          <!-- kindAnnotations -->
+          <rect x="520" y="30" width="160" height="40" rx="8" fill="#102028" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="600" y="55" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">kindAnnotations</text>
+          <text x="600" y="85" text-anchor="middle" fill="#60809c" font-size="9">syn · deps: [defLookup]</text>
+        </svg>
+      </div>
+      <p>These 4 attributes form the <strong>binder chain</strong>. They parse kind definitions from the source, build a definition environment, and resolve annotations on variable declarations. All 8 property context attributes depend on <code>kindAnnotations</code>.</p>
+    </div>
+
+    <div class="tab-panel" id="f2-properties">
+      <p><span class="tag tag-property">8 Properties</span> Each property bundles its name, annotation key, and violation rules into one declaration. The functor generates all AG plumbing from this.</p>
+      <pre><code>{
+  name: <span style="color:var(--accent4)">'noConsole'</span>,
+  annotationKey: <span style="color:var(--accent4)">'noConsole'</span>,
+  violations: [
+    violation({
+      triggerKind: <span style="color:var(--accent4)">'PropertyAccessExpression'</span>,
+      predicate: (ctx, pae) =&gt; {
+        if (pae.expression.kind !== 'Identifier') return false;
+        return (pae.expression as KSIdentifier).escapedText === 'console';
+      },
+      message: (ctx, pae, def) =&gt;
+        `console.${(pae.name as KSIdentifier).escapedText} violates ${def.name} (noConsole)`,
+    }),
+  ],
+}</code></pre>
+      <p>The developer only writes the <strong>violation predicate</strong> — the domain-specific detection logic. Everything else is generated.</p>
+    </div>
+
+    <div class="tab-panel" id="f2-output">
+      <p>For each <code>PropertyDecl</code>, the functor generates 6 artifacts:</p>
+      <div class="gen-flow">
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">inh</div>
+          <div class="gen-flow-text">
+            <div class="label">Context equation: <code>eq_{name}Context</code></div>
+            <div class="desc">Inherited attr — checks kindAnnotations for matching annotationKey on VariableDeclaration</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">=</div>
+          <div class="gen-flow-text">
+            <div class="label">Root value: <code>null</code></div>
+            <div class="desc">Always null at root — no context propagated from above the tree</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">syn</div>
+          <div class="gen-flow-text">
+            <div class="label">Violation equation: wraps predicate</div>
+            <div class="desc">Checks context active → runs predicate → builds CheckerDiagnostic</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">+</div>
+          <div class="gen-flow-text">
+            <div class="label">allViolations entry</div>
+            <div class="desc">Adds this violation to the collection attribute automatically</div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">T</div>
+          <div class="gen-flow-text">
+            <div class="label">KSCAttrMap entries</div>
+            <div class="desc"><code>{name}Context: KindDefinition | null</code> + <code>{violation}: CheckerDiagnostic | null</code></div>
+          </div>
+        </div>
+        <div class="gen-flow-item">
+          <div class="gen-flow-icon" style="background:rgba(196,181,253,0.2); color:var(--generated)">→</div>
+          <div class="gen-flow-text">
+            <div class="label">Dep edges (3 per property)</div>
+            <div class="desc"><code>{name}Context → kindAnnotations</code>, <code>violation → {name}Context</code>, <code>allViolations → violation</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 5. PROPERTY EXPLORER ========== -->
+<section id="property-explorer">
+  <h2>5. Property Explorer</h2>
+  <p>Click a property to see its declaration, what gets generated, and its dependency edges.</p>
+
+  <div class="property-explorer" id="prop-explorer">
+    <div class="property-list">
+      <div class="property-item active" data-prop="noImports">noImports</div>
+      <div class="property-item" data-prop="noConsole">noConsole</div>
+      <div class="property-item" data-prop="immutable">immutable</div>
+      <div class="property-item" data-prop="static">static</div>
+      <div class="property-item" data-prop="noSideEffects">noSideEffects</div>
+      <div class="property-item" data-prop="noMutation">noMutation</div>
+      <div class="property-item" data-prop="noIO">noIO</div>
+      <div class="property-item" data-prop="pure">pure</div>
+    </div>
+    <div class="property-detail" id="prop-detail">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ========== 6. DEP GRAPH ========== -->
+<section id="dep-graph">
+  <h2>6. Dependency Graph Derivation</h2>
+  <p>The dep graph is <strong>fully derived from spec structure</strong> — zero regex scanning. 3 edges are explicit in the structural spec. 24 edges are mechanically derived from property declarations.</p>
+
+  <div class="tab-container" id="dep-tabs">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="dep-visual">Visual Graph</button>
+      <button class="tab-btn" data-tab="dep-algorithm">Derivation Algorithm</button>
+      <button class="tab-btn" data-tab="dep-breakdown">Edge Breakdown</button>
+    </div>
+
+    <div class="tab-panel active" id="dep-visual">
+      <div class="dep-graph-container">
+        <svg width="900" height="520" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+          <!-- Title -->
+          <text x="450" y="25" text-anchor="middle" fill="var(--text2)" font-size="13" font-weight="600">Full Dependency Graph — 26 Edges</text>
+
+          <!-- Legend -->
+          <rect x="20" y="10" width="12" height="12" rx="2" fill="none" stroke="#38bdf8" stroke-width="2"/>
+          <text x="38" y="21" fill="#38bdf8" font-size="10">Structural (explicit)</text>
+          <rect x="160" y="10" width="12" height="12" rx="2" fill="none" stroke="#f472b6" stroke-width="2"/>
+          <text x="178" y="21" fill="#f472b6" font-size="10">Property (derived)</text>
+          <rect x="300" y="10" width="12" height="12" rx="2" fill="none" stroke="#86efac" stroke-width="2"/>
+          <text x="318" y="21" fill="#86efac" font-size="10">Collection (derived)</text>
+
+          <!-- Layer 0: kindDefs (leaf) -->
+          <rect x="380" y="50" width="140" height="36" rx="8" fill="#0d1b2a" stroke="#38bdf8" stroke-width="2"/>
+          <text x="450" y="73" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">kindDefs</text>
+
+          <!-- Layer 1: defEnv -->
+          <rect x="380" y="110" width="140" height="36" rx="8" fill="#0d1b2a" stroke="#38bdf8" stroke-width="2"/>
+          <text x="450" y="133" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">defEnv</text>
+          <line x1="450" y1="86" x2="450" y2="110" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+          <!-- Layer 2: defLookup -->
+          <rect x="380" y="170" width="140" height="36" rx="8" fill="#0d1b2a" stroke="#38bdf8" stroke-width="2"/>
+          <text x="450" y="193" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">defLookup</text>
+          <line x1="450" y1="146" x2="450" y2="170" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+          <!-- Layer 3: kindAnnotations -->
+          <rect x="370" y="230" width="160" height="36" rx="8" fill="#0d1b2a" stroke="#38bdf8" stroke-width="2"/>
+          <text x="450" y="253" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="600">kindAnnotations</text>
+          <line x1="450" y1="206" x2="450" y2="230" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+          <!-- Layer 4: 8 context attrs (fan out) -->
+          <!-- Positions: spread from x=40 to x=860, y=310 -->
+          <g id="context-attrs">
+            <rect x="10" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="55" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">noImports</text>
+            <text x="55" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+
+            <rect x="115" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="160" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">noConsole</text>
+            <text x="160" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+
+            <rect x="220" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="265" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">immutable</text>
+            <text x="265" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+
+            <rect x="325" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="370" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">static</text>
+            <text x="370" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+
+            <rect x="430" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="475" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">noSideEffects</text>
+            <text x="475" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+
+            <rect x="535" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="580" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">noMutation</text>
+            <text x="580" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+
+            <rect x="640" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="685" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">noIO</text>
+            <text x="685" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+
+            <rect x="745" y="300" width="90" height="32" rx="6" fill="#1a0d1a" stroke="#f472b6" stroke-width="1.5"/>
+            <text x="790" y="320" text-anchor="middle" fill="#f472b6" font-size="8.5" font-weight="600">pure</text>
+            <text x="790" y="332" text-anchor="middle" fill="#f472b6" font-size="7" opacity="0.7">Context</text>
+          </g>
+
+          <!-- Lines from kindAnnotations to each context (fan out) -->
+          <line x1="450" y1="266" x2="55" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+          <line x1="450" y1="266" x2="160" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+          <line x1="450" y1="266" x2="265" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+          <line x1="450" y1="266" x2="370" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+          <line x1="450" y1="266" x2="475" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+          <line x1="450" y1="266" x2="580" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+          <line x1="450" y1="266" x2="685" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+          <line x1="450" y1="266" x2="790" y2="300" stroke="#f472b6" stroke-width="1" opacity="0.5"/>
+
+          <!-- Layer 5: 8 violation attrs -->
+          <g id="violation-attrs">
+            <rect x="10" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="55" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">importViol.</text>
+
+            <rect x="115" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="160" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">consoleViol.</text>
+
+            <rect x="220" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="265" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">mutableViol.</text>
+
+            <rect x="325" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="370" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">dynamicViol.</text>
+
+            <rect x="430" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="475" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">sideEffViol.</text>
+
+            <rect x="535" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="580" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">mutationViol.</text>
+
+            <rect x="640" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="685" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">ioViol.</text>
+
+            <rect x="745" y="370" width="90" height="32" rx="6" fill="#0d1b1a" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="790" y="390" text-anchor="middle" fill="#e0a0c0" font-size="8" font-weight="600">purityViol.</text>
+          </g>
+
+          <!-- Lines: context → violation (vertical) -->
+          <line x1="55" y1="332" x2="55" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+          <line x1="160" y1="332" x2="160" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+          <line x1="265" y1="332" x2="265" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+          <line x1="370" y1="332" x2="370" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+          <line x1="475" y1="332" x2="475" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+          <line x1="580" y1="332" x2="580" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+          <line x1="685" y1="332" x2="685" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+          <line x1="790" y1="332" x2="790" y2="370" stroke="#f472b6" stroke-width="1" opacity="0.4"/>
+
+          <!-- Layer 6: allViolations (collector) -->
+          <rect x="340" y="450" width="220" height="40" rx="10" fill="#0d1b1a" stroke="#86efac" stroke-width="2"/>
+          <text x="450" y="475" text-anchor="middle" fill="#86efac" font-size="13" font-weight="700">allViolations</text>
+          <text x="450" y="505" text-anchor="middle" fill="#70a080" font-size="9">collection · gathers all 8 violations</text>
+
+          <!-- Lines: violations → allViolations (fan in) -->
+          <line x1="55" y1="402" x2="370" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+          <line x1="160" y1="402" x2="390" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+          <line x1="265" y1="402" x2="410" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+          <line x1="370" y1="402" x2="430" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+          <line x1="475" y1="402" x2="450" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+          <line x1="580" y1="402" x2="470" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+          <line x1="685" y1="402" x2="490" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+          <line x1="790" y1="402" x2="510" y2="450" stroke="#86efac" stroke-width="1" opacity="0.4"/>
+
+          <!-- Arrow markers -->
+          <defs>
+            <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0,0 8,3 0,6" fill="#38bdf8"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="dep-algorithm">
+      <p>The dep graph is built by two rules — no scanning needed:</p>
+      <pre><code><span style="color:var(--accent5)">function</span> buildDepGraph(spec: AnalysisSpec): DepEdge[] {
+  const edges: DepEdge[] = [];
+
+  <span style="color:var(--text2)">// Rule 1: Structural deps — explicit in spec (3 edges)</span>
+  for (const attr of spec.structural) {
+    for (const dep of attr.deps) {
+      edges.push([attr.name, dep]);
+    }
+  }
+
+  <span style="color:var(--text2)">// Rule 2: Property deps — mechanical derivation (24 edges)</span>
+  for (const prop of spec.properties) {
+    const contextAttr = `${prop.name}Context`;
+
+    <span style="color:var(--text2)">// Context always depends on kindAnnotations</span>
+    edges.push([contextAttr, <span style="color:var(--accent4)">'kindAnnotations'</span>]);
+
+    <span style="color:var(--text2)">// Each violation depends on its context</span>
+    for (const rule of prop.violations) {
+      const violationAttr = violationAttrName(prop, rule);
+      edges.push([violationAttr, contextAttr]);
+
+      <span style="color:var(--text2)">// allViolations collects each violation</span>
+      edges.push([<span style="color:var(--accent4)">'allViolations'</span>, violationAttr]);
+    }
+  }
+
+  return edges; <span style="color:var(--text2)">// 3 + 24 = 27 edges, zero regex</span>
+}</code></pre>
+    </div>
+
+    <div class="tab-panel" id="dep-breakdown">
+      <div class="card">
+        <table style="width:100%; border-collapse:collapse; font-size:0.9em">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border)">
+              <th style="text-align:left;padding:8px;color:var(--accent2)">Source</th>
+              <th style="text-align:center;padding:8px;color:var(--accent2)">Edges</th>
+              <th style="text-align:left;padding:8px;color:var(--accent2)">Detection Method</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px"><span class="tag tag-structural">structural</span> defEnv → kindDefs</td>
+              <td style="text-align:center;padding:8px">1</td>
+              <td style="padding:8px;color:var(--text2)">Explicit in spec</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px"><span class="tag tag-structural">structural</span> defLookup → defEnv</td>
+              <td style="text-align:center;padding:8px">1</td>
+              <td style="padding:8px;color:var(--text2)">Explicit in spec</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px"><span class="tag tag-structural">structural</span> kindAnnotations → defLookup</td>
+              <td style="text-align:center;padding:8px">1</td>
+              <td style="padding:8px;color:var(--text2)">Explicit in spec</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px"><span class="tag tag-property">property</span> *Context → kindAnnotations</td>
+              <td style="text-align:center;padding:8px;color:var(--property)">8</td>
+              <td style="padding:8px;color:var(--text2)">Derived from property pattern</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px"><span class="tag tag-property">property</span> *Violation → *Context</td>
+              <td style="text-align:center;padding:8px;color:var(--property)">8</td>
+              <td style="padding:8px;color:var(--text2)">Derived from property declaration</td>
+            </tr>
+            <tr>
+              <td style="padding:8px"><span class="tag" style="background:rgba(134,239,172,0.2);color:var(--analysis);border:1px solid rgba(134,239,172,0.3)">collection</span> allViolations → *Violation</td>
+              <td style="text-align:center;padding:8px;color:var(--analysis)">8</td>
+              <td style="padding:8px;color:var(--text2)">Derived from property list</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--border)">
+              <td style="padding:8px;font-weight:700">Total</td>
+              <td style="text-align:center;padding:8px;font-weight:700">26</td>
+              <td style="padding:8px;font-weight:700;color:var(--accent3)">3 explicit + 24 derived</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 7. TYPE SAFETY ========== -->
+<section id="type-safety">
+  <h2>7. Type Safety via KindToNode</h2>
+  <p>Functor 1 generates a <strong>type-level mapping</strong> from kind strings to node types. The <code>violation()</code> builder uses this for full type inference — no unsafe casts on trigger nodes.</p>
+
+  <div class="card" style="border-color:var(--functor1)">
+    <h4 style="color:var(--functor1)">Generated by Functor 1: kind-map.ts</h4>
+    <pre><code><span style="color:var(--text2)">// ast-schema/generated/kind-map.ts</span>
+<span style="color:var(--accent5)">export type</span> KindToNode = {
+  <span style="color:var(--accent4)">'Identifier'</span>:                  KSIdentifier;
+  <span style="color:var(--accent4)">'PropertyAccessExpression'</span>:     KSPropertyAccessExpression;
+  <span style="color:var(--accent4)">'BinaryExpression'</span>:             KSBinaryExpression;
+  <span style="color:var(--accent4)">'VariableDeclarationList'</span>:      KSVariableDeclarationList;
+  <span style="color:var(--text2)">// ... all 364 kinds</span>
+};</code></pre>
+  </div>
+
+  <div class="card" style="border-color:var(--accent3)">
+    <h4 style="color:var(--accent3)">The violation() Builder — Type Inference in Action</h4>
+    <pre><code><span style="color:var(--accent5)">function</span> violation&lt;<span style="color:var(--accent2)">K</span> <span style="color:var(--accent5)">extends</span> string & keyof KindToNode&gt;(config: {
+  triggerKind: <span style="color:var(--accent2)">K</span>;
+  predicate:   (ctx: Ctx, node: <span style="color:var(--accent2)">KindToNode[K]</span>) =&gt; boolean;
+  message:     (ctx: Ctx, node: <span style="color:var(--accent2)">KindToNode[K]</span>, def: KindDefinition) =&gt; string;
+}): ViolationRule;
+
+<span style="color:var(--text2)">// Usage — TypeScript infers K from triggerKind:</span>
+violation({
+  triggerKind: <span style="color:var(--accent4)">'PropertyAccessExpression'</span>,
+  <span style="color:var(--text2)">//           ↑ K inferred as 'PropertyAccessExpression'</span>
+  predicate: (ctx, pae) =&gt; {
+    <span style="color:var(--text2)">//              ↑ pae: KSPropertyAccessExpression (auto-narrowed!)</span>
+    return pae.expression.kind === 'Identifier';
+    <span style="color:var(--text2)">//         ↑ .expression is typed — full IDE autocomplete</span>
+  },
+  message: (ctx, pae, def) =&gt; `...`,
+});</code></pre>
+    <p style="margin-top:12px"><strong>No unsafe casts on trigger nodes.</strong> The type parameter <code>K</code> flows from <code>triggerKind</code> through <code>KindToNode[K]</code> to narrow the <code>node</code> parameter in both <code>predicate</code> and <code>message</code>.</p>
+  </div>
+</section>
+
+<!-- ========== 8. BEFORE / AFTER ========== -->
+<section id="before-after">
+  <h2>8. Before vs After</h2>
+  <p>Adding a new property (e.g., <code>noEval</code>) — the developer experience comparison.</p>
+
+  <div class="comparison">
+    <div class="comparison-side before">
+      <div class="comparison-header">Before: 5 files, ~25 lines</div>
+      <div class="comparison-body">
+        <pre><code><span style="color:var(--accent)">// 1. types.ts — add to PropertySet</span>
+interface PropertySet {
+  // ... existing
+  noEval?: boolean;    // ← add
+}
+
+<span style="color:var(--accent)">// 2. binder.ts — add to PROPERTY_KEYS</span>
+const PROPERTY_KEYS = [
+  // ... existing
+  'noEval',            // ← add
+];
+
+<span style="color:var(--accent)">// 3. checker.ts — context equation (boilerplate)</span>
+export function eq_noEvalContext(
+  parentCtx: Ctx
+): KindDefinition | null | undefined {
+  if ((parentCtx.node as any).kind
+      === 'VariableDeclaration') {
+    const kinds = parentCtx.attr(
+      'kindAnnotations');
+    const match = kinds.find(
+      (k) => (k.properties as any)['noEval']);
+    if (match) return match;
+  }
+  return undefined;
+}
+export const eq_noEvalContext_rootValue
+  : KindDefinition | null = null;
+
+<span style="color:var(--accent)">// 4. checker.ts — violation (unique part)</span>
+export function eq_evalViolation_CallExpression(
+  ctx: Ctx, raw: KSNode
+): CheckerDiagnostic | null {
+  const context = ctx.attr('noEvalContext');
+  if (!context) return null;
+  const call = raw as KSCallExpression;
+  if (call.expression.kind === 'Identifier'
+    && (call.expression as KSIdentifier)
+      .escapedText === 'eval') {
+    return { /* diagnostic */ };
+  }
+  return null;
+}
+
+<span style="color:var(--accent)">// 5. checker.ts — add to allViolations</span>
+// update eq_allViolations_contribute
+
+<span style="color:var(--accent)">// 6. attr-types.ts — 2 entries</span>
+noEvalContext: KindDefinition | null;
+evalViolation: CheckerDiagnostic | null;</code></pre>
+      </div>
+    </div>
+    <div class="comparison-side after">
+      <div class="comparison-header">After: 1 file, ~8 lines</div>
+      <div class="comparison-body">
+        <pre><code><span style="color:var(--analysis)">// spec.ts — add one PropertyDecl</span>
+{
+  name: 'noEval',
+  annotationKey: 'noEval',
+  violations: [
+    violation({
+      triggerKind: 'CallExpression',
+      predicate: (ctx, call) =&gt;
+        call.expression.kind === 'Identifier'
+        && (call.expression as KSIdentifier)
+          .escapedText === 'eval',
+      message: (ctx, call, def) =&gt;
+        `eval() violates ${def.name} (noEval)`,
+    }),
+  ],
+}
+
+<span style="color:var(--analysis)">// That's it. The functor generates:</span>
+<span style="color:var(--text2)">// ✓ eq_noEvalContext (inh equation)</span>
+<span style="color:var(--text2)">// ✓ eq_noEvalContext_rootValue = null</span>
+<span style="color:var(--text2)">// ✓ evalViolation (syn equation)</span>
+<span style="color:var(--text2)">// ✓ allViolations wiring</span>
+<span style="color:var(--text2)">// ✓ KSCAttrMap entries</span>
+<span style="color:var(--text2)">// ✓ 3 dep edges</span>
+<span style="color:var(--text2)">// ✓ Build-time kind validation</span></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats" style="justify-content: center;">
+    <div class="stat" style="border-color:var(--accent)">
+      <div class="stat-value" style="color:var(--accent)">5 → 1</div>
+      <div class="stat-label">Files Touched</div>
+    </div>
+    <div class="stat" style="border-color:var(--accent)">
+      <div class="stat-value" style="color:var(--accent)">25 → 8</div>
+      <div class="stat-label">Lines Written</div>
+    </div>
+    <div class="stat" style="border-color:var(--analysis)">
+      <div class="stat-value" style="color:var(--analysis)">6</div>
+      <div class="stat-label">Auto-Generated Artifacts</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 9. FILE STRUCTURE ========== -->
+<section id="file-structure">
+  <h2>9. File Structure</h2>
+  <p>The restructured project layout. <span style="color:var(--analysis)">Green = new</span>, <span style="color:var(--generated)">purple = generated</span>, <span style="opacity:0.6">dimmed = unchanged</span>.</p>
+
+  <div class="file-tree">
+    <div class="dir">ast-schema/</div>
+    <div class="indent unchanged">builder.ts <span style="font-size:0.85em">&mdash; schema DSL</span></div>
+    <div class="indent unchanged">schema.ts <span style="font-size:0.85em">&mdash; grammar definition</span></div>
+    <div class="indent dir">generated/</div>
+    <div class="indent2 unchanged">node-types.ts, schema.ts, convert.ts, builders.ts, serialize.ts</div>
+    <div class="indent2 new">kind-map.ts <span style="font-size:0.85em">&mdash; NEW: KindToNode type mapping</span></div>
+    <br>
+    <div class="dir new">ksc-analysis/ <span style="font-size:0.85em">&mdash; NEW: replaces ksc-behavior/ equation files</span></div>
+    <div class="indent new">spec.ts <span style="font-size:0.85em">&mdash; the AnalysisSpec (structural + properties)</span></div>
+    <div class="indent new">helpers.ts <span style="font-size:0.85em">&mdash; shared constants (ASSIGNMENT_OPS, IO_MODULES)</span></div>
+    <br>
+    <div class="dir unchanged">ksc-behavior/</div>
+    <div class="indent unchanged">ctx.ts <span style="font-size:0.85em">&mdash; Ctx interface (unchanged)</span></div>
+    <div class="indent unchanged">types.ts <span style="font-size:0.85em">&mdash; KindDefinition, CheckerDiagnostic (unchanged)</span></div>
+    <div class="indent gen">attr-types.ts <span style="font-size:0.85em">&mdash; GENERATED by analysis functor</span></div>
+    <br>
+    <div class="dir new">ksc-compiler/ <span style="font-size:0.85em">&mdash; NEW: the two functors</span></div>
+    <div class="indent new">types.ts <span style="font-size:0.85em">&mdash; GrammarSpec, AnalysisSpec, CompiledGrammar, etc.</span></div>
+    <div class="indent new">compile-grammar.ts <span style="font-size:0.85em">&mdash; Functor 1</span></div>
+    <div class="indent new">compile-analysis.ts <span style="font-size:0.85em">&mdash; Functor 2</span></div>
+    <div class="indent new">violation.ts <span style="font-size:0.85em">&mdash; violation&lt;K&gt;() builder</span></div>
+    <div class="indent new">pipeline.ts <span style="font-size:0.85em">&mdash; orchestrates both functors</span></div>
+    <br>
+    <div class="dir unchanged">ksc-generated/</div>
+    <div class="indent gen">evaluator.ts <span style="font-size:0.85em">&mdash; generated by Functor 2 (same output)</span></div>
+    <br>
+    <div class="dir unchanged">scripts/</div>
+    <div class="indent unchanged">codegen.ts <span style="font-size:0.85em">&mdash; thin wrapper: calls compileGrammar + emit</span></div>
+    <div class="indent unchanged">gen-ksc-evaluator.ts <span style="font-size:0.85em">&mdash; thin wrapper: calls compileAnalysis + emit</span></div>
+  </div>
+</section>
+
+<!-- ========== 10. FUTAMURA ========== -->
+<section id="futamura">
+  <h2>10. Futamura Projection Mapping</h2>
+  <p>The two-functor architecture maps cleanly to the Futamura projections from partial evaluation theory.</p>
+
+  <div class="card-grid">
+    <div class="card" style="border-left: 3px solid var(--functor1)">
+      <h4 style="color:var(--functor1)">1st Projection</h4>
+      <p><code>mix(interp, spec) → program</code></p>
+      <p style="font-size:0.88em"><strong>KSC:</strong> <code>compileAnalysis(grammar, analysisSpec) → evaluator</code></p>
+      <p style="font-size:0.85em;color:var(--text2)">Specializes the generic AG evaluation strategy on a specific set of equations. The evaluator is the residual program.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--accent3)">
+      <h4 style="color:var(--accent3)">2nd Projection</h4>
+      <p><code>mix(mix, interp) → compiler</code></p>
+      <p style="font-size:0.88em"><strong>KSC:</strong> <code>compileGrammar(grammarSpec)</code> then <code>compileAnalysis(compiledGrammar, ·)</code></p>
+      <p style="font-size:0.85em;color:var(--text2)">The analysis functor itself is a compiler — takes any analysis spec and produces an evaluator.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--analysis)">
+      <h4 style="color:var(--analysis)">3rd Projection</h4>
+      <p><code>mix(mix, mix) → cogen</code></p>
+      <p style="font-size:0.88em"><strong>KSC:</strong> The pipeline function itself</p>
+      <p style="font-size:0.85em;color:var(--text2)">Takes any grammar spec + any analysis spec and produces an analyzer. Applied to KSC's inputs, it produces KSC.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--accent5)">
+      <h4 style="color:var(--accent5)">Fixpoint</h4>
+      <p><code>mix(mix, mix) → mix</code></p>
+      <p style="font-size:0.88em"><strong>KSC:</strong> Self-application</p>
+      <p style="font-size:0.85em;color:var(--text2)">The pipeline applied to its own structure would reproduce the pipeline. The <code>for (item of spec) emit(template(item))</code> loop is the irreducible unit.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      <span class="arrow">&#9654;</span>
+      The Pipeline: Putting It All Together
+    </div>
+    <div class="collapsible-body">
+      <div class="collapsible-content">
+        <pre><code><span style="color:var(--text2)">// ksc-compiler/pipeline.ts</span>
+
+import { compileGrammar } from './compile-grammar.js';
+import { compileAnalysis } from './compile-analysis.js';
+import { TS_GRAMMAR } from '../ast-schema/schema.js';
+import { KSC_ANALYSIS } from '../ksc-analysis/spec.js';
+
+<span style="color:var(--text2)">// Functor 1: specialize on grammar</span>
+const grammar = <span style="color:var(--functor1)">compileGrammar</span>(TS_GRAMMAR);
+
+<span style="color:var(--text2)">// Functor 2: specialize on analysis (grammar is explicit input)</span>
+const analyzer = <span style="color:var(--accent3)">compileAnalysis</span>(grammar, KSC_ANALYSIS);
+
+<span style="color:var(--text2)">// Build time: emit generated files</span>
+grammar.emit('./ast-schema/generated');
+analyzer.emit('./ksc-generated');
+
+<span style="color:var(--text2)">// Runtime: analyze a program</span>
+<span style="color:var(--accent5)">export function</span> analyze(
+  program: ts.Program,
+  depth?: AnalysisDepth
+): AnalysisResult {
+  return analyzer.analyze(program, depth);
+}</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapsible(this)">
+      <span class="arrow">&#9654;</span>
+      Build-Time Validation
+    </div>
+    <div class="collapsible-body">
+      <div class="collapsible-content">
+        <p>Because Functor 2 receives the compiled grammar as a parameter, it can validate all kind references at build time:</p>
+        <pre><code><span style="color:var(--text2)">// Inside compileAnalysis():</span>
+for (const prop of spec.properties) {
+  for (const rule of prop.violations) {
+    if (!grammar.<span style="color:var(--accent3)">hasKind</span>(rule.triggerKind)) {
+      throw new Error(
+        `Property '${prop.name}': violation references ` +
+        `unknown kind '${rule.triggerKind}'`
+      );
+    }
+  }
+}
+
+<span style="color:var(--text2)">// If you typo 'ProeprtyAccessExpression', you get
+// a build-time error — not a silent runtime miss.</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 11. QUIZ ========== -->
+<section id="quiz">
+  <h2>11. Quiz</h2>
+  <p>Click each question to reveal the answer.</p>
+
+  <div class="flashcard-deck">
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">What are the two functors in the architecture?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        <strong>Functor 1: compileGrammar()</strong> — takes a GrammarSpec (AST node definitions), produces a CompiledGrammar with generated type files and runtime capabilities.<br>
+        <strong>Functor 2: compileAnalysis()</strong> — takes the CompiledGrammar + an AnalysisSpec (structural attrs + property declarations), produces a CompiledAnalyzer with the generated evaluator.
+      </div></div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">How does the dep graph avoid regex scanning?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        The spec structure <em>implies</em> the dep graph. Structural attributes declare their deps explicitly (3 edges). Property declarations mechanically derive 24 edges: each context depends on kindAnnotations, each violation depends on its context, and allViolations depends on all violations. Zero regex scanning needed.
+      </div></div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">What is a PropertyDecl and what does the functor generate from it?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        A PropertyDecl bundles a property name, annotation key, and violation rules. From it, the functor generates: (1) an inherited context equation, (2) a null root value, (3) a synthesized violation equation wrapping the predicate, (4) allViolations wiring, (5) KSCAttrMap type entries, and (6) 3 dependency edges. The developer only writes the violation predicate.
+      </div></div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">How does KindToNode provide type safety for violation predicates?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        Functor 1 generates a type-level map from kind strings to node types. The <code>violation&lt;K&gt;()</code> builder infers <code>K</code> from the <code>triggerKind</code> string literal, then uses <code>KindToNode[K]</code> to narrow the <code>node</code> parameter in <code>predicate</code> and <code>message</code>. This gives full IDE autocomplete and eliminates unsafe casts on trigger nodes.
+      </div></div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">How many files/lines does adding a new property require before vs after?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        <strong>Before:</strong> 5 files, ~25 lines — add to PropertySet, PROPERTY_KEYS, write context equation (boilerplate), write violation equation, add to allViolations, add attr-types entries.<br>
+        <strong>After:</strong> 1 file, ~8 lines — add a single PropertyDecl to spec.ts with the violation predicate. Everything else is generated.
+      </div></div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">Why is the grammar dependency a function parameter rather than an import path?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        Making the grammar an explicit parameter to <code>compileAnalysis(grammar, spec)</code> means: (1) the coupling is typed and visible, (2) the functor can validate kind references at build time, (3) the grammar can be swapped (different language grammars, test grammars), and (4) the data flow matches the Futamura projection structure where <code>mix(program, static_input) → residual</code>.
+      </div></div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">What Futamura projection does compileAnalysis correspond to?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        The <strong>1st Futamura projection</strong>: <code>mix(interpreter, spec) → residual_program</code>. The analysis functor specializes the generic AG evaluation strategy on a specific set of equations (the AnalysisSpec), producing the evaluator as a residual program that only needs the runtime input (the TS program).
+      </div></div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('open')">
+      <div class="flashcard-q">What happens if a violation references a non-existent AST kind?</div>
+      <div class="flashcard-a"><div class="flashcard-a-inner">
+        <strong>Build-time error.</strong> The functor validates all <code>triggerKind</code> values against the compiled grammar's kind set. If you typo <code>'ProeprtyAccessExpression'</code>, you get an immediate error: <code>"Property 'noConsole': violation references unknown kind 'ProeprtyAccessExpression'"</code>. In the old system, this would silently miss violations at runtime.
+      </div></div>
+    </div>
+  </div>
+</section>
+
+</div><!-- container -->
+
+<div style="text-align:center; padding:40px; color:var(--text2); font-size:0.85em; border-top:1px solid var(--border);">
+  KSC Two-Functor Architecture &mdash; Option B
+</div>
+
+<script>
+// ── Tab switching ──
+document.querySelectorAll('.tab-bar').forEach(bar => {
+  bar.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const container = bar.closest('.tab-container');
+      container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+});
+
+// ── Collapsible ──
+function toggleCollapsible(header) {
+  header.closest('.collapsible').classList.toggle('open');
+}
+
+// ── Property Explorer ──
+const PROPERTIES = {
+  noImports: {
+    triggerKind: 'Identifier',
+    predicate: `(ctx, ident) => ident.resolvesToImport`,
+    message: `\`'\${ident.escapedText}' is an imported binding, violating \${def.name} (noImports)\``,
+    desc: 'Prevents use of imported bindings inside annotated scopes.',
+    violationAttr: 'importViolation',
+    contextAttr: 'noImportsContext',
+  },
+  noConsole: {
+    triggerKind: 'PropertyAccessExpression',
+    predicate: `(ctx, pae) => {\n  if (pae.expression.kind !== 'Identifier') return false;\n  return (pae.expression as KSIdentifier).escapedText === 'console';\n}`,
+    message: `\`console.\${pae.name.escapedText} violates \${def.name} (noConsole)\``,
+    desc: 'Prevents console.* access (console.log, console.error, etc.).',
+    violationAttr: 'consoleViolation',
+    contextAttr: 'noConsoleContext',
+  },
+  immutable: {
+    triggerKind: 'VariableDeclarationList',
+    predicate: `(ctx, vdl) => vdl.declarationKind !== 'const'`,
+    message: `\`'\${vdl.declarationKind}' binding violates \${def.name} (immutable)\``,
+    desc: 'Enforces const-only bindings — no let or var.',
+    violationAttr: 'mutableBindingViolation',
+    contextAttr: 'immutableContext',
+  },
+  static: {
+    triggerKind: 'CallExpression',
+    predicate: `(ctx, call) => call.expression?.kind === 'ImportKeyword'`,
+    message: `\`dynamic import() violates \${def.name} (static)\``,
+    desc: 'Prevents dynamic import() calls.',
+    violationAttr: 'dynamicImportViolation',
+    contextAttr: 'staticContext',
+  },
+  noSideEffects: {
+    triggerKind: 'ExpressionStatement',
+    predicate: `(ctx, stmt) => SIDE_EFFECT_KINDS.has(stmt.expression.kind)`,
+    message: `\`\${stmt.expression.kind} as statement is a side effect\``,
+    desc: 'Flags CallExpression, AwaitExpression, and YieldExpression as statement-level side effects.',
+    violationAttr: 'sideEffectViolation',
+    contextAttr: 'noSideEffectsContext',
+  },
+  noMutation: {
+    triggerKind: 'BinaryExpression + PrefixUnary + PostfixUnary + Delete',
+    predicate: `(multiple rules)\n  BinaryExpression: ASSIGNMENT_OPS.has(bin.operatorToken.kind)\n  PrefixUnary: pre.operator === '++' || '--'\n  PostfixUnary: post.operator === '++' || '--'\n  DeleteExpression: () => true`,
+    message: `(varies by trigger kind)`,
+    desc: 'Prevents mutation: assignment operators, ++/--, and delete. Has 4 violation rules.',
+    violationAttr: 'mutationViolation',
+    contextAttr: 'noMutationContext',
+  },
+  noIO: {
+    triggerKind: 'Identifier',
+    predicate: `(ctx, ident) =>\n  ident.resolvesToImport\n  && !!ident.importModuleSpecifier\n  && IO_MODULES.has(ident.importModuleSpecifier)`,
+    message: `\`'\${ident.escapedText}' from IO module '\${ident.importModuleSpecifier}' violates \${def.name}\``,
+    desc: 'Detects usage of identifiers imported from IO modules (fs, net, http, etc.).',
+    violationAttr: 'ioViolation',
+    contextAttr: 'noIOContext',
+  },
+  pure: {
+    triggerKind: '(none — placeholder)',
+    predicate: `// Phase 6: transitive call graph analysis`,
+    message: `(deferred)`,
+    desc: 'Placeholder for Phase 6 transitive analysis. Currently returns null.',
+    violationAttr: 'purityViolation',
+    contextAttr: 'pureContext',
+  },
+};
+
+function renderProperty(name) {
+  const p = PROPERTIES[name];
+  const detail = document.getElementById('prop-detail');
+  detail.innerHTML = `
+    <h3 style="color:var(--property); margin-top:0">${name}</h3>
+    <p>${p.desc}</p>
+
+    <div style="margin:16px 0">
+      <span class="tag tag-property">trigger</span>
+      <code>${p.triggerKind}</code>
+    </div>
+
+    <h4 style="color:var(--accent2); margin-bottom:6px; font-size:0.95em">Violation Predicate</h4>
+    <pre style="font-size:0.82em"><code>${p.predicate}</code></pre>
+
+    <h4 style="color:var(--accent2); margin-bottom:6px; font-size:0.95em">Generated Artifacts</h4>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85em">
+      <div style="padding:8px 12px; background:var(--code-bg); border-radius:6px; border:1px solid var(--code-border)">
+        <div style="color:var(--generated); font-weight:600">Context Attr</div>
+        <code style="font-size:0.85em">${p.contextAttr}</code>
+      </div>
+      <div style="padding:8px 12px; background:var(--code-bg); border-radius:6px; border:1px solid var(--code-border)">
+        <div style="color:var(--generated); font-weight:600">Violation Attr</div>
+        <code style="font-size:0.85em">${p.violationAttr}</code>
+      </div>
+    </div>
+
+    <h4 style="color:var(--accent2); margin-top:14px; margin-bottom:6px; font-size:0.95em">Dep Edges (auto-derived)</h4>
+    <div style="font-family:monospace; font-size:0.85em; padding:10px 14px; background:var(--code-bg); border-radius:6px; border:1px solid var(--code-border); line-height:1.8">
+      <span style="color:var(--property)">${p.contextAttr}</span> <span style="color:var(--text2)">→</span> <span style="color:var(--structural)">kindAnnotations</span><br>
+      <span style="color:var(--property)">${p.violationAttr}</span> <span style="color:var(--text2)">→</span> <span style="color:var(--property)">${p.contextAttr}</span><br>
+      <span style="color:var(--analysis)">allViolations</span> <span style="color:var(--text2)">→</span> <span style="color:var(--property)">${p.violationAttr}</span>
+    </div>
+  `;
+}
+
+document.querySelectorAll('.property-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.property-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    renderProperty(item.dataset.prop);
+  });
+});
+
+// Initial render
+renderProperty('noImports');
+</script>
+</body>
+</html>

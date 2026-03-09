@@ -1,0 +1,3209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partial Evaluation, Futamura Projections &amp; KSC as Multi-Stage Specialization</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --bg3: #0f3460;
+  --surface: #1e2a4a;
+  --surface2: #253557;
+  --border: #2a4080;
+  --text: #e0e0e0;
+  --text2: #a0b0d0;
+  --accent: #e94560;
+  --accent2: #f5a623;
+  --accent3: #7dd3fc;
+  --accent4: #86efac;
+  --accent5: #c4b5fd;
+  --code-bg: #0d1b2a;
+  --code-border: #1b3a5c;
+  --stage0: #e94560;
+  --stage1: #f5a623;
+  --stage2: #7dd3fc;
+  --stage3: #86efac;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+a { color: var(--accent3); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* -- Hero -- */
+.hero {
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 50%, #1a1040 100%);
+  padding: 60px 40px 50px;
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle at 30% 50%, rgba(233,69,96,0.06) 0%, transparent 50%),
+              radial-gradient(circle at 70% 50%, rgba(125,211,252,0.06) 0%, transparent 50%);
+  animation: heroGlow 15s ease-in-out infinite alternate;
+}
+@keyframes heroGlow {
+  0% { transform: translateX(-5%); }
+  100% { transform: translateX(5%); }
+}
+.hero h1 {
+  font-size: 2.2em;
+  font-weight: 700;
+  position: relative;
+  background: linear-gradient(90deg, var(--accent3), var(--accent5), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.hero .subtitle {
+  font-size: 1.15em;
+  color: var(--text2);
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* -- Layout -- */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 30px 30px 60px;
+}
+section {
+  margin-bottom: 40px;
+}
+h2 {
+  font-size: 1.6em;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+  color: var(--accent3);
+}
+h3 {
+  font-size: 1.25em;
+  margin: 20px 0 10px;
+  color: var(--accent5);
+}
+h4 {
+  font-size: 1.05em;
+  margin: 14px 0 8px;
+  color: var(--accent2);
+}
+p { margin-bottom: 12px; }
+ul, ol { margin: 8px 0 14px 24px; }
+li { margin-bottom: 6px; }
+strong { color: var(--accent3); font-weight: 600; }
+em { color: var(--accent2); font-style: italic; }
+
+/* -- Code -- */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 12px 0 16px;
+  font-size: 0.92em;
+  line-height: 1.6;
+}
+code {
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 0.92em;
+}
+p code, li code {
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--code-border);
+}
+
+/* -- Cards -- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin: 16px 0;
+}
+.card h4 { margin-top: 0; }
+
+/* -- Collapsible -- */
+.collapsible {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.collapsible-header {
+  padding: 14px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--accent3);
+  user-select: none;
+  transition: background 0.2s;
+}
+.collapsible-header:hover {
+  background: var(--surface2);
+}
+.collapsible-header .arrow {
+  transition: transform 0.3s;
+  font-size: 0.8em;
+}
+.collapsible.open .collapsible-header .arrow {
+  transform: rotate(90deg);
+}
+.collapsible-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+.collapsible.open .collapsible-body {
+  max-height: 5000px;
+}
+.collapsible-content {
+  padding: 0 20px 20px;
+}
+
+/* -- Tabs -- */
+.tab-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.92em;
+  font-weight: 500;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  color: var(--accent3);
+  border-bottom-color: var(--accent3);
+  background: rgba(125,211,252,0.05);
+}
+.tab-panel {
+  display: none;
+  padding: 20px;
+}
+.tab-panel.active { display: block; }
+
+/* -- Diagrams -- */
+.diagram {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 10px;
+  padding: 24px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+.diagram pre {
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+
+/* -- Stage colors -- */
+.s0 { color: var(--stage0); }
+.s1 { color: var(--stage1); }
+.s2 { color: var(--stage2); }
+.s3 { color: var(--stage3); }
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.82em;
+  font-weight: 600;
+}
+.badge-s0 { background: rgba(233,69,96,0.2); color: var(--stage0); border: 1px solid var(--stage0); }
+.badge-s1 { background: rgba(245,166,35,0.2); color: var(--stage1); border: 1px solid var(--stage1); }
+.badge-s2 { background: rgba(125,211,252,0.2); color: var(--stage2); border: 1px solid var(--stage2); }
+.badge-s3 { background: rgba(134,239,172,0.2); color: var(--stage3); border: 1px solid var(--stage3); }
+
+/* -- Interactive Pipeline -- */
+.pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 24px 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.pipe-stage {
+  flex: 1;
+  min-width: 180px;
+  padding: 16px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  text-align: center;
+}
+.pipe-stage:hover { transform: translateY(-3px); }
+.pipe-stage.selected { border-color: var(--accent3); background: rgba(125,211,252,0.08); }
+.pipe-stage h4 { margin: 0 0 6px; font-size: 0.95em; }
+.pipe-stage .stage-num {
+  font-size: 2em;
+  font-weight: 800;
+  opacity: 0.3;
+  position: absolute;
+  top: 8px; right: 12px;
+}
+.pipe-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--text2);
+  font-size: 1.4em;
+  flex-shrink: 0;
+}
+.pipe-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 12px 0;
+  display: none;
+}
+.pipe-detail.visible { display: block; }
+
+/* -- Binding time grid -- */
+.bt-grid {
+  display: grid;
+  grid-template-columns: 200px repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 16px 0;
+  font-size: 0.9em;
+}
+.bt-grid > div {
+  background: var(--surface);
+  padding: 10px 14px;
+}
+.bt-grid .bt-header {
+  background: var(--surface2);
+  font-weight: 600;
+  color: var(--accent3);
+  text-align: center;
+}
+.bt-grid .bt-label {
+  font-weight: 600;
+  color: var(--text2);
+}
+.bt-static {
+  color: var(--accent4) !important;
+  font-weight: 600;
+}
+.bt-dynamic {
+  color: var(--text2);
+  opacity: 0.7;
+}
+
+/* -- Equation -- */
+.equation {
+  background: linear-gradient(135deg, rgba(15,52,96,0.5), rgba(30,42,74,0.8));
+  border: 1px solid var(--accent5);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin: 16px 0;
+  text-align: center;
+  font-size: 1.15em;
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.5px;
+}
+.equation .label {
+  font-size: 0.8em;
+  color: var(--accent5);
+  margin-bottom: 8px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+/* -- Flashcards -- */
+.flashcard-deck {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+.flashcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+.flashcard:hover { border-color: var(--accent5); }
+.flashcard-q {
+  padding: 14px 20px;
+  font-weight: 600;
+  color: var(--accent3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.flashcard-q::before {
+  content: 'Q';
+  background: var(--accent);
+  color: white;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8em;
+  flex-shrink: 0;
+}
+.flashcard-a {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+.flashcard.open .flashcard-a { max-height: 600px; }
+.flashcard-a-inner {
+  padding: 0 20px 16px 56px;
+  color: var(--text2);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* -- TOC -- */
+.toc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin: 20px 0 30px;
+}
+.toc h3 { margin-top: 0; color: var(--accent3); }
+.toc ol { margin-left: 20px; }
+.toc li { margin-bottom: 4px; }
+.toc a { color: var(--accent3); }
+
+/* -- Comparison table -- */
+.comp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.92em;
+}
+.comp-table th, .comp-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.comp-table th {
+  background: var(--surface2);
+  color: var(--accent3);
+  font-weight: 600;
+}
+.comp-table td {
+  background: var(--surface);
+}
+.comp-table tr:hover td {
+  background: var(--surface2);
+}
+
+/* -- Highlight box -- */
+.highlight-box {
+  border-left: 4px solid var(--accent5);
+  background: rgba(196,181,253,0.06);
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+}
+.insight-box {
+  border-left: 4px solid var(--accent2);
+  background: rgba(245,166,35,0.06);
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+}
+.warning-box {
+  border-left: 4px solid var(--accent);
+  background: rgba(233,69,96,0.06);
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+}
+
+/* -- Interactive demo -- */
+.demo-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 16px 0;
+}
+.demo-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.demo-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.88em;
+  transition: all 0.2s;
+}
+.demo-btn:hover { border-color: var(--accent3); color: var(--accent3); }
+.demo-btn.active { background: rgba(125,211,252,0.15); border-color: var(--accent3); color: var(--accent3); }
+.demo-output {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.88em;
+  line-height: 1.6;
+  min-height: 120px;
+  white-space: pre-wrap;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <h1>Partial Evaluation, Futamura Projections &amp; KSC</h1>
+  <p class="subtitle">How KindScript's architecture is a multi-stage partial evaluator &mdash;
+  and how the Futamura projections give us a formal framework for understanding
+  the boundaries between schema, behavior, and execution.</p>
+</div>
+
+<div class="container">
+
+<!-- TOC -->
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#s1">What Is Partial Evaluation?</a></li>
+    <li><a href="#s2">The Futamura Projections (Including the Fourth)</a></li>
+    <li><a href="#s3">Multi-Stage Specialization: Beyond Two Inputs</a></li>
+    <li><a href="#s4">KSC's Architecture as Multi-Stage PE</a></li>
+    <li><a href="#s5">KSC's <code>mix</code> Functions &mdash; The Concrete Code</a></li>
+    <li><a href="#s6">Interactive Pipeline Explorer</a></li>
+    <li><a href="#s7">Binding-Time Analysis of KSC</a></li>
+    <li><a href="#s8">What Each Stage "Knows" &mdash; The Residual Programs</a></li>
+    <li><a href="#s9">Formal Mapping: KSC and the Futamura Framework</a></li>
+    <li><a href="#s10">Architectural Implications &amp; Future Directions</a></li>
+    <li><a href="#s11">Connections to Prior Art</a></li>
+    <li><a href="#s12">Flashcard Quiz</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: What Is Partial Evaluation? -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s1">
+<h2>1. What Is Partial Evaluation?</h2>
+
+<p>A <strong>partial evaluator</strong> (also called a <strong>specializer</strong> or <strong>mix</strong>) is a program transformer. Given a program <code>P</code> that takes inputs <code>(s, d)</code>, where <code>s</code> is known <em>now</em> (static) and <code>d</code> will only be known <em>later</em> (dynamic), a partial evaluator produces a <strong>residual program</strong> <code>P_s</code> that only needs <code>d</code>:</p>
+
+<div class="equation">
+  <div class="label">The Specialization Equation</div>
+  mix(P, s) = P<sub>s</sub> &nbsp;&nbsp; such that &nbsp;&nbsp; P(s, d) = P<sub>s</sub>(d) &nbsp; for all d
+</div>
+
+<p>The residual program <code>P_s</code> is <em>specialized</em> to <code>s</code>. All computations that depended only on <code>s</code> have been pre-computed and "baked in". What remains is only the work that truly requires <code>d</code>.</p>
+
+<div class="collapsible">
+  <div class="collapsible-header"><span class="arrow">&#9654;</span> Concrete Example: The Power Function</div>
+  <div class="collapsible-body"><div class="collapsible-content">
+    <p>Consider a generic power function:</p>
+<pre><code>function power(base, exp) {
+  if (exp === 0) return 1;
+  if (exp === 1) return base;
+  return base * power(base, exp - 1);
+}</code></pre>
+    <p>If we <em>know</em> that <code>exp = 3</code> at specialization time, a partial evaluator produces:</p>
+<pre><code>// mix(power, {exp: 3}) produces:
+function power_3(base) {
+  return base * base * base * 1;
+}</code></pre>
+    <p>The recursion, conditionals, and counter are all gone &mdash; they've been <em>evaluated away</em> because they only depended on the static input <code>exp</code>. What remains is a straight-line multiplication that only needs the dynamic input <code>base</code>.</p>
+  </div></div>
+</div>
+
+<h3>The Three Key Concepts</h3>
+
+<div class="card">
+  <h4>1. Binding Times</h4>
+  <p>Every sub-expression in a program is classified as either <span class="bt-static">static</span> (computable from known inputs) or <span class="bt-dynamic">dynamic</span> (depends on unknown inputs). This classification is called <strong>Binding-Time Analysis (BTA)</strong>.</p>
+</div>
+
+<div class="card">
+  <h4>2. The Specializer (mix)</h4>
+  <p>The specializer processes the annotated program: it <em>reduces</em> (evaluates) static expressions and <em>rebuilds</em> (generates code for) dynamic expressions. The output is a residual program that is equivalent to the original but faster, because all static work has been pre-done.</p>
+</div>
+
+<div class="card">
+  <h4>3. Residual Programs</h4>
+  <p>The output of specialization. A residual program contains only the dynamic parts of the original. It is a <em>new, specialized program</em> that runs faster because some of its inputs have been "compiled in".</p>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: The Three Futamura Projections -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s2">
+<h2>2. The Futamura Projections (Including the Fourth)</h2>
+
+<p>Yoshihiko Futamura (1971) discovered that applying <code>mix</code> to <em>interpreters</em> and to <em>itself</em> yields profound results. Robert Gl&uuml;ck (2009) showed that the abstraction scheme continues beyond three, identifying the <strong>Fourth Projection</strong> and proving that projections 4&ndash;6 form a closed system. The classical setup starts with:</p>
+
+<div class="equation">
+  <div class="label">Interpreter</div>
+  interp(source, input) = output
+</div>
+
+<p>An interpreter takes a <em>program</em> (source) and that program's <em>input</em> and produces the program's <em>output</em>. Now apply <code>mix</code>:</p>
+
+<div class="tab-container">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab(this, 'fp1')">1st Projection</button>
+    <button class="tab-btn" onclick="showTab(this, 'fp2')">2nd Projection</button>
+    <button class="tab-btn" onclick="showTab(this, 'fp3')">3rd Projection</button>
+    <button class="tab-btn" onclick="showTab(this, 'fp4')">4th Projection</button>
+    <button class="tab-btn" onclick="showTab(this, 'fp-summary')">Summary Table</button>
+  </div>
+
+  <div class="tab-panel active" id="fp1">
+    <h4 class="s1">First Futamura Projection: Compilation</h4>
+    <div class="equation">
+      <div class="label">Specialize the interpreter on a specific program</div>
+      target = mix(interp, source)
+    </div>
+    <p>By specializing the interpreter for a <em>specific source program</em>, we get a <strong>target program</strong> (compiled code). The interpreter's dispatch loops, parse logic, and generic tree-walking that depend on <code>source</code> are all pre-computed. What's left is a residual program that only needs <code>input</code>.</p>
+    <p>This <code>target</code> is equivalent to a <em>compiled</em> version of the source &mdash; it runs directly without needing the interpreter at runtime.</p>
+    <div class="insight-box">
+      <strong>Key insight:</strong> Compilation is just partial evaluation of an interpreter with respect to a source program. A compiler is nothing more than a specialized interpreter.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="fp2">
+    <h4 class="s2">Second Futamura Projection: Compiler Generation</h4>
+    <div class="equation">
+      <div class="label">Specialize mix on the interpreter itself</div>
+      compiler = mix(mix, interp)
+    </div>
+    <p>By specializing the specializer <em>with respect to the interpreter</em>, we get a <strong>compiler</strong>. This compiler is a program that takes any source program and produces a target program &mdash; without needing <code>mix</code> at compile time.</p>
+    <p>The resulting compiler has the interpreter's semantics "baked in" and can translate any program from the source language to the target language.</p>
+    <div class="insight-box">
+      <strong>Key insight:</strong> We never wrote a compiler. We wrote an interpreter and a specializer, and the compiler <em>emerged</em> from their interaction.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="fp3">
+    <h4 class="s0">Third Futamura Projection: Compiler Generator</h4>
+    <div class="equation">
+      <div class="label">Specialize mix on itself</div>
+      compiler_generator = mix(mix, mix)
+    </div>
+    <p>By specializing the specializer <em>with respect to itself</em>, we get a <strong>compiler generator</strong> (cogen). This is a program that takes any interpreter and produces a compiler for that interpreter's language.</p>
+    <p>Feed it a Python interpreter &rarr; get a Python compiler. Feed it a SQL interpreter &rarr; get a SQL compiler. The <code>mix</code> machinery has been "compiled away" into a general-purpose compiler factory.</p>
+  </div>
+
+  <div class="tab-panel" id="fp4">
+    <h4 style="color:var(--accent2)">Fourth Futamura Projection: Self-Generating Compiler Generator</h4>
+    <div class="equation">
+      <div class="label">Apply the compiler generator to the specializer itself</div>
+      cogen' = cogen(mix) &nbsp;&nbsp; where &nbsp;&nbsp; cogen = mix(mix, mix)
+    </div>
+    <p>The Third Projection produces a compiler generator <code>cogen</code>. Gl&uuml;ck observed that <code>cogen</code> is itself a program that takes one input (an interpreter). If we feed <code>cogen</code> the specializer <code>mix</code> as its "interpreter", we get <code>cogen'</code> &mdash; a <strong>self-generating compiler generator</strong>.</p>
+    <p>The remarkable result: <code>cogen' = cogen</code>. The compiler generator <em>reproduces itself</em>. It is a <strong>fixpoint</strong> of the abstraction process. Gl&uuml;ck proved that projections 4, 5, and 6 all collapse to this same identity &mdash; the system is closed.</p>
+    <div class="equation">
+      <div class="label">The fixpoint chain (Gl&uuml;ck 2009)</div>
+      cogen(mix) = cogen &nbsp;&nbsp;&nbsp; <em style="font-size:0.85em">[4th &equiv; 3rd]</em><br><br>
+      cogen(cogen) = cogen &nbsp;&nbsp;&nbsp; <em style="font-size:0.85em">[self-generating]</em>
+    </div>
+    <div class="insight-box">
+      <strong>Key insight:</strong> The abstraction process has a <em>ceiling</em>. After three projections, you've extracted all the generality there is. The fourth projection proves this by showing that the compiler generator is a fixpoint &mdash; specializing it further just reproduces itself. This is analogous to how the derivative of <em>e<sup>x</sup></em> is itself: further differentiation produces no new information.
+    </div>
+    <div class="highlight-box">
+      <strong>Practical meaning:</strong> If you have a working compiler generator (3rd projection), you can <em>bootstrap</em> it: feed it its own specializer and it will reproduce itself. This is the PE equivalent of a self-hosting compiler. Gl&uuml;ck experimentally validated this with the Unmix partial evaluator.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="fp-summary">
+    <table class="comp-table">
+      <tr>
+        <th>Projection</th>
+        <th>Apply mix to...</th>
+        <th>Result</th>
+        <th>What it does</th>
+      </tr>
+      <tr>
+        <td><span class="s1">1st</span></td>
+        <td><code>mix(interp, source)</code></td>
+        <td>Target program</td>
+        <td>Compiles one specific program</td>
+      </tr>
+      <tr>
+        <td><span class="s2">2nd</span></td>
+        <td><code>mix(mix, interp)</code></td>
+        <td>Compiler</td>
+        <td>Compiles any program in the language</td>
+      </tr>
+      <tr>
+        <td><span class="s0">3rd</span></td>
+        <td><code>mix(mix, mix)</code></td>
+        <td>Compiler generator (cogen)</td>
+        <td>Produces a compiler from any interpreter</td>
+      </tr>
+      <tr>
+        <td><span style="color:var(--accent2)">4th</span></td>
+        <td><code>cogen(mix)</code></td>
+        <td>cogen itself (fixpoint)</td>
+        <td>Proves cogen is self-generating; the system is closed</td>
+      </tr>
+    </table>
+    <p>Each projection eliminates one more layer of interpretation. The first removes the interpreter loop; the second removes the specializer loop; the third removes the meta-specializer loop. The fourth proves that no more layers exist &mdash; the compiler generator is a fixpoint under self-application.</p>
+    <p style="margin-top:10px;font-size:0.88em;color:var(--text2)"><strong>Reference:</strong> Gl&uuml;ck, R. &ldquo;Is There a Fourth Futamura Projection?&rdquo; PEPM 2009. Also: Gl&uuml;ck, R. &ldquo;An Experiment with the Fourth Futamura Projection.&rdquo; Springer LNCS 2010.</p>
+  </div>
+</div>
+
+<h3>Concrete Examples Across All Four Projections</h3>
+
+<p>Select a domain to see how all four projections manifest in practice:</p>
+
+<div class="demo-container" id="futamura-examples">
+  <div class="demo-controls">
+    <button class="demo-btn active" onclick="showFutamuraExample(this, 'regex')">Regular Expressions</button>
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'sql')">SQL Queries</button>
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'neural')">Neural Networks</button>
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'graphics')">Graphics / Shaders</button>
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'ksc')">KSC / Attribute Grammars</button>
+  </div>
+  <div style="margin: 8px 0 4px; font-size:0.82em; color:var(--text2)">Language-specific examples:</div>
+  <div class="demo-controls" style="margin-top:0">
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'typescript')">TypeScript</button>
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'javascript')">JavaScript</button>
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'python')">Python</button>
+    <button class="demo-btn" onclick="showFutamuraExample(this, 'clang')">C</button>
+  </div>
+  <div class="demo-output" id="futamuraOutput"></div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header"><span class="arrow">&#9654;</span> Real-World Systems That Embody Each Projection</div>
+  <div class="collapsible-body"><div class="collapsible-content">
+    <table class="comp-table">
+      <tr>
+        <th>Projection</th>
+        <th>System</th>
+        <th>How It Works</th>
+      </tr>
+      <tr>
+        <td rowspan="3"><span class="s1">1st</span><br><em>Compiled program</em></td>
+        <td><strong>Prepared SQL statements</strong></td>
+        <td><code>db.prepare("SELECT * FROM t WHERE id = ?")</code> &mdash; the query is parsed, planned, and optimized once; only the parameter <code>?</code> varies at runtime</td>
+      </tr>
+      <tr>
+        <td><strong>JIT-compiled JS</strong></td>
+        <td>V8 profiles a function with specific input shapes, then compiles a version specialized to those shapes (e.g., "both args are SMI integers")</td>
+      </tr>
+      <tr>
+        <td><strong>C++ template instantiation</strong></td>
+        <td><code>vector&lt;int&gt;</code> specializes the generic <code>vector&lt;T&gt;</code> on <code>T=int</code>, eliminating all type dispatch and producing monomorphized code</td>
+      </tr>
+      <tr>
+        <td rowspan="3"><span class="s2">2nd</span><br><em>Compiler</em></td>
+        <td><strong>re2c / Ragel</strong></td>
+        <td>Take any regex pattern, emit a specialized C state machine. The regex "interpreter" semantics are baked into the tool; you supply any pattern.</td>
+      </tr>
+      <tr>
+        <td><strong>Apache DataFusion / HyPer</strong></td>
+        <td>Query compilers that take any SQL query and emit optimized native code. The SQL execution semantics are baked in; you supply any query.</td>
+      </tr>
+      <tr>
+        <td><strong>KSC's gen-ksc-evaluator.ts</strong></td>
+        <td>Takes any set of attribute equations, emits a specialized evaluator. The AG evaluation semantics are baked in; you supply any attributes.</td>
+      </tr>
+      <tr>
+        <td rowspan="3"><span class="s0">3rd</span><br><em>Compiler generator</em></td>
+        <td><strong>GraalVM / Truffle</strong></td>
+        <td>Write any AST interpreter using Truffle's node framework &rarr; Graal automatically JIT-compiles it via PE. Works for JS, Python, Ruby, R, LLVM.</td>
+      </tr>
+      <tr>
+        <td><strong>PyPy / RPython</strong></td>
+        <td>Write any interpreter in RPython &rarr; the toolchain produces a JIT-compiled language runtime. The PE machinery is the cogen.</td>
+      </tr>
+      <tr>
+        <td><strong>Yacc / Bison</strong></td>
+        <td>Supply any context-free grammar &rarr; get a parser for that grammar. Yacc is a cogen for the parsing domain.</td>
+      </tr>
+      <tr>
+        <td rowspan="2"><span style="color:var(--accent2)">4th</span><br><em>Self-generating cogen</em></td>
+        <td><strong>GCC bootstrapping</strong></td>
+        <td>GCC compiled by GCC produces GCC. The compiler is a fixpoint under self-compilation &mdash; the output is functionally identical to the input. This is the 4th projection for traditional compilers.</td>
+      </tr>
+      <tr>
+        <td><strong>Unmix self-application</strong></td>
+        <td>Gl&uuml;ck experimentally showed: <code>cogen(mix) = cogen</code> using the Unmix partial evaluator. The compiler generator reproduced itself when applied to its own specializer.</td>
+      </tr>
+    </table>
+  </div></div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: Multi-Stage Specialization -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s3">
+<h2>3. Multi-Stage Specialization: Beyond Two Inputs</h2>
+
+<p>The classical Futamura setup has a program with two inputs: <code>(source, input)</code>. But what if your program has <strong>three or more inputs</strong> that become known at different times?</p>
+
+<div class="equation">
+  <div class="label">A 3-input program with progressive binding</div>
+  P(a, b, c) = result
+</div>
+
+<p>If <code>a</code> is known first, then <code>b</code>, then <code>c</code>, we can specialize in stages:</p>
+
+<div class="diagram"><pre><code>  P(a, b, c) = result
+
+  <span class="s1">Stage 1:</span>  P<sub>a</sub>     = mix(P, a)         <span class="s1">// specialize on a</span>
+  <span class="s2">Stage 2:</span>  P<sub>a,b</sub>   = mix(P<sub>a</sub>, b)        <span class="s2">// further specialize on b</span>
+  <span class="s3">Stage 3:</span>  result = P<sub>a,b</sub>(c)            <span class="s3">// execute with c</span>
+
+  Equivalence:  P(a, b, c) = P<sub>a,b</sub>(c)  for all c</code></pre></div>
+
+<p>This is called <strong>multi-level partial evaluation</strong> or <strong>multi-stage programming</strong>. Each stage:</p>
+<ol>
+  <li>Takes in one more piece of "static" information</li>
+  <li>Produces a new residual program that's more specialized than the previous</li>
+  <li>Eliminates all computation that depended only on the now-known inputs</li>
+</ol>
+
+<div class="highlight-box">
+  <strong>This is exactly what KSC does.</strong> KSC has a 3-input function:
+  <code>ag_eval(grammar, attributes, program) &rarr; results</code>
+  &mdash; and it specializes in three stages, each producing generated code that's more specific than the last.
+</div>
+
+<h3>Multi-Stage Programming (MSP) Systems</h3>
+<p>This idea has been formalized in systems like:</p>
+<ul>
+  <li><strong>MetaOCaml</strong> &mdash; uses quasi-quotation brackets <code>.&lt;...&gt;.</code> to mark code generation boundaries</li>
+  <li><strong>Lightweight Modular Staging (LMS)</strong> &mdash; uses types (not syntax) to distinguish binding times: <code>Rep[Int]</code> vs <code>Int</code></li>
+  <li><strong>Braid</strong> &mdash; extends staging to heterogeneous targets (GPU, CPU)</li>
+  <li><strong>weval</strong> &mdash; applies PE at the WebAssembly IR level for interpreter optimization</li>
+</ul>
+<p>KSC's approach is closest to <em>offline multi-level PE</em>: binding times are determined at design time (not automatically), and each stage is a separate code generator script.</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: KSC's Architecture as Multi-Stage PE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s4">
+<h2>4. KSC's Architecture as Multi-Stage PE</h2>
+
+<p>Let's formally define KSC's complete function and then show how each stage is a specialization.</p>
+
+<div class="equation">
+  <div class="label">The Generic AG Evaluator (Stage 0 &mdash; the "interpreter")</div>
+  ag_eval(grammar, attributes, program) = decorated_tree
+</div>
+
+<p>A completely generic attribute grammar evaluator takes three things:</p>
+<ol>
+  <li><span class="s0"><strong>Grammar</strong></span> &mdash; the AST node kinds, their fields, child structure, sum types</li>
+  <li><span class="s1"><strong>Attributes</strong></span> &mdash; the equation functions, their types, their dependency graph, their directions (syn/inh/coll)</li>
+  <li><span class="s2"><strong>Program</strong></span> &mdash; the actual user source code (a specific TypeScript file)</li>
+</ol>
+
+<p>KSC never runs this generic function directly. Instead, it applies <code>mix</code> twice at build time, producing a highly specialized evaluator that only needs the user's program at runtime:</p>
+
+<div class="diagram"><pre><code>  <span class="s0">Stage 0:</span>  ag_eval(grammar, attributes, program) = results
+           <span style="color:#666">The "God function" &mdash; fully generic, never actually exists as code</span>
+
+  <span class="s1">Stage 1:</span>  spec_grammar = mix(ag_eval, grammar)
+           <span style="color:#666">ast-schema/codegen.ts reads schema.ts, generates:</span>
+           <span style="color:#666">&bull; node-types.ts (364 typed interfaces)</span>
+           <span style="color:#666">&bull; schema.ts (getChildFields, exhaustive child map)</span>
+           <span style="color:#666">&bull; convert.ts (TS &rarr; KS converters per kind)</span>
+           <span style="color:#666">&bull; builders.ts, serialize.ts</span>
+
+  <span class="s2">Stage 2:</span>  spec_attrs = mix(spec_grammar, attributes)
+           <span style="color:#666">scripts/gen-ksc-evaluator.ts reads behavior/*.ts, generates:</span>
+           <span style="color:#666">&bull; evaluator.ts (KSCDNode with typed caches, switch dispatch,</span>
+           <span style="color:#666">&bull;   direct eq calls, static dep graph, buildKSCTree)</span>
+
+  <span class="s3">Stage 3:</span>  results = spec_attrs(program)
+           <span style="color:#666">At runtime: buildKSTree(tsProgram) then evaluate(root)</span>
+           <span style="color:#666">Returns decorated tree, definitions, diagnostics</span></code></pre></div>
+
+<div class="tab-container">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab(this, 'ksc-s1')">Stage 1: Grammar</button>
+    <button class="tab-btn" onclick="showTab(this, 'ksc-s2')">Stage 2: Attributes</button>
+    <button class="tab-btn" onclick="showTab(this, 'ksc-s3')">Stage 3: Program</button>
+    <button class="tab-btn" onclick="showTab(this, 'ksc-what-eliminated')">What's Eliminated</button>
+  </div>
+
+  <div class="tab-panel active" id="ksc-s1">
+    <h4><span class="badge badge-s1">Stage 1</span> &nbsp; Grammar Specialization</h4>
+    <p><strong>Static input:</strong> The TypeScript AST grammar (364 node kinds, their fields, sum type hierarchy)</p>
+    <p><strong>Specializer:</strong> <code>ast-schema/codegen.ts</code> reading <code>ast-schema/schema.ts</code></p>
+    <p><strong>Residual program:</strong> <code>ast-schema/generated/*</code></p>
+
+    <p>What gets "baked in" at this stage:</p>
+    <ul>
+      <li>Every node kind gets its own <strong>TypeScript interface</strong> with typed fields &mdash; no generic <code>Record&lt;string, any&gt;</code></li>
+      <li>The <strong>child field map</strong> <code>C</code> is an exhaustive static lookup table &mdash; no runtime introspection</li>
+      <li>Each <code>ts.SyntaxKind</code> gets a <strong>specific converter function</strong> registered at module load &mdash; no generic visitor pattern</li>
+      <li>Operator maps, field extractors, symbol flag checks are all specialized per-kind</li>
+    </ul>
+
+    <p>What's <em>still dynamic</em> after this stage:</p>
+    <ul>
+      <li>Which attributes exist, what equations to run</li>
+      <li>The actual user source code</li>
+    </ul>
+  </div>
+
+  <div class="tab-panel" id="ksc-s2">
+    <h4><span class="badge badge-s2">Stage 2</span> &nbsp; Attribute Specialization</h4>
+    <p><strong>Static input:</strong> The 22 AG attributes, their equation functions, their types, their dependency graph</p>
+    <p><strong>Specializer:</strong> <code>scripts/gen-ksc-evaluator.ts</code> reading <code>ksc-behavior/*.ts</code></p>
+    <p><strong>Residual program:</strong> <code>ksc-generated/evaluator.ts</code></p>
+
+    <p>What gets "baked in" at this stage:</p>
+    <ul>
+      <li>Each attribute gets a <strong>dedicated typed cache field</strong> (<code>_c_kindDefs</code>, <code>_c_defEnv</code>, ...) &mdash; no <code>Map&lt;string, any&gt;</code></li>
+      <li>The <code>attr()</code> method is a <strong>switch statement</strong> over known attribute names &mdash; no hash lookup</li>
+      <li>Each attribute method calls its <strong>specific equation function directly</strong> (<code>eq_kindDefs_CompilationUnit(this, ...)</code>) &mdash; no generic dispatch table</li>
+      <li>Syn/inh/collection evaluation patterns are <strong>inlined</strong> per attribute &mdash; no runtime direction check</li>
+      <li>The <strong>dependency graph</strong> is pre-computed and embedded as a static constant</li>
+      <li>The <strong>topological evaluation order</strong> is pre-sorted</li>
+    </ul>
+
+    <p>What's <em>still dynamic</em> after this stage:</p>
+    <ul>
+      <li>The actual user source code (which nodes exist, their field values)</li>
+    </ul>
+  </div>
+
+  <div class="tab-panel" id="ksc-s3">
+    <h4><span class="badge badge-s3">Stage 3</span> &nbsp; Program Execution</h4>
+    <p><strong>Dynamic input:</strong> The user's TypeScript source files</p>
+    <p><strong>Executor:</strong> <code>evaluate(root)</code> in <code>ksc-generated/evaluator.ts</code></p>
+    <p><strong>Output:</strong> Decorated tree with all 22 attributes computed, plus <code>KindDefinition[]</code> and <code>CheckerDiagnostic[]</code></p>
+
+    <p>What happens at this stage:</p>
+    <ul>
+      <li><code>buildKSTree(tsProgram, depth)</code> uses Stage 1's generated converters to produce a KS tree</li>
+      <li><code>buildKSCTree(root, counter)</code> wraps each KS node in a <code>KSCDNode</code> with Stage 2's generated caches and methods</li>
+      <li><code>project_binder(root)</code> and <code>project_checker(root)</code> trigger lazy attribute evaluation using Stage 2's specialized equations</li>
+      <li>Each attribute is computed <strong>at most once per node</strong> (memoized in typed cache fields)</li>
+    </ul>
+  </div>
+
+  <div class="tab-panel" id="ksc-what-eliminated">
+    <h4>What Each Stage Eliminates</h4>
+    <table class="comp-table">
+      <tr>
+        <th>Stage</th>
+        <th>Generic Operation Eliminated</th>
+        <th>Replaced With</th>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s1">1</span></td>
+        <td>"What children does kind X have?"</td>
+        <td>Static lookup table <code>C['BinaryExpression'] = ['left','operatorToken','right']</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s1">1</span></td>
+        <td>"How do I convert TS node to KS node?"</td>
+        <td>364 registered converter functions, one per SyntaxKind</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s1">1</span></td>
+        <td>"What type is this node's field?"</td>
+        <td>TypeScript interfaces with typed fields</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s2">2</span></td>
+        <td>"What attributes exist?"</td>
+        <td>22 typed cache fields + 22 dedicated methods</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s2">2</span></td>
+        <td>"Which equation handles kind X for attr Y?"</td>
+        <td>Switch cases: <code>case 'CompilationUnit': return eq_kindDefs_CompilationUnit(this, ...)</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s2">2</span></td>
+        <td>"Is attr Y synthesized, inherited, or collection?"</td>
+        <td>Direction-specific inlined evaluation patterns per method</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s2">2</span></td>
+        <td>"What depends on what?"</td>
+        <td>Static <code>KSC_STATIC_DEP_GRAPH</code> constant + pre-sorted order</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-s2">2</span></td>
+        <td><code>Map.get(attrName)</code> cache lookup</td>
+        <td>Direct field access: <code>this._c_kindDefs</code></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: KSC's mix Functions — The Concrete Code -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s5">
+<h2>5. KSC's <code>mix</code> Functions &mdash; The Concrete Code</h2>
+
+<p>In PE theory, <code>mix(P, s) = P_s</code> is an abstract transformer. In KSC, <code>mix</code> is two concrete TypeScript scripts that read static data and emit specialized code. Here's exactly where they live, what they do line-by-line, and what "applying mix to itself" would concretely mean.</p>
+
+<h3>The Two Specializers</h3>
+
+<div class="tab-container">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab(this, 'mix1-code')">mix&#x2081;: codegen.ts</button>
+    <button class="tab-btn" onclick="showTab(this, 'mix2-code')">mix&#x2082;: gen-ksc-evaluator.ts</button>
+    <button class="tab-btn" onclick="showTab(this, 'mix-pattern')">The Shared Pattern</button>
+    <button class="tab-btn" onclick="showTab(this, 'mix-self')">Self-Application</button>
+  </div>
+
+  <div class="tab-panel active" id="mix1-code">
+    <h4><span class="badge badge-s1">mix&#x2081;</span> &nbsp; <code>ast-schema/codegen.ts</code> &mdash; Grammar Specializer (1246 lines)</h4>
+
+    <p><strong>What it is:</strong> A script that reads the grammar registry (populated by <code>schema.ts</code>) and generates 5 TypeScript source files, each specialized to the 364 AST node kinds.</p>
+
+    <p><strong>Static input being specialized over:</strong></p>
+<pre><code><span style="color:var(--text2)">// schema.ts populates these registries via node(), leaf(), sumType() calls:</span>
+const nodes: Map&lt;string, NodeEntry&gt;      <span style="color:var(--accent4)">// 364 node kinds &rarr; field definitions</span>
+const sumTypes: Map&lt;string, SumTypeEntry&gt; <span style="color:var(--accent4)">// 12 sum types &rarr; member kinds</span>
+
+<span style="color:var(--text2)">// A NodeEntry looks like:</span>
+{ kind: 'BinaryExpression', fields: {
+    left:          { tag: 'child', typeRef: 'Expression' },
+    operatorToken: { tag: 'child', typeRef: 'Token' },
+    right:         { tag: 'child', typeRef: 'Expression' },
+}}</code></pre>
+
+    <p><strong>The core specialization loops</strong> &mdash; this is where <code>mix</code> actually happens. For each kind in the registry, codegen emits kind-specific code:</p>
+<pre><code><span class="s1">// generateNodeTypes() &mdash; one typed interface per kind:</span>
+for (const [kind, entry] of nodes) {
+  lines.push(`export interface KS${kind} extends KSNodeBase {`);
+  lines.push(`  kind: '${kind}';`);
+  for (const [fname, field] of Object.entries(entry.fields)) {
+    const tsType = resolveFieldType(field, sumTypes);
+    lines.push(`  ${fname}: ${tsType};`);
+  }                      <span style="color:var(--accent4)">// &larr; generic field &rarr; typed field</span>
+  lines.push(`}`);
+}
+
+<span class="s1">// generateSchema() &mdash; exhaustive child field table:</span>
+lines.push(`const C: Record&lt;string, readonly string[]&gt; = {`);
+for (const [kind, entry] of nodes) {
+  const childFields = Object.entries(entry.fields)
+    .filter(([, f]) =&gt; f.tag !== 'prop')
+    .map(([name]) =&gt; `'${name}'`);
+  lines.push(`  '${kind}': [${childFields.join(', ')}],`);
+}                        <span style="color:var(--accent4)">// &larr; generic "which children?" &rarr; static per-kind array</span>
+
+<span class="s1">// generateConvert() &mdash; one converter per SyntaxKind:</span>
+for (const [kind, entry] of nodes) {
+  lines.push(`register(ts.SyntaxKind.${kind}, (node, sf, children, pos, end, text) =&gt; {`);
+  lines.push(`  const n = node as any;`);
+  for (const [fname, field] of Object.entries(entry.fields)) {
+    const expr = getConvertFieldExpr(kind, fname, field);
+    lines.push(`    ${fname}: ${expr},`);
+  }                      <span style="color:var(--accent4)">// &larr; field extraction specialized per kind</span>
+  lines.push(`});`);
+}</code></pre>
+
+    <p><strong>Field-level overrides</strong> &mdash; beyond structural specialization, codegen handles cases where TS stores data differently from what KSC needs:</p>
+<pre><code><span style="color:var(--text2)">// convertFieldOverrides: kind &rarr; field &rarr; extraction expression</span>
+const convertFieldOverrides = {
+  PrefixUnaryExpression:  { operator: 'prefixUnaryOperatorMap[n.operator]' },
+  VariableDeclarationList: { declarationKind: 'getDeclarationKind(n.flags)' },
+  Identifier: {
+    symIsVariable: 'hasSymFlag(node, ts.SymbolFlags.Variable)',
+    symIsFunction: 'hasSymFlag(node, ts.SymbolFlags.Function)',
+    <span style="color:var(--text2)">// ... 16 more sym* booleans, plus:</span>
+    isDefinitionSite:      'checkIsDefinitionSite(node)',
+    resolvedFileName:      'getResolvedFileName(node)',
+    importModuleSpecifier: 'getImportModuleSpecifier(node)',
+  },
+};
+
+<span style="color:var(--text2)">// Auto-detected patterns &mdash; the generator introspects its own data:</span>
+for (const [kind, entry] of nodes) {
+  if ('typeString' in entry.fields)
+    convertFieldOverrides[kind].typeString = 'getTypeString(node)';
+  if ('isExported' in entry.fields)
+    convertFieldOverrides[kind].isExported = 'isNodeExported(node)';
+}  <span style="color:var(--accent4)">// &larr; codegen scans the schema to decide what overrides to apply</span></code></pre>
+
+    <p><strong>Generated residuals (5 files):</strong></p>
+    <ul>
+      <li><code>node-types.ts</code> &mdash; 364 interfaces, union types, type guards</li>
+      <li><code>schema.ts</code> &mdash; exhaustive child field table <code>C</code>, <code>getChildFields()</code>, <code>allKinds</code></li>
+      <li><code>convert.ts</code> &mdash; 364 <code>register()</code> calls + <code>buildKSTree()</code></li>
+      <li><code>builders.ts</code> &mdash; 364 <code>createXxx()</code> factory functions</li>
+      <li><code>serialize.ts</code> &mdash; per-kind JSON serialization/deserialization</li>
+    </ul>
+  </div>
+
+  <div class="tab-panel" id="mix2-code">
+    <h4><span class="badge badge-s2">mix&#x2082;</span> &nbsp; <code>scripts/gen-ksc-evaluator.ts</code> &mdash; Attribute Specializer (745 lines)</h4>
+
+    <p><strong>What it is:</strong> A script that reads the attribute specifications (types + equation source) from behavior files and generates a fully-wired evaluator with no runtime metadata lookups.</p>
+
+    <p><strong>Static input being specialized over:</strong></p>
+<pre><code><span style="color:var(--text2)">// 1. Type map (from attr-types.ts, extracted by regex):</span>
+const typeMap: Map&lt;string, string&gt; = {
+  'kindDefs'         &rarr; 'KindDefinition[]',
+  'defEnv'           &rarr; 'Map&lt;string, KindDefinition&gt;',
+  'noImportsContext'  &rarr; 'boolean',
+  <span style="color:var(--text2)">// ... 22 attributes total</span>
+}
+
+<span style="color:var(--text2)">// 2. Inferred metadata (from scanning binder.ts + checker.ts):</span>
+const ATTRS: AttrDef[] = [
+  { name: 'kindDefs', direction: 'syn', type: 'KindDefinition[]',
+    cases: ['CompilationUnit'], spec: 'binder' },
+  { name: 'defEnv', direction: 'inh', type: 'Map&lt;...&gt;',
+    rootFn: true, hasParentEq: false, spec: 'binder' },
+  { name: 'noImportsContext', direction: 'inh', type: 'boolean',
+    rootFn: false, hasParentEq: true, spec: 'checker' },
+  <span style="color:var(--text2)">// ... inferred for all 22 attributes</span>
+]
+
+<span style="color:var(--text2)">// 3. Dependency graph (from scanning .attr() calls in eq bodies):</span>
+const allDeps: Map&lt;string, Set&lt;string&gt;&gt; = {
+  'importViolation'  &rarr; {'noImportsContext', 'kindAnnotations'},
+  'allViolations'    &rarr; {'importViolation', 'consoleViolation', ...},
+  <span style="color:var(--text2)">// ... 26 edges total</span>
+}</code></pre>
+
+    <p><strong>The five-phase specialization process:</strong></p>
+<pre><code><span class="s2">// Phase 1: Parse attribute type map</span>
+for (const m of attrTypesSource.matchAll(/^\s+(\w+):\s+(.+);$/gm)) {
+  typeMap.set(m[1], m[2].trim());
+}  <span style="color:var(--accent4)">// &larr; regex scan, not type-system-level parsing</span>
+
+<span class="s2">// Phase 2: Scan equation exports</span>
+function scanExports(source: string): RawExport[] {
+  for (let i = 0; i &lt; lines.length; i++) {
+    const fnMatch = lines[i].match(/^export function (eq_\w+)/);
+    if (fnMatch) results.push({ name: fnMatch[1], ... });
+  }
+}  <span style="color:var(--accent4)">// &larr; discovers equations by naming convention</span>
+
+<span class="s2">// Phase 3: Infer direction from naming patterns</span>
+if (suffixes.has('contribute') &amp;&amp; suffixes.has('combine'))
+  direction = 'collection';
+else if (suffixes.has('root') || suffixes.has('rootValue'))
+  direction = 'inh';
+else
+  direction = 'syn';
+<span style="color:var(--accent4)">// &larr; naming conventions ARE the binding-time annotations</span>
+
+<span class="s2">// Phase 4: Parse dependency graph from function bodies</span>
+for (const match of line.matchAll(/\.attr\(['"](\w+)['"]\)/g)) {
+  deps.get(currentAttr)!.add(match[1]);
+}  <span style="color:var(--accent4)">// &larr; regex scan of source text (NOT AST analysis!)</span>
+   <span style="color:var(--accent4)">// This is WHY factory functions can't be used &mdash;</span>
+   <span style="color:var(--accent4)">// .attr() calls must be visible in the source text</span>
+
+<span class="s2">// Phase 5: Topological sort</span>
+const order = topoSort(allDeps);
+<span style="color:var(--accent4)">// &larr; evaluation order computed once at generation time</span></code></pre>
+
+    <p><strong>The core generation loop</strong> &mdash; the actual <code>mix</code> operation:</p>
+<pre><code>function generate(): string {
+  <span style="color:var(--accent4)">// Per-attribute typed cache field:</span>
+  for (const a of ATTRS) {
+    L.push(`  private _c_${a.name}: ${a.type} | undefined = undefined;`);
+  }
+
+  <span style="color:var(--accent4)">// Per-attribute switch case in attr() dispatch:</span>
+  for (const a of ATTRS) {
+    L.push(`      case '${a.name}': return this.${a.name}();`);
+  }
+
+  <span style="color:var(--accent4)">// Per-attribute typed method with direction-specific logic:</span>
+  for (const a of ATTRS) {
+    generateMethod(L, a);
+    <span style="color:var(--text2)">// dispatches on a.direction:</span>
+    <span style="color:var(--text2)">// syn  &rarr; switch(node.kind) { case X: return eq_X(this) }</span>
+    <span style="color:var(--text2)">// inh  &rarr; if(isRoot) rootValue; else check parent; else inherit</span>
+    <span style="color:var(--text2)">// coll &rarr; contribute(self) + fold over children</span>
+  }
+
+  <span style="color:var(--accent4)">// Static dep graph embedded as constant:</span>
+  for (const [from, to] of edges) {
+    L.push(`    ['${from}', '${to}'],`);
+  }
+}</code></pre>
+
+    <p><strong>Generated residual:</strong> <code>ksc-generated/evaluator.ts</code> &mdash; <code>KSCDNode</code> class with 22 typed cache fields, 22 dedicated methods, switch-based <code>attr()</code> dispatch, direct equation imports, pre-computed dependency graph, and <code>evaluate()</code> entry point.</p>
+  </div>
+
+  <div class="tab-panel" id="mix-pattern">
+    <h4>The Shared Pattern: Read &rarr; Analyze &rarr; Iterate &rarr; Emit</h4>
+
+    <p>Both mix functions follow the exact same template:</p>
+<pre><code><span style="color:var(--accent5)">// The universal structure of a KSC mix function:</span>
+function mix(staticInput) {
+  <span class="s0">// 1. READ &mdash; load the static data</span>
+  const registry = parse(staticInput);
+
+  <span class="s1">// 2. ANALYZE &mdash; extract metadata</span>
+  const metadata = analyze(registry);  <span style="color:var(--text2)">// types, deps, patterns</span>
+
+  <span class="s2">// 3. GENERATE &mdash; iterate over metadata, emit specialized code per item</span>
+  const output = [];
+  for (const item of metadata) {
+    output.push(emitSpecialized(item));
+  }
+
+  <span class="s3">// 4. WRITE &mdash; save the residual program</span>
+  writeFile(output.join('\n'));
+}</code></pre>
+
+    <table class="comp-table">
+      <tr>
+        <th>Phase</th>
+        <th>mix&#x2081; (codegen.ts)</th>
+        <th>mix&#x2082; (gen-ksc-evaluator.ts)</th>
+      </tr>
+      <tr>
+        <td><strong>1. Read</strong></td>
+        <td><code>import&nbsp;'./schema.js'</code> populates <code>nodes</code> + <code>sumTypes</code> registries</td>
+        <td><code>fs.readFileSync</code> loads <code>attr-types.ts</code>, <code>binder.ts</code>, <code>checker.ts</code> as text</td>
+      </tr>
+      <tr>
+        <td><strong>2. Analyze</strong></td>
+        <td>Build <code>convertFieldOverrides</code>, resolve sum type refs, detect patterns (isExported, localCount, typeString)</td>
+        <td><code>scanExports</code> &rarr; <code>inferAttrDef</code> &rarr; <code>parseDeps</code> &rarr; <code>topoSort</code></td>
+      </tr>
+      <tr>
+        <td><strong>3. Generate</strong></td>
+        <td>5 <code>generate*()</code> functions, each looping <code>for&nbsp;(const&nbsp;[kind,&nbsp;entry]&nbsp;of&nbsp;nodes)</code></td>
+        <td>1 <code>generate()</code> function, looping <code>for&nbsp;(const&nbsp;a&nbsp;of&nbsp;ATTRS)</code></td>
+      </tr>
+      <tr>
+        <td><strong>4. Write</strong></td>
+        <td>5 files &rarr; <code>ast-schema/generated/</code></td>
+        <td>1 file &rarr; <code>ksc-generated/evaluator.ts</code></td>
+      </tr>
+      <tr>
+        <td><strong>Static data type</strong></td>
+        <td>Grammar: node kinds + field structure</td>
+        <td>Attributes: names + types + equations + deps</td>
+      </tr>
+      <tr>
+        <td><strong>Per-item output</strong></td>
+        <td>Interface + child field entry + converter + builder + serializer</td>
+        <td>Cache field + method + switch case + import</td>
+      </tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>Key insight:</strong> Both mix functions are <em>template metaprograms</em>. They don't transform code abstractly &mdash; they iterate over a finite registry and stamp out specialized code per item. The "specialization" is the loop: <code>for&nbsp;(const&nbsp;item&nbsp;of&nbsp;registry)&nbsp;emit(template(item))</code>. This is the simplest and most robust form of partial evaluation: unrolling a data-dependent loop into statically-specialized cases.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="mix-self">
+    <h4>Self-Application: What Would <code>mix(mix, mix)</code> Concretely Mean?</h4>
+
+    <p>The Futamura projections ask: what happens when you apply <code>mix</code> to itself? In KSC's concrete terms, this becomes surprisingly tangible.</p>
+
+    <h4 style="color:var(--accent3)">Step 1: What does mix&#x2082; "know" at generation time?</h4>
+    <p>The generator has three kinds of hardcoded knowledge &mdash; its own "static data":</p>
+<pre><code><span style="color:var(--accent2)">// BAKED INTO gen-ksc-evaluator.ts (the generator's own static data):</span>
+
+<span class="s1">1. Evaluation semantics (how each direction works):</span>
+   syn  &rarr; "compute from self + children, cache, return"
+   inh  &rarr; "if root: use rootValue, else: check parent eq, else: inherit"
+   coll &rarr; "contribute(self) + combine over children"
+
+<span class="s1">2. Source analysis conventions (how to discover attributes):</span>
+   eq_X_contribute + eq_X_combine &rarr; collection attribute
+   eq_X_root / eq_X_rootValue    &rarr; inherited attribute
+   otherwise                     &rarr; synthesized attribute
+   .attr('Y') in function body   &rarr; dependency edge X &rarr; Y
+
+<span class="s1">3. Code templates (what to emit per attribute):</span>
+   "private _c_${name}: ${type} | undefined"      &rarr; cache field
+   "case '${name}': return this.${name}()"         &rarr; switch dispatch
+   "if (this._c_${name} !== undefined) return ..." &rarr; memoization
+   generateSynBody / generateInhBody / generateCollectionBody</code></pre>
+
+    <h4 style="color:var(--accent3)">Step 2: The Second Projection &mdash; mix&#x2082; is already a "compiler"</h4>
+    <p><code>gen-ksc-evaluator.ts</code> already <em>is</em> the Second Projection (approximately). It's a compiler from attribute specs to evaluators:</p>
+<pre><code><span style="color:var(--text2)">// gen-ksc-evaluator.ts as a compiler &mdash; works for ANY set of eq_* functions:</span>
+gen-ksc-evaluator(binder.ts + checker.ts)  &rarr; evaluator.ts (22 attrs)
+gen-ksc-evaluator(hypothetical-other.ts)   &rarr; evaluator.ts (N attrs)
+gen-ksc-evaluator(just-binder.ts)          &rarr; evaluator.ts (3 attrs)
+
+<span style="color:var(--accent4)">// The AG evaluation semantics are baked into the generator's templates.
+// You supply different equation functions; it produces different evaluators.</span></code></pre>
+
+    <h4 style="color:var(--accent3)">Step 3: The Third Projection &mdash; Generating the Generator</h4>
+    <p>To achieve <code>mix(mix, mix)</code>, we'd describe mix&#x2082;'s own structure as data that a meta-generator could consume:</p>
+<pre><code><span style="color:var(--accent2)">// A "meta-spec" describing what gen-ksc-evaluator.ts does:</span>
+const evaluatorGeneratorSpec = {
+  name: 'AG Evaluator Generator',
+
+  <span class="s0">// How it discovers items to specialize over:</span>
+  itemDiscovery: {
+    method: 'regex-scan-exports',
+    pattern: /^export function (eq_\w+)/,
+    groupBy: 'longest attribute name match from type map',
+  },
+
+  <span class="s1">// What metadata it infers per discovered item:</span>
+  metadataInference: {
+    name:      'from type map keys',
+    type:      'from type map values',
+    direction: 'from suffix patterns: contribute+combine=coll, root=inh, else=syn',
+    cases:     'non-reserved suffixes = production cases',
+    deps:      'regex .attr() scan in function bodies',
+  },
+
+  <span class="s2">// What code it emits per item:</span>
+  codeTemplates: [
+    { target: 'cache-field',  pattern: 'private _c_${name}: ${type} | undefined' },
+    { target: 'switch-case',  pattern: "case '${name}': return this.${name}()" },
+    { target: 'method',       dispatch: 'by direction', subtemplates: {
+        syn:  'switch(node.kind) { case X: eq_${name}_X(this) }',
+        inh:  'if(isRoot) rootValue; else eq_${name}(parent); else inherit',
+        coll: 'contribute(self) + combine(children)',
+    }},
+    { target: 'import',       pattern: 'import { eq_${name}_* } from behavior' },
+    { target: 'dep-edge',     pattern: "['${from}', '${to}']" },
+  ],
+
+  <span class="s3">// Global post-processing:</span>
+  globals: ['topological sort of dep graph', 'evaluation order constant'],
+};
+
+<span style="color:var(--accent2)">// A meta-generator reads any such spec and produces the corresponding generator:</span>
+metaGen(evaluatorGeneratorSpec)  &rarr; gen-ksc-evaluator.ts   <span style="color:var(--accent4)">// AG attr compiler</span>
+metaGen(grammarConverterSpec)   &rarr; codegen.ts              <span style="color:var(--accent4)">// grammar compiler</span>
+metaGen(queryCompilerSpec)      &rarr; gen-sql-compiler.ts     <span style="color:var(--accent4)">// SQL query compiler</span>
+metaGen(regexCompilerSpec)      &rarr; gen-regex-compiler.ts   <span style="color:var(--accent4)">// regex compiler</span></code></pre>
+
+    <h4 style="color:var(--accent3)">Step 4: The Fourth Projection &mdash; The Fixpoint</h4>
+    <p>Now the key question: what is the meta-generator's OWN structure?</p>
+<pre><code><span style="color:var(--accent2)">// The meta-generator itself follows the SAME pattern:</span>
+function metaGen(spec) {
+  <span class="s0">// 1. READ  &mdash; parse the spec</span>
+  const { itemDiscovery, metadataInference, codeTemplates, globals } = spec;
+
+  <span class="s1">// 2. ANALYZE &mdash; understand what the spec describes</span>
+  const templateList = codeTemplates.map(t =&gt; parseTemplate(t));
+
+  <span class="s2">// 3. GENERATE &mdash; for each template in the spec, emit code that</span>
+  <span class="s2">//    iterates over items and applies that template</span>
+  for (const template of templateList) {
+    emit(`for (const item of metadata) {`);
+    emit(`  ${expandTemplate(template)}`);
+    emit(`}`);
+  }
+
+  <span class="s3">// 4. WRITE &mdash; save the generated generator</span>
+}
+
+<span style="color:var(--accent2)">// So we can describe metaGen ITSELF as a spec:</span>
+const metaGenSpec = {
+  itemDiscovery:     { method: 'read spec.codeTemplates array' },
+  metadataInference: { method: 'parseTemplate per template' },
+  codeTemplates: [
+    { target: 'read-phase',     pattern: 'parse spec object' },
+    { target: 'analyze-phase',  pattern: 'map templates' },
+    { target: 'generate-phase', pattern: 'for each template: emit iteration code' },
+    { target: 'write-phase',    pattern: 'writeFile' },
+  ],
+};
+
+<span style="color:var(--accent4)">// And then:</span>
+<span style="color:var(--accent4)">metaGen(metaGenSpec) = metaGen   &larr; FIXPOINT!</span>
+
+<span style="color:var(--accent4)">// The generator-of-generators, applied to its own spec,</span>
+<span style="color:var(--accent4)">// reproduces itself. No new artifact emerges.</span></code></pre>
+
+    <div class="insight-box">
+      <strong>Why is this a fixpoint?</strong> Because all generators in KSC have the same shape: <em>read registry &rarr; analyze &rarr; iterate &rarr; emit</em>. The meta-generator captures this shape. When you describe the meta-generator's own shape to itself, it re-instantiates that same shape. There's no deeper level of "generator structure" to extract &mdash; the pattern <code>for&nbsp;(item&nbsp;of&nbsp;registry)&nbsp;emit(template(item))</code> is the atomic unit of code generation.
+    </div>
+
+    <div class="insight-box" style="border-left-color: var(--accent2);">
+      <strong>Practical parallel:</strong> This is why template engines are fixpoints. A Mustache renderer, described as a Mustache template, renders itself. Handlebars compiled through Handlebars produces Handlebars. KSC's generators are elaborate template engines &mdash; and template engines are fixpoints of the "apply template to data" operation. The 4th projection isn't exotic; it's the tautology that underlies every self-hosting system.
+    </div>
+  </div>
+</div>
+
+<h3>File Map: Where <code>mix</code> Lives in the Codebase</h3>
+
+<div class="diagram"><pre><code>  <span class="s0">Static Data (inputs to mix):</span>
+  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
+  &#x2502; ast-schema/schema.ts        364 node defs via node(), leaf()   &#x2502;
+  &#x2502; ast-schema/builder.ts       registry + sumType()              &#x2502;
+  &#x2502; ksc-behavior/attr-types.ts  22 attribute names + types        &#x2502;
+  &#x2502; ksc-behavior/binder.ts      eq_kindDefs, eq_defEnv, ...      &#x2502;
+  &#x2502; ksc-behavior/checker.ts     eq_noImportsContext, ...          &#x2502;
+  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;
+                      &#x2502;                              &#x2502;
+                      &#x25BC;                              &#x25BC;
+  <span class="s1">mix&#x2081;: codegen.ts</span>              <span class="s2">mix&#x2082;: gen-ksc-evaluator.ts</span>
+  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
+  &#x2502; generateNodeTypes()       &#x2502;  &#x2502; scanExports()                &#x2502;
+  &#x2502; generateSchema()          &#x2502;  &#x2502; inferAttrDef()               &#x2502;
+  &#x2502; generateConvert()         &#x2502;  &#x2502; parseDeps() + topoSort()     &#x2502;
+  &#x2502; generateBuilders()        &#x2502;  &#x2502; generate()                   &#x2502;
+  &#x2502; generateSerializer()      &#x2502;  &#x2502;   generateSynBody()          &#x2502;
+  &#x2502; getConvertFieldExpr()     &#x2502;  &#x2502;   generateInhBody()          &#x2502;
+  &#x2502; convertFieldOverrides     &#x2502;  &#x2502;   generateCollectionBody()   &#x2502;
+  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x252C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x252C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;
+               &#x2502;                              &#x2502;
+               &#x25BC;                              &#x25BC;
+  <span class="s3">Generated Residuals (outputs of mix):</span>
+  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
+  &#x2502; ast-schema/generated/     &#x2502;  &#x2502; ksc-generated/               &#x2502;
+  &#x2502;   node-types.ts  (ifaces) &#x2502;  &#x2502;   evaluator.ts               &#x2502;
+  &#x2502;   schema.ts     (C table) &#x2502;  &#x2502;     KSCDNode class            &#x2502;
+  &#x2502;   convert.ts    (364 cvt) &#x2502;  &#x2502;     22 cache fields            &#x2502;
+  &#x2502;   builders.ts   (create*) &#x2502;  &#x2502;     22 typed methods           &#x2502;
+  &#x2502;   serialize.ts  (JSON)    &#x2502;  &#x2502;     switch dispatch            &#x2502;
+  &#x2502;   index.ts      (barrel)  &#x2502;  &#x2502;     static dep graph           &#x2502;
+  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;  &#x2502;     evaluate() entry        &#x2502;
+                                  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;</code></pre></div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: Interactive Pipeline Explorer -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s6">
+<h2>6. Interactive Pipeline Explorer</h2>
+
+<p>Click each stage to explore its inputs, outputs, and what "mix" does at that level:</p>
+
+<div class="pipeline" id="pipelineViz">
+  <div class="pipe-stage" onclick="selectStage(0)" style="border-color: var(--stage0);">
+    <span class="stage-num s0">0</span>
+    <h4 class="s0">Generic<br>AG Eval</h4>
+    <div style="font-size:0.82em;color:var(--text2)">The conceptual<br>starting point</div>
+  </div>
+  <div class="pipe-arrow">&xrarr;</div>
+  <div class="pipe-stage" onclick="selectStage(1)" style="border-color: var(--stage1);">
+    <span class="stage-num s1">1</span>
+    <h4 class="s1">Grammar<br>Specialization</h4>
+    <div style="font-size:0.82em;color:var(--text2)">codegen.ts<br>+ schema.ts</div>
+  </div>
+  <div class="pipe-arrow">&xrarr;</div>
+  <div class="pipe-stage" onclick="selectStage(2)" style="border-color: var(--stage2);">
+    <span class="stage-num s2">2</span>
+    <h4 class="s2">Attribute<br>Specialization</h4>
+    <div style="font-size:0.82em;color:var(--text2)">gen-ksc-evaluator.ts<br>+ behavior/*.ts</div>
+  </div>
+  <div class="pipe-arrow">&xrarr;</div>
+  <div class="pipe-stage" onclick="selectStage(3)" style="border-color: var(--stage3);">
+    <span class="stage-num s3">3</span>
+    <h4 class="s3">Program<br>Execution</h4>
+    <div style="font-size:0.82em;color:var(--text2)">evaluate(root)<br>at runtime</div>
+  </div>
+</div>
+
+<div class="pipe-detail" id="detail0">
+  <h4 class="s0">Stage 0: The Generic AG Evaluator</h4>
+  <p>This stage is <em>conceptual</em> &mdash; it never exists as actual code in KSC. It represents the fully generic algorithm:</p>
+<pre><code>function ag_eval(grammar, attributes, program) {
+  const tree = parseToAST(grammar, program);  // generic parse
+  const dnodes = wrapInDecorators(tree);      // generic wrap
+  for (const attr of attributes) {            // generic attr loop
+    for (const node of traverseInOrder(dnodes, attr.deps)) {
+      const eq = findEquation(attr, node.kind); // generic dispatch
+      node.cache.set(attr.name, eq(node));      // generic cache
+    }
+  }
+  return project(dnodes, attributes);
+}</code></pre>
+  <p>Everything is generic: the grammar is data, the attributes are data, the equations are looked up at runtime. This is how systems like <em>Kiama</em> or a naive AG library work &mdash; fully interpreted.</p>
+  <div class="insight-box">
+    <strong>Performance cost of genericity:</strong> Hash lookups for every attribute access, dynamic dispatch for every equation call, runtime introspection for tree structure. Each of these adds overhead that specialization can eliminate.
+  </div>
+</div>
+
+<div class="pipe-detail" id="detail1">
+  <h4 class="s1">Stage 1: Grammar Specialization &mdash; <code>ast-schema/codegen.ts</code></h4>
+
+  <p><strong>Specializer input:</strong></p>
+  <ul>
+    <li><code>ast-schema/schema.ts</code> &mdash; 364 node definitions via <code>node()</code>, <code>leaf()</code>, <code>sumType()</code></li>
+    <li><code>ast-schema/builder.ts</code> &mdash; registry of nodes + sum types + field additions</li>
+  </ul>
+
+  <p><strong>Specializer process:</strong> <code>codegen.ts</code> iterates over the registry and generates TypeScript source code. For each node kind, it:</p>
+  <ol>
+    <li>Emits a typed interface (<code>KSBinaryExpression { left: KSExpression; operatorToken: KSToken; ... }</code>)</li>
+    <li>Emits a child field entry (<code>'BinaryExpression': ['left', 'operatorToken', 'right']</code>)</li>
+    <li>Emits a converter function registered by <code>ts.SyntaxKind</code></li>
+    <li>Emits a builder function (<code>createBinaryExpression({left, operatorToken, right})</code>)</li>
+    <li>Emits serialization metadata</li>
+  </ol>
+
+  <p><strong>Residual programs (5 generated files):</strong></p>
+<pre><code>ast-schema/generated/
+  node-types.ts    &mdash; 364 interfaces + union types + type guards
+  schema.ts        &mdash; getChildFields(), getChildren(), allKinds
+  convert.ts       &mdash; TS &rarr; KS converters + buildKSTree()
+  builders.ts      &mdash; createXxx() factory functions
+  serialize.ts     &mdash; nodeToJSON / nodeFromJSON</code></pre>
+
+  <p><strong>What's specialized away:</strong> The generic "what fields does this node have?" question is now a static lookup. No runtime schema introspection.</p>
+</div>
+
+<div class="pipe-detail" id="detail2">
+  <h4 class="s2">Stage 2: Attribute Specialization &mdash; <code>scripts/gen-ksc-evaluator.ts</code></h4>
+
+  <p><strong>Specializer input:</strong></p>
+  <ul>
+    <li><code>ksc-behavior/attr-types.ts</code> &mdash; the <code>KSCAttrMap</code> type registry (22 attributes with types)</li>
+    <li><code>ksc-behavior/binder.ts</code> &mdash; equation functions for binder attributes</li>
+    <li><code>ksc-behavior/checker.ts</code> &mdash; equation functions for checker attributes</li>
+  </ul>
+
+  <p><strong>Specializer process:</strong> <code>gen-ksc-evaluator.ts</code> does five things:</p>
+  <ol>
+    <li><strong>Parses the type map</strong> &mdash; extracts attribute names and their TypeScript types from <code>KSCAttrMap</code></li>
+    <li><strong>Scans equation exports</strong> &mdash; finds all <code>eq_*</code> functions, their suffixes, their JSDoc annotations</li>
+    <li><strong>Infers attribute metadata</strong> &mdash; determines direction (syn/inh/coll), production cases, root functions from naming conventions</li>
+    <li><strong>Parses dependency graph</strong> &mdash; scans equation bodies for <code>.attr('xxx')</code> calls to build edges</li>
+    <li><strong>Generates evaluator</strong> &mdash; emits <code>KSCDNode</code> class with typed caches, switch dispatch, inlined evaluation patterns</li>
+  </ol>
+
+  <p><strong>Residual program:</strong></p>
+<pre><code>ksc-generated/
+  evaluator.ts  &mdash; KSCDNode class + buildKSCTree() + evaluate()
+                   22 typed cache fields
+                   22 direct methods with switch dispatch
+                   Static imports of all equation functions
+                   Pre-computed dependency graph
+                   Pre-sorted evaluation order</code></pre>
+</div>
+
+<div class="pipe-detail" id="detail3">
+  <h4 class="s3">Stage 3: Program Execution &mdash; Runtime</h4>
+
+  <p><strong>Dynamic input:</strong> The user's TypeScript source files (via <code>ts.Program</code>)</p>
+
+  <p><strong>Execution flow:</strong></p>
+<pre><code>// src/program.ts
+const tsProgram = ts.createProgram(rootNames, options);
+const ksTree = buildKSTree(tsProgram, depth);   // Stage 1 residual
+const { definitions, diagnostics } = evaluate(ksTree.root); // Stage 2 residual
+
+// Inside evaluate():
+const dnodeRoot = buildKSCTree(root, counter);  // Wrap in KSCDNode
+const definitions = project_binder(dnodeRoot);   // Trigger lazy eval
+const diagnostics = project_checker(dnodeRoot);  // Trigger lazy eval</code></pre>
+
+  <p>At this point, both the grammar structure and the attribute semantics are fully specialized. The only remaining work is:</p>
+  <ul>
+    <li>Walking the <em>specific</em> user's AST</li>
+    <li>Evaluating <em>specific</em> equation results for <em>specific</em> nodes</li>
+    <li>Collecting the results</li>
+  </ul>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: Binding-Time Analysis of KSC -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s7">
+<h2>7. Binding-Time Analysis of KSC</h2>
+
+<p>Every piece of information in the system has a <em>binding time</em> &mdash; the stage at which it becomes known. This determines when it can be specialized away.</p>
+
+<div class="bt-grid">
+  <div class="bt-header">Information</div>
+  <div class="bt-header" style="color:var(--stage1)">After Stage 1<br>(Grammar)</div>
+  <div class="bt-header" style="color:var(--stage2)">After Stage 2<br>(Attributes)</div>
+  <div class="bt-header" style="color:var(--stage3)">After Stage 3<br>(Runtime)</div>
+
+  <div class="bt-label">Node kind names</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Child field names per kind</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Sum type memberships</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Node interface types</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">TS &rarr; KS converter logic</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Attribute names &amp; types</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Attr directions (syn/inh/coll)</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Equation &rarr; kind dispatch</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Dependency graph edges</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Evaluation order</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Which nodes exist</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Node field values</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Attribute computed values</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Kind definitions found</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+
+  <div class="bt-label">Violations detected</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-dynamic">dynamic</div>
+  <div class="bt-static">STATIC &check;</div>
+</div>
+
+<div class="insight-box">
+  <strong>The principle:</strong> Information should be exploited at the <em>earliest possible stage</em>. If something is known at Stage 1, it should not be represented as runtime data &mdash; it should be generated code. This is what KSC does: grammar knowledge becomes generated types and lookup tables; attribute knowledge becomes generated cache fields and dispatch code.
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: What Each Stage "Knows" -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s8">
+<h2>8. What Each Stage "Knows" &mdash; The Residual Programs</h2>
+
+<h3>Interactive: Generic vs. Specialized Code</h3>
+<p>Select a concept to see how it's represented at each specialization level:</p>
+
+<div class="demo-container">
+  <div class="demo-controls">
+    <button class="demo-btn active" onclick="showResidual(this, 'child-access')">Child Access</button>
+    <button class="demo-btn" onclick="showResidual(this, 'attr-eval')">Attribute Eval</button>
+    <button class="demo-btn" onclick="showResidual(this, 'cache')">Caching</button>
+    <button class="demo-btn" onclick="showResidual(this, 'dispatch')">Equation Dispatch</button>
+    <button class="demo-btn" onclick="showResidual(this, 'tree-build')">Tree Building</button>
+  </div>
+  <div class="demo-output" id="residualOutput"></div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: Formal Mapping -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s9">
+<h2>9. Formal Mapping: KSC and the Futamura Framework</h2>
+
+<h3>KSC as a Two-Level First Futamura Projection</h3>
+
+<p>In the classical Futamura framework, the First Projection compiles by specializing an interpreter on a source program. KSC applies this principle <em>twice</em>, at two different levels of the input space:</p>
+
+<div class="equation">
+  <div class="label">Classical First Projection</div>
+  target = mix(interp, source)
+</div>
+
+<div class="equation">
+  <div class="label">KSC's Two-Level Analog</div>
+  grammar_eval = mix<sub>1</sub>(ag_eval, grammar) &nbsp;&nbsp;&nbsp;&nbsp; <em style="font-size:0.85em">[codegen.ts]</em><br><br>
+  compiled_eval = mix<sub>2</sub>(grammar_eval, attributes) &nbsp;&nbsp;&nbsp;&nbsp; <em style="font-size:0.85em">[gen-ksc-evaluator.ts]</em>
+</div>
+
+<p>Each <code>mix</code> application is a First Projection at its level. The first says "compile the grammar into the evaluator infrastructure." The second says "compile the attributes into the evaluation logic."</p>
+
+<h3>The Analogy Table</h3>
+
+<table class="comp-table">
+  <tr>
+    <th>Futamura Concept</th>
+    <th>KSC Analog</th>
+    <th>Concretely</th>
+  </tr>
+  <tr>
+    <td>Interpreter</td>
+    <td>Generic AG evaluator</td>
+    <td>The conceptual <code>ag_eval(grammar, attrs, program)</code></td>
+  </tr>
+  <tr>
+    <td>Source program (1st input)</td>
+    <td>Grammar definition</td>
+    <td><code>ast-schema/schema.ts</code> (364 kinds + fields)</td>
+  </tr>
+  <tr>
+    <td>Source program (2nd input)</td>
+    <td>Attribute specification</td>
+    <td><code>ksc-behavior/*.ts</code> (22 attributes + equations)</td>
+  </tr>
+  <tr>
+    <td>Runtime input</td>
+    <td>User program</td>
+    <td>TypeScript source files</td>
+  </tr>
+  <tr>
+    <td><code>mix</code> (specializer)</td>
+    <td>Code generators</td>
+    <td><code>codegen.ts</code> and <code>gen-ksc-evaluator.ts</code></td>
+  </tr>
+  <tr>
+    <td>Residual program</td>
+    <td>Generated code</td>
+    <td><code>ast-schema/generated/*</code> and <code>ksc-generated/evaluator.ts</code></td>
+  </tr>
+  <tr>
+    <td>Compiled target</td>
+    <td>Specialized evaluator</td>
+    <td><code>evaluate(root)</code> &mdash; needs only the user's AST</td>
+  </tr>
+</table>
+
+<h3>What About the 2nd and 3rd Projections?</h3>
+
+<div class="collapsible">
+  <div class="collapsible-header"><span class="arrow">&#9654;</span> Could KSC achieve the Second Projection?</div>
+  <div class="collapsible-body"><div class="collapsible-content">
+    <p>The Second Projection would produce a <strong>compiler</strong>: a tool that takes any attribute specification and automatically generates a specialized evaluator. Formally:</p>
+    <div class="equation">
+      <div class="label">Second Projection for KSC</div>
+      attr_compiler = mix(mix<sub>2</sub>, grammar_eval)
+    </div>
+    <p>This is essentially what <code>gen-ksc-evaluator.ts</code> <em>already is</em> &mdash; but only partially. Currently it reads equation source and generates an evaluator, but it's a hand-written specializer, not one derived from <code>mix</code>. A "true" Second Projection would mean:</p>
+    <ul>
+      <li>The evaluator generator itself would be <em>generated</em> from a meta-description</li>
+      <li>Changing the grammar would automatically update the generator</li>
+      <li>The generator would be provably correct by construction</li>
+    </ul>
+    <p>In practice, KSC's generator is close but relies on conventions (naming, <code>.attr()</code> call scanning) rather than formal specialization.</p>
+  </div></div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header"><span class="arrow">&#9654;</span> Could KSC achieve the Third Projection?</div>
+  <div class="collapsible-body"><div class="collapsible-content">
+    <p>The Third Projection would produce a <strong>compiler generator generator</strong>: a tool that takes any grammar and produces a tool that takes any attributes for that grammar and produces a specialized evaluator. Formally:</p>
+    <div class="equation">
+      <div class="label">Third Projection for KSC</div>
+      cogen = mix(mix, mix)
+    </div>
+    <p>This would mean: give it the TypeScript grammar &rarr; get a tool that generates evaluators for any TypeScript analysis. Give it the Python grammar &rarr; get a tool that generates evaluators for any Python analysis.</p>
+    <p>This is the domain of systems like <strong>JastAdd</strong> (a compiler-compiler for reference attribute grammars) and <strong>Silver</strong> (an AG-based language workbench). KSC could evolve toward this if:</p>
+    <ul>
+      <li>The schema format became a standard DSL (not TypeScript-specific)</li>
+      <li>The equation format became grammar-parametric</li>
+      <li>The generator became itself generated from the meta-level</li>
+    </ul>
+  </div></div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 10: Architecture Implications -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s10">
+<h2>10. Architectural Implications &amp; Future Directions</h2>
+
+<h3>The Stage Boundary Principle</h3>
+
+<div class="highlight-box">
+  <strong>Each stage boundary should be a clean interface</strong> where all information from the current stage is fully resolved before passing to the next. Crossing stage boundaries with "dynamic" data that could have been "static" is a <em>staging error</em> &mdash; it means the specializer is leaving performance on the table.
+</div>
+
+<h3>Current Boundaries and Their Quality</h3>
+
+<div class="tab-container">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab(this, 'bound-1-2')">Boundary 1&rarr;2</button>
+    <button class="tab-btn" onclick="showTab(this, 'bound-2-3')">Boundary 2&rarr;3</button>
+    <button class="tab-btn" onclick="showTab(this, 'staging-errors')">Potential Staging Errors</button>
+    <button class="tab-btn" onclick="showTab(this, 'future-stages')">Future Stages</button>
+  </div>
+
+  <div class="tab-panel active" id="bound-1-2">
+    <h4>Boundary: Grammar &rarr; Attributes</h4>
+    <p><strong>Interface:</strong> Stage 2 reads the <em>behavior source files</em> and imports the <em>generated types</em> from Stage 1.</p>
+    <p><strong>Quality: Good.</strong> The boundary is clean:</p>
+    <ul>
+      <li>Stage 2's generator imports nothing from Stage 1's runtime &mdash; it only reads <code>attr-types.ts</code> and equation source</li>
+      <li>The equation functions reference generated types (<code>KSIdentifier</code>, <code>KSVariableDeclaration</code>) via normal TypeScript imports</li>
+      <li>The <code>Ctx</code> interface is the stable contract between stages</li>
+    </ul>
+    <p><strong>Improvement opportunity:</strong> The <code>gen-ksc-evaluator.ts</code> generator could import and use the schema registry from Stage 1 to validate that equation production cases match actual node kinds. Currently, a typo in a case name (e.g., <code>eq_kindDefs_CompliationUnit</code>) would produce unreachable generated code silently.</p>
+  </div>
+
+  <div class="tab-panel" id="bound-2-3">
+    <h4>Boundary: Attributes &rarr; Runtime</h4>
+    <p><strong>Interface:</strong> <code>evaluate(root: KSNode): EvaluationResult</code></p>
+    <p><strong>Quality: Excellent.</strong> The boundary is minimal and clean:</p>
+    <ul>
+      <li>A single function taking a KS tree root and returning structured results</li>
+      <li>No configuration parameters needed &mdash; everything is baked in</li>
+      <li>The <code>KSCDNode</code> class is an implementation detail hidden behind <code>evaluate()</code></li>
+    </ul>
+    <p>The <code>buildTree()</code> export exists for testing but doesn't break the boundary &mdash; it's a convenience for direct attribute inspection.</p>
+  </div>
+
+  <div class="tab-panel" id="staging-errors">
+    <h4>Potential Staging Errors in Current Architecture</h4>
+
+    <div class="card">
+      <h4>1. AnalysisDepth as Runtime Configuration</h4>
+      <p><code>AnalysisDepth = 'parse' | 'bind' | 'check'</code> is a <em>runtime</em> parameter to <code>buildKSTree</code>, but it controls which TS checker fields get populated. This is information that <em>could</em> be a Stage 1 parameter, producing different generated converters for different depths. Currently, the depth check happens at runtime via <code>if (_depth !== 'check') return ''</code> guards.</p>
+      <p style="color:var(--accent2)">Staging optimization: Generate three variants of <code>convert.ts</code> for each depth level, eliminating runtime depth checks.</p>
+    </div>
+
+    <div class="card">
+      <h4>2. String-Based Attribute Names at Runtime</h4>
+      <p>The <code>attr(name: string)</code> method uses a switch-case on string names. While this is already specialized from a generic Map, a fully staged system would generate direct method calls at the <em>equation level</em> too &mdash; replacing <code>ctx.attr('kindAnnotations')</code> with <code>ctx.kindAnnotations()</code> in the equation source itself.</p>
+      <p style="color:var(--accent2)">Staging optimization: Transform equation source to replace <code>.attr('X')</code> calls with direct <code>.X()</code> method calls in the generated evaluator.</p>
+    </div>
+
+    <div class="card">
+      <h4>3. Runtime Kind Switch in Syn Equations</h4>
+      <p>For synthesized attributes with production cases, the generated code does <code>switch (this.node.kind)</code> at runtime. If the tree builder could tag each <code>KSCDNode</code> with a numeric kind index, the switch could be replaced with a jump table or even virtual dispatch.</p>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="future-stages">
+    <h4>Possible Future Stages</h4>
+
+    <div class="card">
+      <h4><span class="badge badge-s1">Stage 1.5</span> &nbsp; Stamped-Field Specialization</h4>
+      <p>Currently, which stamped fields exist on which nodes (e.g., <code>isExported</code> on declaration nodes, <code>symIsAlias</code> on Identifiers) is determined by <code>convertFieldOverrides</code> in <code>codegen.ts</code>. This could be formalized as a sub-stage that takes a "field stamping specification" and generates optimized converters.</p>
+    </div>
+
+    <div class="card">
+      <h4><span class="badge badge-s2">Stage 2.5</span> &nbsp; Per-Property Module Specialization</h4>
+      <p>Currently, all 22 attributes are compiled into a single <code>KSCDNode</code>. A further specialization could generate <em>separate modules per property</em> (noImports, immutable, etc.) that could be tree-shaken or loaded on demand. The dep graph already knows which attributes are independent.</p>
+    </div>
+
+    <div class="card">
+      <h4><span class="badge badge-s3">Stage 3.5</span> &nbsp; Incremental Re-evaluation</h4>
+      <p>Given a previously decorated tree and a delta (changed nodes), a specialized incremental evaluator could re-evaluate only affected attributes. The static dep graph from Stage 2 already provides the information needed to generate this &mdash; it would be another specialization of the evaluator for a specific <em>change pattern</em>.</p>
+    </div>
+  </div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 11: Connections to Prior Art -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s11">
+<h2>11. Connections to Prior Art</h2>
+
+<table class="comp-table">
+  <tr>
+    <th>System</th>
+    <th>Staging Approach</th>
+    <th>How KSC Compares</th>
+  </tr>
+  <tr>
+    <td><strong>JastAdd</strong></td>
+    <td>Java code generation from .jrag/.jadd specs; grammar compiled to Java classes</td>
+    <td>Similar 2-stage: grammar &rarr; classes, then attributes woven in. JastAdd merges both stages; KSC separates them cleanly.</td>
+  </tr>
+  <tr>
+    <td><strong>Silver</strong></td>
+    <td>Spec language compiled to Java; forwarding for extensibility</td>
+    <td>Silver's "compilation" is one-shot (grammar + attrs &rarr; Java). KSC separates grammar gen from attr gen.</td>
+  </tr>
+  <tr>
+    <td><strong>Kiama</strong></td>
+    <td>Library-based (Scala); no code generation; relies on Scala's JIT</td>
+    <td>Kiama is Stage 0 &mdash; fully generic, runtime-interpreted. KSC is the result of specializing away everything Kiama leaves generic.</td>
+  </tr>
+  <tr>
+    <td><strong>PyPy / RPython</strong></td>
+    <td>Meta-tracing JIT that applies the First Futamura Projection at runtime</td>
+    <td>PyPy applies mix at runtime (JIT). KSC applies mix at build time (code generation). Both eliminate interpreter overhead.</td>
+  </tr>
+  <tr>
+    <td><strong>GraalVM / Truffle</strong></td>
+    <td>AST interpreter with speculative specialization + partial evaluation via Graal compiler</td>
+    <td>Truffle applies PE at JIT time to specialize AST interpreters. KSC does the equivalent ahead of time.</td>
+  </tr>
+  <tr>
+    <td><strong>weval</strong></td>
+    <td>WebAssembly-level partial evaluation of interpreter loops</td>
+    <td>weval specializes at IR level; KSC specializes at source level (TypeScript generation).</td>
+  </tr>
+  <tr>
+    <td><strong>MetaOCaml / LMS</strong></td>
+    <td>Multi-stage programming with explicit staging annotations</td>
+    <td>KSC's stages are implicit (separate scripts), not annotated in the source. Moving to explicit staging annotations could improve correctness guarantees.</td>
+  </tr>
+  <tr>
+    <td><strong>C++ Templates</strong></td>
+    <td>Compile-time partial evaluation via template instantiation</td>
+    <td>C++ templates are the most widely deployed form of offline PE. KSC's codegen scripts serve the same role as template instantiation.</td>
+  </tr>
+</table>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 12: Flashcard Quiz -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="s12">
+<h2>12. Flashcard Quiz</h2>
+<p>Click each question to reveal the answer.</p>
+
+<div class="flashcard-deck">
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What is a partial evaluator (specializer)?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      A program transformer that takes a program <code>P(s, d)</code> and a known static input <code>s</code>, and produces a residual program <code>P_s(d)</code> that behaves identically to <code>P</code> but only needs the remaining dynamic input <code>d</code>. All computations depending only on <code>s</code> are pre-evaluated.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What does the First Futamura Projection produce?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      A <strong>compiled target program</strong>. By specializing an interpreter on a specific source program (<code>target = mix(interp, source)</code>), the interpreter's dispatch and parsing logic is eliminated, leaving only the operations specific to that program. This is compilation by specialization.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What is "Binding-Time Analysis" (BTA)?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      The process of classifying every sub-expression in a program as either <em>static</em> (computable from known inputs) or <em>dynamic</em> (requires unknown inputs). BTA determines what the specializer can pre-compute and what must remain in the residual program.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">How many specialization stages does KSC have, and what are they?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      <strong>Three stages:</strong><br>
+      <strong>Stage 1 (Grammar):</strong> <code>codegen.ts</code> specializes on the AST schema &rarr; generates typed interfaces, child field maps, converters<br>
+      <strong>Stage 2 (Attributes):</strong> <code>gen-ksc-evaluator.ts</code> specializes on the 22 AG attributes &rarr; generates typed caches, switch dispatch, direct eq calls<br>
+      <strong>Stage 3 (Runtime):</strong> <code>evaluate(root)</code> processes the specific user program using all the specialized code
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What does <code>codegen.ts</code> specialize away (what generic operations does it eliminate)?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      It eliminates: (1) runtime schema introspection ("what fields does this kind have?"), replaced by a static lookup table <code>C</code>; (2) generic node construction, replaced by 364 specific converter functions; (3) untyped field access, replaced by typed TypeScript interfaces; (4) runtime child enumeration, replaced by per-kind field name arrays.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What does <code>gen-ksc-evaluator.ts</code> specialize away?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      It eliminates: (1) generic <code>Map&lt;string, any&gt;</code> attribute caching, replaced by 22 typed cache fields; (2) runtime attribute lookup, replaced by a switch statement; (3) generic direction-based evaluation, replaced by inlined syn/inh/coll patterns per attribute; (4) dynamic equation dispatch tables, replaced by direct function imports and calls; (5) runtime dep graph construction, replaced by a static constant.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">Why can't KSC's equation functions use factory patterns like <code>makeContextEquation()</code>?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      Because the Stage 2 specializer (<code>gen-ksc-evaluator.ts</code>) determines dependencies by scanning equation function bodies for <code>.attr('xxx')</code> calls using regex. Factory-produced functions hide the <code>.attr()</code> calls inside the factory, making them invisible to the scanner. This is a <em>binding-time constraint</em>: the dependency information must be statically visible in the equation source for the specializer to extract it.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">How does KSC relate to the Second Futamura Projection?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      <code>gen-ksc-evaluator.ts</code> is an approximation of the Second Projection: it takes an "interpreter" (the attribute equations) and produces a "compiler" (the specialized evaluator). However, it's hand-written rather than derived by specializing a specializer. A true Second Projection would generate the generator itself from a meta-description of AG evaluation.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What is a "staging error" in this context?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      A staging error occurs when information that could be resolved at an earlier stage is instead left as runtime computation. For example, KSC's <code>AnalysisDepth</code> is a runtime parameter that controls which converter fields get populated, but it could be a Stage 1 parameter that produces different generated code for each depth level, eliminating runtime <code>if (_depth !== 'check')</code> guards entirely.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What is the relationship between Kiama and KSC in terms of partial evaluation?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      Kiama operates at Stage 0: it's a fully generic AG library where grammar, attributes, and programs are all runtime data. KSC is the result of applying two stages of partial evaluation to the same abstract algorithm. KSC's generated code is the <em>residual program</em> you'd get if you could partially evaluate a Kiama-like library with respect to a specific grammar and specific attributes.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">Name three concrete optimizations that result from KSC's multi-stage specialization.</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      (1) <strong>Typed cache fields instead of Map:</strong> <code>this._c_kindDefs</code> vs <code>cache.get('kindDefs')</code> &mdash; eliminates hash computation and type casting.<br>
+      (2) <strong>Direct function imports instead of dispatch table:</strong> <code>eq_kindDefs_CompilationUnit(this, ...)</code> vs <code>equations['kindDefs']['CompilationUnit'](this, ...)</code> &mdash; enables JS engine inlining.<br>
+      (3) <strong>Static child field arrays instead of runtime introspection:</strong> <code>C['BinaryExpression']</code> returns a pre-built array vs computing it by reflecting on node structure.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What would a "Stage 2.5" specialization look like?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      Per-property module specialization. Using the static dep graph from Stage 2, generate <em>separate evaluator modules</em> for independent property groups (e.g., noImports vs. immutable). Since these don't share dependencies, they could be loaded on demand or tree-shaken. The dep graph already contains the information to do this; it's "free" static knowledge that isn't yet exploited.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What is the shared structural pattern of KSC's two <code>mix</code> functions?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      Both follow: <strong>Read &rarr; Analyze &rarr; Iterate &rarr; Emit</strong>. They load a static data source (grammar registry or behavior source), analyze it to extract metadata (field definitions or attribute definitions), iterate over the metadata emitting specialized code per item (<code>for (const [kind, entry] of nodes)</code> or <code>for (const a of ATTRS)</code>), and write the generated residual files. The "specialization" is the loop that unrolls generic data-driven behavior into static per-item code.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What concrete code constitutes <code>mix&#x2082;</code>, and what are its five phases?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      <code>mix&#x2082;</code> is <code>scripts/gen-ksc-evaluator.ts</code> (745 lines). Its five phases: (1) <strong>Parse type map</strong> from <code>attr-types.ts</code> via regex; (2) <strong>Scan exports</strong> from <code>binder.ts</code>/<code>checker.ts</code> for <code>eq_*</code> functions; (3) <strong>Infer direction</strong> (syn/inh/coll) from naming conventions; (4) <strong>Parse deps</strong> by regex-scanning function bodies for <code>.attr('xxx')</code> calls; (5) <strong>Generate</strong> <code>KSCDNode</code> class with typed caches, switch dispatch, and inlined evaluation patterns per attribute.
+    </div></div>
+  </div>
+
+  <div class="flashcard" onclick="this.classList.toggle('open')">
+    <div class="flashcard-q">What would "applying mix to itself" mean concretely in KSC? Why is it a fixpoint?</div>
+    <div class="flashcard-a"><div class="flashcard-a-inner">
+      You'd describe <code>gen-ksc-evaluator.ts</code>'s own structure as a "meta-spec" &mdash; what items it discovers, what metadata it infers, what templates it emits. A meta-generator reading this spec would produce <code>gen-ksc-evaluator.ts</code>. Applying the meta-generator to its <em>own</em> spec reproduces itself, because all KSC generators share the same atomic pattern: <code>for (item of registry) emit(template(item))</code>. This pattern can't be further decomposed &mdash; it's the fixpoint. Template engines are fixpoints of "apply template to data."
+    </div></div>
+  </div>
+
+</div>
+</section>
+
+</div><!-- /container -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- JavaScript -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<script>
+// -- Tabs --
+function showTab(btn, panelId) {
+  const container = btn.closest('.tab-container');
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+// -- Collapsibles --
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.parentElement.classList.toggle('open');
+  });
+});
+
+// -- Pipeline stage selector --
+function selectStage(n) {
+  document.querySelectorAll('.pipe-stage').forEach((s, i) => {
+    s.classList.toggle('selected', i === n);
+  });
+  for (let i = 0; i < 4; i++) {
+    const detail = document.getElementById('detail' + i);
+    detail.classList.toggle('visible', i === n);
+  }
+}
+
+// -- Residual code comparison --
+const residualData = {
+  'child-access': {
+    title: 'Getting children of a node',
+    stages: [
+`<span class="s0">// Stage 0: Fully generic &mdash; runtime introspection</span>
+function getChildren(node) {
+  const result = [];
+  for (const key of Object.keys(node)) {
+    const val = node[key];
+    if (isNode(val)) result.push(val);
+    else if (Array.isArray(val)) {
+      for (const item of val) if (isNode(item)) result.push(item);
+    }
+  }
+  return result;
+}`,
+`<span class="s1">// After Stage 1: Grammar specialized &mdash; static field map</span>
+<span class="s1">// Generated by codegen.ts from schema.ts</span>
+const C = {
+  'BinaryExpression': ['left', 'operatorToken', 'right'],
+  'IfStatement': ['expression', 'thenStatement', 'elseStatement'],
+  'Identifier': [],  // leaf &mdash; no children
+  // ... 361 more entries, exhaustive
+};
+
+function getChildren(node) {
+  const fields = C[node.kind];      // O(1) lookup, no introspection
+  const result = [];
+  for (const f of fields) {         // iterate known fields only
+    const v = node[f];
+    if (v == null) continue;
+    if (Array.isArray(v)) for (const item of v) result.push(item);
+    else result.push(v);
+  }
+  return result;
+}`,
+`<span class="s2">// After Stage 2: Used inside KSCDNode tree builder</span>
+<span class="s2">// The getChildFields import from Stage 1 is used directly</span>
+function build(raw, parent, index, fieldName) {
+  const children = [];
+  const dnode = new KSCDNode(raw, parent, children, index, fieldName, counter);
+  const fields = getChildFields(raw.kind);  // Stage 1's static map
+  let childIndex = 0;
+  for (const field of fields) {
+    const val = raw[field];
+    if (val == null) continue;
+    if (Array.isArray(val)) {
+      for (const item of val) children.push(build(item, dnode, childIndex++, field));
+    } else {
+      children.push(build(val, dnode, childIndex++, field));
+    }
+  }
+  return dnode;
+}`
+    ]
+  },
+  'attr-eval': {
+    title: 'Evaluating an attribute on a node',
+    stages: [
+`<span class="s0">// Stage 0: Fully generic &mdash; dynamic lookup everything</span>
+function evalAttr(node, attrName, attrDefs) {
+  if (node.cache.has(attrName)) return node.cache.get(attrName);
+  const def = attrDefs.find(a => a.name === attrName);
+  let result;
+  switch (def.direction) {
+    case 'syn': result = evalSyn(node, def); break;
+    case 'inh': result = evalInh(node, def); break;
+    case 'coll': result = evalColl(node, def); break;
+  }
+  node.cache.set(attrName, result);
+  return result;
+}`,
+`<span class="s1">// After Stage 1: Grammar known, but attributes still generic</span>
+<span class="s1">// (Stage 1 doesn't change attribute evaluation &mdash; grammar</span>
+<span class="s1">//  specialization only affects tree structure, not attr logic)</span>
+// Same as Stage 0 for attribute evaluation`,
+`<span class="s2">// After Stage 2: Fully specialized per attribute</span>
+<span class="s2">// Generated method on KSCDNode:</span>
+kindDefs(): KindDefinition[] {                    // typed return
+  if (this._c_kindDefs !== undefined)             // typed field check
+    return this._c_kindDefs;                      // no Map.get()
+  this._cyc.add('kindDefs');
+  try {
+    switch (this.node.kind) {                     // inlined syn pattern
+      case 'CompilationUnit':
+        return this._c_kindDefs =
+          eq_kindDefs_CompilationUnit(this, this._counter);  // direct call
+      default:
+        return this._c_kindDefs = eq_kindDefs_default();     // direct call
+    }
+  } finally { this._cyc.delete('kindDefs'); }
+}`
+    ]
+  },
+  'cache': {
+    title: 'Attribute caching mechanism',
+    stages: [
+`<span class="s0">// Stage 0: Generic Map-based cache</span>
+class DNode {
+  cache = new Map&lt;string, any&gt;();   // untyped, hash-based
+
+  getAttr(name) {
+    if (this.cache.has(name))       // string hash lookup
+      return this.cache.get(name);  // returns 'any'
+    // ... compute ...
+    this.cache.set(name, result);   // string hash insert
+  }
+}`,
+`<span class="s1">// After Stage 1: Still generic (no change)</span>
+// Grammar specialization doesn't affect caching strategy`,
+`<span class="s2">// After Stage 2: Typed fields, no Map</span>
+class KSCDNode {
+  // 22 typed cache fields generated:
+  private _c_kindDefs: KindDefinition[] | undefined = undefined;
+  private _c_defEnv: Map&lt;string, KindDefinition&gt; | undefined = undefined;
+  private _c_defLookup: ((name: string) =&gt; KindDefinition | undefined) | undefined;
+  private _c_kindAnnotations: KindDefinition[] | undefined = undefined;
+  private _c_noImportsContext: KindDefinition | null | undefined = undefined;
+  // ... 17 more typed fields
+
+  // Direct field access: no hash, no type cast
+  kindDefs(): KindDefinition[] {
+    if (this._c_kindDefs !== undefined) return this._c_kindDefs;
+    // ...
+  }
+}`
+    ]
+  },
+  'dispatch': {
+    title: 'Equation dispatch (finding the right equation for a node kind)',
+    stages: [
+`<span class="s0">// Stage 0: Runtime lookup in dispatch table</span>
+const equations = {
+  kindDefs: {
+    CompilationUnit: eq_kindDefs_CompilationUnit,
+    _default: eq_kindDefs_default,
+  },
+  defEnv: { _root: eq_defEnv_root },
+  // ... built at runtime from spec files
+};
+
+function findEquation(attrName, kind) {
+  const table = equations[attrName];           // hash lookup
+  return table[kind] ?? table._default;        // hash lookup
+}
+
+// Usage:
+const eq = findEquation('kindDefs', node.kind); // 2 hash lookups
+const result = eq(ctx);                          // indirect call`,
+`<span class="s1">// After Stage 1: Still generic (no change)</span>
+// Grammar specialization doesn't affect equation dispatch`,
+`<span class="s2">// After Stage 2: Switch + direct import</span>
+<span class="s2">// Import at module level (resolved by JS engine at load time):</span>
+import { eq_kindDefs_CompilationUnit, eq_kindDefs_default }
+  from '../ksc-behavior/binder.js';
+
+<span class="s2">// Generated switch dispatch:</span>
+kindDefs(): KindDefinition[] {
+  // ...
+  switch (this.node.kind) {
+    case 'CompilationUnit':
+      return this._c_kindDefs =
+        eq_kindDefs_CompilationUnit(this, this._counter);
+        <span class="s2">// ^^ direct call, no lookup, JS engine can inline</span>
+    default:
+      return this._c_kindDefs = eq_kindDefs_default();
+  }
+}`
+    ]
+  },
+  'tree-build': {
+    title: 'Converting a TS node to a KS node',
+    stages: [
+`<span class="s0">// Stage 0: Generic reflection-based conversion</span>
+function convertNode(tsNode) {
+  const kind = ts.SyntaxKind[tsNode.kind]; // name lookup
+  const schema = loadSchema(kind);         // runtime schema lookup
+  const result = { kind };
+  for (const field of schema.fields) {     // iterate unknown fields
+    if (field.isChild) {
+      result[field.name] = convertNode(tsNode[field.name]);
+    } else {
+      result[field.name] = tsNode[field.name]; // hope for the best
+    }
+  }
+  return result;
+}`,
+`<span class="s1">// After Stage 1: Per-kind converters registered by SyntaxKind</span>
+<span class="s1">// Generated by codegen.ts:</span>
+
+register(ts.SyntaxKind.BinaryExpression,
+  (node, sf, children, pos, end, text) => {
+    const n = node as any;
+    return {
+      kind: 'BinaryExpression',
+      left: findChild(children, n.left)!,          // typed
+      operatorToken: findChild(children, n.operatorToken)!, // typed
+      right: findChild(children, n.right)!,         // typed
+      pos, end, text, children,
+    } as KS.KSNode;
+  });
+
+register(ts.SyntaxKind.Identifier,
+  (node, sf, children, pos, end, text) => {
+    const n = node as any;
+    return {
+      kind: 'Identifier',
+      escapedText: n.escapedText ?? "",
+      resolvesToImport: isImportReference(node),    // specialized
+      symIsAlias: hasSymFlag(node, ts.SymbolFlags.Alias), // specialized
+      typeString: getTypeString(node),              // specialized
+      // ... 20+ more stamped fields
+      pos, end, text, children,
+    } as KS.KSNode;
+  });`,
+`<span class="s2">// After Stage 2: Tree building uses Stage 1 converters</span>
+<span class="s2">// + wraps in KSCDNode with attribute infrastructure</span>
+<span class="s2">// (Stage 2 adds the KSCDNode wrapper, not new conversion logic)</span>
+
+function buildKSCTree(root, counter) {
+  function build(raw, parent, index, fieldName) {
+    const children = [];
+    const dnode = new KSCDNode(raw, parent, children, index, fieldName, counter);
+    <span class="s2">// ^^^ Stage 2's class with 22 cache fields</span>
+    const fields = getChildFields(raw.kind);
+    <span class="s2">// ^^^ Stage 1's static map</span>
+    // ... build children recursively ...
+    return dnode;
+  }
+  return build(root, undefined, -1, undefined);
+}`
+    ]
+  },
+};
+
+function showResidual(btn, key) {
+  const container = btn.closest('.demo-container');
+  container.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const data = residualData[key];
+  const output = document.getElementById('residualOutput');
+  output.innerHTML =
+    `<strong style="color:var(--accent5)">${data.title}</strong>\n\n` +
+    data.stages.join('\n\n' + '─'.repeat(70) + '\n\n');
+}
+
+// Initialize
+showResidual(document.querySelector('#residualOutput').closest('.demo-container').querySelector('.demo-btn'), 'child-access');
+
+// -- Futamura projection examples across domains --
+const FP4_COMMON = `<span style="color:var(--accent2)">FOURTH PROJECTION: cogen(mix) = cogen  (fixpoint)</span>
+<span style="color:var(--text2)">Apply the compiler generator to the specializer itself &rarr;
+the compiler generator reproduces itself. The system is closed.</span>
+
+The 3rd projection produced cogen. Now apply cogen to mix:
+  cogen(mix) = cogen    &larr; fixpoint!
+
+This means: the compiler generator, when asked to "compile" the
+specializer, produces... itself. No new artifact emerges.
+
+Projections 4, 5, and 6 are all equivalent (Gl&uuml;ck 2009):
+  cogen(mix)   = cogen   [4th]
+  cogen(cogen) = cogen   [5th]
+  cogen(cogen) = cogen   [6th &equiv; 5th, closed]
+
+`;
+
+const futamuraExamples = {
+  'regex': {
+    title: 'Regular Expressions',
+    interp: `<span class="s0">THE INTERPRETER: A regex engine</span>
+<span style="color:var(--text2)">interp(pattern, input) = matched?</span>
+
+function regexMatch(pattern, input) {
+  const nfa = parsePattern(pattern);    // parse regex syntax
+  const dfa = nfaToDfa(nfa);            // subset construction
+  let state = dfa.start;
+  for (const ch of input) {             // generic char-by-char walk
+    state = dfa.transitions[state][ch]; // table lookup per char
+    if (state === undefined) return false;
+  }
+  return dfa.accepting.has(state);
+}
+
+// Usage (fully interpreted):
+regexMatch("^[a-z]+@[a-z]+\\\\.\\\\w{2,}$", "sam@test.com")`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(regexEngine, pattern) = matcher</span>
+<span style="color:var(--text2)">Specialize the engine on a SPECIFIC pattern &rarr; get a compiled matcher</span>
+
+// mix(regexMatch, "^[a-z]+@[a-z]+\\\\.\\\\w{2,}$") produces:
+function matchEmail(input) {
+  let i = 0;
+  // [a-z]+  — hardcoded character class, no NFA
+  while (i < input.length && input[i] >= 'a' && input[i] <= 'z') i++;
+  if (i === 0 || input[i] !== '@') return false;
+  i++;
+  // [a-z]+  — same, baked in again
+  let j = i;
+  while (i < input.length && input[i] >= 'a' && input[i] <= 'z') i++;
+  if (i === j || input[i] !== '.') return false;
+  i++;
+  // \\w{2,}$  — minimum length check, no backtracking
+  j = i;
+  while (i < input.length && /\\w/.test(input[i])) i++;
+  return (i - j) >= 2 && i === input.length;
+}
+
+<span style="color:var(--accent4)">ELIMINATED: NFA construction, DFA subset construction, transition table,
+generic character class lookup. All baked into straight-line comparisons.</span>`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, regexEngine) = regex compiler</span>
+<span style="color:var(--text2)">Specialize the specializer on the regex engine &rarr; get a tool that
+compiles ANY pattern into a specialized matcher</span>
+
+// This IS what re2c, Ragel, and Rust's regex crate do:
+function compileRegex(pattern) {
+  // Analyzes ANY pattern &rarr; emits optimized state machine code
+  // The regex execution semantics are baked into this compiler
+  // You just supply new patterns
+}
+
+compileRegex("^\\\\d+$")                &rarr; function isDigits(s) { ... }
+compileRegex("[A-Z]{3}-\\\\d{4}")       &rarr; function isPartNumber(s) { ... }
+compileRegex("(https?://[^\\\\s]+)")    &rarr; function findUrl(s) { ... }
+
+<span style="color:var(--accent4)">Real-world: re2c takes regex patterns in C comments and generates
+optimal DFA code at compile time. Ragel does the same for state machines.
+Rust's regex crate compiles patterns to specialized automata.</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = regex-compiler generator</span>
+<span style="color:var(--text2)">Specialize the specializer on itself &rarr; get a tool that produces
+regex compilers from ANY matching semantics</span>
+
+function makePatternCompiler(matchingSemantics) {
+  // Takes a DESCRIPTION of how matching works
+  // (NFA semantics, PCRE semantics, PEG semantics, glob semantics...)
+  // Returns a compiler for that specific matching formalism
+}
+
+makePatternCompiler(nfaSemantics)    &rarr; re2c        (NFA regex compiler)
+makePatternCompiler(pcreSemantics)   &rarr; pcre2_jit   (PCRE regex JIT)
+makePatternCompiler(pegSemantics)    &rarr; packcc       (PEG parser generator)
+makePatternCompiler(globSemantics)   &rarr; globCompiler (glob pattern compiler)`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">In the regex domain: if you had a tool that generates regex compilers
+from matching semantics (3rd), feeding it its own "matching semantics
+description language" would produce... the same tool. The generator
+of regex-compiler-generators IS its own fixpoint.</span>`
+  },
+
+  'sql': {
+    title: 'SQL Query Execution',
+    interp: `<span class="s0">THE INTERPRETER: A SQL query executor</span>
+<span style="color:var(--text2)">interp(query, database) = result_set</span>
+
+function executeSql(query, db) {
+  const ast = parseSql(query);           // parse SQL text
+  const plan = optimizePlan(ast, db);    // query planning
+  return executePlan(plan, db);          // generic row-by-row execution
+}
+
+function executePlan(plan, db) {
+  switch (plan.type) {
+    case 'scan':
+      return db.tables[plan.table].rows;
+    case 'filter':
+      return executePlan(plan.input, db)
+        .filter(row => evalPredicate(plan.predicate, row));  // generic eval
+    case 'project':
+      return executePlan(plan.input, db)
+        .map(row => pick(row, plan.columns));                // generic pick
+    case 'join':
+      return nestedLoopJoin(plan, db);                       // generic join
+  }
+}`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(sqlExecutor, query) = compiled query</span>
+<span style="color:var(--text2)">Specialize the executor on a SPECIFIC query &rarr; get a function
+that only needs the database</span>
+
+// mix(executeSql, "SELECT name, age FROM users WHERE age > 30 AND active")
+function query_users_active_over_30(db) {
+  const results = [];
+  for (const row of db.tables.users.rows) {
+    if (row.age > 30 && row.active === true) {   // predicate inlined
+      results.push({ name: row.name, age: row.age });  // projection inlined
+    }
+  }
+  return results;
+}
+
+<span style="color:var(--accent4)">ELIMINATED: SQL parsing, AST construction, query planning, generic
+predicate evaluation, generic column projection. The query plan has
+been "compiled" into a tight loop with direct field access.</span>
+
+<span style="color:var(--text2)">This is exactly what a PREPARED STATEMENT does:
+  const stmt = db.prepare("SELECT name, age FROM users WHERE age > ?");
+  stmt.run(30);  // only the parameter varies</span>`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, sqlExecutor) = query compiler</span>
+<span style="color:var(--text2)">Specialize the specializer on the SQL executor &rarr; get a tool that
+compiles ANY query into optimized native code</span>
+
+// This IS what HyPer, Apache DataFusion, and PostgreSQL JIT do:
+function compileSql(query) {
+  // Takes ANY SQL query string
+  // Emits optimized scan/filter/project/join code
+  // SQL semantics are baked into the compiler
+}
+
+compileSql("SELECT * FROM t WHERE x > 5")
+  &rarr; function(db) { /* tight scan with x > 5 check */ }
+
+compileSql("SELECT a, SUM(b) FROM t GROUP BY a")
+  &rarr; function(db) { /* hash-aggregate with direct field access */ }
+
+compileSql("SELECT t1.x, t2.y FROM t1 JOIN t2 ON t1.id = t2.id")
+  &rarr; function(db) { /* hash-join with specialized probe */ }
+
+<span style="color:var(--accent4)">Real-world: HyPer compiles SQL to LLVM IR at query time.
+Apache DataFusion generates Rust closures. PostgreSQL 11+ JIT-compiles
+hot expressions via LLVM. Spark's Tungsten does whole-stage codegen.</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = query-compiler generator</span>
+<span style="color:var(--text2)">Specialize the specializer on itself &rarr; get a tool that produces
+query compilers from ANY query language definition</span>
+
+function makeQueryCompiler(languageSemantics) {
+  // Takes a DESCRIPTION of a query language
+  // (SQL, Cypher, GraphQL, Datalog, SPARQL...)
+  // Returns a query compiler for that language
+}
+
+makeQueryCompiler(sqlSemantics)      &rarr; DataFusion    (SQL query compiler)
+makeQueryCompiler(cypherSemantics)   &rarr; Neo4j JIT     (Cypher compiler)
+makeQueryCompiler(sparqlSemantics)   &rarr; Blazegraph JIT (SPARQL compiler)
+makeQueryCompiler(datalogSemantics)  &rarr; Souffl&eacute;        (Datalog compiler)
+
+<span style="color:var(--accent4)">Souffl&eacute; is a real example: it's a Datalog compiler that compiles
+Datalog rules into C++ code. The Datalog semantics (fixpoint
+evaluation, stratification) are baked into the generator.</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">In databases: a self-hosting query compiler is the analog. PostgreSQL's
+JIT compiler, compiled by itself, reproduces itself. The 4th projection
+says the query-compiler-generator is a fixpoint &mdash; it contains all
+the "query compilation knowledge" there is to extract.</span>`
+  },
+
+  'neural': {
+    title: 'Neural Network Inference',
+    interp: `<span class="s0">THE INTERPRETER: A generic neural network forward pass</span>
+<span style="color:var(--text2)">interp(modelConfig, inputVector) = prediction</span>
+
+function forward(model, input) {
+  let activation = input;
+  for (const layer of model.layers) {           // generic layer loop
+    switch (layer.type) {                        // runtime dispatch
+      case 'dense':
+        activation = matmul(layer.weights, activation);
+        activation = addBias(activation, layer.bias);
+        break;
+      case 'conv2d':
+        activation = convolve(activation, layer.kernel, layer.stride);
+        break;
+    }
+    activation = applyActivation(layer.activation, activation);  // generic
+  }
+  return activation;
+}`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(forward, model) = optimized inference</span>
+<span style="color:var(--text2)">Specialize the forward pass on a SPECIFIC trained model &rarr;
+get a function that only needs input data</span>
+
+// mix(forward, resnet50Config) produces:
+function resnet50_inference(input) {
+  // Layer 1: Conv2d 7x7, stride 2 (baked in)
+  let h = conv2d_7x7_s2(input, W_conv1, b_conv1);
+  h = batchNorm(h, bn1_mean, bn1_var);
+  h = relu(h);
+  h = maxPool_3x3_s2(h);
+
+  // Residual block 1 (unrolled, no layer loop)
+  let skip = h;
+  h = conv1x1(h, W_res1a_1); h = relu(h);
+  h = conv3x3(h, W_res1a_2); h = relu(h);
+  h = conv1x1(h, W_res1a_3);
+  h = relu(h + skip);
+  // ... 48 more layers, all unrolled with specific weights ...
+
+  h = globalAvgPool(h);
+  return softmax(matmul(W_fc, h) + b_fc);
+}
+
+<span style="color:var(--accent4)">ELIMINATED: Layer loop, activation dispatch, dynamic kernel sizes.
+This is what TensorRT, ONNX Runtime, and XLA do &mdash; they "compile"
+a model graph into fused, optimized kernels.</span>`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, forward) = model compiler</span>
+<span style="color:var(--text2)">Specialize the specializer on the forward pass &rarr; get a tool that
+compiles ANY model into optimized inference code</span>
+
+// This IS what TensorRT, XLA, TVM, and ONNX Runtime do:
+function compileModel(modelConfig) {
+  // Takes ANY neural network architecture
+  // Emits optimized inference code with fused operations
+  // NN execution semantics are baked in
+}
+
+compileModel(resnet50)    &rarr; optimized GPU kernel sequence
+compileModel(bert_base)   &rarr; optimized transformer inference
+compileModel(yolov8)      &rarr; optimized detection pipeline
+compileModel(whisper)     &rarr; optimized audio transcription
+
+<span style="color:var(--accent4)">Real-world: TensorRT takes any ONNX model and produces a GPU-optimized
+"engine". XLA compiles any JAX/TensorFlow graph to HLO then to
+target-specific code. TVM's Relay does the same across hardware.</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = ML compiler generator</span>
+<span style="color:var(--text2)">Specialize the specializer on itself &rarr; get a tool that produces
+model compilers for ANY execution semantics</span>
+
+function makeMLCompiler(executionSemantics) {
+  // Takes a DESCRIPTION of how neural ops execute
+  // (CUDA semantics, TPU semantics, WebGPU semantics, CPU SIMD...)
+  // Returns a model compiler targeting that backend
+}
+
+makeMLCompiler(cudaSemantics)    &rarr; TensorRT  (NVIDIA GPU compiler)
+makeMLCompiler(tpuSemantics)     &rarr; XLA       (Google TPU compiler)
+makeMLCompiler(webgpuSemantics)  &rarr; ONNX.js   (browser GPU compiler)
+makeMLCompiler(cpuSimd)          &rarr; oneDNN    (Intel CPU compiler)
+
+<span style="color:var(--accent4)">TVM's design is closest to this: its "target description" system
+lets you describe new hardware backends, and TVM generates a model
+compiler for that hardware. MLIR is the infrastructure layer that
+makes this kind of multi-target compilation feasible.</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">In ML: MLIR is approaching this. Its "dialect" system describes
+hardware semantics declaratively. An MLIR-based model compiler generator,
+when fed a description of "how to generate model compilers", would
+reproduce itself. The compilation infrastructure is the fixpoint.</span>`
+  },
+
+  'graphics': {
+    title: 'Graphics / Shader Compilation',
+    interp: `<span class="s0">THE INTERPRETER: A generic ray tracer</span>
+<span style="color:var(--text2)">interp(sceneDescription, cameraRay) = pixelColor</span>
+
+function traceRay(scene, ray) {
+  let closest = Infinity, hitObj = null;
+  for (const obj of scene.objects) {         // generic object loop
+    const t = intersect(obj.shape, ray);     // generic intersection
+    if (t < closest) { closest = t; hitObj = obj; }
+  }
+  if (!hitObj) return scene.backgroundColor;
+  const point = ray.at(closest);
+  const normal = computeNormal(hitObj.shape, point);  // generic normal
+  let color = vec3(0);
+  for (const light of scene.lights) {                  // generic light loop
+    color = add(color, shade(hitObj.material, normal, light, ray));
+  }
+  return color;
+}`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(traceRay, scene) = scene renderer</span>
+<span style="color:var(--text2)">Specialize the ray tracer on a SPECIFIC scene &rarr;
+get a function that only needs camera rays</span>
+
+// mix(traceRay, cornellBoxScene) produces:
+function renderCornellBox(ray) {
+  // 5 planes + 2 boxes, intersection tests unrolled:
+  let t = intersectPlane(ray, backWall_n, backWall_d);
+  let hit = 'backWall', closest = t;
+  t = intersectPlane(ray, floor_n, floor_d);
+  if (t < closest) { closest = t; hit = 'floor'; }
+  t = intersectAABB(ray, box1_min, box1_max);  // specific box
+  if (t < closest) { closest = t; hit = 'box1'; }
+  // ... (no generic object loop, no shape dispatch)
+
+  // Materials inlined:
+  if (hit === 'backWall') return shade_diffuse(white, ...);
+  if (hit === 'box1') return shade_glossy(red, ...);
+  // ... (no generic material dispatch)
+}
+
+<span style="color:var(--accent4)">ELIMINATED: Object list iteration, generic intersection dispatch,
+generic material lookup. Scene geometry and materials are constants.</span>`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, traceRay) = shader compiler</span>
+<span style="color:var(--text2)">Specialize the specializer on the ray tracer &rarr; get a tool that
+compiles ANY scene into optimized rendering code</span>
+
+// This IS what OptiX, shader compilers, and BVH builders do:
+function compileScene(sceneDescription) {
+  // Takes ANY scene description
+  // Emits optimized intersection + shading code
+  // Ray tracing semantics are baked in
+}
+
+compileScene(cornellBox)     &rarr; GPU kernel with 5-plane + 2-AABB tests
+compileScene(sponzaAtrium)   &rarr; GPU kernel with BVH traversal (100K tris)
+compileScene(hairSim)        &rarr; GPU kernel with curve intersection
+
+<span style="color:var(--accent4)">Real-world: NVIDIA OptiX takes scene descriptions and compiles them
+to PTX GPU code. Vulkan/Metal shader compilers take GLSL/MSL and
+produce GPU-specific binaries. Unity's Shader Graph compiles visual
+shader descriptions to platform-specific code.</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = rendering-compiler generator</span>
+<span style="color:var(--text2)">Specialize the specializer on itself &rarr; get a tool that produces
+rendering compilers from ANY rendering semantics</span>
+
+function makeRenderCompiler(renderingModel) {
+  // Takes a DESCRIPTION of how rendering works
+  // (ray tracing, rasterization, path tracing, photon mapping...)
+  // Returns a scene compiler for that rendering model
+}
+
+makeRenderCompiler(rayTracing)    &rarr; OptiX-like compiler
+makeRenderCompiler(rasterization) &rarr; Vulkan-like shader compiler
+makeRenderCompiler(pathTracing)   &rarr; Mitsuba's compiler
+makeRenderCompiler(radiosity)     &rarr; radiosity solver generator
+
+<span style="color:var(--accent4)">Halide is close to this level: it separates the algorithm
+(what to compute) from the schedule (how to compute it), and can
+generate optimized code for different rendering/image processing
+algorithms across different hardware targets.</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">In graphics: a shader compiler that compiles its own shader compilation
+language would reproduce itself. The Vulkan SPIR-V compiler compiled
+via its own IR pipeline is approaching this &mdash; the compilation
+infrastructure is self-describing.</span>`
+  },
+
+  'ksc': {
+    title: 'KSC / Attribute Grammar Evaluation',
+    interp: `<span class="s0">THE INTERPRETER: A generic AG evaluator</span>
+<span style="color:var(--text2)">interp(grammar, attributes, program) = decorated_tree</span>
+
+function agEval(grammar, attributes, program) {
+  const tree = parse(grammar, program);              // generic parse
+  const dnodes = wrapTree(tree);                     // generic wrap
+  const order = topoSort(buildDepGraph(attributes)); // runtime dep graph
+  for (const attr of order) {                        // generic attr loop
+    for (const node of traverse(dnodes)) {
+      const eq = findEquation(attr, node.kind);      // hash lookup
+      node.cache.set(attr.name, eq(node));            // Map.set
+    }
+  }
+  return project(dnodes);
+}
+
+<span style="color:var(--text2)">This is how Kiama and similar AG libraries work: everything is
+data at runtime &mdash; grammar, attributes, equations, dispatch.</span>`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(agEval, {grammar, attributes}) = evaluator</span>
+<span style="color:var(--text2)">Specialize the AG evaluator on a SPECIFIC grammar AND attributes &rarr;
+get a function that only needs the user's program</span>
+
+<span style="color:var(--accent2)">KSC applies this in two sub-stages:</span>
+
+<span class="s1">Stage 1 &mdash; mix(agEval, grammar):</span>  codegen.ts
+  &rarr; Typed interfaces for 364 node kinds
+  &rarr; Static child field map C['BinaryExpression'] = ['left', ...]
+  &rarr; Per-kind converter functions
+
+<span class="s2">Stage 2 &mdash; mix(stage1_result, attributes):</span>  gen-ksc-evaluator.ts
+  &rarr; 22 typed cache fields (not Map&lt;string, any&gt;)
+  &rarr; Switch dispatch (not hash lookup)
+  &rarr; Direct equation calls (not dispatch table)
+  &rarr; Static dep graph (not runtime construction)
+
+<span style="color:var(--accent4)">Result: evaluate(root) &mdash; a function that takes ONLY the user's AST
+and produces definitions + diagnostics. No grammar data, no attribute
+metadata, no dispatch tables at runtime.</span>`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, agEval_grammar) = attribute compiler</span>
+<span style="color:var(--text2)">Specialize the specializer on the grammar-aware evaluator &rarr;
+get a tool that compiles ANY attributes into a specialized evaluator</span>
+
+// gen-ksc-evaluator.ts IS (approximately) this Second Projection:
+function compileAttributes(attrSpecs) {
+  // 1. Parse attr-types.ts for type map
+  // 2. Scan equation exports from binder.ts / checker.ts
+  // 3. Infer directions (syn/inh/coll) from naming conventions
+  // 4. Parse .attr() calls to build dependency graph
+  // 5. Topologically sort
+  // 6. Emit KSCDNode class with typed caches + switch dispatch
+
+  // Works for ANY set of attributes, not just the current 22:
+  // Add eq_newAttr_SomeKind to checker.ts, add to KSCAttrMap,
+  // re-run the generator &rarr; new evaluator with 23 attributes.
+}
+
+<span style="color:var(--accent4)">"Approximately" because it's hand-written, not derived by
+mechanically specializing mix on the AG interpreter. But functionally,
+it IS a compiler from attribute specifications to evaluators.
+The AG evaluation semantics (syn = bottom-up, inh = top-down,
+coll = aggregate) are baked into the generator's emit logic.</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = AG compiler generator</span>
+<span style="color:var(--text2)">Specialize the specializer on itself &rarr; get a tool that produces
+attribute compilers from ANY grammar</span>
+
+// Hypothetical KSC cogen:
+function makeAttributeCompiler(grammarSpec) {
+  // Takes ANY grammar definition
+  // (TypeScript AST, Python AST, Rust AST, custom DSL...)
+  // Returns a tool that compiles attributes for that grammar
+}
+
+makeAttributeCompiler(typescriptGrammar)
+  &rarr; gen-ksc-evaluator.ts     (TS attribute compiler)
+
+makeAttributeCompiler(pythonGrammar)
+  &rarr; gen-py-evaluator.ts      (Python attribute compiler)
+
+makeAttributeCompiler(rustGrammar)
+  &rarr; gen-rs-evaluator.ts      (Rust attribute compiler)
+
+makeAttributeCompiler(customDslGrammar)
+  &rarr; gen-dsl-evaluator.ts     (DSL attribute compiler)
+
+<span style="color:var(--accent4)">Real-world systems at this level:
+&bull; JastAdd: supply a grammar (.ast) &rarr; get an AG evaluator generator
+&bull; Silver: supply a grammar &rarr; get a compiler with AG evaluation
+&bull; Spoofax: supply a grammar + analysis rules &rarr; get a full IDE
+
+KSC could reach this level if:
+1. The schema format became grammar-parametric (not TS-specific)
+2. The equation format used a standard DSL (not TypeScript conventions)
+3. gen-ksc-evaluator.ts was itself generated from a meta-description</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">For KSC: if the grammar-parametric AG compiler generator (3rd) were
+applied to its own "grammar description language", it would reproduce
+itself. The tool that generates attribute compilers from grammars, when
+given a grammar for "attribute compiler generator descriptions", yields
+itself. This is the bootstrap test: a self-hosting AG compiler generator.
+
+JastAdd approaches this &mdash; it is itself implemented using AGs,
+making it partially self-describing.</span>`
+  },
+
+  // ═══ Language-specific examples ═══
+
+  'typescript': {
+    title: 'TypeScript',
+    interp: `<span class="s0">THE INTERPRETER: TypeScript's type checker</span>
+<span style="color:var(--text2)">interp(typeAnnotations, program) = typeErrors</span>
+
+// TypeScript's checker is an interpreter for the type language:
+function checkTypes(annotations: TypeSystem, program: SourceFile): Diagnostic[] {
+  for (const node of walkAST(program)) {
+    const declaredType = lookupType(annotations, node);  // generic lookup
+    const inferredType = inferType(node, annotations);    // generic inference
+    if (!isAssignable(inferredType, declaredType)) {      // generic check
+      errors.push(makeError(node, inferredType, declaredType));
+    }
+  }
+  return errors;
+}
+
+// The "source" is the type system rules (generics, unions, mapped types...)
+// The "input" is the specific program being checked`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(checker, typeRules) = specialized checker</span>
+<span style="color:var(--text2)">Specialize the checker on TypeScript's SPECIFIC type rules</span>
+
+// This IS what tsc does &mdash; it's a checker specialized to TS's type system:
+function checkTS(program: ts.SourceFile): ts.Diagnostic[] {
+  // Generics: structurally checked (TS-specific rule baked in)
+  // Unions: discriminated union narrowing (TS-specific)
+  // 'any': skips checking (TS-specific escape hatch)
+  // Mapped types: expanded at check time (TS-specific)
+  // No generic "type system interpreter" &mdash; TS rules are hardcoded
+}
+
+<span style="color:var(--accent4)">tsc itself is the First Projection: the generic notion of "type checking"
+has been specialized to TypeScript's specific type rules. The result
+only needs your source files.</span>
+
+// KSC's ast-schema/codegen.ts does the same for the AST:
+// mix(genericTreeWalker, typescriptAST) = typed KS converters`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, checker) = type-checker compiler</span>
+<span style="color:var(--text2)">Specialize the specializer on the checking algorithm &rarr;
+get a tool that compiles ANY type system into a checker</span>
+
+// A tool that takes a type system definition and emits a checker:
+function compileTypeSystem(rules: TypeSystemSpec): Checker {
+  // rules = { generics: 'structural', narrowing: true, ... }
+  // Emits a specialized type checker for those rules
+}
+
+compileTypeSystem(typescriptRules) &rarr; tsc's checker
+compileTypeSystem(flowRules)       &rarr; Flow's checker
+compileTypeSystem(myTypeRules)     &rarr; custom checker
+
+<span style="color:var(--accent4)">Real-world approximations:
+&bull; TypeScript's own checker is hand-written (not generated)
+&bull; Stardust/PLT-Redex: define type rules declaratively, get a checker
+&bull; Ott: formal type system specs that generate type checkers</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: tool that generates type-checker compilers</span>
+<span style="color:var(--text2)">A tool that takes ANY "checking algorithm" and produces a
+type-checker compiler for it</span>
+
+function makeCheckerCompiler(checkingAlgorithm) {
+  // Hindley-Milner &rarr; ML-style type checker compiler
+  // Bidirectional &rarr; bidirectional type checker compiler
+  // Substructural &rarr; linear/affine type checker compiler
+}
+
+makeCheckerCompiler(hindleyMilner)   &rarr; ML/Haskell checker generator
+makeCheckerCompiler(bidirectional)   &rarr; Agda/Idris checker generator
+makeCheckerCompiler(gradualTyping)   &rarr; Typed Racket checker generator
+
+<span style="color:var(--accent4)">PLT Redex and the K Framework approach this level &mdash; they can
+generate checkers from formal semantics specifications.</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">TypeScript's tsc, compiled by tsc, produces tsc. This is the fixpoint:
+the TypeScript compiler is self-hosting. The 4th projection in the TS
+ecosystem is already achieved at the compiler level (tsc compiles itself),
+though not yet at the type-system-generator level.</span>`
+  },
+
+  'javascript': {
+    title: 'JavaScript',
+    interp: `<span class="s0">THE INTERPRETER: A JS engine's bytecode interpreter</span>
+<span style="color:var(--text2)">interp(bytecode, input) = output</span>
+
+// V8's Ignition interpreter:
+function interpret(bytecode, args) {
+  let pc = 0;
+  const regs = new Array(bytecode.regCount);
+  while (pc < bytecode.length) {
+    const op = bytecode[pc];
+    switch (op) {                           // generic opcode dispatch
+      case OP_ADD:
+        regs[bytecode[pc+1]] =
+          add(regs[bytecode[pc+2]], regs[bytecode[pc+3]]);  // generic add
+        pc += 4; break;
+      case OP_CALL:
+        result = callFunction(regs[bytecode[pc+1]], ...);   // generic call
+        pc += 3; break;
+      case OP_LOAD_PROPERTY:
+        regs[bytecode[pc+1]] =
+          loadProp(regs[bytecode[pc+2]], bytecode[pc+3]);   // generic lookup
+        pc += 4; break;
+      // ... hundreds of opcodes
+    }
+  }
+}`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(interpreter, bytecode) = JIT-compiled code</span>
+<span style="color:var(--text2)">Specialize the interpreter on a SPECIFIC function's bytecode</span>
+
+// V8's TurboFan compiles hot functions:
+// mix(ignition, addUserBytecode) produces:
+function addUser_compiled(name, age) {
+  // Type feedback says: name is always string, age is always SMI
+  const obj = allocateFixedShape({name: '', age: 0});  // inline allocation
+  obj.name = name;    // direct offset write (no property lookup)
+  obj.age = age;      // direct offset write
+  users.push(obj);    // monomorphic call (array push inlined)
+  return obj;
+}
+
+<span style="color:var(--accent4)">ELIMINATED: bytecode dispatch loop, generic property lookup (replaced
+by known object shapes / hidden classes), generic arithmetic (replaced
+by SMI-specialized operations), generic function calls (inlined).</span>
+
+// This is literally what happens when V8 "optimizes" a function:
+// it partially evaluates the interpreter w.r.t. the specific bytecode`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, interpreter) = JIT compiler</span>
+<span style="color:var(--text2)">V8's TurboFan IS the second projection &mdash; a compiler that
+takes ANY JS bytecode and produces optimized machine code</span>
+
+// TurboFan:
+function compileToMachineCode(bytecode, typeProfile) {
+  // Takes ANY function's bytecode + profiling data
+  // Emits optimized x64/ARM machine code
+  // JS semantics are baked into the compiler
+}
+
+compileToMachineCode(addUser_bytecode)     &rarr; x64 machine code
+compileToMachineCode(sortArray_bytecode)   &rarr; x64 machine code
+compileToMachineCode(renderUI_bytecode)    &rarr; x64 machine code
+
+<span style="color:var(--accent4)">Real-world: V8 TurboFan, SpiderMonkey IonMonkey, JavaScriptCore FTL.
+Each is a compiler from JS bytecode to native code. The JS language
+semantics (prototype chains, type coercion, closures) are baked in.</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = JIT compiler generator</span>
+<span style="color:var(--text2)">A tool that takes ANY language's interpreter and produces a JIT</span>
+
+function makeJIT(interpreterSpec) {
+  // Takes an interpreter for ANY language
+  // Produces a JIT compiler for that language
+}
+
+makeJIT(jsInterpreter)       &rarr; V8 TurboFan
+makeJIT(pythonInterpreter)   &rarr; PyPy JIT
+makeJIT(rubyInterpreter)     &rarr; TruffleRuby JIT
+makeJIT(wasmInterpreter)     &rarr; wasm JIT
+
+<span style="color:var(--accent4)">This IS GraalVM/Truffle: write a Truffle interpreter for any language,
+Graal's PE automatically produces a JIT. Also RPython: write an
+interpreter in RPython, get a JIT for free.</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">GraalVM compiled by GraalVM. The Graal compiler (written in Java) is
+compiled by Graal itself via bootstrapping. The JIT-compiler-generator
+is a fixpoint: it compiles itself. This is regularly tested in Graal's
+CI as the "bootstrap" build configuration.</span>`
+  },
+
+  'python': {
+    title: 'Python',
+    interp: `<span class="s0">THE INTERPRETER: CPython's eval loop</span>
+<span style="color:var(--text2)">interp(codeObject, locals) = result</span>
+
+# CPython's ceval.c &mdash; the core interpreter loop:
+def eval_frame(code, local_vars, global_vars):
+    stack = []
+    pc = 0
+    while pc < len(code.bytecodes):
+        op = code.bytecodes[pc]
+        if op == LOAD_FAST:
+            stack.append(local_vars[code.bytecodes[pc+1]])  # generic lookup
+        elif op == BINARY_ADD:
+            b, a = stack.pop(), stack.pop()
+            stack.append(a.__add__(b))    # generic dunder dispatch
+        elif op == CALL_FUNCTION:
+            args = [stack.pop() for _ in range(code.bytecodes[pc+1])]
+            func = stack.pop()
+            stack.append(func(*args))     # generic call
+        # ... 120+ opcodes
+        pc += instruction_size(op)
+
+# Every Python program runs through this loop. Always.`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(cpython, code_object) = compiled function</span>
+<span style="color:var(--text2)">Specialize the interpreter on a SPECIFIC function's bytecode</span>
+
+# Cython does exactly this for type-annotated Python:
+# mix(cpython_eval, my_function.bytecode) produces C code:
+
+// my_function.c  (generated by Cython)
+static PyObject* my_function(long x, long y) {
+    long result = x + y;       // direct C addition, no __add__
+    return PyLong_FromLong(result);  // direct boxing
+    // No bytecode loop, no stack, no opcode dispatch
+}
+
+<span style="color:var(--accent4)">ELIMINATED: bytecode dispatch loop, operand stack, generic dunder
+protocol (__add__ becomes C +), generic call protocol.
+
+Also: Numba @jit does this at runtime via LLVM. PyPy's tracing JIT
+does it by recording and compiling hot traces through the eval loop.</span>`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, cpython) = Python compiler</span>
+<span style="color:var(--text2)">A tool that takes ANY Python code and produces optimized native code</span>
+
+# These tools ARE the 2nd projection:
+def compile_python(source_code) -> NativeCode:
+    # Takes ANY Python source
+    # Emits optimized native code
+    # Python semantics baked in
+
+<span style="color:var(--accent4)">Real-world 2nd projection tools for Python:
+&bull; Cython: Python+types &rarr; C extension modules
+&bull; Nuitka: full Python &rarr; C++ compiled executables
+&bull; mypyc: type-annotated Python &rarr; C extensions
+&bull; Codon: Python subset &rarr; LLVM native code
+&bull; PyPy: Python &rarr; JIT-compiled machine code (via meta-tracing)</span>
+
+compile_python("def f(x): return x*2")
+  &rarr; optimized machine code that doubles a number
+
+compile_python("for i in range(n): total += data[i]")
+  &rarr; vectorized SIMD loop (if Numba/Codon)`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = Python-compiler generator</span>
+<span style="color:var(--text2)">A tool that takes ANY language interpreter and produces a compiler</span>
+
+def make_compiler(interpreter_spec) -> Compiler:
+    # Takes a language interpreter
+    # Produces a compiler for that language
+
+make_compiler(cpython_interp)    &rarr; PyPy (Python compiler)
+make_compiler(cruby_interp)      &rarr; TruffleRuby (Ruby compiler)
+make_compiler(lua_interp)        &rarr; LuaJIT-like (Lua compiler)
+
+<span style="color:var(--accent4)">PyPy's RPython toolchain IS a 3rd projection:
+1. Write an interpreter in RPython (restricted Python)
+2. The RPython translator automatically produces a JIT compiler
+3. Works for ANY language: PyPy (Python), Topaz (Ruby), Pydgin (CPU sim)
+
+The RPython framework doesn't know about Python &mdash; it knows about
+interpreters. Feed it any interpreter, get a JIT-compiled runtime.</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">PyPy's RPython translator, translated by itself. The RPython toolchain
+is written in RPython. When you build PyPy, the RPython translator
+translates itself as part of the bootstrap process. The compiler
+generator reproduces itself &mdash; the fixpoint is achieved.
+
+This is tested in practice: pypy-rpython translating pypy-rpython
+produces a functionally identical pypy-rpython.</span>`
+  },
+
+  'clang': {
+    title: 'C',
+    interp: `<span class="s0">THE INTERPRETER: A C interpreter (conceptual)</span>
+<span style="color:var(--text2)">interp(c_source, input) = output</span>
+
+// A C interpreter evaluates C source line by line:
+void interpret(AST* program, void* input) {
+    for (Statement* stmt = program->first; stmt; stmt = stmt->next) {
+        switch (stmt->type) {
+            case ASSIGN:
+                env_set(stmt->var, eval_expr(stmt->expr, env));  // generic eval
+                break;
+            case IF:
+                if (truthy(eval_expr(stmt->cond, env)))          // generic branch
+                    interpret(stmt->then_body, input);
+                else
+                    interpret(stmt->else_body, input);
+                break;
+            case CALL:
+                call_function(stmt->fn, eval_args(stmt->args));  // generic call
+                break;
+        }
+    }
+}
+
+// C interpreters exist: CINT, TCC -run, Cling (for C++ via LLVM)`,
+    fp1: `<span class="s1">FIRST PROJECTION: mix(c_interp, source) = compiled binary</span>
+<span style="color:var(--text2)">Specialize the interpreter on a SPECIFIC C program &rarr; native code</span>
+
+// mix(c_interpreter, "int square(int x) { return x * x; }")
+// produces x86 machine code:
+
+square:
+    imull   %edi, %edi      ; x * x (direct multiply, no eval_expr)
+    movl    %edi, %eax      ; return result
+    ret
+    ; No interpreter loop, no AST walk, no env lookup
+    ; The entire program is now register operations
+
+<span style="color:var(--accent4)">This is literally what gcc/clang do. Compilation is the First Futamura
+Projection: specialize "how to execute C" on a specific C program,
+producing machine code that no longer needs the "C execution engine".
+
+C is the canonical example because compilation was invented for it.</span>`,
+    fp2: `<span class="s2">SECOND PROJECTION: mix(mix, c_interp) = C compiler</span>
+<span style="color:var(--text2)">A tool that takes ANY C source and produces optimized machine code</span>
+
+// gcc, clang, MSVC, TCC are all 2nd-projection artifacts:
+Binary compile_c(const char* source) {
+    AST* ast = parse(source);         // C grammar baked in
+    IR* ir = lower_to_ir(ast);         // C semantics baked in
+    IR* opt = optimize(ir);            // optimizations baked in
+    return emit_machine_code(opt);     // target arch baked in
+}
+
+compile_c("int main() { return 42; }")
+  &rarr; ELF binary, 8400 bytes
+
+compile_c("void sort(int* a, int n) { ... }")
+  &rarr; optimized binary with vectorized comparison
+
+<span style="color:var(--accent4)">Real-world: gcc, clang/LLVM, MSVC, Intel ICC.
+Each is a compiler = mix(mix, c_interpreter).
+C semantics (pointer arithmetic, undefined behavior, calling conventions)
+are baked into the compiler. You supply any C source.</span>`,
+    fp3: `<span class="s0">THIRD PROJECTION: mix(mix, mix) = compiler generator for C-like langs</span>
+<span style="color:var(--text2)">A tool that takes ANY language semantics and produces a compiler</span>
+
+CompilerGenerator make_compiler(LanguageSemantics sem) {
+    // Takes a language specification
+    // Produces a compiler for that language
+}
+
+make_compiler(c_semantics)       &rarr; gcc / clang
+make_compiler(cpp_semantics)     &rarr; g++ / clang++
+make_compiler(rust_semantics)    &rarr; rustc
+make_compiler(go_semantics)      &rarr; gc (Go compiler)
+
+<span style="color:var(--accent4)">LLVM is the closest real-world 3rd projection:
+&bull; Define a frontend (language semantics &rarr; LLVM IR)
+&bull; LLVM handles optimization + code generation for any target
+&bull; Clang, Rust, Swift, Julia all use LLVM as their "cogen"
+
+LLVM doesn't take an interpreter directly, but it IS a compiler
+back-end generator: supply any language's IR translation, get
+an optimizing compiler for 20+ architectures.</span>`,
+    fp4: FP4_COMMON + `<span style="color:var(--accent4)">GCC compiling GCC. This is the original self-hosting compiler:
+
+  Stage 1: Build gcc with system cc    &rarr; gcc1
+  Stage 2: Build gcc with gcc1         &rarr; gcc2
+  Stage 3: Build gcc with gcc2         &rarr; gcc3
+  Verify:  gcc2 == gcc3                &rarr; fixpoint!
+
+Stage 3 == Stage 2 proves gcc is a fixpoint. The compiler, when used
+to compile itself, reproduces itself. This 3-stage bootstrap has been
+the gold standard for compiler correctness since the 1970s.
+
+The 4th Futamura projection formalizes what compiler engineers have
+known empirically: a self-hosting compiler is a fixpoint of the
+compilation-generation process.</span>`
+  },
+};
+
+function showFutamuraExample(btn, key) {
+  const container = document.getElementById('futamura-examples');
+  container.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const data = futamuraExamples[key];
+  const sep = '\n\n<span style="color:var(--border)">' + '='.repeat(75) + '</span>\n\n';
+  const output = document.getElementById('futamuraOutput');
+  output.style.minHeight = '400px';
+  output.innerHTML =
+    `<strong style="color:var(--accent5);font-size:1.1em">${data.title}</strong>\n` + sep +
+    data.interp + sep +
+    data.fp1 + sep +
+    data.fp2 + sep +
+    data.fp3 + sep +
+    data.fp4;
+}
+
+// Initialize Futamura examples
+showFutamuraExample(
+  document.querySelector('#futamura-examples .demo-btn'),
+  'regex'
+);
+</script>
+
+</body>
+</html>

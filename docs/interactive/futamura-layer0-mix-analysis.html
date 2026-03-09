@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building Layer 0 &amp; Mix: Validating KSC's Futamura Projections</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1c2333;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --text2: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #7ee787;
+  --accent3: #d2a8ff;
+  --accent4: #f0883e;
+  --accent5: #ff7b72;
+  --code-bg: #0d1117;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+h1 { color: var(--accent); font-size: 1.8rem; margin-bottom: 0.5rem; }
+h2 { color: var(--accent3); font-size: 1.4rem; margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+h3 { color: var(--accent2); font-size: 1.15rem; margin: 1.5rem 0 0.75rem; }
+h4 { color: var(--accent4); font-size: 1rem; margin: 1rem 0 0.5rem; }
+p { margin-bottom: 0.75rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { background: var(--bg3); padding: 2px 6px; border-radius: 3px; font-size: 0.9em; color: var(--accent2); }
+.subtitle { color: var(--text2); margin-bottom: 2rem; font-size: 0.95rem; }
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0.75rem 0 1rem;
+}
+pre .kw { color: var(--accent5); }
+pre .tp { color: var(--accent3); }
+pre .fn { color: var(--accent); }
+pre .st { color: var(--accent2); }
+pre .cm { color: #484f58; font-style: italic; }
+pre .num { color: var(--accent4); }
+
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin: 1rem 0;
+}
+.card-accent { border-left: 3px solid var(--accent); }
+.card-green { border-left: 3px solid var(--accent2); }
+.card-purple { border-left: 3px solid var(--accent3); }
+.card-orange { border-left: 3px solid var(--accent4); }
+.card-red { border-left: 3px solid var(--accent5); }
+
+.label {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.label-blue { background: rgba(88,166,255,0.15); color: var(--accent); }
+.label-green { background: rgba(126,231,135,0.15); color: var(--accent2); }
+.label-purple { background: rgba(210,168,255,0.15); color: var(--accent3); }
+.label-orange { background: rgba(240,136,62,0.15); color: var(--accent4); }
+.label-red { background: rgba(255,123,114,0.15); color: var(--accent5); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+th, td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+th { background: var(--bg3); color: var(--accent); font-weight: 600; }
+td { background: var(--bg2); }
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin: 1rem 0 0;
+  border-bottom: 2px solid var(--border);
+}
+.tab {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  background: var(--bg3);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.tab:hover { color: var(--text); background: var(--bg2); }
+.tab.active { color: var(--accent); background: var(--bg2); border-bottom: 2px solid var(--accent); margin-bottom: -2px; }
+.tab-content { display: none; padding: 1rem 0; }
+.tab-content.active { display: block; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+@media (max-width: 768px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+
+.arrow-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+.flow-box {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.flow-arrow { color: var(--text2); font-size: 1.2rem; }
+
+.comparison-row {
+  display: grid;
+  grid-template-columns: 1fr 40px 1fr;
+  gap: 0;
+  align-items: stretch;
+  margin: 0.5rem 0;
+}
+.comparison-cell {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.comparison-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent4);
+  font-weight: bold;
+}
+
+.reveal-btn {
+  padding: 0.4rem 0.8rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+.reveal-btn:hover { background: var(--bg2); border-color: var(--accent); }
+.reveal-content { display: none; margin-top: 0.75rem; }
+.reveal-content.show { display: block; }
+
+.layer-diagram {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr 1fr;
+  gap: 2px;
+  margin: 1rem 0;
+  font-size: 0.8rem;
+}
+.layer-header { background: var(--bg3); padding: 0.5rem; font-weight: 600; color: var(--accent); text-align: center; }
+.layer-cell { background: var(--bg2); padding: 0.5rem; border: 1px solid var(--border); }
+.layer-cell.exists { border-color: var(--accent2); }
+.layer-cell.missing { border-color: var(--accent5); border-style: dashed; opacity: 0.7; }
+
+ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+li { margin-bottom: 0.3rem; }
+
+.metric {
+  text-align: center;
+  padding: 1rem;
+}
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.metric-label {
+  font-size: 0.75rem;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toc {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin: 1rem 0 2rem;
+}
+.toc ol { margin: 0.5rem 0 0 1rem; }
+.toc li { margin-bottom: 0.25rem; font-size: 0.9rem; }
+
+.warning {
+  background: rgba(240,136,62,0.1);
+  border: 1px solid rgba(240,136,62,0.3);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+
+<h1>Building Layer 0 &amp; Mix</h1>
+<p class="subtitle">Validating all four Futamura projections against KSC's two-functor architecture</p>
+
+<div class="toc">
+<strong>Contents</strong>
+<ol>
+<li><a href="#recap">Recap: KSC's Current Architecture</a></li>
+<li><a href="#mapping">The Futamura Mapping for KSC</a></li>
+<li><a href="#layer0">Building Layer 0: The Generic AG Evaluator</a></li>
+<li><a href="#mix">What Is Mix? Building a Partial Evaluator</a></li>
+<li><a href="#validate">Validating All Four Layers</a></li>
+<li><a href="#options">Implementation Options</a></li>
+<li><a href="#decision">Decision Matrix</a></li>
+</ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="recap">1. Recap: KSC's Current Architecture</h2>
+
+<p>The codebase has been restructured into a clean two-functor design:</p>
+
+<div class="arrow-flow">
+  <div class="flow-box" style="background:rgba(210,168,255,0.15);color:var(--accent3)">grammar/nodes.ts</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box" style="background:rgba(88,166,255,0.15);color:var(--accent)">compiler/grammar.ts</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box" style="background:rgba(126,231,135,0.15);color:var(--accent2)">generated/ast/*</div>
+</div>
+
+<div class="arrow-flow">
+  <div class="flow-box" style="background:rgba(210,168,255,0.15);color:var(--accent3)">analysis/spec.ts</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box" style="background:rgba(88,166,255,0.15);color:var(--accent)">compiler/analysis.ts</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box" style="background:rgba(126,231,135,0.15);color:var(--accent2)">generated/evaluator.ts</div>
+</div>
+
+<div class="arrow-flow">
+  <div class="flow-box" style="background:rgba(126,231,135,0.15);color:var(--accent2)">generated/evaluator.ts</div>
+  <div class="flow-arrow">+</div>
+  <div class="flow-box" style="background:rgba(240,136,62,0.15);color:var(--accent4)">user .ts files</div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-box" style="background:rgba(255,123,114,0.15);color:var(--accent5)">violations[]</div>
+</div>
+
+<div class="grid-3">
+  <div class="card metric">
+    <div class="metric-value">22</div>
+    <div class="metric-label">Attributes (5 structural + 17 derived)</div>
+  </div>
+  <div class="card metric">
+    <div class="metric-value">360</div>
+    <div class="metric-label">AST Node Kinds</div>
+  </div>
+  <div class="card metric">
+    <div class="metric-value">8</div>
+    <div class="metric-label">Kind Properties</div>
+  </div>
+</div>
+
+<h3>Key Restructuring: Spec as Data</h3>
+
+<p>The big change: checker equations moved from hand-written functions (<code>checker.ts</code> with 60+ exported <code>eq_*</code> functions) into a declarative <code>AnalysisSpec</code> in <code>analysis/spec.ts</code>. Each property is now a <code>PropertyDecl</code> with typed violation rules:</p>
+
+<pre><span class="cm">// analysis/spec.ts — one property declaration</span>
+{
+  <span class="st">name</span>: <span class="st">'noConsole'</span>,
+  <span class="st">annotationKey</span>: <span class="st">'noConsole'</span>,
+  <span class="st">violationAttr</span>: <span class="st">'consoleViolation'</span>,
+  <span class="st">violations</span>: [
+    <span class="fn">violation</span>({
+      <span class="st">triggerKind</span>: <span class="st">'PropertyAccessExpression'</span>,
+      <span class="st">predicate</span>: (<span class="st">_ctx</span>, <span class="st">node</span>) =>
+        node.expression.kind === <span class="st">'Identifier'</span> &&
+        (node.expression <span class="kw">as</span> <span class="tp">KSIdentifier</span>).escapedText === <span class="st">'console'</span>,
+      <span class="st">message</span>: (<span class="st">_ctx</span>, <span class="st">node</span>, <span class="st">def</span>) =>
+        <span class="st">`'console.${(node.name as KSIdentifier).escapedText}' violates ${def.name}`</span>,
+    }),
+  ],
+}</pre>
+
+<p>The compiler mechanically derives 17 attrs from 8 property declarations: 8 <code>*Context</code> (inh) + 8 <code>*Violation</code> (syn) + 1 <code>allViolations</code> (collection).</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="mapping">2. The Futamura Mapping for KSC</h2>
+
+<p>The classic Futamura setup:</p>
+
+<table>
+<tr><th>Concept</th><th>Generic</th><th>KSC Instance</th></tr>
+<tr><td>Interpreter</td><td><code>interp(prog, input) &rarr; output</code></td><td>Generic AG evaluator: <code>eval_ag(spec, ast) &rarr; attrs</code></td></tr>
+<tr><td>Static input (program)</td><td>Source code</td><td><code>AnalysisSpec</code> &mdash; 22 attributes, 8 properties, equation functions</td></tr>
+<tr><td>Dynamic input</td><td>Runtime data</td><td>User's <code>.ts</code> files (parsed to KSNode tree)</td></tr>
+<tr><td>Mix</td><td>Partial evaluator</td><td><code>compileAnalysis()</code> &mdash; specializes the generic pattern on a specific spec</td></tr>
+</table>
+
+<div class="card card-purple">
+<h4>The Four Layers</h4>
+<div class="layer-diagram">
+  <div class="layer-header">Layer</div>
+  <div class="layer-header">What It Is</div>
+  <div class="layer-header">Type Signature</div>
+  <div class="layer-header">KSC Artifact</div>
+
+  <div class="layer-cell" style="text-align:center;font-weight:600">0</div>
+  <div class="layer-cell">Generic AG evaluator</div>
+  <div class="layer-cell"><code>(AGSpec, AST) &rarr; Attrs</code></div>
+  <div class="layer-cell missing">Not built (phantom)</div>
+
+  <div class="layer-cell" style="text-align:center;font-weight:600">1</div>
+  <div class="layer-cell">Compiled evaluator</div>
+  <div class="layer-cell"><code>AST &rarr; EvaluationResult</code></div>
+  <div class="layer-cell exists"><code>generated/evaluator.ts</code></div>
+
+  <div class="layer-cell" style="text-align:center;font-weight:600">2</div>
+  <div class="layer-cell">Spec-to-evaluator compiler</div>
+  <div class="layer-cell"><code>AGSpec &rarr; (AST &rarr; Attrs)</code></div>
+  <div class="layer-cell exists"><code>compiler/analysis.ts</code></div>
+
+  <div class="layer-cell" style="text-align:center;font-weight:600">3</div>
+  <div class="layer-cell">Compiler generator</div>
+  <div class="layer-cell"><code>InterpShape &rarr; Compiler</code></div>
+  <div class="layer-cell missing">Not built</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="layer0">3. Building Layer 0: The Generic AG Evaluator</h2>
+
+<p>Layer 0 is the <em>interpreter</em> that the other layers specialize away. Building it validates that the specialization chain is correct: if <code>eval_ag(ksc_spec, tree)</code> produces the same output as <code>generated/evaluator.ts</code>, then the compilation is faithful.</p>
+
+<div class="tabs" id="layer0-tabs">
+  <div class="tab active" onclick="switchTab('layer0', 0)">Option A: Minimal</div>
+  <div class="tab" onclick="switchTab('layer0', 1)">Option B: Spec-Driven</div>
+  <div class="tab" onclick="switchTab('layer0', 2)">Option C: Indexed</div>
+</div>
+
+<!-- Option A -->
+<div class="tab-content active" id="layer0-content-0">
+<div class="card card-accent">
+<h4>Option A: Minimal Generic Interpreter (~100 lines)</h4>
+<p>A bare-minimum AG evaluator that takes the existing <code>AnalysisSpec</code> directly and evaluates it with Map-based caching. No code generation involved.</p>
+
+<pre><span class="kw">import type</span> { <span class="tp">AnalysisSpec</span>, <span class="tp">StructuralAttr</span>, <span class="tp">PropertyDecl</span> } <span class="kw">from</span> <span class="st">'../compiler/types.js'</span>;
+<span class="kw">import type</span> { <span class="tp">KSNode</span> } <span class="kw">from</span> <span class="st">'../generated/ast/index.js'</span>;
+<span class="kw">import</span> { <span class="fn">getChildFields</span> } <span class="kw">from</span> <span class="st">'../generated/ast/index.js'</span>;
+
+<span class="kw">class</span> <span class="tp">GenericDNode</span> {
+  <span class="kw">readonly</span> node: <span class="tp">KSNode</span>;
+  <span class="kw">readonly</span> parent: <span class="tp">GenericDNode</span> | <span class="kw">undefined</span>;
+  <span class="kw">readonly</span> children: <span class="tp">GenericDNode</span>[];
+  <span class="kw">readonly</span> isRoot: <span class="kw">boolean</span>;
+  <span class="kw">readonly</span> fieldName: <span class="kw">string</span> | <span class="kw">undefined</span>;
+  <span class="kw">private</span> cache = <span class="kw">new</span> <span class="tp">Map</span>&lt;<span class="kw">string</span>, <span class="kw">any</span>&gt;();
+  <span class="kw">private</span> spec: <span class="tp">AnalysisSpec</span>;
+  <span class="kw">private</span> counter: { value: <span class="kw">number</span> };
+
+  <span class="fn">attr</span>(name: <span class="kw">string</span>): <span class="kw">any</span> {
+    <span class="kw">if</span> (<span class="kw">this</span>.cache.has(name)) <span class="kw">return</span> <span class="kw">this</span>.cache.get(name);
+
+    <span class="kw">const</span> structural = <span class="kw">this</span>.spec.structural.find(s => s.name === name);
+    <span class="kw">if</span> (structural) {
+      <span class="kw">const</span> val = <span class="kw">this</span>.<span class="fn">evalStructural</span>(structural);
+      <span class="kw">this</span>.cache.set(name, val);
+      <span class="kw">return</span> val;
+    }
+
+    <span class="cm">// Context attr?</span>
+    <span class="kw">const</span> prop = <span class="kw">this</span>.spec.properties.find(
+      p => name === p.name + <span class="st">'Context'</span>
+    );
+    <span class="kw">if</span> (prop) {
+      <span class="kw">const</span> val = <span class="kw">this</span>.<span class="fn">evalContext</span>(prop);
+      <span class="kw">this</span>.cache.set(name, val);
+      <span class="kw">return</span> val;
+    }
+
+    <span class="cm">// Violation attr?</span>
+    <span class="kw">const</span> vprop = <span class="kw">this</span>.spec.properties.find(
+      p => p.violationAttr === name
+    );
+    <span class="kw">if</span> (vprop) {
+      <span class="kw">const</span> val = <span class="kw">this</span>.<span class="fn">evalViolation</span>(vprop);
+      <span class="kw">this</span>.cache.set(name, val);
+      <span class="kw">return</span> val;
+    }
+
+    <span class="kw">if</span> (name === <span class="st">'allViolations'</span>) {
+      <span class="kw">const</span> val = <span class="kw">this</span>.<span class="fn">evalAllViolations</span>();
+      <span class="kw">this</span>.cache.set(name, val);
+      <span class="kw">return</span> val;
+    }
+    <span class="kw">throw new</span> <span class="tp">Error</span>(<span class="st">`Unknown attr: ${name}`</span>);
+  }
+
+  <span class="cm">// evalStructural, evalContext, evalViolation, evalAllViolations</span>
+  <span class="cm">// ~60 more lines implementing the three AG directions generically</span>
+}</pre>
+
+<div class="grid-2">
+  <div>
+    <h4 style="color:var(--accent2)">Advantages</h4>
+    <ul>
+      <li>Directly consumes <code>AnalysisSpec</code> &mdash; same spec object as <code>compileAnalysis</code></li>
+      <li>Bit-for-bit output comparison validates the compiler</li>
+      <li>~100 lines, no new abstractions</li>
+      <li>Can serve as a reference implementation for testing</li>
+    </ul>
+  </div>
+  <div>
+    <h4 style="color:var(--accent5)">Disadvantages</h4>
+    <ul>
+      <li>Map-based caching, linear scans &mdash; slow</li>
+      <li>No type safety on attribute values</li>
+      <li>Tightly coupled to KSC's <code>AnalysisSpec</code> shape</li>
+      <li><code>find()</code> on every attr access &mdash; O(n) per access</li>
+    </ul>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- Option B -->
+<div class="tab-content" id="layer0-content-1">
+<div class="card card-green">
+<h4>Option B: Spec-Driven with Generic AGSpec (~150 lines)</h4>
+<p>Define a truly generic <code>AGSpec</code> type that isn't tied to KSC's domain. Build a converter from <code>AnalysisSpec &rarr; AGSpec</code>, then a generic evaluator over <code>AGSpec</code>.</p>
+
+<pre><span class="cm">// The generic AG specification &mdash; domain-independent</span>
+<span class="kw">interface</span> <span class="tp">AGSpec</span> {
+  attrs: <span class="tp">AGAttrDecl</span>[];
+}
+
+<span class="kw">interface</span> <span class="tp">AGAttrDecl</span> {
+  name: <span class="kw">string</span>;
+  direction: <span class="st">'syn'</span> | <span class="st">'inh'</span> | <span class="st">'collection'</span>;
+  <span class="cm">// Equation dispatch: kind string &rarr; equation function</span>
+  cases: <span class="tp">Map</span>&lt;<span class="kw">string</span>, (ctx: <span class="tp">GenericCtx</span>, ...args: <span class="kw">any</span>[]) => <span class="kw">any</span>&gt;;
+  defaultEq?: (ctx: <span class="tp">GenericCtx</span>) => <span class="kw">any</span>;
+  rootValue?: <span class="kw">any</span>;
+  rootEq?: (ctx: <span class="tp">GenericCtx</span>) => <span class="kw">any</span>;
+  inhEq?: (parentCtx: <span class="tp">GenericCtx</span>) => <span class="kw">any</span> | <span class="kw">undefined</span>;
+  contributeEq?: (ctx: <span class="tp">GenericCtx</span>) => <span class="kw">any</span>;
+  combineEq?: (acc: <span class="kw">any</span>, contrib: <span class="kw">any</span>) => <span class="kw">any</span>;
+}
+
+<span class="cm">// The generic evaluator</span>
+<span class="kw">function</span> <span class="fn">eval_ag</span>(
+  spec: <span class="tp">AGSpec</span>,
+  root: <span class="kw">any</span>,
+  getChildren: (node: <span class="kw">any</span>) => { node: <span class="kw">any</span>; field: <span class="kw">string</span> }[],
+): <span class="tp">GenericDNode</span> { ... }
+
+<span class="cm">// KSC-specific: convert AnalysisSpec to AGSpec</span>
+<span class="kw">function</span> <span class="fn">kscSpecToAGSpec</span>(spec: <span class="tp">AnalysisSpec</span>): <span class="tp">AGSpec</span> {
+  <span class="kw">const</span> attrs: <span class="tp">AGAttrDecl</span>[] = [];
+
+  <span class="cm">// Map structural attrs</span>
+  <span class="kw">for</span> (<span class="kw">const</span> s <span class="kw">of</span> spec.structural) {
+    attrs.push({
+      name: s.name,
+      direction: s.direction,
+      cases: <span class="kw">new</span> <span class="tp">Map</span>(Object.entries(s.equations.cases ?? {})),
+      defaultEq: s.equations.default,
+      rootValue: s.equations.rootValue,
+      rootEq: s.equations.root,
+      contributeEq: s.equations.contribute,
+      combineEq: s.equations.combine,
+    });
+  }
+
+  <span class="cm">// Mechanically derive context+violation attrs from properties</span>
+  <span class="kw">for</span> (<span class="kw">const</span> prop <span class="kw">of</span> spec.properties) {
+    <span class="cm">// ... same derivation as compileAnalysis but interpreted at runtime</span>
+  }
+
+  <span class="kw">return</span> { attrs };
+}</pre>
+
+<div class="grid-2">
+  <div>
+    <h4 style="color:var(--accent2)">Advantages</h4>
+    <ul>
+      <li>Truly generic &mdash; <code>AGSpec</code> could evaluate any AG, not just KSC's</li>
+      <li>Clean separation: <code>kscSpecToAGSpec</code> is the "semantic" bridge</li>
+      <li>Could be reused for other AG-based tools</li>
+      <li>Makes the Futamura structure maximally explicit</li>
+    </ul>
+  </div>
+  <div>
+    <h4 style="color:var(--accent5)">Disadvantages</h4>
+    <ul>
+      <li>More code (~150 lines for evaluator + converter)</li>
+      <li>Two layers of indirection to debug</li>
+      <li><code>AGSpec</code> may drift from what <code>compileAnalysis</code> actually supports</li>
+      <li>Risk of building an unnecessary abstraction layer</li>
+    </ul>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- Option C -->
+<div class="tab-content" id="layer0-content-2">
+<div class="card card-orange">
+<h4>Option C: Pre-indexed Interpreter (~120 lines)</h4>
+<p>Like Option A, but pre-computes lookup tables at construction time. Array-indexed caching instead of Map. Halfway between generic and compiled.</p>
+
+<pre><span class="kw">class</span> <span class="tp">IndexedDNode</span> {
+  <span class="kw">private</span> cache: (<span class="kw">any</span> | <span class="kw">undefined</span>)[];
+  <span class="kw">private</span> dispatch: <span class="tp">AttrDispatch</span>[];
+
+  <span class="fn">constructor</span>(node, parent, spec: <span class="tp">CompiledSpec</span>) {
+    <span class="kw">this</span>.cache = <span class="kw">new</span> <span class="tp">Array</span>(spec.attrCount);
+    <span class="kw">this</span>.dispatch = spec.dispatch;
+  }
+
+  <span class="fn">attr</span>(name: <span class="kw">string</span>): <span class="kw">any</span> {
+    <span class="kw">const</span> idx = <span class="kw">this</span>.dispatch.ordinal(name); <span class="cm">// O(1) lookup</span>
+    <span class="kw">if</span> (<span class="kw">this</span>.cache[idx] !== <span class="kw">undefined</span>)
+      <span class="kw">return</span> <span class="kw">this</span>.cache[idx];
+    <span class="kw">return</span> <span class="kw">this</span>.cache[idx] = <span class="kw">this</span>.dispatch[idx].<span class="fn">evaluate</span>(<span class="kw">this</span>);
+  }
+}
+
+<span class="cm">// Pre-computed at spec load time:</span>
+<span class="kw">interface</span> <span class="tp">CompiledSpec</span> {
+  attrCount: <span class="kw">number</span>;
+  dispatch: <span class="tp">AttrDispatch</span>[];  <span class="cm">// [idx] &rarr; {evaluate, direction, ...}</span>
+  ordinal: (name: <span class="kw">string</span>) => <span class="kw">number</span>;  <span class="cm">// name &rarr; index</span>
+}</pre>
+
+<div class="grid-2">
+  <div>
+    <h4 style="color:var(--accent2)">Advantages</h4>
+    <ul>
+      <li>Much faster than Option A (array index vs Map lookup)</li>
+      <li>Still generic &mdash; works for any spec</li>
+      <li>Shows the "partial evaluation" structure: pre-indexing = specializing on the spec</li>
+      <li>Demonstrates what <code>mix</code> would do at a fine granularity</li>
+    </ul>
+  </div>
+  <div>
+    <h4 style="color:var(--accent5)">Disadvantages</h4>
+    <ul>
+      <li>Blurs the line between Layer 0 and Layer 1</li>
+      <li>Pre-indexing <em>is</em> partial evaluation &mdash; so this isn't purely "Layer 0"</li>
+      <li>More complex to implement correctly</li>
+    </ul>
+  </div>
+</div>
+</div>
+</div>
+
+<h3>Recommendation</h3>
+
+<div class="card card-accent">
+<p><strong>Option A is the right choice.</strong> The purpose of Layer 0 is validation, not performance. You want to prove that <code>eval_ag(ksc_spec, tree) === evaluate(tree)</code>. The simpler the interpreter, the more trustworthy the proof. Option A is also the most honest representation of "what does the compiled evaluator specialize away?" &mdash; every Map lookup, every linear scan, every untyped cache field is exactly the overhead that <code>compileAnalysis</code> eliminates.</p>
+<p>Option C is interesting as a pedagogical halfway point, but it muddies the layers &mdash; pre-indexing is itself a form of partial evaluation.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="mix">4. What Is Mix? Building a Partial Evaluator</h2>
+
+<h3>Mix is one function applied three ways</h3>
+
+<pre><span class="fn">mix</span> : (<span class="tp">Program</span>, <span class="tp">StaticInput</span>) &rarr; <span class="tp">ResidualProgram</span>
+
+<span class="cm">// It evaluates everything in Program that depends ONLY on StaticInput,</span>
+<span class="cm">// and emits a residual program that handles the remaining dynamic input.</span></pre>
+
+<p><code>mix</code> is the same function/algorithm in all three projections. The three projections are just feeding it different arguments:</p>
+
+<table>
+<tr><th>Projection</th><th>Call</th><th>Meaning</th><th>What You Get</th></tr>
+<tr>
+  <td><span class="label label-blue">1st</span></td>
+  <td><code>mix(interp, program)</code></td>
+  <td>Specialize interpreter on program</td>
+  <td>Compiled program</td>
+</tr>
+<tr>
+  <td><span class="label label-purple">2nd</span></td>
+  <td><code>mix(mix, interp)</code></td>
+  <td>Specialize mix on interpreter's structure</td>
+  <td>Compiler</td>
+</tr>
+<tr>
+  <td><span class="label label-orange">3rd</span></td>
+  <td><code>mix(mix, mix)</code></td>
+  <td>Specialize mix on itself</td>
+  <td>Compiler generator</td>
+</tr>
+</table>
+
+<h3>Is mix real or theoretical?</h3>
+
+<div class="tabs" id="mix-tabs">
+  <div class="tab active" onclick="switchTab('mix', 0)">Theoretical</div>
+  <div class="tab" onclick="switchTab('mix', 1)">Real Systems</div>
+  <div class="tab" onclick="switchTab('mix', 2)">KSC's Hand-Mix</div>
+</div>
+
+<div class="tab-content active" id="mix-content-0">
+<div class="card">
+<p>A fully automatic <code>mix</code> for a language as dynamic as TypeScript/JavaScript doesn't exist. The theoretical <code>mix</code> requires:</p>
+<ul>
+  <li><strong>Binding-time analysis</strong>: classify every expression as "static" (known at specialization time) or "dynamic" (depends on runtime input)</li>
+  <li><strong>Polyvariant specialization</strong>: generate different code for different static contexts</li>
+  <li><strong>Termination guarantees</strong>: ensure specialization doesn't loop forever</li>
+</ul>
+<p>For languages with dynamic typing, eval, computed property access, and closures, this is an open research problem. Real partial evaluators work on restricted subsets (RPython, Truffle DSLs).</p>
+</div>
+</div>
+
+<div class="tab-content" id="mix-content-1">
+<div class="card">
+<h4>Systems that implement mix (or close to it):</h4>
+<div class="grid-2">
+  <div class="card card-green">
+    <h4>PyPy / RPython</h4>
+    <p>Write interpreter in RPython (restricted Python). The <em>meta-tracing JIT</em> is <code>mix</code>: it observes the interpreter running a specific program and compiles hot traces. First projection in action.</p>
+  </div>
+  <div class="card card-green">
+    <h4>GraalVM / Truffle</h4>
+    <p>Write interpreter using Truffle API (Java). Graal's partial evaluator specializes the interpreter AST per-program. Explicitly designed around Futamura projections.</p>
+  </div>
+  <div class="card card-green">
+    <h4>Similix (Scheme)</h4>
+    <p>Academic partial evaluator for a Scheme subset. Can self-apply: <code>mix(mix, interp)</code> produces a compiler. Demonstrated all three projections in the 1990s.</p>
+  </div>
+  <div class="card card-green">
+    <h4>Staging (MetaOCaml)</h4>
+    <p>Programmer-directed partial evaluation via quasi-quotation. Not automatic, but gives manual control over what gets specialized when.</p>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="tab-content" id="mix-content-2">
+<div class="card">
+<h4>KSC's <code>compileAnalysis</code> is a hand-written mix</h4>
+
+<p><code>compiler/analysis.ts</code> is not a generic partial evaluator &mdash; it's a hand-coded specializer that knows the specific structure of AG evaluators. It performs exactly the transformations that <code>mix(eval_ag, spec)</code> would perform, but by template-based code generation rather than automatic program analysis:</p>
+
+<div class="comparison-row">
+  <div class="comparison-cell"><strong>Generic eval_ag pattern</strong><br><code>cache = new Map&lt;string, any&gt;()</code></div>
+  <div class="comparison-arrow">&rarr;</div>
+  <div class="comparison-cell"><strong>compileAnalysis output</strong><br><code>_c_kindDefs: KindDefinition[] | undefined</code></div>
+</div>
+<div class="comparison-row">
+  <div class="comparison-cell"><code>spec.attrs.find(a =&gt; a.name === name)</code></div>
+  <div class="comparison-arrow">&rarr;</div>
+  <div class="comparison-cell"><code>switch(name) { case 'kindDefs': ... }</code></div>
+</div>
+<div class="comparison-row">
+  <div class="comparison-cell"><code>attr.equations.get(node.kind)(ctx)</code></div>
+  <div class="comparison-arrow">&rarr;</div>
+  <div class="comparison-cell"><code>eq_kindDefs_CompilationUnit(this, this._counter)</code></div>
+</div>
+<div class="comparison-row">
+  <div class="comparison-cell">Runtime dep graph walk</div>
+  <div class="comparison-arrow">&rarr;</div>
+  <div class="comparison-cell"><code>KSC_STATIC_DEP_GRAPH</code> constant</div>
+</div>
+<div class="comparison-row">
+  <div class="comparison-cell">Generic <code>Ctx</code> with <code>any</code> values</div>
+  <div class="comparison-arrow">&rarr;</div>
+  <div class="comparison-cell"><code>KSCDNode</code> with typed methods per attr</div>
+</div>
+
+<p style="margin-top:1rem">This is the pragmatic approach. You get the same output quality as automatic partial evaluation, with the cost being that <code>compileAnalysis</code> must be manually updated if the AG evaluator pattern changes (new attribute directions, different caching strategies, etc.).</p>
+</div>
+</div>
+
+<h3>Could we build a real mix for KSC?</h3>
+
+<div class="card card-purple">
+<p>Yes, but only for a restricted subset. The key insight: the <code>AnalysisSpec</code> is already in a form where binding-time analysis is trivial:</p>
+
+<ul>
+  <li><strong>Static</strong> (known at compile time): attribute names, directions, dep edges, equation function references, trigger kinds, violation rule counts</li>
+  <li><strong>Dynamic</strong> (depends on user program): <code>this.node</code>, <code>this.node.kind</code>, <code>this.children</code>, equation return values</li>
+</ul>
+
+<p>Everything in the <code>AnalysisSpec</code> is static. Everything about the AST is dynamic. The boundary is sharp. This is why <code>compileAnalysis</code> works so cleanly &mdash; it can enumerate all static data and emit code that only handles dynamic data.</p>
+
+<p>A "real" mix for KSC would be a function that takes the source code of <code>eval_ag</code> (Option A) + the <code>AnalysisSpec</code> and produces <code>evaluator.ts</code>. In practice, this would be a TypeScript-to-TypeScript partial evaluator, which is a research project, not a weekend task.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="validate">5. Validating All Four Layers</h2>
+
+<h3>Layer 0: Generic AG Evaluator</h3>
+
+<div class="card card-accent">
+<p><span class="label label-blue">Status: To Build</span></p>
+<p><strong>What</strong>: A function <code>eval_ag(spec, tree) &rarr; result</code> that interprets any <code>AnalysisSpec</code> on any KSNode tree using Map-based caching and generic dispatch.</p>
+<p><strong>Validation</strong>: For every test fixture, <code>eval_ag(analysisSpec, tree)</code> must produce identical <code>definitions</code> and <code>diagnostics</code> as <code>evaluate(tree)</code> from <code>generated/evaluator.ts</code>.</p>
+
+<pre><span class="cm">// Validation test</span>
+<span class="kw">import</span> { <span class="fn">evaluate</span> } <span class="kw">from</span> <span class="st">'../generated/evaluator.js'</span>;
+<span class="kw">import</span> { <span class="fn">eval_ag</span> } <span class="kw">from</span> <span class="st">'./generic-evaluator.js'</span>;
+<span class="kw">import</span> { <span class="st">analysisSpec</span> } <span class="kw">from</span> <span class="st">'../analysis/spec.js'</span>;
+
+<span class="fn">test</span>(<span class="st">'Layer 0 matches Layer 1'</span>, () => {
+  <span class="kw">const</span> compiled = <span class="fn">evaluate</span>(tree);
+  <span class="kw">const</span> interpreted = <span class="fn">eval_ag</span>(analysisSpec, tree);
+  <span class="fn">expect</span>(interpreted.diagnostics).toEqual(compiled.diagnostics);
+  <span class="fn">expect</span>(interpreted.definitions).toEqual(compiled.definitions);
+});</pre>
+</div>
+
+<h3>Layer 1: Compiled Evaluator</h3>
+
+<div class="card card-green">
+<p><span class="label label-green">Status: Exists</span> &mdash; <code>generated/evaluator.ts</code></p>
+<p><strong>What</strong>: <code>mix(eval_ag, analysisSpec)</code> &mdash; the <code>AnalysisSpec</code> baked into typed fields, switch dispatch, and direct function calls.</p>
+<p><strong>Validation</strong>: 179 passing tests across 13 test files. Cross-validated against TS checker in integration tests. This is the production artifact.</p>
+<p><strong>Futamura check</strong>: <code>evaluate(tree)</code> should equal <code>eval_ag(analysisSpec, tree)</code>. Building Layer 0 lets us verify this directly.</p>
+</div>
+
+<h3>Layer 2: Analysis Compiler</h3>
+
+<div class="card card-purple">
+<p><span class="label label-purple">Status: Exists</span> &mdash; <code>compiler/analysis.ts</code></p>
+<p><strong>What</strong>: <code>mix(mix, eval_ag)</code> &mdash; a compiler from analysis specs to specialized evaluators.</p>
+<p><strong>Validation</strong>: If you change <code>analysis/spec.ts</code> (add a property, modify an equation) and re-run <code>compileAnalysis(analysisSpec)</code>, it produces a new <code>evaluator.ts</code> that correctly handles the changed spec.</p>
+<p><strong>Futamura check</strong>: <code>compileAnalysis</code> is parameterized by spec structure, not by specific attribute names. It derives context/violation attrs mechanically from <code>PropertyDecl[]</code>. Adding a 9th property (just append to the array) produces a 24-attribute evaluator with no changes to the compiler.</p>
+
+<button class="reveal-btn" onclick="toggleReveal('layer2-detail')">Show: what makes this genuinely Layer 2</button>
+<div class="reveal-content" id="layer2-detail">
+<p style="margin-top:0.5rem"><code>compileAnalysis</code> doesn't know about "noConsole" or "immutable". It processes:</p>
+<ul>
+  <li><code>spec.structural[]</code> &rarr; emit typed cache fields + methods with kind dispatch</li>
+  <li><code>spec.properties[]</code> &rarr; derive <code>*Context</code> (inh) + <code>*Violation</code> (syn) + <code>allViolations</code> (collection)</li>
+  <li>Dep edges &rarr; derived from <code>deps[]</code> arrays and structural relationships</li>
+</ul>
+<p>The specific property names, trigger kinds, and violation predicates are all data flowing through &mdash; the compiler just knows the <em>shapes</em> (syn/inh/collection, cases/default/universal, contribute/combine). This is exactly what <code>mix(mix, eval_ag)</code> would produce: a function that knows "how AG evaluators work" and can specialize them for any specific spec.</p>
+</div>
+</div>
+
+<h3>Layer 3: Compiler Generator</h3>
+
+<div class="card card-red">
+<p><span class="label label-red">Status: Not Built</span></p>
+<p><strong>What</strong>: <code>mix(mix, mix)</code> &mdash; given the structure of an AG evaluator (cache strategy, dispatch strategy, attribute kinds), produce a compiler like <code>compileAnalysis</code>.</p>
+<p><strong>Validation</strong>: Feed it "typed fields, switch dispatch, syn/inh/collection, cycle detection" and get back a function equivalent to <code>compileAnalysis</code>.</p>
+
+<button class="reveal-btn" onclick="toggleReveal('layer3-detail')">Show: what Layer 3 would look like</button>
+<div class="reveal-content" id="layer3-detail">
+<pre><span class="kw">interface</span> <span class="tp">EvaluatorShape</span> {
+  cacheStrategy: <span class="st">'typed-fields'</span> | <span class="st">'map'</span> | <span class="st">'array'</span>;
+  dispatchStrategy: <span class="st">'switch'</span> | <span class="st">'vtable'</span> | <span class="st">'visitor'</span>;
+  attrDirections: (<span class="st">'syn'</span> | <span class="st">'inh'</span> | <span class="st">'collection'</span>)[];
+  cycleDetection: <span class="kw">boolean</span>;
+  treeBuilder: <span class="st">'schema-driven'</span> | <span class="st">'generic'</span>;
+  inhPropagation: <span class="st">'parent-chain'</span> | <span class="st">'copy-down'</span>;
+}
+
+<span class="kw">function</span> <span class="fn">generateAGCompiler</span>(
+  shape: <span class="tp">EvaluatorShape</span>
+): (spec: <span class="tp">AnalysisSpec</span>) => <span class="tp">CompiledAnalyzer</span> {
+  <span class="cm">// Returns a function equivalent to compileAnalysis,</span>
+  <span class="cm">// but configured for the given evaluator architecture</span>
+}</pre>
+
+<p>This would let you explore alternative evaluator designs systematically. For example, <code>generateAGCompiler({ cacheStrategy: 'array', dispatchStrategy: 'vtable' })</code> would produce a compiler that emits evaluators using array caching and virtual dispatch instead of typed fields and switch statements.</p>
+
+<p>In practice, this is rarely worth building unless you're designing a <strong>multi-target AG compiler framework</strong> (like JastAdd's code generation for Java/C++/etc.). KSC targets TypeScript exclusively, so the evaluator shape is fixed.</p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="options">6. Implementation Options</h2>
+
+<div class="tabs" id="impl-tabs">
+  <div class="tab active" onclick="switchTab('impl', 0)">Just Layer 0</div>
+  <div class="tab" onclick="switchTab('impl', 1)">Layer 0 + Validation Suite</div>
+  <div class="tab" onclick="switchTab('impl', 2)">Full Stack</div>
+</div>
+
+<div class="tab-content active" id="impl-content-0">
+<div class="card card-accent">
+<h4>Option 1: Build Layer 0 as a test utility</h4>
+<p>Implement the generic evaluator as <code>analysis/generic-evaluator.ts</code>. Use it exclusively in tests to validate that <code>compileAnalysis</code> output matches interpretation.</p>
+
+<h4>Implementation plan:</h4>
+<ol>
+  <li>Create <code>analysis/generic-evaluator.ts</code> (~100 lines)
+    <ul>
+      <li><code>GenericDNode</code> class with Map-based caching</li>
+      <li>Implements <code>Ctx</code> interface (same as <code>KSCDNode</code>)</li>
+      <li><code>eval_ag(spec, tree)</code> entry point</li>
+    </ul>
+  </li>
+  <li>Create <code>test/generic-evaluator.test.ts</code>
+    <ul>
+      <li>For each test fixture: compare <code>eval_ag</code> vs <code>evaluate</code></li>
+      <li>Attribute-by-attribute comparison on sample nodes</li>
+    </ul>
+  </li>
+</ol>
+
+<div class="grid-2">
+<div class="metric"><div class="metric-value">~100</div><div class="metric-label">Lines of new code</div></div>
+<div class="metric"><div class="metric-value">~50</div><div class="metric-label">Lines of test code</div></div>
+</div>
+</div>
+</div>
+
+<div class="tab-content" id="impl-content-1">
+<div class="card card-green">
+<h4>Option 2: Layer 0 + Comprehensive Validation Suite</h4>
+<p>Build the generic evaluator plus a property-based validation framework that exhaustively compares the two evaluators.</p>
+
+<h4>Implementation plan:</h4>
+<ol>
+  <li>Everything from Option 1</li>
+  <li>Create <code>test/futamura-validation.test.ts</code>
+    <ul>
+      <li>Walk every node in every fixture</li>
+      <li>For each node, compare all 22 attributes between generic and compiled</li>
+      <li>Report any divergences with full context</li>
+    </ul>
+  </li>
+  <li>Add performance benchmark
+    <ul>
+      <li>Measure overhead of generic vs compiled</li>
+      <li>Quantify what specialization buys you</li>
+    </ul>
+  </li>
+</ol>
+
+<div class="grid-3">
+<div class="metric"><div class="metric-value">~150</div><div class="metric-label">Lines of evaluator</div></div>
+<div class="metric"><div class="metric-value">~100</div><div class="metric-label">Lines of validation</div></div>
+<div class="metric"><div class="metric-value">22</div><div class="metric-label">Attrs compared per node</div></div>
+</div>
+</div>
+</div>
+
+<div class="tab-content" id="impl-content-2">
+<div class="card card-orange">
+<h4>Option 3: Full Stack (all four layers)</h4>
+<p>Build Layer 0, formalize what <code>mix</code> does, and sketch Layer 3. Primarily pedagogical/research value.</p>
+
+<h4>Implementation plan:</h4>
+<ol>
+  <li>Everything from Option 2</li>
+  <li>Formalize <code>mix</code> as a documented transformation catalog
+    <ul>
+      <li>List each transformation <code>compileAnalysis</code> performs</li>
+      <li>Map each to the partial-evaluation operation it corresponds to</li>
+    </ul>
+  </li>
+  <li>Sketch Layer 3: <code>EvaluatorShape &rarr; Compiler</code>
+    <ul>
+      <li>Parameterize <code>compileAnalysis</code> by cache strategy and dispatch strategy</li>
+      <li>Demonstrate generating two different evaluator styles from the same spec</li>
+    </ul>
+  </li>
+</ol>
+
+<div class="warning">
+<strong>Diminishing returns.</strong> Layer 3 is interesting theoretically but unlikely to provide practical value for KSC. The evaluator shape is fixed (TypeScript, typed fields, switch dispatch). Building a configurable compiler generator would be over-engineering unless you plan to target multiple languages or radically different evaluator architectures.
+</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<h2 id="decision">7. Decision Matrix</h2>
+
+<table>
+<tr>
+  <th>Criterion</th>
+  <th>Option 1<br><span class="label label-blue">Layer 0 only</span></th>
+  <th>Option 2<br><span class="label label-green">+ Validation</span></th>
+  <th>Option 3<br><span class="label label-orange">Full stack</span></th>
+</tr>
+<tr>
+  <td>Validates compiler correctness</td>
+  <td style="color:var(--accent2)">Yes</td>
+  <td style="color:var(--accent2)">Exhaustively</td>
+  <td style="color:var(--accent2)">Exhaustively</td>
+</tr>
+<tr>
+  <td>Effort</td>
+  <td>~2 hours</td>
+  <td>~4 hours</td>
+  <td>~2 days</td>
+</tr>
+<tr>
+  <td>Ongoing value</td>
+  <td>Test oracle for spec changes</td>
+  <td>Regression suite for compiler</td>
+  <td>Research/pedagogical</td>
+</tr>
+<tr>
+  <td>Risk of over-engineering</td>
+  <td style="color:var(--accent2)">None</td>
+  <td style="color:var(--accent2)">Low</td>
+  <td style="color:var(--accent5)">High</td>
+</tr>
+<tr>
+  <td>Documents Futamura structure</td>
+  <td>Implicitly</td>
+  <td>Explicitly (tests)</td>
+  <td>Comprehensively</td>
+</tr>
+<tr>
+  <td>Catches compiler bugs</td>
+  <td>On tested fixtures</td>
+  <td>On all nodes, all attrs</td>
+  <td>On all nodes, all attrs</td>
+</tr>
+</table>
+
+<div class="card card-green" style="margin-top:1.5rem">
+<h3>The Architecture Already Validates Layers 1&ndash;2</h3>
+
+<p>The restructuring has already made the Futamura structure concrete:</p>
+
+<ul>
+  <li><strong>Layer 1</strong> (<code>generated/evaluator.ts</code>): validated by 179 passing tests</li>
+  <li><strong>Layer 2</strong> (<code>compiler/analysis.ts</code>): validated by the fact that it produces Layer 1 output that passes all tests, and by <code>compiler/validate.ts</code> which cross-checks trigger kinds against the grammar</li>
+  <li><strong>The two-functor split</strong> is the Futamura structure: <code>compileGrammar</code> = first projection on grammar, <code>compileAnalysis</code> = first projection on analysis spec</li>
+</ul>
+
+<p>Building Layer 0 completes the picture by providing the <strong>reference interpreter</strong> that the projections specialize away. The key validation it adds: proof that the compiled evaluator is a faithful specialization, not just "a thing that produces the right output for tested inputs" but "the same function as the generic evaluator, just faster."</p>
+</div>
+
+<hr style="border-color: var(--border); margin: 2rem 0;">
+
+<p style="color:var(--text2);font-size:0.8rem">Generated for the KSC project. See also: <a href="partial-evaluation-futamura-ksc.html">Partial Evaluation & Futamura Projections</a> | <a href="two-functor-architecture.html">Two-Functor Architecture</a></p>
+
+<script>
+function switchTab(group, index) {
+  const tabs = document.querySelectorAll(`#${group}-tabs .tab`);
+  const contents = document.querySelectorAll(`[id^="${group}-content-"]`);
+  tabs.forEach((t, i) => {
+    t.classList.toggle('active', i === index);
+  });
+  contents.forEach((c, i) => {
+    c.classList.toggle('active', i === index);
+  });
+}
+
+function toggleReveal(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('show');
+  const btn = el.previousElementSibling;
+  if (el.classList.contains('show')) {
+    btn.textContent = btn.textContent.replace('Show:', 'Hide:');
+  } else {
+    btn.textContent = btn.textContent.replace('Hide:', 'Show:');
+  }
+}
+</script>
+
+</body>
+</html>

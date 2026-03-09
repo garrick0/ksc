@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cousot's Abstract Interpretation: Implementations &amp; Ecosystem</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1c2128;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --dim: #8b949e;
+  --bright: #e6edf3;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --yellow: #d29922;
+  --orange: #db6d28;
+  --red: #f85149;
+  --purple: #bc8cff;
+  --pink: #f778ba;
+  --cyan: #39d2e0;
+  --mono: 'JetBrains Mono','SF Mono','Fira Code',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#1a1e2e 100%);border-bottom:1px solid var(--border);padding:3rem 2rem 2rem;text-align:center}
+.hero h1{font-size:2rem;color:var(--bright);font-weight:700;letter-spacing:-0.02em;margin-bottom:0.5rem}
+.hero .sub{font-size:1.05rem;color:var(--dim);max-width:800px;margin:0 auto 1.5rem}
+.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;border:1px solid}
+.b-theory{color:var(--purple);border-color:var(--purple);background:rgba(188,140,255,0.1)}
+.b-oss{color:var(--green);border-color:var(--green);background:rgba(63,185,80,0.1)}
+.b-commercial{color:var(--orange);border-color:var(--orange);background:rgba(219,109,40,0.1)}
+.b-nn{color:var(--cyan);border-color:var(--cyan);background:rgba(57,210,224,0.1)}
+
+/* Container */
+.container{max-width:1100px;margin:0 auto;padding:2rem}
+
+/* Sections */
+.section{margin-bottom:1.5rem}
+.section-header{display:flex;align-items:center;gap:0.75rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;cursor:pointer;user-select:none;transition:background 0.2s}
+.section-header:hover{background:var(--bg3)}
+.section-header .arrow{color:var(--dim);font-size:0.8rem;transition:transform 0.2s;width:16px;text-align:center}
+.section-header.open .arrow{transform:rotate(90deg)}
+.section-header h2{font-size:1.15rem;color:var(--bright);font-weight:600;flex:1}
+.section-header .tag{font-size:0.7rem;padding:2px 8px;border-radius:4px;font-weight:600}
+.tag-theory{background:rgba(188,140,255,0.15);color:var(--purple)}
+.tag-tool{background:rgba(88,166,255,0.15);color:var(--accent)}
+.tag-lib{background:rgba(63,185,80,0.15);color:var(--green)}
+.tag-nn{background:rgba(57,210,224,0.15);color:var(--cyan)}
+.section-body{display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:1.25rem;background:var(--bg2)}
+.section-body.open{display:block}
+
+/* Cards */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;margin:1rem 0}
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:1rem;transition:border-color 0.2s}
+.card:hover{border-color:var(--accent)}
+.card h4{color:var(--accent);font-size:0.95rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem}
+.card p{font-size:0.85rem;color:var(--dim);margin-bottom:0.5rem}
+.card .meta{font-size:0.75rem;color:var(--dim);display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem}
+.card .meta span{display:flex;align-items:center;gap:4px}
+
+/* Table */
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:0.85rem}
+th{background:var(--bg3);color:var(--bright);font-weight:600;text-align:left;padding:8px 12px;border:1px solid var(--border)}
+td{padding:8px 12px;border:1px solid var(--border);color:var(--text)}
+tr:hover td{background:rgba(88,166,255,0.04)}
+
+/* Insight */
+.insight{background:rgba(88,166,255,0.06);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:12px 16px;margin:1rem 0;font-size:0.9rem}
+.insight.warn{border-left-color:var(--orange);background:rgba(219,109,40,0.06)}
+.insight.good{border-left-color:var(--green);background:rgba(63,185,80,0.06)}
+.insight strong{color:var(--bright);display:block;margin-bottom:4px}
+
+/* Code */
+pre{background:#0a0d14;border:1px solid var(--border);border-radius:6px;padding:14px 18px;overflow-x:auto;margin:0.75rem 0;font-size:0.82rem;line-height:1.5}
+code{font-family:var(--mono);font-size:0.82rem}
+p code,li code,td code{background:#0a0d14;padding:1px 6px;border-radius:4px;border:1px solid var(--border);font-size:0.8rem}
+
+/* Lattice diagram */
+.lattice{display:flex;flex-direction:column;align-items:center;gap:0;margin:1.5rem 0}
+.lattice-level{display:flex;align-items:center;gap:1rem;width:100%;max-width:700px;cursor:pointer;padding:0.75rem 1rem;border-radius:8px;transition:background 0.2s;position:relative}
+.lattice-level:hover{background:rgba(88,166,255,0.06)}
+.lattice-level.active{background:rgba(88,166,255,0.1);border:1px solid var(--accent)}
+.lattice-level .num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0}
+.lattice-level .info{flex:1}
+.lattice-level .info h4{font-size:0.9rem;margin-bottom:2px}
+.lattice-level .info p{font-size:0.8rem;color:var(--dim);margin:0}
+.lattice-arrow{color:var(--dim);font-size:0.75rem;text-align:center;padding:2px 0}
+.lattice-detail{display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:0.5rem 0 0.5rem 3rem;font-size:0.85rem}
+.lattice-detail.show{display:block}
+
+/* Domain comparison */
+.domain-bar{display:flex;align-items:center;gap:0.75rem;margin:0.5rem 0;font-size:0.85rem}
+.domain-bar .label{width:120px;text-align:right;color:var(--dim);flex-shrink:0}
+.bar-track{flex:1;height:18px;background:var(--bg);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;font-size:0.7rem;font-weight:600;color:var(--bg);transition:width 0.6s ease}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;background:var(--bg3);border-radius:8px 8px 0 0;overflow-x:auto}
+.tab{padding:10px 18px;border:none;background:transparent;color:var(--dim);cursor:pointer;font-size:0.82rem;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;transition:all 0.2s;font-family:inherit}
+.tab:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(88,166,255,0.05)}
+.tab-body{background:var(--bg2);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:1.25rem}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Timeline */
+.timeline{position:relative;margin:1.5rem 0;padding-left:24px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border)}
+.timeline-item{position:relative;margin-bottom:1.25rem;padding-left:20px}
+.timeline-item::before{content:'';position:absolute;left:-20px;top:6px;width:12px;height:12px;border-radius:50%;border:2px solid var(--accent);background:var(--bg)}
+.timeline-item.milestone::before{background:var(--accent)}
+.timeline-item .year{font-size:0.75rem;color:var(--accent);font-weight:600;margin-bottom:2px}
+.timeline-item .desc{font-size:0.85rem}
+
+/* Quiz */
+.quiz{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin:1rem 0}
+.quiz h4{color:var(--purple);margin-bottom:0.75rem;font-size:0.95rem}
+.quiz-option{display:block;width:100%;text-align:left;padding:8px 12px;margin:4px 0;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text);cursor:pointer;font-size:0.85rem;font-family:inherit;transition:all 0.2s}
+.quiz-option:hover{border-color:var(--accent);background:rgba(88,166,255,0.05)}
+.quiz-option.correct{border-color:var(--green);background:rgba(63,185,80,0.1);color:var(--green)}
+.quiz-option.wrong{border-color:var(--red);background:rgba(248,81,73,0.1);color:var(--red)}
+.quiz-explanation{display:none;margin-top:0.75rem;padding:8px 12px;border-radius:6px;font-size:0.85rem}
+.quiz-explanation.show{display:block}
+.quiz-explanation.correct-exp{background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.2);color:var(--green)}
+.quiz-explanation.wrong-exp{background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.2);color:var(--red)}
+
+h3{font-size:1rem;color:var(--purple);margin:1.25rem 0 0.5rem;font-weight:600}
+p{margin-bottom:0.75rem}
+ul,ol{margin:0.5rem 0 1rem 1.5rem}
+li{margin-bottom:0.35rem;font-size:0.9rem}
+strong{color:var(--bright)}
+em{color:var(--orange);font-style:normal}
+
+/* Ecosystem map */
+.eco-map{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin:1.5rem 0}
+.eco-col h3{font-size:0.9rem;margin-bottom:0.75rem;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.eco-item{display:flex;align-items:flex-start;gap:0.5rem;margin-bottom:0.75rem;font-size:0.85rem}
+.eco-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.eco-item .name{font-weight:600;color:var(--bright)}
+
+@media(max-width:768px){
+  .hero h1{font-size:1.5rem}
+  .eco-map{grid-template-columns:1fr}
+  .card-grid{grid-template-columns:1fr}
+  .domain-bar .label{width:80px;font-size:0.75rem}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Cousot's Abstract Interpretation: The Full Ecosystem</h1>
+  <p class="sub">From the 1977 lattice-theoretic foundations to flight-critical avionics, neural network verification, and open-source libraries &mdash; every major implementation of Cousot &amp; Cousot's framework, mapped and compared.</p>
+  <div class="badges">
+    <span class="badge b-theory">Theory &amp; Foundations</span>
+    <span class="badge b-oss">Open Source Tools</span>
+    <span class="badge b-commercial">Industrial Deployment</span>
+    <span class="badge b-nn">Neural Network Verification</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- SECTION 1: THE THEORY -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header open" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>1. The Theory: What Cousot Actually Said</h2>
+    <span class="tag tag-theory">Foundations</span>
+  </div>
+  <div class="section-body open">
+
+    <p>Patrick and Radhia Cousot didn't define 5 levels. They defined a <strong>mathematical framework</strong> in which abstractions form a <em>complete lattice</em> &mdash; meaning there are infinitely many valid abstractions, and any two can be composed, compared, or combined.</p>
+
+    <h3>Key Papers &amp; What They Established</h3>
+    <div class="timeline">
+      <div class="timeline-item milestone">
+        <div class="year">1977 &mdash; POPL</div>
+        <div class="desc"><strong>"Abstract Interpretation: A Unified Lattice Model for Static Analysis of Programs by Construction or Approximation of Fixpoints"</strong><br>The founding paper. Programs compute fixpoints of monotone operators on complete lattices. An abstract interpretation approximates these fixpoints in a simpler lattice connected to the concrete one via a <em>Galois connection</em> (&#945;, &#947;). Proved: if the abstract domain satisfies the ascending chain condition, the analysis terminates. If not, <em>widening</em> forces convergence.</div>
+      </div>
+      <div class="timeline-item milestone">
+        <div class="year">1979 &mdash; POPL</div>
+        <div class="desc"><strong>"Systematic Design of Program Analysis Frameworks"</strong><br>The lattice of abstractions: all sound abstract interpretations of a given program form a complete lattice, ordered by precision. The <em>reduced product</em> combines two domains into one that is at least as precise as either. This is the paper that makes the "hierarchy" continuous rather than discrete.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="year">1992 &mdash; Journal of Logic and Computation</div>
+        <div class="desc"><strong>"Abstract Interpretation Frameworks"</strong><br>Generalized the theory beyond Galois connections to <em>upper closure operators</em>, handling infinite-height lattices more cleanly.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="year">1997 &mdash; POPL</div>
+        <div class="desc"><strong>"Types as Abstract Interpretations"</strong><br>Showed that type systems are a specific instance of abstract interpretation &mdash; type checking is an abstract interpreter using a very coarse domain. This bridges PL theory and static analysis into one framework.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="year">2002 &mdash; VMCAI</div>
+        <div class="desc"><strong>"Constructive Design of a Hierarchy of Semantics of a Transition System by Abstract Interpretation"</strong><br>The hierarchy of program semantics itself is a chain of abstractions: trace semantics &#8594; relational semantics &#8594; denotational semantics &#8594; etc. Each is an abstraction of the one above.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="year">2019 &mdash; POPL (Distinguished Paper)</div>
+        <div class="desc"><strong>"A2I: Abstract&#178; Interpretation"</strong><br>Higher-order abstract interpretation &mdash; abstracting <em>the abstract interpreter itself</em>.</div>
+      </div>
+      <div class="timeline-item milestone">
+        <div class="year">2021 &mdash; MIT Press</div>
+        <div class="desc"><strong><em>Principles of Abstract Interpretation</em></strong> (832 pages)<br>The definitive textbook. Covers trace semantics, fixpoints, abstract domains, widening/narrowing, relational/symbolic analysis. Exercise solutions on <a href="https://github.com/PrAbsInt/appendix">GitHub</a>.</div>
+      </div>
+    </div>
+
+    <h3>The Actual Lattice (Not 5 Levels)</h3>
+    <p>The "5 levels" from the earlier diagram are pedagogical landmarks, like base camps on a mountain. The real structure is:</p>
+
+    <div class="insight">
+      <strong>The Lattice of Abstract Interpretations (Cousot &amp; Cousot 1979)</strong>
+      Given a concrete domain <code>C</code>, the set of all abstract interpretations of <code>C</code> forms a complete lattice <code>(Abs(C), &#8849;)</code> where:<br>
+      &bull; <code>&#8868;</code> = the trivial abstraction (maps everything to one value)<br>
+      &bull; <code>&#8869;</code> = the concrete semantics itself (identity Galois connection)<br>
+      &bull; <code>&#8849;</code> = "is at least as precise as"<br>
+      &bull; Meet = reduced product (most precise common refinement)<br>
+      &bull; Join = most abstract common abstraction<br>
+      Between any two points, there are <em>infinitely many</em> other abstractions.
+    </div>
+
+    <h3>Why "5 Levels" Is Still Useful</h3>
+    <p>The continuum has <strong>natural clusters</strong> based on computational complexity:</p>
+
+    <div class="lattice" id="lattice-interactive">
+      <div class="lattice-level" data-level="1" onclick="showLatticeDetail(1)">
+        <div class="num" style="background:rgba(248,81,73,0.2);color:var(--red)">1</div>
+        <div class="info">
+          <h4 style="color:var(--red)">Maximal Trace Semantics</h4>
+          <p>All execution paths, all intermediate states. Undecidable.</p>
+        </div>
+      </div>
+      <div class="lattice-detail" id="detail-1">
+        <strong>Keeps:</strong> Every possible execution trace, including non-terminating ones.<br>
+        <strong>Loses:</strong> Nothing &mdash; this <em>is</em> the concrete semantics.<br>
+        <strong>Complexity:</strong> Undecidable (equivalent to the halting problem in general).<br>
+        <strong>In between levels 1&rarr;2:</strong> Natural semantics, small-step SOS, denotational semantics, big-step trace semantics, angelic/demonic variants &mdash; each discards some ordering or branching info from traces while keeping more than just reachable states.
+      </div>
+      <div class="lattice-arrow">&#8595; &#945; (forget ordering within traces)</div>
+
+      <div class="lattice-level" data-level="2" onclick="showLatticeDetail(2)">
+        <div class="num" style="background:rgba(219,109,40,0.2);color:var(--orange)">2</div>
+        <div class="info">
+          <h4 style="color:var(--orange)">Collecting Semantics (Reachable States)</h4>
+          <p>Set of all reachable states at each program point. Still undecidable, but the standard "concrete" target.</p>
+        </div>
+      </div>
+      <div class="lattice-detail" id="detail-2">
+        <strong>Keeps:</strong> Which values each variable <em>can</em> take at each program point.<br>
+        <strong>Loses:</strong> The order in which states are visited, correlations across time.<br>
+        <strong>In between 2&rarr;3:</strong> Disjunctive completions, trace partitioning, powerset domains &mdash; each adds back some of the lost relational information using different strategies. The number of possible partitioning strategies is itself infinite.
+      </div>
+      <div class="lattice-arrow">&#8595; &#945; (forget some inter-variable relations)</div>
+
+      <div class="lattice-level" data-level="3" onclick="showLatticeDetail(3)">
+        <div class="num" style="background:rgba(88,166,255,0.2);color:var(--accent)">3</div>
+        <div class="info">
+          <h4 style="color:var(--accent)">Relational Abstractions</h4>
+          <p>Polyhedra, Octagons, Zones, Pentagons &mdash; track relations between variables.</p>
+        </div>
+      </div>
+      <div class="lattice-detail" id="detail-3">
+        <strong>Keeps:</strong> Relationships between pairs or groups of variables (e.g. <code>x &#8804; 2y + 3</code>).<br>
+        <strong>Loses:</strong> Exact sets of reachable values; only knows constraint shapes it can represent.<br>
+        <strong>The sub-hierarchy within level 3 is well-studied:</strong><br>
+        &bull; <em>Polyhedra</em> (Cousot &amp; Halbwachs 1978): arbitrary linear constraints. Exponential worst-case.<br>
+        &bull; <em>Two Variables Per Inequality</em> (TVPI): constraints on at most 2 variables. Polynomial.<br>
+        &bull; <em>Octagons</em> (Min&eacute; 2001): constraints of form &plusmn;x &plusmn; y &leq; c. Cubic.<br>
+        &bull; <em>Zones / DBMs</em>: constraints x - y &leq; c. Cubic.<br>
+        &bull; <em>Pentagons</em> (Logozzo &amp; F&auml;hndrich): intervals + strict upper bounds.<br>
+        Each is a distinct point in the lattice, with a strict precision ordering.
+      </div>
+      <div class="lattice-arrow">&#8595; &#945; (forget all inter-variable relations)</div>
+
+      <div class="lattice-level" data-level="4" onclick="showLatticeDetail(4)">
+        <div class="num" style="background:rgba(210,153,34,0.2);color:var(--yellow)">4</div>
+        <div class="info">
+          <h4 style="color:var(--yellow)">Non-Relational Abstractions</h4>
+          <p>Intervals, Congruences, Signs &mdash; track each variable independently.</p>
+        </div>
+      </div>
+      <div class="lattice-detail" id="detail-4">
+        <strong>Keeps:</strong> Bounds or properties of individual variables.<br>
+        <strong>Loses:</strong> All relationships between variables (x and y analyzed independently).<br>
+        <strong>Sub-hierarchy:</strong><br>
+        &bull; <em>Intervals</em> (Cousot &amp; Cousot 1976): x &isin; [a, b]. Very fast, very common.<br>
+        &bull; <em>Congruences</em> (Granger 1989): x &equiv; a (mod m).<br>
+        &bull; <em>Signs</em>: x &isin; {neg, zero, pos}.<br>
+        &bull; <em>Parity</em>: x &isin; {even, odd}.<br>
+        &bull; <em>Interval &times; Congruence reduced product</em>: strictly more precise than either alone.
+      </div>
+      <div class="lattice-arrow">&#8595; &#945; (forget numeric bounds, keep only type shape)</div>
+
+      <div class="lattice-level" data-level="5" onclick="showLatticeDetail(5)">
+        <div class="num" style="background:rgba(63,185,80,0.2);color:var(--green)">5</div>
+        <div class="info">
+          <h4 style="color:var(--green)">Type Abstractions</h4>
+          <p>Only track the "type" of values: int, string, null, etc.</p>
+        </div>
+      </div>
+      <div class="lattice-detail" id="detail-5">
+        <strong>Keeps:</strong> The coarsest shape of data &mdash; "is this an integer or a pointer?"<br>
+        <strong>Loses:</strong> All numeric information.<br>
+        <strong>Cousot 1997:</strong> Type systems are abstract interpretations. A type checker is an abstract interpreter running over a very coarse domain. But even here there's a sub-hierarchy: simple types &lt; generic types &lt; refinement types &lt; dependent types, each a different point in the lattice with different precision/cost tradeoffs.
+      </div>
+    </div>
+
+    <h3>Key Mechanisms</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>Galois Connection (&#945;, &#947;)</h4>
+        <p>The formal bridge between concrete and abstract. &#945; (abstraction) maps concrete values to abstract ones; &#947; (concretization) maps back. The pair must satisfy: &#945;(c) &#8849; a &#8660; c &#8849; &#947;(a).</p>
+        <p>Composition: if (&#945;&#8321;,&#947;&#8321;) and (&#945;&#8322;,&#947;&#8322;) are Galois connections, so is (&#945;&#8322;&#8728;&#945;&#8321;, &#947;&#8321;&#8728;&#947;&#8322;). This is how you chain abstractions.</p>
+      </div>
+      <div class="card">
+        <h4>Widening &#9661;</h4>
+        <p>When the abstract domain has infinite ascending chains (like intervals [0,1], [0,2], [0,3], ...), iteration may not converge. A widening operator <em>over-approximates</em> the limit: x &#9661; y &#8839; x &#8746; y, and guarantees termination in finite steps.</p>
+        <p>Trade-off: widening loses precision to gain termination. Delayed widening and narrowing can recover some precision afterward.</p>
+      </div>
+      <div class="card">
+        <h4>Reduced Product</h4>
+        <p>Given domains D&#8321; and D&#8322;, their reduced product is the most precise domain that encodes the conjunction of information from both. It's not just the Cartesian product &mdash; it includes <em>reduction</em> steps where each domain's information constrains the other.</p>
+        <p>Astr&eacute;e uses ~20 domains in a reduced product. This is the key to "right precision for each code region."</p>
+      </div>
+      <div class="card">
+        <h4>CEGAR (Counterexample-Guided Abstraction Refinement)</h4>
+        <p>Start with a coarse abstraction. If it reports a potential bug, check if the counterexample is real. If spurious, refine the abstraction to eliminate that particular false alarm and re-analyze.</p>
+        <p>This is abstract interpretation's answer to "how do I pick the right abstraction?" &mdash; <em>let the analysis failures guide you</em>.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: INDUSTRIAL TOOLS -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>2. Industrial-Strength Analyzers</h2>
+    <span class="tag tag-tool">Tools</span>
+  </div>
+  <div class="section-body">
+
+    <p>These tools have been deployed on millions of lines of production code. They prove that abstract interpretation isn't just theory &mdash; it catches real bugs and proves real absence-of-bugs in safety-critical systems.</p>
+
+    <div class="tabs" id="industrial-tabs">
+      <button class="tab active" onclick="switchTab('industrial-tabs','industrial-body','ind-astree')">Astr&eacute;e</button>
+      <button class="tab" onclick="switchTab('industrial-tabs','industrial-body','ind-polyspace')">Polyspace</button>
+      <button class="tab" onclick="switchTab('industrial-tabs','industrial-body','ind-sdv')">SLAM / SDV</button>
+      <button class="tab" onclick="switchTab('industrial-tabs','industrial-body','ind-clousot')">Clousot</button>
+      <button class="tab" onclick="switchTab('industrial-tabs','industrial-body','ind-julia')">Julia</button>
+    </div>
+    <div class="tab-body" id="industrial-body">
+
+      <!-- Astrée -->
+      <div class="tab-content active" id="ind-astree">
+        <h3>Astr&eacute;e &mdash; The Gold Standard</h3>
+        <p>Developed by Patrick Cousot's group at &Eacute;cole Normale Sup&eacute;rieure (ENS Paris), now commercialized by <a href="https://www.absint.com/astree/index.htm">AbsInt GmbH</a>. Proves <strong>absence of runtime errors</strong> in C/C++ programs for safety-critical embedded systems.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>C/C++ (focus on embedded, safety-critical)</td></tr>
+          <tr><td>Language</td><td>OCaml</td></tr>
+          <tr><td>Status</td><td>Commercial (AbsInt), actively maintained</td></tr>
+          <tr><td>Key result</td><td><strong>Zero false alarms</strong> on Airbus A380 primary flight control software (~1M LoC including A340)</td></tr>
+          <tr><td>Certifications</td><td>DO-178B/C (aerospace), IEC 61508 (industrial), ISO 26262 (automotive), EN 50128 (railway)</td></tr>
+          <tr><td>Deployed at</td><td>Airbus, EADS, European Space Agency, automotive OEMs</td></tr>
+        </table>
+
+        <h3>Abstract Domain Architecture</h3>
+        <p>Astr&eacute;e's key innovation is its <strong>collaborative reduced product</strong> of ~20 abstract domains:</p>
+
+        <div class="domain-bar">
+          <span class="label">Intervals</span>
+          <div class="bar-track"><div class="bar-fill" style="width:35%;background:var(--green)">cheap</div></div>
+        </div>
+        <div class="domain-bar">
+          <span class="label">Octagons</span>
+          <div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--accent)">medium</div></div>
+        </div>
+        <div class="domain-bar">
+          <span class="label">Polyhedra</span>
+          <div class="bar-track"><div class="bar-fill" style="width:90%;background:var(--orange)">expensive</div></div>
+        </div>
+        <div class="domain-bar">
+          <span class="label">Filter domains</span>
+          <div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--purple)">domain-specific</div></div>
+        </div>
+        <div class="domain-bar">
+          <span class="label">Gauge domains</span>
+          <div class="bar-track"><div class="bar-fill" style="width:55%;background:var(--cyan)">loop counters</div></div>
+        </div>
+
+        <div class="insight good">
+          <strong>Why Zero False Alarms?</strong>
+          Astr&eacute;e doesn't use one domain for everything. It uses intervals for most code (cheap, sufficient), octagons for pairwise variable relations, polyhedra only for critical sections, and <em>domain-specific</em> domains like the digital filter domain (designed specifically for the signal processing patterns in avionics). This selective precision is what Cousot's framework enables &mdash; you compose exactly the abstractions you need.
+        </div>
+
+        <h3>How the Reduced Product Works in Astr&eacute;e</h3>
+        <pre><code><span style="color:var(--dim)">// Conceptual architecture (simplified)</span>
+
+<span style="color:var(--purple)">type</span> <span style="color:var(--cyan)">AstreeState</span> = {
+  intervals:    <span style="color:var(--cyan)">IntervalDomain</span>,      <span style="color:var(--dim)">// [lo, hi] per variable</span>
+  octagons:     <span style="color:var(--cyan)">OctagonDomain</span>,       <span style="color:var(--dim)">// &plusmn;x &plusmn; y &leq; c</span>
+  polyhedra:    <span style="color:var(--cyan)">PolyhedraDomain</span>,     <span style="color:var(--dim)">// arbitrary linear constraints</span>
+  filters:      <span style="color:var(--cyan)">DigitalFilterDomain</span>, <span style="color:var(--dim)">// IIR/FIR filter bounds</span>
+  gauges:       <span style="color:var(--cyan)">GaugeDomain</span>,         <span style="color:var(--dim)">// loop counter relations</span>
+  trees:        <span style="color:var(--cyan)">TreeDomain</span>,          <span style="color:var(--dim)">// pointer/struct shapes</span>
+  <span style="color:var(--dim)">// ~15 more...</span>
+}
+
+<span style="color:var(--dim)">// After each abstract transfer function, reduce:</span>
+<span style="color:var(--purple)">function</span> <span style="color:var(--yellow)">reduce</span>(state: <span style="color:var(--cyan)">AstreeState</span>): <span style="color:var(--cyan)">AstreeState</span> {
+  <span style="color:var(--dim)">// Intervals inform octagons: if x &isin; [0,5], tighten &plusmn;x constraints</span>
+  <span style="color:var(--dim)">// Octagons inform polyhedra: if x+y &leq; 10, add polyhedron constraint</span>
+  <span style="color:var(--dim)">// Polyhedra inform intervals: if 2x+3y &leq; 15, tighten x and y bounds</span>
+  <span style="color:var(--dim)">// All domains collaborate via reduction to eliminate spurious states</span>
+  <span style="color:var(--purple)">return</span> <span style="color:var(--yellow)">iterateReductions</span>(state);
+}</code></pre>
+      </div>
+
+      <!-- Polyspace -->
+      <div class="tab-content" id="ind-polyspace">
+        <h3>Polyspace Code Prover &mdash; MathWorks</h3>
+        <p><a href="https://www.mathworks.com/products/polyspace-code-prover.html">Polyspace</a> uses abstract interpretation to prove absence of runtime errors in C, C++, and Ada. It's the most widely deployed commercial abstract interpretation tool outside aerospace.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>C, C++, Ada</td></tr>
+          <tr><td>Vendor</td><td>MathWorks (acquired from PolySpace Technologies, ~2007)</td></tr>
+          <tr><td>Technique</td><td>Abstract interpretation with semantic analysis</td></tr>
+          <tr><td>Standards</td><td>DO-178C (aerospace), ISO 26262 (automotive), IEC 61508, IEC 62304 (medical), EN 50128 (railway)</td></tr>
+          <tr><td>Industries</td><td>Automotive (ADAS, ECUs), aerospace, medical devices, industrial control</td></tr>
+          <tr><td>Key feature</td><td>Color-coded results: <span style="color:var(--green)">green</span> (proven safe), <span style="color:var(--red)">red</span> (proven bug), <span style="color:var(--orange)">orange</span> (unresolved), <span style="color:var(--dim)">gray</span> (dead code)</td></tr>
+        </table>
+
+        <div class="insight">
+          <strong>Origin: The Ariane 5 Crash</strong>
+          Polyspace traces directly to the <em>Ariane 5 Flight 501</em> disaster (1996), when an integer overflow destroyed a $370M rocket 37 seconds after launch. INRIA researcher Alain Deutsch demonstrated that abstract interpretation could have found the bug. PolySpace Technologies was founded in 1999 as an INRIA/CNES/A&eacute;rospatiale spin-off, then acquired by MathWorks in 2007.
+        </div>
+        <div class="insight">
+          <strong>Industry Reach</strong>
+          Polyspace is likely the most widely deployed abstract interpretation tool in the world. Every major automotive OEM uses it (or a competitor) for ISO 26262 compliance. The DO-333 formal methods supplement to DO-178C explicitly supports abstract interpretation as a verification technique, and Polyspace provides qualification kits for this purpose.
+        </div>
+      </div>
+
+      <!-- SLAM / SDV -->
+      <div class="tab-content" id="ind-sdv">
+        <h3>SLAM / Static Driver Verifier &mdash; Microsoft Research</h3>
+        <p>SLAM pioneered <strong>CEGAR</strong> (Counterexample-Guided Abstraction Refinement) for practical program verification. Now deployed as <a href="https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/static-driver-verifier">Static Driver Verifier (SDV)</a> in the Windows Driver Kit.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>Windows kernel drivers (C)</td></tr>
+          <tr><td>Technique</td><td>Predicate abstraction + CEGAR + Boolean programs</td></tr>
+          <tr><td>Developers</td><td>Ball, Rajamani, et al. at MSR</td></tr>
+          <tr><td>Status</td><td><strong>Deprecated</strong> (not in WDK 24H2+; Microsoft recommends CodeQL as replacement)</td></tr>
+          <tr><td>Key result</td><td>Found hundreds of real bugs in Windows drivers; mandatory for driver certification</td></tr>
+        </table>
+
+        <h3>The CEGAR Loop</h3>
+        <pre><code><span style="color:var(--dim)">// SLAM's CEGAR algorithm (conceptual)</span>
+
+<span style="color:var(--purple)">loop</span> {
+  <span style="color:var(--dim)">// 1. ABSTRACT: Create boolean program (weakest abstraction)</span>
+  boolProg = <span style="color:var(--yellow)">predicateAbstraction</span>(driver, predicates);
+
+  <span style="color:var(--dim)">// 2. CHECK: Model-check the boolean program</span>
+  result = <span style="color:var(--yellow)">modelCheck</span>(boolProg, safetyProperty);
+
+  <span style="color:var(--purple)">if</span> (result === <span style="color:var(--green)">"SAFE"</span>) <span style="color:var(--purple)">return</span> <span style="color:var(--green)">"VERIFIED"</span>;
+
+  <span style="color:var(--dim)">// 3. VALIDATE: Is the counterexample real?</span>
+  cex = result.counterexample;
+  <span style="color:var(--purple)">if</span> (<span style="color:var(--yellow)">isFeasible</span>(cex, driver)) <span style="color:var(--purple)">return</span> <span style="color:var(--red)">"BUG FOUND"</span>;
+
+  <span style="color:var(--dim)">// 4. REFINE: Spurious! Add new predicates to eliminate it</span>
+  newPredicates = <span style="color:var(--yellow)">interpolate</span>(cex);
+  predicates = predicates.<span style="color:var(--yellow)">union</span>(newPredicates);
+}</code></pre>
+
+        <div class="insight warn">
+          <strong>CEGAR vs. Astr&eacute;e: Opposite Strategies</strong>
+          Astr&eacute;e starts with a <em>rich</em> combination of domains and aims for zero false alarms. SLAM starts with the <em>weakest possible</em> abstraction and only refines when forced. Both are valid instantiations of Cousot's framework &mdash; they just explore the lattice of abstractions in opposite directions.
+        </div>
+      </div>
+
+      <!-- Clousot -->
+      <div class="tab-content" id="ind-clousot">
+        <h3>Clousot &mdash; .NET Code Contracts</h3>
+        <p><a href="https://www.microsoft.com/en-us/research/publication/clousot-static-contract-checking-with-abstract-interpretation/">Clousot</a> was developed at Microsoft Research by Manuel F&auml;hndrich and Francesco Logozzo. It statically checks CodeContracts annotations on .NET IL bytecode.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>.NET bytecode (C#, VB.NET, F#)</td></tr>
+          <tr><td>Technique</td><td>Abstract interpretation with iterative domain refinement</td></tr>
+          <tr><td>Domains</td><td>Intervals, Pentagons, subpolyhedra, arithmetic, nullness, enums</td></tr>
+          <tr><td>Status</td><td>Discontinued (CodeContracts deprecated in .NET Core era)</td></tr>
+          <tr><td>Innovation</td><td>Introduced <em>Pentagons</em> (intervals + strict upper bounds) and <em>subpolyhedra</em></td></tr>
+        </table>
+
+        <div class="insight">
+          <strong>Pentagons: A New Point in the Lattice</strong>
+          Logozzo &amp; F&auml;hndrich invented the Pentagon domain specifically for array bounds checking: it tracks intervals <em>plus</em> strict inequality constraints between variables (x &lt; y). Strictly between intervals (level 4) and octagons (level 3) in precision. This is exactly the kind of domain that Cousot's framework predicts should exist &mdash; you can always find a new useful abstraction between two existing ones.
+        </div>
+      </div>
+
+      <!-- Julia -->
+      <div class="tab-content" id="ind-julia">
+        <h3>Julia &mdash; Java/Android Static Analyzer</h3>
+        <p><a href="https://juliasoft.com/julia-analyzer/">Julia</a> by JuliaSoft is the only industrial-strength Java static analyzer based on abstract interpretation theory. 13+ years of engineering.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>Java bytecode, Android (Dalvik/ART), C#</td></tr>
+          <tr><td>Technique</td><td>Abstract interpretation on denotational semantics</td></tr>
+          <tr><td>Checks</td><td>Null pointers, non-termination, injection attacks, synchronization, resource leaks</td></tr>
+          <tr><td>Status</td><td>Commercial (JuliaSoft Srl)</td></tr>
+          <tr><td>Innovation</td><td>First sound static analyzer for Android; analyzes bytecode (no source needed)</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: OPEN SOURCE TOOLS -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>3. Open-Source Analyzers</h2>
+    <span class="tag tag-tool">Open Source</span>
+  </div>
+  <div class="section-body">
+
+    <div class="tabs" id="oss-tabs">
+      <button class="tab active" onclick="switchTab('oss-tabs','oss-body','oss-infer')">Infer</button>
+      <button class="tab" onclick="switchTab('oss-tabs','oss-body','oss-framac')">Frama-C</button>
+      <button class="tab" onclick="switchTab('oss-tabs','oss-body','oss-mopsa')">MOPSA</button>
+      <button class="tab" onclick="switchTab('oss-tabs','oss-body','oss-ikos')">IKOS (NASA)</button>
+      <button class="tab" onclick="switchTab('oss-tabs','oss-body','oss-seahorn')">SeaHorn/Crab</button>
+    </div>
+    <div class="tab-body" id="oss-body">
+
+      <!-- Infer -->
+      <div class="tab-content active" id="oss-infer">
+        <h3>Infer &mdash; Meta/Facebook</h3>
+        <p><a href="https://github.com/facebook/infer">Infer</a> runs on every code change at Meta, analyzing millions of lines of Java, C, C++, and Objective-C. It's arguably the largest-scale deployment of abstract interpretation in the world.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>Java, C, C++, Objective-C, C#</td></tr>
+          <tr><td>Language</td><td>OCaml</td></tr>
+          <tr><td>License</td><td>MIT</td></tr>
+          <tr><td>GitHub</td><td><a href="https://github.com/facebook/infer">github.com/facebook/infer</a></td></tr>
+          <tr><td>Scale</td><td>Analyzes every diff at Meta (~tens of millions of LoC/day)</td></tr>
+        </table>
+
+        <h3>Key Innovation: Bi-Abduction</h3>
+        <p>Traditional abstract interpretation analyzes whole programs. Infer uses <strong>bi-abduction</strong> (from <em>separation logic</em>) to analyze each procedure independently:</p>
+
+        <pre><code><span style="color:var(--dim)">// Bi-abduction discovers both:</span>
+<span style="color:var(--dim)">//   PRECONDITION: what the function needs (anti-frame)</span>
+<span style="color:var(--dim)">//   POSTCONDITION: what the function establishes (frame)</span>
+
+<span style="color:var(--dim)">// Given a function that does: x->data = 42</span>
+<span style="color:var(--dim)">// Bi-abduction infers:</span>
+<span style="color:var(--dim)">//   PRE:  x &ne; null &and; x &mapsto; {data: _}</span>
+<span style="color:var(--dim)">//   POST: x &mapsto; {data: 42}</span>
+
+<span style="color:var(--dim)">// This lets Infer analyze each function once,</span>
+<span style="color:var(--dim)">// then compose summaries for interprocedural analysis.</span></code></pre>
+
+        <div class="insight good">
+          <strong>Compositional = Incremental</strong>
+          Because Infer analyzes functions independently and stores summaries, it only needs to re-analyze functions whose dependencies changed. This is how it handles Meta's scale &mdash; on a typical diff, it re-analyzes only the affected procedures, not the entire codebase.
+        </div>
+
+        <h3>Also from Meta: SPARTA</h3>
+        <p><a href="https://github.com/facebook/SPARTA">SPARTA</a> is a C++ library providing generic abstract domain implementations (finite abstract domains, Cartesian products, reduced products, Patricia trees) designed for building custom analyzers. It powers several internal Meta tools including <a href="https://github.com/facebook/mariana-trench">Mariana Trench</a> (Android security analysis).</p>
+      </div>
+
+      <!-- Frama-C -->
+      <div class="tab-content" id="oss-framac">
+        <h3>Frama-C / EVA &mdash; CEA &amp; Inria</h3>
+        <p><a href="https://www.frama-c.com/">Frama-C</a> is an open-source extensible platform for C source code analysis, developed by CEA-List and Inria. Its <strong>EVA</strong> (Evolved Value Analysis) plugin is the abstract interpretation engine.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>C</td></tr>
+          <tr><td>Language</td><td>OCaml</td></tr>
+          <tr><td>License</td><td>LGPL 2.1</td></tr>
+          <tr><td>URL</td><td><a href="https://www.frama-c.com/">frama-c.com</a></td></tr>
+          <tr><td>Plugins</td><td>30+ analysis plugins (EVA, WP, PathCrawler, etc.)</td></tr>
+        </table>
+
+        <h3>EVA: Modular Abstract Interpretation</h3>
+        <p>EVA has a modular architecture for combining abstract domains:</p>
+        <ul>
+          <li><strong>Intervals</strong> (fast baseline)</li>
+          <li><strong>Gauges</strong> (loop counter relationships)</li>
+          <li><strong>Congruences</strong> (alignment, parity)</li>
+          <li><strong>Octagons</strong> (pairwise relations)</li>
+          <li><strong>Symbolic locations</strong> (pointer analysis)</li>
+          <li><strong>Trace partitioning</strong> (path-sensitivity)</li>
+        </ul>
+
+        <div class="insight">
+          <strong>Abstract Debugger (2026)</strong>
+          Frama-C/EVA recently introduced an <a href="https://frama-c.com/2026/02/02/Eva-abstract-debugger.html">abstract debugger</a> &mdash; the same concept as a regular debugger (breakpoints, stepping, variable inspection) but operating on <em>abstract states</em>. You can step through the analysis and see what the abstract interpretation "thinks" at each program point.
+        </div>
+      </div>
+
+      <!-- MOPSA -->
+      <div class="tab-content" id="oss-mopsa">
+        <h3>MOPSA &mdash; Modular Open Platform for Static Analysis</h3>
+        <p><a href="https://mopsa.lip6.fr/">MOPSA</a> is a research-oriented framework from Sorbonne/CNRS/Inria that takes modularity further than any other tool.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>C, Python 3, mixed C/Python</td></tr>
+          <tr><td>Language</td><td>OCaml</td></tr>
+          <tr><td>License</td><td>LGPL 3</td></tr>
+          <tr><td>URL</td><td><a href="https://mopsa.lip6.fr/">mopsa.lip6.fr</a></td></tr>
+          <tr><td>Innovation</td><td>Fine-grained domain composition, multi-language analysis</td></tr>
+        </table>
+
+        <h3>What Makes MOPSA Different</h3>
+        <p>MOPSA decomposes analysis into the <strong>smallest possible domains</strong>: each domain handles one construct or one abstraction. An analysis is assembled from these micro-domains via reduced products. This means:</p>
+        <ul>
+          <li>Swapping in a different numerical domain = change one module</li>
+          <li>Adding support for a new language feature = add one micro-domain</li>
+          <li>Multi-language analysis (C calling Python) = compose the respective domain sets</li>
+        </ul>
+
+        <div class="insight good">
+          <strong>Sound by Design</strong>
+          MOPSA is <em>sound</em>: if it reports no errors, there truly are none. It also features an <strong>interactive abstract debugger</strong> for stepping through the analysis to understand imprecisions &mdash; important for research use.
+        </div>
+      </div>
+
+      <!-- IKOS -->
+      <div class="tab-content" id="oss-ikos">
+        <h3>IKOS &mdash; NASA Ames Research Center</h3>
+        <p><a href="https://github.com/NASA-SW-VnV/ikos">IKOS</a> (Inference Kernel for Open Static Analyzers) is NASA's open-source abstract interpretation framework for C/C++ via LLVM.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>C/C++ (via LLVM bitcode)</td></tr>
+          <tr><td>Language</td><td>C++</td></tr>
+          <tr><td>License</td><td>NASA Open Source Agreement v1.3</td></tr>
+          <tr><td>GitHub</td><td><a href="https://github.com/NASA-SW-VnV/ikos">github.com/NASA-SW-VnV/ikos</a></td></tr>
+          <tr><td>Domains</td><td>Constants, Intervals, Congruences, Octagons, DBMs, Gauges</td></tr>
+        </table>
+
+        <h3>Checks</h3>
+        <ul>
+          <li>Buffer overflows (array out-of-bounds)</li>
+          <li>Integer overflows (signed/unsigned)</li>
+          <li>Division by zero</li>
+          <li>Null pointer dereferences</li>
+          <li>Uninitialized variable use</li>
+          <li>Dead code detection</li>
+        </ul>
+
+        <div class="insight">
+          <strong>Separation of Concerns</strong>
+          IKOS cleanly separates: (1) front-end parsing (LLVM), (2) abstract domain implementations, (3) fixpoint solvers, (4) checkers. You can swap domains independently of the front-end &mdash; a direct implementation of Cousot's framework where the domain is a parameter.
+        </div>
+      </div>
+
+      <!-- SeaHorn/Crab -->
+      <div class="tab-content" id="oss-seahorn">
+        <h3>SeaHorn &amp; Crab &mdash; Verification Framework</h3>
+        <p><a href="https://github.com/seahorn/seahorn">SeaHorn</a> combines abstract interpretation with model checking (Constrained Horn Clauses). <a href="https://github.com/seahorn/crab">Crab</a> is its abstract interpretation engine.</p>
+
+        <table>
+          <tr><th>Property</th><th>Details</th></tr>
+          <tr><td>Target</td><td>LLVM bitcode</td></tr>
+          <tr><td>Language</td><td>C++</td></tr>
+          <tr><td>License</td><td>Apache 2.0 (Crab), custom (SeaHorn)</td></tr>
+          <tr><td>GitHub</td><td><a href="https://github.com/seahorn/crab">Crab</a> / <a href="https://github.com/seahorn/seahorn">SeaHorn</a></td></tr>
+        </table>
+
+        <h3>Crab: An Abstract Interpretation Library</h3>
+        <p>Crab provides:</p>
+        <ul>
+          <li><strong>Numerical domains:</strong> Intervals, Zones (DBMs), Octagons, Polyhedra (via Apron/Elina), wrapped intervals</li>
+          <li><strong>Symbolic domains:</strong> Terms, regions, memory abstractions</li>
+          <li><strong>Solvers:</strong> Kleene iteration with widening/narrowing, thresholds</li>
+          <li><strong>Analyses:</strong> Forward/backward dataflow, interprocedural (top-down/bottom-up)</li>
+        </ul>
+        <p><a href="https://github.com/seahorn/clam">Clam</a> is the LLVM frontend for Crab &mdash; it translates LLVM bitcode to Crab's IR and runs the analysis.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: DOMAIN LIBRARIES -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>4. Abstract Domain Libraries</h2>
+    <span class="tag tag-lib">Libraries</span>
+  </div>
+  <div class="section-body">
+
+    <p>These libraries implement abstract domains as <strong>reusable components</strong> &mdash; you can use them to build your own analyzer without implementing octagons or polyhedra from scratch.</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h4>APRON</h4>
+        <p>The reference library for numerical abstract domains. Provides a <strong>uniform API</strong> across all domains &mdash; switching from intervals to polyhedra is a one-line change.</p>
+        <div class="meta">
+          <span>OCaml / C / Java</span>
+          <span>LGPL</span>
+          <span><a href="https://github.com/antoinemine/apron">GitHub</a></span>
+        </div>
+        <table style="margin-top:0.75rem">
+          <tr><th>Domain</th><th>Precision</th><th>Complexity</th></tr>
+          <tr><td>Box (Intervals)</td><td>Per-variable bounds</td><td>O(n)</td></tr>
+          <tr><td>Octagon</td><td>&plusmn;x &plusmn; y &leq; c</td><td>O(n&sup3;)</td></tr>
+          <tr><td>NewPolka (Polyhedra)</td><td>Arbitrary linear</td><td>Exponential w.c.</td></tr>
+          <tr><td>Taylor1+ (Zonotopes)</td><td>Affine forms</td><td>O(n&sup2;)</td></tr>
+          <tr><td>PPL adapter</td><td>Via Parma Polyhedra Lib</td><td>Varies</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h4>ELINA (ETH Zurich)</h4>
+        <p>Drop-in replacement for APRON with <strong>dramatically faster</strong> implementations using decomposition, vectorization (Intel SSE/AVX), and algorithmic improvements.</p>
+        <div class="meta">
+          <span>C</span>
+          <span>GPL v3</span>
+          <span><a href="https://github.com/eth-sri/ELINA">GitHub</a></span>
+        </div>
+        <table style="margin-top:0.75rem">
+          <tr><th>Domain</th><th>Speedup over APRON</th></tr>
+          <tr><td>Octagon</td><td><strong>18&times;</strong> (online decomposition + SIMD)</td></tr>
+          <tr><td>Zones</td><td><strong>10&times;</strong></td></tr>
+          <tr><td>Polyhedra</td><td><strong>10-100&times;</strong> (online decomposition)</td></tr>
+          <tr><td>Zonotopes</td><td>New, optimized implementation</td></tr>
+        </table>
+        <div class="insight" style="margin-top:0.75rem">
+          <strong>APRON API Compatibility</strong>
+          ELINA is backward-compatible with APRON's C API. Existing analyzers using APRON can switch to ELINA with minimal changes and get immediate speedups. The key insight: decompose high-dimensional abstractions into independent lower-dimensional ones online, as the analysis progresses.
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>SPARTA (Meta)</h4>
+        <p>C++ library for building abstract interpretation-based analyzers, focused on <strong>Android/mobile</strong> analysis.</p>
+        <div class="meta">
+          <span>C++</span>
+          <span>MIT</span>
+          <span><a href="https://github.com/facebook/SPARTA">GitHub</a></span>
+        </div>
+        <p style="margin-top:0.5rem">Provides: finite abstract domains, Cartesian/reduced products, Patricia trees (for maps), fixpoint iterators. Used by <a href="https://github.com/facebook/mariana-trench">Mariana Trench</a> and other Meta Android tools.</p>
+      </div>
+
+      <div class="card">
+        <h4>Parma Polyhedra Library (PPL)</h4>
+        <p>Mature C++ library for polyhedra, octagons, grids, and their powersets. Used as a backend by many tools.</p>
+        <div class="meta">
+          <span>C++ / OCaml / Java / Prolog</span>
+          <span>GPL v3</span>
+          <span><a href="https://www.bugseng.com/ppl">bugseng.com/ppl</a></span>
+        </div>
+      </div>
+    </div>
+
+    <h3>Library Comparison: Which to Use?</h3>
+    <table>
+      <tr><th>Library</th><th>Best For</th><th>Language</th><th>Domains</th><th>Notes</th></tr>
+      <tr><td>APRON</td><td>Research, OCaml analyzers</td><td>OCaml/C</td><td>5+</td><td>The standard reference</td></tr>
+      <tr><td>ELINA</td><td>Performance-critical</td><td>C</td><td>5+</td><td>10-100&times; faster than APRON</td></tr>
+      <tr><td>PPL</td><td>Polyhedra-heavy work</td><td>C++</td><td>4+</td><td>Most complete polyhedra impl</td></tr>
+      <tr><td>SPARTA</td><td>Android/mobile analysis</td><td>C++</td><td>Generic</td><td>Meta's internal library</td></tr>
+      <tr><td>Crab</td><td>LLVM-based analysis</td><td>C++</td><td>6+</td><td>Includes fixpoint solvers</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: NEURAL NETWORK VERIFICATION -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>5. Abstract Interpretation for Neural Networks</h2>
+    <span class="tag tag-nn">Neural Networks</span>
+  </div>
+  <div class="section-body">
+
+    <p>The newest frontier: using Cousot's framework to <strong>prove properties of neural networks</strong>. Can you guarantee that a self-driving car's vision model won't misclassify a stop sign if pixels are perturbed by &epsilon;?</p>
+
+    <h3>The Key Idea</h3>
+    <p>A neural network is a function f: R<sup>n</sup> &rarr; R<sup>m</sup>. Each layer applies affine transforms + nonlinear activations (ReLU, sigmoid, tanh). Abstract interpretation propagates abstract shapes (boxes, zonotopes, polyhedra) through each layer to bound the output region.</p>
+
+    <pre><code><span style="color:var(--dim)">// Neural network as a chain of abstract transformers</span>
+
+<span style="color:var(--dim)">// Input: pixel values perturbed by &epsilon;</span>
+abstract_input = <span style="color:var(--yellow)">Box</span>([x<sub>1</sub> &plusmn; &epsilon;, x<sub>2</sub> &plusmn; &epsilon;, ..., x<sub>n</sub> &plusmn; &epsilon;])
+
+<span style="color:var(--dim)">// Layer 1: affine transform (exact in any linear domain)</span>
+after_affine_1 = <span style="color:var(--yellow)">abstract_affine</span>(abstract_input, W<sub>1</sub>, b<sub>1</sub>)
+
+<span style="color:var(--dim)">// Layer 1: ReLU activation (this is where precision matters)</span>
+after_relu_1 = <span style="color:var(--yellow)">abstract_relu</span>(after_affine_1)  <span style="color:var(--dim)">// key approximation step</span>
+
+<span style="color:var(--dim)">// ... repeat for each layer ...</span>
+
+<span style="color:var(--dim)">// Output: if abstract output region doesn't cross decision boundary</span>
+<span style="color:var(--dim)">// &rArr; PROVEN ROBUST: no perturbation within &epsilon; can change the classification</span></code></pre>
+
+    <h3>Tools &amp; Domains</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>DeepPoly (ETH Zurich, 2019)</h4>
+        <p>Custom abstract domain for neural networks: combines floating-point polyhedra with intervals. Each neuron gets an upper and lower affine bound in terms of the input.</p>
+        <p>Won VNN-Comp 2019. Powers <a href="https://github.com/eth-sri/eran">ERAN</a> (ETH Robustness Analyzer).</p>
+        <div class="meta"><span>Python/C</span><span>Built on ELINA</span></div>
+      </div>
+      <div class="card">
+        <h4>&#945;-&#946;-CROWN</h4>
+        <p>Mathematically equivalent to DeepPoly on ReLU networks but adds branch-and-bound for precision. Won VNN-Comp 2021&ndash;2024 (4 years running).</p>
+        <p>Uses bound propagation (CROWN domain) + branching on ambiguous ReLU neurons.</p>
+        <div class="meta"><span>Python (PyTorch)</span><span>MIT License</span></div>
+      </div>
+      <div class="card">
+        <h4>GPUPoly (ETH Zurich)</h4>
+        <p>GPU-accelerated implementation of DeepPoly. Enables verification of networks with >100K neurons by leveraging GPU parallelism for the abstract transformers.</p>
+        <div class="meta"><span>CUDA/C++</span><span>Part of ERAN</span></div>
+      </div>
+      <div class="card">
+        <h4>PyRAT</h4>
+        <p>Competitive neural network verifier. Achieved second place at VNN-Comp 2024. Uses abstract interpretation with interval arithmetic and symbolic propagation.</p>
+        <div class="meta"><span>Python</span><span>Research tool</span></div>
+      </div>
+    </div>
+
+    <div class="insight">
+      <strong>Same Framework, New Domain</strong>
+      Neural network verification is <em>exactly</em> Cousot's framework applied to a new program class. The "program" is the neural network, the "concrete semantics" is the set of all possible outputs for all inputs in a region, and the "abstract domain" (DeepPoly, CROWN, Zonotopes) over-approximates that set. Widening isn't needed (networks have fixed depth), but the precision/cost tradeoff is the same: boxes are fast but imprecise; DeepPoly is tighter but more expensive; and branch-and-bound refines further at exponential cost.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: COMPARISON MATRIX -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>6. The Full Ecosystem Map</h2>
+    <span class="tag tag-tool">Overview</span>
+  </div>
+  <div class="section-body">
+
+    <h3>All Tools at a Glance</h3>
+    <table>
+      <tr>
+        <th>Tool</th><th>Type</th><th>Target</th><th>Domains</th><th>License</th><th>Status</th>
+      </tr>
+      <tr>
+        <td><strong>Astr&eacute;e</strong></td><td>Analyzer</td><td>C/C++</td><td>~20 (reduced product)</td><td>Commercial</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>Polyspace</strong></td><td>Analyzer</td><td>C/C++/Ada</td><td>Proprietary</td><td>Commercial</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>Infer</strong></td><td>Analyzer</td><td>Java/C/C++/ObjC</td><td>Separation logic</td><td>MIT</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>Frama-C/EVA</strong></td><td>Analyzer</td><td>C</td><td>6+ (modular)</td><td>LGPL 2.1</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>MOPSA</strong></td><td>Framework</td><td>C, Python</td><td>Micro-domains</td><td>LGPL 3</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>IKOS</strong></td><td>Analyzer</td><td>C/C++ (LLVM)</td><td>6 numerical</td><td>NASA OSA</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>SeaHorn/Crab</strong></td><td>Framework</td><td>LLVM</td><td>6+ numerical + symbolic</td><td>Apache 2.0</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>APRON</strong></td><td>Library</td><td>Any</td><td>5 (Box/Oct/Poly/Zono/PPL)</td><td>LGPL</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>ELINA</strong></td><td>Library</td><td>Any</td><td>5 (optimized)</td><td>GPL v3</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>SPARTA</strong></td><td>Library</td><td>Any (C++)</td><td>Generic/finite</td><td>MIT</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>PPL</strong></td><td>Library</td><td>Any</td><td>Polyhedra/grids</td><td>GPL v3</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>ERAN/DeepPoly</strong></td><td>NN Verifier</td><td>Neural networks</td><td>DeepPoly/Zonotopes</td><td>Apache 2.0</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>SLAM/SDV</strong></td><td>Analyzer</td><td>Windows drivers</td><td>Predicate abstraction</td><td>Proprietary</td><td style="color:var(--red)">Deprecated</td>
+      </tr>
+      <tr>
+        <td><strong>Julia</strong></td><td>Analyzer</td><td>Java/Android/C#</td><td>Multiple</td><td>Commercial</td><td style="color:var(--green)">Active</td>
+      </tr>
+      <tr>
+        <td><strong>Clousot</strong></td><td>Analyzer</td><td>.NET</td><td>Pentagons + subpolyhedra</td><td>Research</td><td style="color:var(--red)">Discontinued</td>
+      </tr>
+    </table>
+
+    <h3>Ecosystem Relationships</h3>
+    <div class="eco-map">
+      <div class="eco-col">
+        <h3 style="color:var(--accent)">OCaml Ecosystem</h3>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--accent)"></div><div><span class="name">Astr&eacute;e</span> &mdash; uses custom domains</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--accent)"></div><div><span class="name">Infer</span> &mdash; separation logic domains</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--accent)"></div><div><span class="name">Frama-C/EVA</span> &mdash; uses APRON</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--accent)"></div><div><span class="name">MOPSA</span> &mdash; custom micro-domains</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--accent)"></div><div><span class="name">APRON</span> &mdash; reference domain library</div></div>
+      </div>
+      <div class="eco-col">
+        <h3 style="color:var(--green)">C++ / LLVM Ecosystem</h3>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--green)"></div><div><span class="name">IKOS</span> &mdash; standalone (NASA)</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--green)"></div><div><span class="name">Crab</span> &mdash; used by SeaHorn &amp; Clam</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--green)"></div><div><span class="name">ELINA</span> &mdash; APRON-compatible, faster</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--green)"></div><div><span class="name">SPARTA</span> &mdash; Meta's C++ library</div></div>
+        <div class="eco-item"><div class="eco-dot" style="background:var(--green)"></div><div><span class="name">PPL</span> &mdash; used by many tools as backend</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: DESIGN PATTERNS -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>7. Design Patterns Across Implementations</h2>
+    <span class="tag tag-theory">Patterns</span>
+  </div>
+  <div class="section-body">
+
+    <p>Looking across all these implementations, several architectural patterns emerge:</p>
+
+    <h3>Pattern 1: Domain Parameterization</h3>
+    <p>Every serious tool makes the abstract domain a <strong>parameter</strong>, not hardcoded. This is the single most important lesson from Cousot's framework.</p>
+    <pre><code><span style="color:var(--dim)">// APRON: swap domain in one line</span>
+<span style="color:var(--purple)">let</span> man = <span style="color:var(--yellow)">Box</span>.manager_alloc ()     <span style="color:var(--dim)">(* intervals: fast *)</span>
+<span style="color:var(--purple)">let</span> man = <span style="color:var(--yellow)">Oct</span>.manager_alloc ()     <span style="color:var(--dim)">(* octagons: medium *)</span>
+<span style="color:var(--purple)">let</span> man = <span style="color:var(--yellow)">Polka</span>.manager_alloc_strict () <span style="color:var(--dim)">(* polyhedra: precise *)</span>
+
+<span style="color:var(--dim)">(* Rest of the analyzer code is identical *)</span></code></pre>
+
+    <h3>Pattern 2: Reduced Product Composition</h3>
+    <p>Don't pick <em>one</em> domain. Combine many, and let them strengthen each other via reduction.</p>
+    <ul>
+      <li><strong>Astr&eacute;e</strong>: ~20 domains in collaborative reduced product</li>
+      <li><strong>Frama-C/EVA</strong>: modular stack of domains with reduction</li>
+      <li><strong>MOPSA</strong>: micro-domain constellation with pairwise reduction</li>
+    </ul>
+
+    <h3>Pattern 3: Selective Precision</h3>
+    <p>Apply expensive domains only where needed. This is what makes Astr&eacute;e practical on 1M+ LoC:</p>
+    <ul>
+      <li>Most code: intervals (cheap, usually sufficient)</li>
+      <li>Loop bounds: gauges + octagons</li>
+      <li>Critical computations: polyhedra (expensive but precise)</li>
+      <li>Domain-specific patterns: custom domains (e.g., digital filters)</li>
+    </ul>
+
+    <h3>Pattern 4: CEGAR vs. Fixed Domain</h3>
+    <table>
+      <tr><th></th><th>Fixed Rich Domain (Astr&eacute;e-style)</th><th>CEGAR (SLAM-style)</th></tr>
+      <tr><td><strong>Strategy</strong></td><td>Start precise, hope it's fast enough</td><td>Start cheap, refine on demand</td></tr>
+      <tr><td><strong>False alarms</strong></td><td>Zero (if domain rich enough)</td><td>Zero (if refinement succeeds)</td></tr>
+      <tr><td><strong>Performance</strong></td><td>Predictable but heavy</td><td>Variable (depends on refinement)</td></tr>
+      <tr><td><strong>Best for</strong></td><td>Known domain with domain-specific patterns</td><td>Generic properties on diverse code</td></tr>
+    </table>
+
+    <h3>Pattern 5: Compositionality for Scale</h3>
+    <p>Infer's key insight: analyze functions independently, compose summaries. This turns abstract interpretation from a whole-program analysis into an <strong>incremental, diff-time</strong> analysis. Without this, abstract interpretation can't handle Meta-scale codebases.</p>
+
+    <div class="quiz">
+      <h4>Check Your Understanding</h4>
+      <p>Astr&eacute;e achieved zero false alarms on the A380 flight software. What was the key technique?</p>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q1')">Using the most precise domain (polyhedra) everywhere</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q1')">CEGAR refinement starting from boolean programs</button>
+      <button class="quiz-option" onclick="checkAnswer(this, true, 'q1')">Reduced product of ~20 domains with selective precision per code region</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q1')">Bi-abduction for compositional analysis</button>
+      <div class="quiz-explanation" id="q1-correct">Correct! Astr&eacute;e combines ~20 abstract domains (intervals, octagons, polyhedra, digital filter domains, gauges, etc.) in a reduced product, applying expensive domains only to code regions that need them. This selective precision is what achieves zero false alarms at practical cost.</div>
+      <div class="quiz-explanation" id="q1-wrong">Not quite. Polyhedra everywhere would be too expensive, and CEGAR/bi-abduction are techniques from SLAM and Infer respectively. Astr&eacute;e's key is the <strong>reduced product of ~20 domains</strong> with domain-specific abstractions (like digital filter domains) applied selectively.</div>
+    </div>
+
+    <div class="quiz">
+      <h4>Check Your Understanding</h4>
+      <p>What does ELINA provide that APRON doesn't?</p>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q2')">More abstract domains</button>
+      <button class="quiz-option" onclick="checkAnswer(this, true, 'q2')">Much faster implementations of the same domains via decomposition and SIMD</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q2')">Python bindings</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q2')">Support for neural network verification</button>
+      <div class="quiz-explanation" id="q2-correct">Correct! ELINA is API-compatible with APRON but uses online decomposition and Intel SIMD instructions to achieve 10-100&times; speedups on the same domains (octagons, polyhedra, zones). Same abstractions, much faster computation.</div>
+      <div class="quiz-explanation" id="q2-wrong">Not quite. ELINA provides roughly the same domains as APRON, with the same API. Its innovation is <strong>dramatically faster implementations</strong> (10-100&times;) through online decomposition and vectorization (Intel SSE/AVX).</div>
+    </div>
+
+    <div class="quiz">
+      <h4>Check Your Understanding</h4>
+      <p>According to Cousot, how many "levels" exist in the hierarchy of abstractions?</p>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q3')">Exactly 5 (traces, collecting, relational, non-relational, types)</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q3')">It depends on the programming language being analyzed</button>
+      <button class="quiz-option" onclick="checkAnswer(this, true, 'q3')">Infinitely many &mdash; abstractions form a complete lattice with no fixed number of levels</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'q3')">7, if you count separation logic and dependent types</button>
+      <div class="quiz-explanation" id="q3-correct">Correct! Cousot &amp; Cousot (1979) proved that all sound abstractions of a given program form a <strong>complete lattice</strong>. Between any two abstractions, there are infinitely many others. The "5 levels" are pedagogical landmarks (like base camps on a mountain), not a fixed structure from the theory.</div>
+      <div class="quiz-explanation" id="q3-wrong">The "5 levels" (or any fixed number) is a pedagogical simplification. Cousot &amp; Cousot proved in 1979 that abstractions form a <strong>complete lattice</strong> with infinitely many points. You can always find a new useful abstraction between two existing ones (e.g., Pentagons sit between intervals and octagons).</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 8: SOURCES -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="arrow">&#9654;</span>
+    <h2>8. Sources &amp; Further Reading</h2>
+    <span class="tag tag-theory">References</span>
+  </div>
+  <div class="section-body">
+
+    <h3>Foundational Papers</h3>
+    <ul>
+      <li>Cousot &amp; Cousot. <a href="https://www.di.ens.fr/~cousot/COUSOTpapers/POPL77.shtml">"Abstract Interpretation: A Unified Lattice Model"</a> (POPL 1977)</li>
+      <li>Cousot &amp; Cousot. "Systematic Design of Program Analysis Frameworks" (POPL 1979)</li>
+      <li>Cousot &amp; Cousot. <a href="https://ropas.snu.ac.kr/~kwang/520/readings/absint/Cousot-JLC-1992.pdf">"Abstract Interpretation Frameworks"</a> (J. Logic &amp; Computation, 1992)</li>
+      <li>Cousot. <a href="https://cs.nyu.edu/~pcousot/publications.www/Cousot-FSP-2024.pdf">"A Personal Historical Perspective on Abstract Interpretation"</a> (2024)</li>
+      <li>Cousot. <a href="https://cs.nyu.edu/~pcousot/publications.www/Cousot-SPIN02.pdf">"Abstract Interpretation: Theory and Practice"</a> (SPIN 2002)</li>
+    </ul>
+
+    <h3>Abstract Domain Papers</h3>
+    <ul>
+      <li>Min&eacute;. <a href="https://link.springer.com/article/10.1007/s10990-006-8609-1">"The Octagon Abstract Domain"</a> (Higher-Order &amp; Symbolic Computation, 2006)</li>
+      <li>Singh et al. <a href="https://elina.ethz.ch/papers/POPL17-Polyhedra.pdf">"Fast Polyhedra Abstract Domain"</a> (POPL 2017)</li>
+      <li>Cousot et al. <a href="https://link.springer.com/chapter/10.1007/978-3-540-77505-8_23">"Combination of Abstractions in the ASTR&Eacute;E Static Analyzer"</a> (ASIAN 2006)</li>
+    </ul>
+
+    <h3>Tool Documentation &amp; Repositories</h3>
+    <ul>
+      <li><a href="https://www.absint.com/astree/index.htm">Astr&eacute;e (AbsInt)</a> | <a href="https://www.astree.ens.fr/">Astr&eacute;e (ENS)</a></li>
+      <li><a href="https://github.com/facebook/infer">Infer (GitHub)</a> | <a href="https://fbinfer.com/docs/separation-logic-and-bi-abduction/">Bi-abduction docs</a></li>
+      <li><a href="https://www.frama-c.com/">Frama-C</a> | <a href="https://frama-c.com/2026/02/02/Eva-abstract-debugger.html">EVA Abstract Debugger</a></li>
+      <li><a href="https://mopsa.lip6.fr/">MOPSA</a></li>
+      <li><a href="https://github.com/NASA-SW-VnV/ikos">IKOS (NASA)</a></li>
+      <li><a href="https://github.com/seahorn/seahorn">SeaHorn</a> | <a href="https://github.com/seahorn/crab">Crab</a> | <a href="https://github.com/seahorn/clam">Clam</a></li>
+      <li><a href="https://github.com/antoinemine/apron">APRON (GitHub)</a> | <a href="https://antoinemine.github.io/Apron/doc/">Docs</a></li>
+      <li><a href="https://github.com/eth-sri/ELINA">ELINA (GitHub)</a> | <a href="https://elina.ethz.ch/">Website</a></li>
+      <li><a href="https://github.com/facebook/SPARTA">SPARTA (GitHub)</a></li>
+      <li><a href="https://github.com/eth-sri/eran">ERAN (GitHub)</a> | <a href="https://ggndpsngh.github.io/files/DeepPoly.pdf">DeepPoly paper</a></li>
+      <li><a href="https://www.mathworks.com/products/polyspace-code-prover.html">Polyspace (MathWorks)</a></li>
+      <li><a href="https://juliasoft.com/julia-analyzer/">Julia (JuliaSoft)</a></li>
+      <li><a href="https://www.microsoft.com/en-us/research/publication/clousot-static-contract-checking-with-abstract-interpretation/">Clousot (MSR)</a></li>
+      <li><a href="https://github.com/facebookexperimental/MIRAI">MIRAI (Rust abstract interpreter)</a></li>
+      <li><a href="https://github.com/caterinaurban/Libra">Libra (neural network fairness certification)</a></li>
+    </ul>
+
+    <h3>Educational Resources</h3>
+    <ul>
+      <li>Blanchet. <a href="https://bblanche.gitlabpages.inria.fr/absint.pdf">"Introduction to Abstract Interpretation"</a> (lecture notes)</li>
+      <li>S&#259;lcianu. <a href="https://web.eecs.umich.edu/~bchandra/courses/papers/Salcianu_AbstractInterpretation.pdf">"Notes on Abstract Interpretation"</a> (MIT)</li>
+      <li>Cousot. <a href="https://link.springer.com/chapter/10.1007/978-1-4020-8157-6_27">"Basic Concepts of Abstract Interpretation"</a> (book chapter)</li>
+      <li>Cousot. <em>Principles of Abstract Interpretation</em> (MIT Press, 2021, 832 pages) &mdash; the definitive textbook</li>
+      <li>Cousot. <a href="https://web.mit.edu/16.399/">MIT Course 16.399: Abstract Interpretation</a> (full lecture slides)</li>
+    </ul>
+  </div>
+</div>
+
+</div><!-- container -->
+
+<script>
+function toggleSection(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function switchTab(tabsId, bodyId, contentId) {
+  const tabs = document.getElementById(tabsId);
+  const body = document.getElementById(bodyId);
+  tabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  body.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(contentId).classList.add('active');
+}
+
+function showLatticeDetail(level) {
+  const levels = document.querySelectorAll('.lattice-level');
+  const details = document.querySelectorAll('.lattice-detail');
+  levels.forEach(l => l.classList.remove('active'));
+  details.forEach(d => d.classList.remove('show'));
+  const clickedLevel = document.querySelector(`.lattice-level[data-level="${level}"]`);
+  const detail = document.getElementById(`detail-${level}`);
+  if (clickedLevel && detail) {
+    clickedLevel.classList.add('active');
+    detail.classList.toggle('show');
+    // Actually toggle: if it was already showing, the remove above hid it.
+    // Re-check and show.
+    detail.classList.add('show');
+  }
+}
+
+function checkAnswer(button, correct, qid) {
+  const quiz = button.closest('.quiz');
+  const options = quiz.querySelectorAll('.quiz-option');
+  options.forEach(o => {
+    o.disabled = true;
+    o.style.pointerEvents = 'none';
+  });
+  if (correct) {
+    button.classList.add('correct');
+    const exp = document.getElementById(qid + '-correct');
+    exp.classList.add('show', 'correct-exp');
+  } else {
+    button.classList.add('wrong');
+    // Show the correct one
+    options.forEach(o => {
+      // Find the correct option by checking its onclick
+    });
+    const exp = document.getElementById(qid + '-wrong');
+    exp.classList.add('show', 'wrong-exp');
+  }
+}
+
+// Open first section by default (already done via class)
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TypeScript Indexed Access Types — How They Work Inside the Compiler</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3348;
+  --text: #e2e4ed;
+  --text2: #9ba1b5;
+  --accent: #6c8cff;
+  --accent2: #4ecdc4;
+  --green: #4ecdc4;
+  --yellow: #ffd93d;
+  --orange: #ff8c42;
+  --red: #ff6b6b;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --pink: #ff6b9d;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;line-height:1.7;padding:2rem;max-width:1200px;margin:0 auto}
+h1{font-size:2.2rem;margin-bottom:.3rem;background:linear-gradient(135deg,var(--cyan),var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+h2{font-size:1.5rem;color:var(--accent);margin:3rem 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+h3{font-size:1.1rem;color:var(--accent2);margin:1.5rem 0 .5rem}
+p,li{color:var(--text2);margin-bottom:.7rem}
+.sub{color:var(--text2);font-size:1.05rem;margin-bottom:2.5rem}
+code{background:var(--surface2);padding:.15rem .4rem;border-radius:4px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:.85rem;color:var(--accent)}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;overflow-x:auto;margin:.8rem 0 1.2rem;line-height:1.5}
+pre code{background:none;padding:0;color:var(--text)}
+.kw{color:var(--purple)}.str{color:var(--green)}.num{color:var(--orange)}.cmt{color:#555b70;font-style:italic}.typ{color:var(--cyan)}.fn{color:var(--yellow)}.con{color:var(--pink)}.op{color:var(--text2)}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin:.8rem 0;transition:all .3s}
+.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}
+.card h4{margin-bottom:.4rem;font-size:1rem}
+
+/* Tabs */
+.tabs{display:flex;gap:0;margin:1.2rem 0 0;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.tab{padding:.55rem 1rem;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;font-size:.88rem;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none;padding:1.2rem;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;margin-bottom:1rem}
+.tab-content.active{display:block}
+
+/* Phase buttons */
+.phase-btns{display:flex;gap:.4rem;flex-wrap:wrap;margin:.8rem 0}
+.phase-btn{padding:.4rem .85rem;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-size:.82rem;font-family:inherit;transition:all .2s}
+.phase-btn:hover{border-color:var(--accent);color:var(--text)}
+.phase-btn.active{border-color:var(--accent);background:rgba(108,140,255,.15);color:var(--accent)}
+
+/* Compare grid */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin:1rem 0}
+@media(max-width:700px){.compare-grid{grid-template-columns:1fr}}
+.compare-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative}
+.compare-panel h4{color:var(--accent);margin-bottom:.8rem;font-size:.95rem}
+
+/* Expandable */
+.expand{margin:.5rem 0}
+.expand-header{display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:var(--surface2);border-radius:6px;cursor:pointer;user-select:none;transition:background .2s}
+.expand-header:hover{background:rgba(108,140,255,.08)}
+.expand-arrow{transition:transform .2s;font-size:.7rem;color:var(--text2)}
+.expand-arrow.open{transform:rotate(90deg)}
+.expand-body{display:none;padding:.6rem .8rem .8rem 1.8rem;font-size:.9rem}
+.expand-body.open{display:block}
+
+/* Quiz */
+.quiz{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.5rem 0}
+.quiz h4{color:var(--yellow);margin-bottom:1rem;font-size:1.05rem}
+.quiz-q{margin-bottom:1rem}
+.quiz-option{display:block;width:100%;text-align:left;padding:.65rem 1rem;margin:.3rem 0;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .2s}
+.quiz-option:hover{border-color:var(--accent)}
+.quiz-option.correct{border-color:var(--green);background:rgba(78,205,196,.1);color:var(--green)}
+.quiz-option.wrong{border-color:var(--red);background:rgba(255,107,107,.1);color:var(--red)}
+.quiz-explain{display:none;margin-top:.8rem;padding:.8rem;background:var(--surface2);border-radius:6px;font-size:.88rem;color:var(--text2);border-left:3px solid var(--green)}
+
+/* Flow demo */
+.flow-demo{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.2rem 0;position:relative;overflow:hidden}
+.flow-demo h4{color:var(--accent);margin-bottom:1rem}
+
+/* Interactive playground */
+.playground{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin:1.2rem 0}
+.playground h4{color:var(--accent);margin-bottom:1rem}
+.playground select{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:.4rem .8rem;font-family:inherit;font-size:.85rem;cursor:pointer}
+.playground select:focus{outline:none;border-color:var(--accent)}
+
+/* Animated glow */
+.glow-line{stroke-dasharray:8 4;animation:dashMove 1.5s linear infinite}
+@keyframes dashMove{to{stroke-dashoffset:-24}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(108,140,255,.3))}50%{filter:drop-shadow(0 0 12px rgba(108,140,255,.6))}}
+
+/* Step indicator */
+.step{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:.8rem;font-weight:700;margin-right:.5rem;flex-shrink:0}
+.step-row{display:flex;align-items:flex-start;margin:.8rem 0;padding:.8rem;background:var(--surface);border-radius:8px;border:1px solid var(--border);transition:all .3s}
+.step-row:hover{border-color:var(--accent)}
+.step-row.active{border-color:var(--accent);background:rgba(108,140,255,.05)}
+.step-row p{margin:0;font-size:.9rem}
+
+/* Node highlight */
+.node-highlight{display:inline-block;padding:.2rem .5rem;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:.82rem;border:1px solid}
+</style>
+</head>
+<body>
+
+<h1>TypeScript Indexed Access Types</h1>
+<p class="sub">How <code>T[K]</code> works — from syntax to compiler internals, visually explained</p>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: THE CONCEPT -->
+<!-- ============================================================ -->
+<h2>1. The Concept: Property Lookup at the Type Level</h2>
+
+<p>You already know how to look up a property on a value at runtime. An <strong>indexed access type</strong> does the exact same thing, but on <em>types</em> at compile time.</p>
+
+<div class="compare-grid">
+  <div class="compare-panel" style="border-color:var(--orange)">
+    <h4 style="color:var(--orange)">Runtime (values)</h4>
+    <pre><code><span class="kw">const</span> person = { <span class="str">name</span>: <span class="str">"Alice"</span>, <span class="str">age</span>: <span class="num">30</span> };
+
+person[<span class="str">"name"</span>];  <span class="cmt">// "Alice" — a value</span></code></pre>
+    <p style="font-size:.85rem">JavaScript evaluates this at runtime. The result is the value <code>"Alice"</code>.</p>
+  </div>
+  <div class="compare-panel" style="border-color:var(--cyan)">
+    <h4 style="color:var(--cyan)">Compile time (types)</h4>
+    <pre><code><span class="kw">type</span> <span class="typ">Person</span> = { <span class="str">name</span>: <span class="typ">string</span>; <span class="str">age</span>: <span class="typ">number</span> };
+
+<span class="kw">type</span> <span class="typ">N</span> = <span class="typ">Person</span>[<span class="str">"name"</span>];  <span class="cmt">// string — a type</span></code></pre>
+    <p style="font-size:.85rem">TypeScript resolves this at compile time. The result is the type <code>string</code>.</p>
+  </div>
+</div>
+
+<p>The syntax is identical: <code>Thing["key"]</code>. The difference is whether <code>Thing</code> is a value or a type.</p>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: INTERACTIVE PLAYGROUND -->
+<!-- ============================================================ -->
+<h2>2. Interactive: Try It</h2>
+
+<p>Select an object type and an index to see how <code>T[K]</code> resolves.</p>
+
+<div class="playground">
+  <h4>Indexed Access Resolver</h4>
+  <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+    <div>
+      <label style="font-size:.8rem;color:var(--text2);display:block;margin-bottom:.3rem">Object Type (T)</label>
+      <select id="objType" onchange="updatePlayground()">
+        <option value="person">Person</option>
+        <option value="config">AppConfig</option>
+        <option value="tuple">readonly [string, number, boolean]</option>
+        <option value="nested">{ data: { items: string[] } }</option>
+      </select>
+    </div>
+    <div style="font-size:1.5rem;color:var(--text2);padding-top:1rem">[</div>
+    <div>
+      <label style="font-size:.8rem;color:var(--text2);display:block;margin-bottom:.3rem">Index Type (K)</label>
+      <select id="idxType" onchange="updatePlayground()">
+      </select>
+    </div>
+    <div style="font-size:1.5rem;color:var(--text2);padding-top:1rem">]</div>
+    <div style="padding-top:1rem">
+      <span style="font-size:1.2rem;color:var(--text2)">=</span>
+      <span id="resultType" style="font-size:1rem;color:var(--green);font-family:'JetBrains Mono',monospace;margin-left:.5rem">string</span>
+    </div>
+  </div>
+  <div id="playgroundDef" style="margin-top:.5rem">
+    <pre><code id="playgroundCode"></code></pre>
+  </div>
+  <div id="playgroundExplain" style="margin-top:.5rem;font-size:.88rem;color:var(--text2)"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: WHAT YOU CAN INDEX -->
+<!-- ============================================================ -->
+<h2>3. What Can You Index?</h2>
+
+<p>Indexed access types work with several kinds of index types. Click each to see an example.</p>
+
+<div class="tabs" id="index-tabs">
+  <div class="tab active" onclick="switchTab('index-tabs','idx-literal')">String Literal</div>
+  <div class="tab" onclick="switchTab('index-tabs','idx-union')">Union</div>
+  <div class="tab" onclick="switchTab('index-tabs','idx-keyof')">keyof</div>
+  <div class="tab" onclick="switchTab('index-tabs','idx-number')">number (arrays)</div>
+  <div class="tab" onclick="switchTab('index-tabs','idx-template')">Template Literal</div>
+</div>
+<div id="idx-literal" class="tab-content active">
+  <pre><code><span class="kw">type</span> <span class="typ">Person</span> = { <span class="fn">name</span>: <span class="typ">string</span>; <span class="fn">age</span>: <span class="typ">number</span>; <span class="fn">active</span>: <span class="typ">boolean</span> };
+
+<span class="kw">type</span> <span class="typ">A</span> = <span class="typ">Person</span>[<span class="str">"name"</span>];    <span class="cmt">// string</span>
+<span class="kw">type</span> <span class="typ">B</span> = <span class="typ">Person</span>[<span class="str">"age"</span>];     <span class="cmt">// number</span></code></pre>
+  <p>A string literal type picks out exactly one property's type. This is the simplest case.</p>
+</div>
+<div id="idx-union" class="tab-content">
+  <pre><code><span class="kw">type</span> <span class="typ">Person</span> = { <span class="fn">name</span>: <span class="typ">string</span>; <span class="fn">age</span>: <span class="typ">number</span>; <span class="fn">active</span>: <span class="typ">boolean</span> };
+
+<span class="kw">type</span> <span class="typ">C</span> = <span class="typ">Person</span>[<span class="str">"name"</span> | <span class="str">"age"</span>];   <span class="cmt">// string | number</span></code></pre>
+  <p>A union index <strong>distributes</strong>: the compiler looks up each member separately and combines the results into a union. <code>Person["name" | "age"]</code> = <code>Person["name"] | Person["age"]</code> = <code>string | number</code>.</p>
+</div>
+<div id="idx-keyof" class="tab-content">
+  <pre><code><span class="kw">type</span> <span class="typ">Person</span> = { <span class="fn">name</span>: <span class="typ">string</span>; <span class="fn">age</span>: <span class="typ">number</span>; <span class="fn">active</span>: <span class="typ">boolean</span> };
+
+<span class="kw">type</span> <span class="typ">AllValues</span> = <span class="typ">Person</span>[<span class="kw">keyof</span> <span class="typ">Person</span>];
+<span class="cmt">// = Person["name" | "age" | "active"]</span>
+<span class="cmt">// = string | number | boolean</span></code></pre>
+  <p><code>keyof T</code> gives you a union of all key literal types. Indexing with it gives you a union of all value types.</p>
+</div>
+<div id="idx-number" class="tab-content">
+  <pre><code><span class="kw">type</span> <span class="typ">Names</span> = <span class="typ">string</span>[];
+
+<span class="kw">type</span> <span class="typ">Elem</span> = <span class="typ">Names</span>[<span class="typ">number</span>];   <span class="cmt">// string</span>
+
+<span class="kw">type</span> <span class="typ">Tuple</span> = [<span class="typ">string</span>, <span class="typ">number</span>, <span class="typ">boolean</span>];
+<span class="kw">type</span> <span class="typ">First</span> = <span class="typ">Tuple</span>[<span class="num">0</span>];       <span class="cmt">// string</span>
+<span class="kw">type</span> <span class="typ">Second</span> = <span class="typ">Tuple</span>[<span class="num">1</span>];      <span class="cmt">// number</span>
+<span class="kw">type</span> <span class="typ">Any</span> = <span class="typ">Tuple</span>[<span class="typ">number</span>];    <span class="cmt">// string | number | boolean</span></code></pre>
+  <p>Arrays have a numeric index signature. <code>number</code> gets the element type. Tuples support specific numeric literals for positional access.</p>
+</div>
+<div id="idx-template" class="tab-content">
+  <pre><code><span class="kw">type</span> <span class="typ">API</span> = {
+  <span class="fn">getUser</span>: () => <span class="typ">User</span>;
+  <span class="fn">getPost</span>: () => <span class="typ">Post</span>;
+  <span class="fn">deleteUser</span>: () => <span class="typ">void</span>;
+};
+
+<span class="kw">type</span> <span class="typ">Getters</span> = <span class="typ">API</span>[<span class="str">`get${string}`</span>];
+<span class="cmt">// = (() => User) | (() => Post)</span></code></pre>
+  <p>Template literal types can match multiple keys at once. The compiler finds all keys matching the pattern and unions their types.</p>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 4: HOW THE COMPILER HANDLES IT -->
+<!-- ============================================================ -->
+<h2>4. Inside the Compiler: Three-Phase Journey</h2>
+
+<p>TypeScript compiles code in three phases: <strong>Parser</strong>, <strong>Binder</strong>, and <strong>Checker</strong>. Here's how <code>Person["name"]</code> flows through each.</p>
+
+<svg id="pipelineSvg" viewBox="0 0 900 160" style="width:100%;max-height:180px;margin:1rem 0">
+  <defs>
+    <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#555b70" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <!-- Source -->
+  <rect x="10" y="40" width="160" height="60" rx="10" fill="var(--surface)" stroke="var(--text2)" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="90" y="67" text-anchor="middle" fill="var(--text2)" font-size="12">Source Code</text>
+  <text x="90" y="85" text-anchor="middle" fill="var(--text2)" font-size="10" font-family="JetBrains Mono,monospace">Person["name"]</text>
+  <line x1="170" y1="70" x2="210" y2="70" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Parser -->
+  <g id="phase-parser" class="phase-clickable" style="cursor:pointer" onclick="setCompilerPhase('parser')">
+    <rect x="210" y="40" width="160" height="60" rx="10" fill="var(--surface)" stroke="var(--purple)" stroke-width="2"/>
+    <text x="290" y="65" text-anchor="middle" fill="var(--purple)" font-size="14" font-weight="600">Parser</text>
+    <text x="290" y="83" text-anchor="middle" fill="var(--text2)" font-size="10">Builds AST node</text>
+  </g>
+  <line x1="370" y1="70" x2="410" y2="70" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Binder -->
+  <g id="phase-binder" class="phase-clickable" style="cursor:pointer" onclick="setCompilerPhase('binder')">
+    <rect x="410" y="40" width="160" height="60" rx="10" fill="var(--surface)" stroke="var(--orange)" stroke-width="2"/>
+    <text x="490" y="65" text-anchor="middle" fill="var(--orange)" font-size="14" font-weight="600">Binder</text>
+    <text x="490" y="83" text-anchor="middle" fill="var(--text2)" font-size="10">Skips entirely</text>
+  </g>
+  <line x1="570" y1="70" x2="610" y2="70" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Checker -->
+  <g id="phase-checker" class="phase-clickable" style="cursor:pointer" onclick="setCompilerPhase('checker')">
+    <rect x="610" y="40" width="160" height="60" rx="10" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
+    <text x="690" y="65" text-anchor="middle" fill="var(--green)" font-size="14" font-weight="600">Checker</text>
+    <text x="690" y="83" text-anchor="middle" fill="var(--text2)" font-size="10">Resolves to type</text>
+  </g>
+
+  <line x1="770" y1="70" x2="810" y2="70" stroke="#555b70" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <rect x="810" y="40" width="80" height="60" rx="10" fill="var(--surface)" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="850" y="67" text-anchor="middle" fill="var(--green)" font-size="14" font-weight="600">string</text>
+  <text x="850" y="83" text-anchor="middle" fill="var(--text2)" font-size="9">result type</text>
+
+  <!-- Labels -->
+  <text x="290" y="125" text-anchor="middle" fill="var(--purple)" font-size="10" opacity=".7">Click each phase for details</text>
+</svg>
+
+<div id="compiler-phase-detail" style="min-height:100px">
+  <!-- Filled by JS -->
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 5: AST NODE STRUCTURE -->
+<!-- ============================================================ -->
+<h2>5. The AST Node</h2>
+
+<p>The parser creates an <code>IndexedAccessTypeNode</code> — a simple tree with two children.</p>
+
+<svg viewBox="0 0 700 320" style="width:100%;max-height:340px;margin:1rem 0">
+  <!-- Root node -->
+  <rect x="200" y="20" width="300" height="55" rx="10" fill="var(--surface)" stroke="var(--purple)" stroke-width="2"/>
+  <text x="350" y="42" text-anchor="middle" fill="var(--purple)" font-size="13" font-weight="600">IndexedAccessTypeNode</text>
+  <text x="350" y="62" text-anchor="middle" fill="var(--text2)" font-size="10">SyntaxKind.IndexedAccessType</text>
+
+  <!-- Left child -->
+  <line x1="280" y1="75" x2="180" y2="120" stroke="var(--cyan)" stroke-width="1.5"/>
+  <rect x="60" y="120" width="240" height="85" rx="10" fill="var(--surface)" stroke="var(--cyan)" stroke-width="2"/>
+  <text x="180" y="142" text-anchor="middle" fill="var(--cyan)" font-size="12" font-weight="600">objectType: TypeNode</text>
+  <text x="180" y="162" text-anchor="middle" fill="var(--text2)" font-size="10">The type being indexed into</text>
+  <text x="180" y="190" text-anchor="middle" fill="var(--text)" font-size="11" font-family="JetBrains Mono,monospace">Person</text>
+
+  <!-- Right child -->
+  <line x1="420" y1="75" x2="520" y2="120" stroke="var(--yellow)" stroke-width="1.5"/>
+  <rect x="400" y="120" width="240" height="85" rx="10" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+  <text x="520" y="142" text-anchor="middle" fill="var(--yellow)" font-size="12" font-weight="600">indexType: TypeNode</text>
+  <text x="520" y="162" text-anchor="middle" fill="var(--text2)" font-size="10">The key used to look up</text>
+  <text x="520" y="190" text-anchor="middle" fill="var(--text)" font-size="11" font-family="JetBrains Mono,monospace">"name"</text>
+
+  <!-- Disambiguation note -->
+  <rect x="100" y="240" width="500" height="60" rx="10" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+  <text x="350" y="262" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="500">Parser disambiguation:</text>
+  <text x="350" y="282" text-anchor="middle" fill="var(--text2)" font-size="11">T[]  =  ArrayTypeNode  |  T[K]  =  IndexedAccessTypeNode</text>
+</svg>
+
+<div class="expand">
+  <div class="expand-header" onclick="toggleExpand(this)">
+    <span class="expand-arrow">&#9654;</span>
+    <span style="color:var(--accent)">How does the parser know T[] vs T[K]?</span>
+  </div>
+  <div class="expand-body">
+    <p>After parsing the <code>[</code> bracket, the parser checks if the content is a type expression via <code>isStartOfType()</code>:</p>
+    <ul>
+      <li>If brackets are <strong>empty</strong> (<code>T[]</code>) &rarr; creates <code>ArrayTypeNode</code></li>
+      <li>If brackets contain a <strong>type expression</strong> (<code>T[K]</code>) &rarr; creates <code>IndexedAccessTypeNode</code></li>
+    </ul>
+    <p>This is a postfix operator, so <code>A[B][C]</code> nests left-to-right: <code>(A[B])[C]</code>.</p>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 6: CHECKER RESOLUTION -->
+<!-- ============================================================ -->
+<h2>6. The Checker: Resolution Algorithm</h2>
+
+<p>This is where all the real work happens. When the checker encounters <code>T[K]</code>, it follows this decision tree.</p>
+
+<svg id="decisionTree" viewBox="0 0 800 520" style="width:100%;max-height:550px;margin:1rem 0">
+  <defs>
+    <marker id="arrowAccent" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--green)" stroke-width="1.5"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--orange)" stroke-width="1.5"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="var(--red)" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <!-- Entry -->
+  <rect x="250" y="10" width="300" height="40" rx="8" fill="var(--surface)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="400" y="35" text-anchor="middle" fill="var(--accent)" font-size="12" font-weight="600">getTypeFromIndexedAccessTypeNode(node)</text>
+
+  <line x1="400" y1="50" x2="400" y2="80" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+
+  <!-- Resolve both sides -->
+  <rect x="250" y="80" width="300" height="40" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="400" y="100" text-anchor="middle" fill="var(--text)" font-size="11">Resolve objectType and indexType from AST</text>
+  <text x="400" y="114" text-anchor="middle" fill="var(--text2)" font-size="9">getTypeFromTypeNode() on each child</text>
+
+  <line x1="400" y1="120" x2="400" y2="155" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+
+  <!-- Decision diamond -->
+  <polygon points="400,155 530,200 400,245 270,200" fill="var(--surface)" stroke="var(--yellow)" stroke-width="2"/>
+  <text x="400" y="196" text-anchor="middle" fill="var(--yellow)" font-size="11" font-weight="600">Are T or K</text>
+  <text x="400" y="210" text-anchor="middle" fill="var(--yellow)" font-size="11" font-weight="600">generic?</text>
+
+  <!-- YES: defer -->
+  <line x1="530" y1="200" x2="640" y2="200" stroke="var(--orange)" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+  <text x="580" y="193" fill="var(--orange)" font-size="10" font-weight="600">YES</text>
+
+  <rect x="640" y="175" width="150" height="50" rx="8" fill="var(--surface)" stroke="var(--orange)" stroke-width="2"/>
+  <text x="715" y="196" text-anchor="middle" fill="var(--orange)" font-size="11" font-weight="600">DEFER</text>
+  <text x="715" y="212" text-anchor="middle" fill="var(--text2)" font-size="9">Create lazy IndexedAccessType</text>
+
+  <!-- Defer detail -->
+  <line x1="715" y1="225" x2="715" y2="260" stroke="var(--orange)" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+  <rect x="620" y="260" width="190" height="55" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+  <text x="715" y="280" text-anchor="middle" fill="var(--text2)" font-size="10">Stored as type object with</text>
+  <text x="715" y="296" text-anchor="middle" fill="var(--text2)" font-size="10">objectType + indexType refs.</text>
+  <text x="715" y="308" text-anchor="middle" fill="var(--orange)" font-size="9">Resolved later when instantiated</text>
+
+  <!-- NO: resolve -->
+  <line x1="400" y1="245" x2="400" y2="280" stroke="var(--green)" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+  <text x="412" y="265" fill="var(--green)" font-size="10" font-weight="600">NO</text>
+
+  <rect x="270" y="280" width="260" height="40" rx="8" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
+  <text x="400" y="300" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="600">RESOLVE EAGERLY</text>
+  <text x="400" y="313" text-anchor="middle" fill="var(--text2)" font-size="9">getPropertyTypeForIndexType()</text>
+
+  <!-- Branch: union or single -->
+  <line x1="400" y1="320" x2="400" y2="350" stroke="var(--green)" stroke-width="1.5"/>
+
+  <polygon points="400,350 510,385 400,420 290,385" fill="var(--surface)" stroke="var(--cyan)" stroke-width="1.5"/>
+  <text x="400" y="381" text-anchor="middle" fill="var(--cyan)" font-size="10" font-weight="600">Is K a</text>
+  <text x="400" y="395" text-anchor="middle" fill="var(--cyan)" font-size="10" font-weight="600">union?</text>
+
+  <!-- Union YES -->
+  <line x1="510" y1="385" x2="610" y2="385" stroke="var(--cyan)" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+  <text x="555" y="378" fill="var(--cyan)" font-size="10" font-weight="600">YES</text>
+
+  <rect x="610" y="360" width="180" height="50" rx="8" fill="var(--surface)" stroke="var(--cyan)" stroke-width="1.5"/>
+  <text x="700" y="380" text-anchor="middle" fill="var(--cyan)" font-size="10" font-weight="600">Distribute over union</text>
+  <text x="700" y="396" text-anchor="middle" fill="var(--text2)" font-size="9">T["a"|"b"] = T["a"] | T["b"]</text>
+
+  <!-- Single NO -->
+  <line x1="400" y1="420" x2="400" y2="455" stroke="var(--green)" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+  <text x="415" y="440" fill="var(--green)" font-size="10" font-weight="600">NO</text>
+
+  <rect x="290" y="455" width="220" height="50" rx="8" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
+  <text x="400" y="475" text-anchor="middle" fill="var(--green)" font-size="10" font-weight="600">Look up property directly</text>
+  <text x="400" y="491" text-anchor="middle" fill="var(--text2)" font-size="9">getPropertyOfType(T, K) &rarr; result type</text>
+
+  <!-- Generic example label -->
+  <rect x="10" y="170" width="230" height="65" rx="8" fill="var(--surface)" stroke="var(--orange)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="125" y="188" text-anchor="middle" fill="var(--orange)" font-size="10">Generic example:</text>
+  <text x="125" y="205" text-anchor="middle" fill="var(--text)" font-size="10" font-family="JetBrains Mono,monospace">function get&lt;T, K&gt;(</text>
+  <text x="125" y="222" text-anchor="middle" fill="var(--text)" font-size="10" font-family="JetBrains Mono,monospace">  obj: T, key: K): T[K]</text>
+</svg>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 7: DEFER vs EAGER -->
+<!-- ============================================================ -->
+<h2>7. Deferred vs Eager Resolution</h2>
+
+<p>The key decision the checker makes: can we resolve <code>T[K]</code> <em>right now</em>, or must we wait?</p>
+
+<div class="compare-grid">
+  <div class="compare-panel" style="border-color:var(--green)">
+    <h4 style="color:var(--green)">Eager (concrete types)</h4>
+    <pre><code><span class="kw">type</span> <span class="typ">Person</span> = {
+  <span class="fn">name</span>: <span class="typ">string</span>;
+  <span class="fn">age</span>: <span class="typ">number</span>;
+};
+
+<span class="cmt">// Both sides concrete — resolve now</span>
+<span class="kw">type</span> <span class="typ">N</span> = <span class="typ">Person</span>[<span class="str">"name"</span>];
+<span class="cmt">//    ↓ immediately resolves to: string</span></code></pre>
+    <p style="font-size:.85rem">The checker calls <code>getPropertyOfType(Person, "name")</code>, finds the property symbol, returns its type: <code>string</code>. Done in one step.</p>
+  </div>
+  <div class="compare-panel" style="border-color:var(--orange)">
+    <h4 style="color:var(--orange)">Deferred (generic types)</h4>
+    <pre><code><span class="kw">function</span> <span class="fn">get</span>&lt;<span class="typ">T</span>, <span class="typ">K</span> <span class="kw">extends</span> <span class="kw">keyof</span> <span class="typ">T</span>&gt;(
+  obj: <span class="typ">T</span>, key: <span class="typ">K</span>
+): <span class="typ">T</span>[<span class="typ">K</span>] {       <span class="cmt">// T and K are unknown!</span>
+  <span class="kw">return</span> obj[key];
+}
+
+<span class="cmt">// At call site, T and K become concrete:</span>
+<span class="fn">get</span>(person, <span class="str">"name"</span>);  <span class="cmt">// NOW resolves to string</span></code></pre>
+    <p style="font-size:.85rem">The checker creates a lazy <code>IndexedAccessType</code> object that stores references to <code>T</code> and <code>K</code>. When the function is called with concrete types, it instantiates and resolves.</p>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 8: DISTRIBUTION RULES -->
+<!-- ============================================================ -->
+<h2>8. Distribution Rules</h2>
+
+<p>When indexed access types involve unions or intersections, the checker <strong>distributes</strong> — and the direction matters for soundness.</p>
+
+<div class="flow-demo">
+  <h4>Distribution Visualizer</h4>
+  <div class="phase-btns" id="dist-btns">
+    <button class="phase-btn active" onclick="setDistMode('union-idx')">T["a" | "b"] (union index)</button>
+    <button class="phase-btn" onclick="setDistMode('union-obj')">Reading: (A | B)["k"]</button>
+    <button class="phase-btn" onclick="setDistMode('write')">Writing: (A | B)["k"]</button>
+    <button class="phase-btn" onclick="setDistMode('intersect')">Intersection: (A & B)["k"]</button>
+  </div>
+  <div id="dist-display" style="margin-top:1rem">
+    <svg id="distSvg" viewBox="0 0 700 200" style="width:100%;max-height:220px">
+    </svg>
+    <p id="dist-explain" style="margin-top:.8rem;font-size:.88rem"></p>
+  </div>
+</div>
+
+<div class="expand">
+  <div class="expand-header" onclick="toggleExpand(this)">
+    <span class="expand-arrow">&#9654;</span>
+    <span style="color:var(--accent)">Why does writing use intersection?</span>
+  </div>
+  <div class="expand-body">
+    <p>Consider this scenario:</p>
+    <pre><code><span class="kw">type</span> <span class="typ">T</span> = { <span class="fn">a</span>: <span class="typ">string</span>; <span class="fn">b</span>: <span class="typ">number</span> };
+<span class="kw">declare</span> <span class="kw">const</span> key: <span class="str">"a"</span> | <span class="str">"b"</span>;
+<span class="kw">declare</span> <span class="kw">const</span> obj: <span class="typ">T</span>;
+
+obj[key] = ???;  <span class="cmt">// what type is safe to assign?</span></code></pre>
+    <p>Since <code>key</code> could be <code>"a"</code> or <code>"b"</code>, the value must be safe for <strong>both</strong> — that's an intersection: <code>string & number</code> (which is <code>never</code>). If we used a union (<code>string | number</code>), we could assign a <code>number</code> to the <code>string</code> property.</p>
+    <p>This soundness fix was added in TypeScript 3.5 (<a href="https://github.com/Microsoft/TypeScript/pull/30769" style="color:var(--accent)">PR #30769</a>).</p>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 9: MAPPED TYPE INTERACTION -->
+<!-- ============================================================ -->
+<h2>9. Mapped Type Interaction</h2>
+
+<p>When you index into a <strong>mapped type</strong>, the checker uses a shortcut: it substitutes the index directly into the template, without expanding the full mapped type.</p>
+
+<div class="tabs" id="mapped-tabs">
+  <div class="tab active" onclick="switchTab('mapped-tabs','mapped-basic')">Basic Example</div>
+  <div class="tab" onclick="switchTab('mapped-tabs','mapped-how')">How the Checker Does It</div>
+  <div class="tab" onclick="switchTab('mapped-tabs','mapped-partial')">Partial&lt;T&gt;[K]</div>
+</div>
+<div id="mapped-basic" class="tab-content active">
+  <pre><code><span class="kw">type</span> <span class="typ">Mapped</span> = { [<span class="typ">P</span> <span class="kw">in</span> <span class="str">"a"</span> | <span class="str">"b"</span>]: <span class="typ">P</span> <span class="kw">extends</span> <span class="str">"a"</span> ? <span class="typ">number</span> : <span class="typ">string</span> };
+
+<span class="cmt">// Indexing into it:</span>
+<span class="kw">type</span> <span class="typ">R</span> = <span class="typ">Mapped</span>[<span class="str">"a"</span>];  <span class="cmt">// number</span>
+
+<span class="cmt">// The checker substitutes "a" for P in the template:</span>
+<span class="cmt">//   "a" extends "a" ? number : string  →  number</span></code></pre>
+</div>
+<div id="mapped-how" class="tab-content">
+  <p>For <code>{ [P in K]: E }[X]</code>, the checker calls <code>substituteIndexedMappedType</code>:</p>
+  <div class="step-row">
+    <span class="step" style="background:rgba(167,139,250,.15);color:var(--purple)">1</span>
+    <p>Recognize the object type is a mapped type with template <code>E</code> and key variable <code>P</code></p>
+  </div>
+  <div class="step-row">
+    <span class="step" style="background:rgba(78,205,196,.15);color:var(--green)">2</span>
+    <p>Create a type mapper: <code>P → X</code> (substitute the index for the key variable)</p>
+  </div>
+  <div class="step-row">
+    <span class="step" style="background:rgba(108,140,255,.15);color:var(--accent)">3</span>
+    <p>Instantiate <code>E</code> with that mapper &rarr; result type. No need to expand the full mapped type first.</p>
+  </div>
+</div>
+<div id="mapped-partial" class="tab-content">
+  <pre><code><span class="cmt">// Partial&lt;T&gt; is a mapped type:</span>
+<span class="kw">type</span> <span class="typ">Partial</span>&lt;<span class="typ">T</span>&gt; = { [<span class="typ">P</span> <span class="kw">in</span> <span class="kw">keyof</span> <span class="typ">T</span>]?: <span class="typ">T</span>[<span class="typ">P</span>] };
+
+<span class="cmt">// So:</span>
+<span class="kw">type</span> <span class="typ">X</span> = <span class="typ">Partial</span>&lt;<span class="typ">Person</span>&gt;[<span class="str">"name"</span>];
+<span class="cmt">//     = { [P in keyof Person]?: Person[P] }["name"]</span>
+<span class="cmt">//     → substitute P = "name" into Person[P]</span>
+<span class="cmt">//     → Person["name"]</span>
+<span class="cmt">//     → string</span>
+<span class="cmt">//     + account for ?  →  string | undefined</span></code></pre>
+  <p>The <code>?</code> modifier in the mapped type adds <code>| undefined</code> to the result. The checker handles this as part of the substitution.</p>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 10: CALL CHAIN -->
+<!-- ============================================================ -->
+<h2>10. The Full Call Chain</h2>
+
+<p>Here's every function in the checker that touches indexed access types, in order of invocation.</p>
+
+<div class="flow-demo">
+<svg viewBox="0 0 750 400" style="width:100%;max-height:420px">
+  <defs>
+    <marker id="arrowDown" markerWidth="8" markerHeight="6" refX="4" refY="6" orient="auto">
+      <path d="M0,0 L4,6 L8,0" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+    </marker>
+  </defs>
+
+  <!-- Level 0 -->
+  <rect x="180" y="5" width="390" height="35" rx="6" fill="var(--surface2)" stroke="var(--purple)" stroke-width="2"/>
+  <text x="375" y="27" text-anchor="middle" fill="var(--purple)" font-size="12" font-weight="600">getTypeFromIndexedAccessTypeNode(node)</text>
+  <text x="375" y="55" text-anchor="middle" fill="var(--text2)" font-size="9">Entry point — extracts objectType, indexType from AST</text>
+
+  <line x1="375" y1="40" x2="375" y2="75" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+
+  <!-- Level 1 -->
+  <rect x="180" y="75" width="390" height="35" rx="6" fill="var(--surface2)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="375" y="97" text-anchor="middle" fill="var(--accent)" font-size="12" font-weight="600">getIndexedAccessTypeEx(objType, idxType, flags)</text>
+
+  <line x1="375" y1="110" x2="375" y2="145" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+
+  <!-- Level 2 -->
+  <rect x="140" y="145" width="470" height="35" rx="6" fill="var(--surface2)" stroke="var(--yellow)" stroke-width="2"/>
+  <text x="375" y="167" text-anchor="middle" fill="var(--yellow)" font-size="12" font-weight="600">shouldDeferIndexedAccessType(objType, idxType)</text>
+  <text x="375" y="195" text-anchor="middle" fill="var(--text2)" font-size="9">Decision: are types generic? → defer or resolve</text>
+
+  <!-- Branch left: defer -->
+  <line x1="250" y1="180" x2="150" y2="230" stroke="var(--orange)" stroke-width="1.5"/>
+  <rect x="30" y="230" width="240" height="35" rx="6" fill="var(--surface2)" stroke="var(--orange)" stroke-width="1.5"/>
+  <text x="150" y="252" text-anchor="middle" fill="var(--orange)" font-size="11">create IndexedAccessType object</text>
+  <text x="150" y="222" text-anchor="middle" fill="var(--orange)" font-size="9" font-weight="600">GENERIC</text>
+
+  <line x1="150" y1="265" x2="150" y2="305" stroke="var(--orange)" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+  <rect x="10" y="305" width="280" height="35" rx="6" fill="var(--surface2)" stroke="var(--orange)" stroke-width="1"/>
+  <text x="150" y="327" text-anchor="middle" fill="var(--orange)" font-size="11">getSimplifiedIndexedAccessType()</text>
+  <text x="150" y="355" text-anchor="middle" fill="var(--text2)" font-size="9">Distributes unions, resolves mapped types</text>
+
+  <!-- Branch right: resolve -->
+  <line x1="500" y1="180" x2="575" y2="230" stroke="var(--green)" stroke-width="1.5"/>
+  <rect x="440" y="230" width="270" height="35" rx="6" fill="var(--surface2)" stroke="var(--green)" stroke-width="1.5"/>
+  <text x="575" y="252" text-anchor="middle" fill="var(--green)" font-size="11">getPropertyTypeForIndexType()</text>
+  <text x="575" y="222" text-anchor="middle" fill="var(--green)" font-size="9" font-weight="600">CONCRETE</text>
+
+  <line x1="575" y1="265" x2="575" y2="305" stroke="var(--green)" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+  <rect x="445" y="305" width="260" height="35" rx="6" fill="var(--surface2)" stroke="var(--green)" stroke-width="1"/>
+  <text x="575" y="327" text-anchor="middle" fill="var(--green)" font-size="11">getPropertyOfType(T, propName)</text>
+  <text x="575" y="355" text-anchor="middle" fill="var(--text2)" font-size="9">Looks up property symbol → returns its type</text>
+
+  <!-- Final results -->
+  <line x1="575" y1="340" x2="575" y2="380" stroke="var(--green)" stroke-width="1.5" marker-end="url(#arrowDown)"/>
+  <text x="575" y="397" text-anchor="middle" fill="var(--green)" font-size="12" font-weight="700" font-family="JetBrains Mono,monospace">string</text>
+</svg>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 11: REAL-WORLD PATTERNS -->
+<!-- ============================================================ -->
+<h2>11. Real-World Patterns</h2>
+
+<p>Indexed access types power many of TypeScript's most useful patterns.</p>
+
+<div class="tabs" id="pattern-tabs">
+  <div class="tab active" onclick="switchTab('pattern-tabs','pat-deep')">Deep Property Access</div>
+  <div class="tab" onclick="switchTab('pattern-tabs','pat-event')">Event Maps</div>
+  <div class="tab" onclick="switchTab('pattern-tabs','pat-ttg')">Trees that Grow</div>
+</div>
+<div id="pat-deep" class="tab-content active">
+  <pre><code><span class="kw">type</span> <span class="typ">Config</span> = {
+  <span class="fn">db</span>: { <span class="fn">host</span>: <span class="typ">string</span>; <span class="fn">port</span>: <span class="typ">number</span> };
+  <span class="fn">cache</span>: { <span class="fn">ttl</span>: <span class="typ">number</span> };
+};
+
+<span class="cmt">// Chain indexed access for nested types:</span>
+<span class="kw">type</span> <span class="typ">Host</span> = <span class="typ">Config</span>[<span class="str">"db"</span>][<span class="str">"host"</span>];  <span class="cmt">// string</span>
+<span class="kw">type</span> <span class="typ">Port</span> = <span class="typ">Config</span>[<span class="str">"db"</span>][<span class="str">"port"</span>];  <span class="cmt">// number</span>
+
+<span class="cmt">// The checker resolves left-to-right:</span>
+<span class="cmt">//   Config["db"]          → { host: string; port: number }</span>
+<span class="cmt">//   { ... }["host"]       → string</span></code></pre>
+</div>
+<div id="pat-event" class="tab-content">
+  <pre><code><span class="kw">interface</span> <span class="typ">EventMap</span> {
+  <span class="fn">click</span>: { <span class="fn">x</span>: <span class="typ">number</span>; <span class="fn">y</span>: <span class="typ">number</span> };
+  <span class="fn">keydown</span>: { <span class="fn">key</span>: <span class="typ">string</span>; <span class="fn">code</span>: <span class="typ">number</span> };
+  <span class="fn">resize</span>: { <span class="fn">width</span>: <span class="typ">number</span>; <span class="fn">height</span>: <span class="typ">number</span> };
+}
+
+<span class="kw">function</span> <span class="fn">on</span>&lt;<span class="typ">K</span> <span class="kw">extends</span> <span class="kw">keyof</span> <span class="typ">EventMap</span>&gt;(
+  event: <span class="typ">K</span>,
+  handler: (data: <span class="typ">EventMap</span>[<span class="typ">K</span>]) => <span class="kw">void</span>
+): <span class="kw">void</span>;
+
+<span class="fn">on</span>(<span class="str">"click"</span>, (data) => {
+  <span class="cmt">// data is { x: number; y: number } — fully typed!</span>
+  <span class="cmt">// EventMap[K] deferred until K="click", then resolved</span>
+});</code></pre>
+</div>
+<div id="pat-ttg" class="tab-content">
+  <pre><code><span class="cmt">// Trees that Grow — indexed access as type families</span>
+<span class="kw">interface</span> <span class="typ">Extensions</span> {
+  <span class="fn">App</span>: <span class="typ">object</span>;
+  <span class="fn">Var</span>: <span class="typ">object</span>;
+}
+
+<span class="kw">type</span> <span class="typ">Expr</span>&lt;<span class="typ">Ext</span> <span class="kw">extends</span> <span class="typ">Extensions</span>&gt; =
+  | <span class="typ">AppNode</span>&lt;<span class="typ">Ext</span>&gt;
+  | <span class="typ">VarNode</span>&lt;<span class="typ">Ext</span>&gt;;
+
+<span class="kw">type</span> <span class="typ">AppNode</span>&lt;<span class="typ">Ext</span> <span class="kw">extends</span> <span class="typ">Extensions</span>&gt; = {
+  <span class="fn">type</span>: <span class="str">"App"</span>;
+  <span class="fn">fun</span>: <span class="typ">Expr</span>&lt;<span class="typ">Ext</span>&gt;;
+  <span class="fn">arg</span>: <span class="typ">Expr</span>&lt;<span class="typ">Ext</span>&gt;;
+} & <span class="typ">Ext</span>[<span class="str">"App"</span>];  <span class="cmt">// ← indexed access = type family application</span>
+
+<span class="cmt">// Phase 1: parsed (carry source locations)</span>
+<span class="kw">type</span> <span class="typ">ParsedExpr</span> = <span class="typ">Expr</span>&lt;{
+  <span class="fn">App</span>: { <span class="fn">loc</span>: <span class="typ">SrcSpan</span> };
+  <span class="fn">Var</span>: { <span class="fn">loc</span>: <span class="typ">SrcSpan</span> };
+}&gt;;
+
+<span class="cmt">// Phase 2: typed (carry result types)</span>
+<span class="kw">type</span> <span class="typ">TypedExpr</span> = <span class="typ">Expr</span>&lt;{
+  <span class="fn">App</span>: { <span class="fn">resultType</span>: <span class="typ">Type</span> };
+  <span class="fn">Var</span>: { <span class="fn">resolvedId</span>: <span class="typ">Symbol</span> };
+}&gt;;</code></pre>
+  <p><code>Ext["App"]</code> is the TypeScript equivalent of Haskell's <code>XApp p</code>. One type parameter, one indexed access, same pattern.</p>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 12: QUIZZES -->
+<!-- ============================================================ -->
+<h2>12. Test Your Understanding</h2>
+
+<div class="quiz">
+  <h4>Quiz 1: What does <code>Person["name" | "age"]</code> resolve to?</h4>
+  <p style="font-size:.85rem;margin-bottom:.5rem"><code>type Person = { name: string; age: number; active: boolean }</code></p>
+  <div class="quiz-q" data-correct="1">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. <code>string</code></button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">B. <code>string | number</code></button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">C. <code>string & number</code></button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. <code>{ name: string; age: number }</code></button>
+  </div>
+  <div class="quiz-explain">Union index types distribute: <code>Person["name" | "age"]</code> = <code>Person["name"] | Person["age"]</code> = <code>string | number</code>. The checker maps over each union member and combines the results.</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 2: What does the binder do with an <code>IndexedAccessTypeNode</code>?</h4>
+  <div class="quiz-q" data-correct="3">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. Creates a symbol for the resulting type</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">B. Resolves the property lookup and caches the result</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">C. Connects the node to its parent scope</button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">D. Nothing — it skips indexed access types entirely</button>
+  </div>
+  <div class="quiz-explain">The binder only processes declarations that create names in scopes. <code>T[K]</code> is a pure type-level computation — it doesn't introduce any bindings. All resolution happens in the checker.</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 3: When does the checker <em>defer</em> resolving <code>T[K]</code>?</h4>
+  <div class="quiz-q" data-correct="2">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. When the result type would be <code>never</code></button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">B. When T or K are generic type parameters (not yet concrete)</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">C. When the object type is an interface (not a type alias)</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. When <code>noUncheckedIndexedAccess</code> is enabled</button>
+  </div>
+  <div class="quiz-explain">The checker defers when <code>shouldDeferIndexedAccessType</code> returns true — which happens when T or K are generic (still type parameters, not yet instantiated with concrete types). It creates a lazy <code>IndexedAccessType</code> object that gets resolved later when the generics are instantiated.</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 4: Why does writing to <code>obj[key]</code> (where <code>key: "a" | "b"</code>) use intersection instead of union?</h4>
+  <div class="quiz-q" data-correct="3">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. It's a TypeScript bug that hasn't been fixed</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">B. Intersections are faster for the compiler to check</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">C. Union would be unsound — the type system must use <code>unknown</code> instead</button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">D. The value must be safe for both possible property types, so it must satisfy their intersection</button>
+  </div>
+  <div class="quiz-explain">Since <code>key</code> could be <code>"a"</code> or <code>"b"</code> at runtime, the assigned value must be valid for <em>both</em> property types. That's an intersection. Using a union would allow assigning a <code>number</code> where a <code>string</code> is expected. This fix was added in TypeScript 3.5 (PR #30769 by Anders Hejlsberg).</div>
+</div>
+
+<div class="quiz">
+  <h4>Quiz 5: What TypeScript mechanism is the equivalent of Haskell's type families?</h4>
+  <div class="quiz-q" data-correct="2">
+    <button class="quiz-option" onclick="checkQuiz(this,false)">A. <code>typeof</code> operator</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">B. Conditional types (<code>T extends U ? A : B</code>)</button>
+    <button class="quiz-option" onclick="checkQuiz(this,true)">C. Indexed access types (<code>Ext["Key"]</code>) with interface maps</button>
+    <button class="quiz-option" onclick="checkQuiz(this,false)">D. Generics with default type parameters</button>
+  </div>
+  <div class="quiz-explain">Indexed access types (<code>Ext["Key"]</code>) are the closest equivalent. Like Haskell's type families, they map a type-level key to a type-level value. With declaration merging on the interface, they can even be <em>open</em> (extendable from other modules), just like open type family instances in Haskell. Conditional types also work but are closed — you must enumerate all cases upfront.</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 13: SUMMARY -->
+<!-- ============================================================ -->
+<h2>13. Summary</h2>
+
+<div class="card" style="border-color:var(--accent)">
+  <ul>
+    <li><strong>Indexed access types</strong> (<code>T[K]</code>) are property lookups at the type level — the same as <code>obj[key]</code> but resolved at compile time</li>
+    <li>The <strong>parser</strong> creates an <code>IndexedAccessTypeNode</code> with <code>objectType</code> and <code>indexType</code> children</li>
+    <li>The <strong>binder</strong> ignores them completely — they don't create symbols or bindings</li>
+    <li>The <strong>checker</strong> does all the work: resolve eagerly (concrete types) or defer (generic types)</li>
+    <li><strong>Union distribution</strong>: <code>T["a" | "b"]</code> = <code>T["a"] | T["b"]</code> (reading) or <code>T["a"] & T["b"]</code> (writing)</li>
+    <li><strong>Mapped type shortcut</strong>: <code>{ [P in K]: E }[X]</code> substitutes <code>X</code> for <code>P</code> in <code>E</code> directly</li>
+    <li>They enable the <strong>Trees that Grow</strong> pattern in TypeScript: <code>Ext["NodeName"]</code> = type family application</li>
+  </ul>
+</div>
+
+
+<script>
+// ============================================================
+// Tab switching
+// ============================================================
+function switchTab(tabGroupId, tabContentId) {
+  const tabGroup = document.getElementById(tabGroupId);
+  tabGroup.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  let sibling = tabGroup.nextElementSibling;
+  while (sibling && sibling.classList.contains('tab-content')) {
+    sibling.classList.remove('active');
+    if (sibling.id === tabContentId) sibling.classList.add('active');
+    sibling = sibling.nextElementSibling;
+  }
+}
+
+// ============================================================
+// Expand/collapse
+// ============================================================
+function toggleExpand(header) {
+  const arrow = header.querySelector('.expand-arrow');
+  const body = header.nextElementSibling;
+  arrow.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// ============================================================
+// Quiz
+// ============================================================
+function checkQuiz(btn, correct) {
+  const q = btn.parentElement;
+  if (q.dataset.answered) return;
+  q.dataset.answered = 'true';
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) {
+    q.querySelectorAll('.quiz-option').forEach(b => {
+      if (b !== btn && b.onclick.toString().includes('true')) b.classList.add('correct');
+    });
+  }
+  q.nextElementSibling.style.display = 'block';
+}
+
+// ============================================================
+// Playground
+// ============================================================
+const playgroundData = {
+  person: {
+    def: `<span class="kw">type</span> <span class="typ">Person</span> = {\n  <span class="fn">name</span>: <span class="typ">string</span>;\n  <span class="fn">age</span>: <span class="typ">number</span>;\n  <span class="fn">active</span>: <span class="typ">boolean</span>;\n};`,
+    keys: {
+      '"name"': { result: 'string', explain: 'Looks up the "name" property — finds type string.' },
+      '"age"': { result: 'number', explain: 'Looks up the "age" property — finds type number.' },
+      '"active"': { result: 'boolean', explain: 'Looks up the "active" property — finds type boolean.' },
+      '"name" | "age"': { result: 'string | number', explain: 'Union index distributes: Person["name"] | Person["age"] = string | number.' },
+      'keyof Person': { result: 'string | number | boolean', explain: 'keyof Person = "name" | "age" | "active". Indexing with all keys gives a union of all value types.' },
+    }
+  },
+  config: {
+    def: `<span class="kw">type</span> <span class="typ">AppConfig</span> = {\n  <span class="fn">debug</span>: <span class="typ">boolean</span>;\n  <span class="fn">port</span>: <span class="typ">number</span>;\n  <span class="fn">host</span>: <span class="typ">string</span>;\n  <span class="fn">retries</span>: <span class="typ">number</span>;\n};`,
+    keys: {
+      '"debug"': { result: 'boolean', explain: 'Looks up "debug" — finds boolean.' },
+      '"port"': { result: 'number', explain: 'Looks up "port" — finds number.' },
+      '"host"': { result: 'string', explain: 'Looks up "host" — finds string.' },
+      '"port" | "retries"': { result: 'number', explain: 'Both "port" and "retries" are number, so the union is just number.' },
+      'keyof AppConfig': { result: 'boolean | number | string', explain: 'All value types unioned together.' },
+    }
+  },
+  tuple: {
+    def: `<span class="kw">type</span> <span class="typ">Triple</span> = <span class="kw">readonly</span> [<span class="typ">string</span>, <span class="typ">number</span>, <span class="typ">boolean</span>];`,
+    keys: {
+      '0': { result: 'string', explain: 'Tuple position 0 is string.' },
+      '1': { result: 'number', explain: 'Tuple position 1 is number.' },
+      '2': { result: 'boolean', explain: 'Tuple position 2 is boolean.' },
+      'number': { result: 'string | number | boolean', explain: 'Indexing a tuple with number gives the union of all element types.' },
+      '0 | 2': { result: 'string | boolean', explain: 'Union of positions 0 and 2: string | boolean.' },
+    }
+  },
+  nested: {
+    def: `<span class="kw">type</span> <span class="typ">Nested</span> = {\n  <span class="fn">data</span>: {\n    <span class="fn">items</span>: <span class="typ">string</span>[];\n    <span class="fn">count</span>: <span class="typ">number</span>;\n  };\n  <span class="fn">status</span>: <span class="str">"ok"</span> | <span class="str">"error"</span>;\n};`,
+    keys: {
+      '"data"': { result: '{ items: string[]; count: number }', explain: 'Returns the nested object type for the "data" property.' },
+      '"status"': { result: '"ok" | "error"', explain: 'Returns the string literal union type.' },
+      'keyof Nested': { result: '{ items: string[]; count: number } | "ok" | "error"', explain: 'Union of all value types in the object.' },
+    }
+  }
+};
+
+function updatePlayground() {
+  const objKey = document.getElementById('objType').value;
+  const data = playgroundData[objKey];
+  const idxSelect = document.getElementById('idxType');
+
+  // Update index options
+  const keys = Object.keys(data.keys);
+  const currentIdx = idxSelect.value;
+  idxSelect.innerHTML = '';
+  keys.forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k;
+    idxSelect.appendChild(opt);
+  });
+  if (keys.includes(currentIdx)) idxSelect.value = currentIdx;
+
+  const idx = idxSelect.value;
+  const entry = data.keys[idx];
+  document.getElementById('resultType').textContent = entry.result;
+  document.getElementById('playgroundCode').innerHTML = data.def;
+  document.getElementById('playgroundExplain').textContent = entry.explain;
+}
+updatePlayground();
+
+// ============================================================
+// Compiler Phase Detail
+// ============================================================
+const compilerPhases = {
+  parser: {
+    color: 'var(--purple)',
+    title: 'Parser',
+    html: `
+      <h3 style="color:var(--purple)">Parser: Building the AST Node</h3>
+      <p>The parser reads <code>Person["name"]</code> and creates an <code>IndexedAccessTypeNode</code>:</p>
+      <pre><code><span class="cmt">// Internal AST representation</span>
+<span class="kw">interface</span> <span class="typ">IndexedAccessTypeNode</span> <span class="kw">extends</span> <span class="typ">TypeNode</span> {
+  <span class="fn">kind</span>: <span class="typ">SyntaxKind</span>.<span class="con">IndexedAccessType</span>;
+  <span class="fn">objectType</span>: <span class="typ">TypeNode</span>;   <span class="cmt">// Person</span>
+  <span class="fn">indexType</span>: <span class="typ">TypeNode</span>;    <span class="cmt">// "name"</span>
+}</code></pre>
+      <p>The parser distinguishes <code>T[]</code> (array) from <code>T[K]</code> (indexed access) by checking if there's a type expression inside the brackets. This happens in <code>parsePostfixTypeOrHigher()</code>.</p>
+    `
+  },
+  binder: {
+    color: 'var(--orange)',
+    title: 'Binder',
+    html: `
+      <h3 style="color:var(--orange)">Binder: Complete Skip</h3>
+      <p>The binder has <strong>zero references</strong> to <code>IndexedAccessType</code>. It does nothing.</p>
+      <p>Why? The binder's job is to create <strong>symbols</strong> — named entities in scopes (variables, functions, classes, type aliases). An indexed access type is a <em>computation on types</em>, not a declaration. It doesn't introduce any new name.</p>
+      <div class="card" style="border-color:var(--orange)">
+        <p style="color:var(--text);margin:0">Think of it this way: <code>type N = Person["name"]</code> — the binder creates a symbol for <code>N</code> (it's a type alias declaration), but the <code>Person["name"]</code> part is just the alias's value, resolved entirely by the checker.</p>
+      </div>
+    `
+  },
+  checker: {
+    color: 'var(--green)',
+    title: 'Checker',
+    html: `
+      <h3 style="color:var(--green)">Checker: Resolution</h3>
+      <p>The checker resolves <code>Person["name"]</code> to <code>string</code> in these steps:</p>
+      <div class="step-row">
+        <span class="step" style="background:rgba(78,205,196,.15);color:var(--green)">1</span>
+        <p><code>getTypeFromIndexedAccessTypeNode(node)</code> — extracts objectType (<code>Person</code>) and indexType (<code>"name"</code>) from the AST</p>
+      </div>
+      <div class="step-row">
+        <span class="step" style="background:rgba(78,205,196,.15);color:var(--green)">2</span>
+        <p><code>shouldDeferIndexedAccessType()</code> — both types are concrete (not generic), so resolve eagerly</p>
+      </div>
+      <div class="step-row">
+        <span class="step" style="background:rgba(78,205,196,.15);color:var(--green)">3</span>
+        <p><code>getPropertyTypeForIndexType()</code> — converts <code>"name"</code> to a property name string</p>
+      </div>
+      <div class="step-row">
+        <span class="step" style="background:rgba(78,205,196,.15);color:var(--green)">4</span>
+        <p><code>getPropertyOfType(Person, "name")</code> — finds the property symbol on the Person type</p>
+      </div>
+      <div class="step-row">
+        <span class="step" style="background:rgba(78,205,196,.15);color:var(--green)">5</span>
+        <p><code>getTypeOfSymbol(prop)</code> — returns <code>string</code>. Done!</p>
+      </div>
+    `
+  }
+};
+
+function setCompilerPhase(phase) {
+  const detail = document.getElementById('compiler-phase-detail');
+  const data = compilerPhases[phase];
+
+  // Update SVG highlights
+  document.querySelectorAll('.phase-clickable rect').forEach(r => r.setAttribute('stroke-width', '2'));
+  const activeGroup = document.getElementById('phase-' + phase);
+  if (activeGroup) activeGroup.querySelector('rect').setAttribute('stroke-width', '3');
+
+  detail.innerHTML = `<div class="card" style="border-color:${data.color};animation:fadeIn .3s">${data.html}</div>`;
+}
+setCompilerPhase('parser');
+
+// ============================================================
+// Distribution Visualizer
+// ============================================================
+const distModes = {
+  'union-idx': {
+    explain: '<code>T["a" | "b"]</code> distributes over the union index: the checker looks up each key separately, then unions the results. This is the most common distribution rule.',
+    draw: function(svg) {
+      svg.innerHTML = `
+        <text x="350" y="25" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600">T["a" | "b"]  =  T["a"]  |  T["b"]</text>
+
+        <rect x="120" y="45" width="200" height="45" rx="8" fill="var(--surface2)" stroke="var(--cyan)" stroke-width="2"/>
+        <text x="220" y="72" text-anchor="middle" fill="var(--cyan)" font-size="13" font-family="JetBrains Mono,monospace">T["a" | "b"]</text>
+
+        <line x1="220" y1="90" x2="130" y2="130" stroke="var(--green)" stroke-width="1.5"/>
+        <line x1="220" y1="90" x2="310" y2="130" stroke="var(--green)" stroke-width="1.5"/>
+        <text x="220" y="115" text-anchor="middle" fill="var(--green)" font-size="10">distribute</text>
+
+        <rect x="50" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--green)" stroke-width="1.5"/>
+        <text x="130" y="155" text-anchor="middle" fill="var(--green)" font-size="12" font-family="JetBrains Mono,monospace">T["a"]</text>
+
+        <rect x="230" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--green)" stroke-width="1.5"/>
+        <text x="310" y="155" text-anchor="middle" fill="var(--green)" font-size="12" font-family="JetBrains Mono,monospace">T["b"]</text>
+
+        <text x="195" y="155" text-anchor="middle" fill="var(--accent)" font-size="16" font-weight="700">|</text>
+
+        <text x="510" y="72" text-anchor="middle" fill="var(--text2)" font-size="11">Example:</text>
+        <text x="510" y="100" text-anchor="middle" fill="var(--text)" font-size="11" font-family="JetBrains Mono,monospace">Person["name"|"age"]</text>
+        <text x="510" y="125" text-anchor="middle" fill="var(--green)" font-size="11" font-family="JetBrains Mono,monospace">= string | number</text>
+      `;
+    }
+  },
+  'union-obj': {
+    explain: 'Reading from a union object type distributes to a <strong>union</strong> of results. If the object could be A or B, the property could be either type.',
+    draw: function(svg) {
+      svg.innerHTML = `
+        <text x="350" y="25" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600">(A | B)["k"]  =  A["k"]  |  B["k"]</text>
+
+        <rect x="120" y="45" width="200" height="45" rx="8" fill="var(--surface2)" stroke="var(--purple)" stroke-width="2"/>
+        <text x="220" y="72" text-anchor="middle" fill="var(--purple)" font-size="13" font-family="JetBrains Mono,monospace">(A | B)["k"]</text>
+
+        <line x1="220" y1="90" x2="130" y2="130" stroke="var(--green)" stroke-width="1.5"/>
+        <line x1="220" y1="90" x2="310" y2="130" stroke="var(--green)" stroke-width="1.5"/>
+        <text x="220" y="115" text-anchor="middle" fill="var(--green)" font-size="10">distribute (reading)</text>
+
+        <rect x="50" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--green)" stroke-width="1.5"/>
+        <text x="130" y="155" text-anchor="middle" fill="var(--green)" font-size="12" font-family="JetBrains Mono,monospace">A["k"]</text>
+
+        <rect x="230" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--green)" stroke-width="1.5"/>
+        <text x="310" y="155" text-anchor="middle" fill="var(--green)" font-size="12" font-family="JetBrains Mono,monospace">B["k"]</text>
+
+        <text x="195" y="155" text-anchor="middle" fill="var(--green)" font-size="16" font-weight="700">|</text>
+        <text x="500" y="100" text-anchor="middle" fill="var(--green)" font-size="12">Union = safe for reading</text>
+        <text x="500" y="120" text-anchor="middle" fill="var(--text2)" font-size="10">Result could be either type</text>
+      `;
+    }
+  },
+  'write': {
+    explain: 'Writing to a union object type distributes to an <strong>intersection</strong>. The value must be safe for <em>all</em> possible property types, since we don\'t know which branch runs at runtime.',
+    draw: function(svg) {
+      svg.innerHTML = `
+        <text x="350" y="25" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600">(A | B)["k"]  =  A["k"]  &  B["k"]   (writing)</text>
+
+        <rect x="120" y="45" width="200" height="45" rx="8" fill="var(--surface2)" stroke="var(--red)" stroke-width="2"/>
+        <text x="220" y="72" text-anchor="middle" fill="var(--red)" font-size="13" font-family="JetBrains Mono,monospace">(A | B)["k"]</text>
+
+        <line x1="220" y1="90" x2="130" y2="130" stroke="var(--red)" stroke-width="1.5"/>
+        <line x1="220" y1="90" x2="310" y2="130" stroke="var(--red)" stroke-width="1.5"/>
+        <text x="220" y="115" text-anchor="middle" fill="var(--red)" font-size="10">distribute (writing)</text>
+
+        <rect x="50" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--red)" stroke-width="1.5"/>
+        <text x="130" y="155" text-anchor="middle" fill="var(--red)" font-size="12" font-family="JetBrains Mono,monospace">A["k"]</text>
+
+        <rect x="230" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--red)" stroke-width="1.5"/>
+        <text x="310" y="155" text-anchor="middle" fill="var(--red)" font-size="12" font-family="JetBrains Mono,monospace">B["k"]</text>
+
+        <text x="195" y="155" text-anchor="middle" fill="var(--red)" font-size="16" font-weight="700">&</text>
+        <text x="500" y="100" text-anchor="middle" fill="var(--red)" font-size="12">Intersection = safe for writing</text>
+        <text x="500" y="120" text-anchor="middle" fill="var(--text2)" font-size="10">Value must satisfy both types</text>
+      `;
+    }
+  },
+  'intersect': {
+    explain: 'Intersection object types always distribute to an intersection, regardless of reading or writing. The object has <em>all</em> properties from both types.',
+    draw: function(svg) {
+      svg.innerHTML = `
+        <text x="350" y="25" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600">(A & B)["k"]  =  A["k"]  &  B["k"]   (always)</text>
+
+        <rect x="120" y="45" width="200" height="45" rx="8" fill="var(--surface2)" stroke="var(--yellow)" stroke-width="2"/>
+        <text x="220" y="72" text-anchor="middle" fill="var(--yellow)" font-size="13" font-family="JetBrains Mono,monospace">(A & B)["k"]</text>
+
+        <line x1="220" y1="90" x2="130" y2="130" stroke="var(--yellow)" stroke-width="1.5"/>
+        <line x1="220" y1="90" x2="310" y2="130" stroke="var(--yellow)" stroke-width="1.5"/>
+        <text x="220" y="115" text-anchor="middle" fill="var(--yellow)" font-size="10">distribute (always &)</text>
+
+        <rect x="50" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--yellow)" stroke-width="1.5"/>
+        <text x="130" y="155" text-anchor="middle" fill="var(--yellow)" font-size="12" font-family="JetBrains Mono,monospace">A["k"]</text>
+
+        <rect x="230" y="130" width="160" height="40" rx="8" fill="var(--surface2)" stroke="var(--yellow)" stroke-width="1.5"/>
+        <text x="310" y="155" text-anchor="middle" fill="var(--yellow)" font-size="12" font-family="JetBrains Mono,monospace">B["k"]</text>
+
+        <text x="195" y="155" text-anchor="middle" fill="var(--yellow)" font-size="16" font-weight="700">&</text>
+        <text x="500" y="100" text-anchor="middle" fill="var(--yellow)" font-size="12">Both properties must hold</text>
+        <text x="500" y="120" text-anchor="middle" fill="var(--text2)" font-size="10">A & B has all fields from A and B</text>
+      `;
+    }
+  }
+};
+
+function setDistMode(mode) {
+  document.querySelectorAll('#dist-btns .phase-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const svg = document.getElementById('distSvg');
+  const data = distModes[mode];
+  data.draw(svg);
+  document.getElementById('dist-explain').innerHTML = data.explain;
+}
+setDistMode('union-idx');
+
+</script>
+
+</body>
+</html>

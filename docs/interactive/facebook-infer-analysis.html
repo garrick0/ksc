@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facebook Infer: Theoretical Foundations — Abstract Interpretation, Separation Logic & Beyond</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #1c2128;
+    --bg4: #21262d;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --text-bright: #f0f6fc;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #d2a8ff;
+    --accent4: #f0883e;
+    --accent5: #ff7b72;
+    --accent6: #79c0ff;
+    --accent7: #56d364;
+    --card-shadow: 0 3px 12px rgba(0,0,0,0.4);
+    --glow: 0 0 20px rgba(88,166,255,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1f35 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(88,166,255,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 70% 50%, rgba(210,168,255,0.05) 0%, transparent 50%);
+    animation: heroGlow 8s ease-in-out infinite alternate;
+  }
+  @keyframes heroGlow {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(-2%, 1%); }
+  }
+  .hero h1 {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    position: relative;
+    z-index: 1;
+    margin-bottom: 0.5rem;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero .subtitle {
+    font-size: 1.15rem;
+    color: var(--text-dim);
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* Navigation */
+  .nav-bar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 0.85rem 1.2rem;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { color: var(--text); background: var(--bg3); }
+  .nav-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Main layout */
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  .section {
+    display: none;
+    animation: fadeIn 0.35s ease;
+  }
+  .section.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  h2 {
+    font-size: 1.7rem;
+    color: var(--text-bright);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 1.2rem;
+    color: var(--accent);
+    margin: 1.5rem 0 0.7rem;
+  }
+  h4 {
+    font-size: 1.05rem;
+    color: var(--accent3);
+    margin: 1.2rem 0 0.5rem;
+  }
+
+  p { margin-bottom: 1rem; }
+
+  /* Cards */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.2rem;
+    box-shadow: var(--card-shadow);
+  }
+  .card.highlight {
+    border-left: 3px solid var(--accent);
+  }
+  .card.green { border-left: 3px solid var(--accent2); }
+  .card.purple { border-left: 3px solid var(--accent3); }
+  .card.orange { border-left: 3px solid var(--accent4); }
+  .card.red { border-left: 3px solid var(--accent5); }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin: 1rem 0; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  @media (max-width: 800px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* Formula blocks */
+  .formula {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.2rem 1.5rem;
+    margin: 1rem 0;
+    font-family: 'Georgia', serif;
+    font-size: 1.15rem;
+    text-align: center;
+    color: var(--accent6);
+    letter-spacing: 0.5px;
+  }
+  .formula .label {
+    display: block;
+    font-family: -apple-system, sans-serif;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Code blocks */
+  .code-block {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.87rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 1rem 0;
+    color: var(--text);
+  }
+  .code-block .kw { color: var(--accent5); }
+  .code-block .fn { color: var(--accent3); }
+  .code-block .str { color: var(--accent2); }
+  .code-block .cm { color: var(--text-dim); font-style: italic; }
+  .code-block .ty { color: var(--accent); }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-right: 0.4rem;
+    margin-bottom: 0.3rem;
+  }
+  .tag.blue { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .tag.green { background: rgba(63,185,80,0.15); color: var(--accent2); }
+  .tag.purple { background: rgba(210,168,255,0.15); color: var(--accent3); }
+  .tag.orange { background: rgba(240,136,62,0.15); color: var(--accent4); }
+  .tag.red { background: rgba(255,123,114,0.15); color: var(--accent5); }
+
+  /* Collapsible */
+  .collapsible {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 1rem 0;
+    overflow: hidden;
+  }
+  .collapsible-header {
+    padding: 1rem 1.2rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: var(--text-bright);
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .collapsible-header:hover { background: var(--bg3); }
+  .collapsible-header .arrow {
+    transition: transform 0.2s;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+  .collapsible-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0 1.2rem;
+  }
+  .collapsible.open .collapsible-body {
+    max-height: 3000px;
+    padding: 0 1.2rem 1.2rem;
+  }
+
+  /* Tabs inside sections */
+  .inner-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin: 1rem 0 0;
+  }
+  .inner-tab {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .inner-tab:hover { color: var(--text); }
+  .inner-tab.active { color: var(--accent3); border-bottom-color: var(--accent3); }
+  .inner-tab-content { display: none; padding-top: 1rem; }
+  .inner-tab-content.active { display: block; }
+
+  /* Diagrams */
+  .diagram {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    margin: 1.5rem 0;
+    text-align: center;
+    overflow-x: auto;
+  }
+  .diagram svg { max-width: 100%; height: auto; }
+
+  /* Timeline */
+  .timeline {
+    position: relative;
+    padding-left: 2.5rem;
+    margin: 1.5rem 0;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2.5rem;
+    top: 0.35rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+  .timeline-item .year {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.9rem;
+    margin-bottom: 0.2rem;
+  }
+  .timeline-item .event {
+    color: var(--text);
+    font-size: 0.92rem;
+  }
+
+  /* Comparison table */
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .comparison-table th {
+    background: var(--bg3);
+    color: var(--accent);
+    padding: 0.7rem 1rem;
+    text-align: left;
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .comparison-table td {
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .comparison-table tr:nth-child(even) td { background: var(--bg2); }
+
+  /* Flowchart boxes */
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.5rem 0;
+  }
+  .flow-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.7rem 1.2rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-align: center;
+    min-width: 120px;
+  }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.secondary { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.tertiary { border-color: var(--accent2); color: var(--accent2); }
+  .flow-arrow {
+    color: var(--text-dim);
+    font-size: 1.3rem;
+    font-weight: bold;
+  }
+
+  /* Quiz section */
+  .quiz-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .quiz-card:hover { border-color: var(--accent); box-shadow: var(--glow); }
+  .quiz-q {
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 0.5rem;
+  }
+  .quiz-a {
+    display: none;
+    color: var(--accent2);
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 0.8rem;
+  }
+  .quiz-card.revealed .quiz-a { display: block; }
+  .quiz-hint {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* Verdict badge */
+  .verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 1rem;
+    margin: 0.5rem 0;
+  }
+  .verdict.yes {
+    background: rgba(63,185,80,0.15);
+    color: var(--accent2);
+    border: 1px solid rgba(63,185,80,0.3);
+  }
+  .verdict.plus {
+    background: rgba(88,166,255,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(88,166,255,0.3);
+  }
+
+  /* Emphasis list */
+  ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.4rem; }
+  li strong { color: var(--text-bright); }
+
+  /* Annotation callout */
+  .callout {
+    background: rgba(88,166,255,0.08);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.92rem;
+  }
+  .callout.warn {
+    background: rgba(240,136,62,0.08);
+    border-color: rgba(240,136,62,0.2);
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  /* Animated connector */
+  .connector-line {
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    margin: 0.5rem auto;
+    border-radius: 1px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Facebook <span>Infer</span></h1>
+  <p class="subtitle">
+    How Infer combines Cousot's abstract interpretation, Reynolds's separation logic,
+    O'Hearn's bi-abduction, and incorrectness logic into an industrial-scale static analyzer
+  </p>
+</div>
+
+<!-- NAV -->
+<nav class="nav-bar" id="nav">
+  <button class="nav-btn active" data-section="verdict">The Verdict</button>
+  <button class="nav-btn" data-section="cousot">Cousot's AI</button>
+  <button class="nav-btn" data-section="seplogic">Separation Logic</button>
+  <button class="nav-btn" data-section="biabduction">Bi-Abduction</button>
+  <button class="nav-btn" data-section="architecture">Architecture</button>
+  <button class="nav-btn" data-section="checkers">Checkers</button>
+  <button class="nav-btn" data-section="incorrectness">Incorrectness Logic</button>
+  <button class="nav-btn" data-section="timeline">History</button>
+  <button class="nav-btn" data-section="comparison">AI vs SL</button>
+  <button class="nav-btn" data-section="quiz">Quiz</button>
+</nav>
+
+<div class="container">
+
+<!-- ===== SECTION: VERDICT ===== -->
+<div class="section active" id="verdict">
+  <h2>Does Infer Use Cousot's Abstract Interpretation?</h2>
+
+  <div class="verdict yes">YES — Abstract Interpretation is a foundational pillar</div>
+  <div class="verdict plus">PLUS — It goes far beyond classical AI with three additional theories</div>
+
+  <p style="margin-top:1rem;">
+    Infer is not a "pure" Cousot-style abstract interpreter. It is a <strong>hybrid system</strong> that
+    combines <em>four</em> distinct theoretical foundations, each contributing a critical capability:
+  </p>
+
+  <div class="grid-2">
+    <div class="card highlight">
+      <h4>1. Abstract Interpretation <span class="tag blue">Cousot & Cousot, 1977</span></h4>
+      <p>Provides the <strong>fixpoint computation engine</strong> — loop invariants, convergence via widening/narrowing,
+        abstract domains with join/meet/widen operations. This is the computational backbone.</p>
+    </div>
+    <div class="card green">
+      <h4>2. Separation Logic <span class="tag green">Reynolds & O'Hearn, 2002</span></h4>
+      <p>Provides <strong>heap reasoning</strong> — the separating conjunction (∗) lets Infer reason about
+        disjoint memory regions, enabling local reasoning about pointer-manipulating programs.</p>
+    </div>
+    <div class="card purple">
+      <h4>3. Bi-Abduction <span class="tag purple">Calcagno et al., POPL 2009</span></h4>
+      <p>Provides <strong>compositional scalability</strong> — automatically infers pre/post specifications
+        for each procedure independently, enabling incremental analysis of million-line codebases.</p>
+    </div>
+    <div class="card orange">
+      <h4>4. Incorrectness Logic <span class="tag orange">O'Hearn, 2020</span></h4>
+      <p>Provides <strong>true bug finding</strong> — under-approximate reasoning that guarantees reported
+        bugs are reachable, reducing false positives. Powers the modern Pulse analyzer.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Key insight:</strong> Cousot's abstract interpretation provides the <em>how</em> (fixpoint computation
+    over abstract domains), while separation logic provides the <em>what</em> (the abstract domain itself —
+    symbolic heaps). Bi-abduction provides the <em>scale</em> (compositional procedure summaries), and
+    incorrectness logic provides the <em>precision</em> (under-approximate bug reports).
+  </div>
+
+  <h3>The Four-Theory Stack</h3>
+  <div class="diagram">
+    <svg width="700" height="340" viewBox="0 0 700 340">
+      <!-- Layers -->
+      <defs>
+        <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#58a6ff;stop-opacity:0.15"/>
+          <stop offset="100%" style="stop-color:#58a6ff;stop-opacity:0.05"/>
+        </linearGradient>
+        <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#3fb950;stop-opacity:0.15"/>
+          <stop offset="100%" style="stop-color:#3fb950;stop-opacity:0.05"/>
+        </linearGradient>
+        <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#d2a8ff;stop-opacity:0.15"/>
+          <stop offset="100%" style="stop-color:#d2a8ff;stop-opacity:0.05"/>
+        </linearGradient>
+        <linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#f0883e;stop-opacity:0.15"/>
+          <stop offset="100%" style="stop-color:#f0883e;stop-opacity:0.05"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Layer 4: Incorrectness Logic -->
+      <rect x="50" y="10" width="600" height="65" rx="8" fill="url(#g4)" stroke="#f0883e" stroke-width="1.5"/>
+      <text x="80" y="48" fill="#f0883e" font-weight="700" font-size="15">Incorrectness Logic (2020)</text>
+      <text x="380" y="48" fill="#8b949e" font-size="13">Under-approximate bug reports — no false positives</text>
+
+      <!-- Layer 3: Bi-Abduction -->
+      <rect x="50" y="90" width="600" height="65" rx="8" fill="url(#g3)" stroke="#d2a8ff" stroke-width="1.5"/>
+      <text x="80" y="128" fill="#d2a8ff" font-weight="700" font-size="15">Bi-Abduction (2009)</text>
+      <text x="330" y="128" fill="#8b949e" font-size="13">Compositional specs — analyze procedures independently</text>
+
+      <!-- Layer 2: Separation Logic -->
+      <rect x="50" y="170" width="600" height="65" rx="8" fill="url(#g2)" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="80" y="208" fill="#3fb950" font-weight="700" font-size="15">Separation Logic (2002)</text>
+      <text x="340" y="208" fill="#8b949e" font-size="13">Heap reasoning — separating conjunction, frame rule</text>
+
+      <!-- Layer 1: Abstract Interpretation -->
+      <rect x="50" y="250" width="600" height="65" rx="8" fill="url(#g1)" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="80" y="288" fill="#58a6ff" font-weight="700" font-size="15">Abstract Interpretation (1977)</text>
+      <text x="380" y="288" fill="#8b949e" font-size="13">Fixpoint engine — lattice, widening, convergence</text>
+
+      <!-- Arrows connecting layers -->
+      <line x1="350" y1="75" x2="350" y2="90" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <line x1="350" y1="155" x2="350" y2="170" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <line x1="350" y1="235" x2="350" y2="250" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+      <!-- Side label -->
+      <text x="15" y="180" fill="#8b949e" font-size="12" transform="rotate(-90, 15, 180)" text-anchor="middle">Foundation → Application</text>
+    </svg>
+  </div>
+</div>
+
+<!-- ===== SECTION: COUSOT ===== -->
+<div class="section" id="cousot">
+  <h2>Cousot's Abstract Interpretation</h2>
+  <p>
+    Abstract interpretation, introduced by Patrick Cousot and Radhia Cousot in their landmark
+    1977 POPL paper, provides a <strong>unified lattice model for static analysis</strong> by constructing
+    or approximating fixpoints of semantic equations.
+  </p>
+
+  <h3>Core Ideas</h3>
+
+  <div class="card highlight">
+    <h4>The Rule of Signs — AI in 30 Seconds</h4>
+    <p>The simplest example of abstract interpretation: to determine the sign of <code>-1515 * 17</code>,
+      you don't compute the actual result. Instead, you work in the abstract domain <code>{(+), (-), (±)}</code>
+      using the rule of signs:</p>
+    <div class="formula">
+      <span class="label">Concrete</span>
+      -1515 × 17 = -25755
+    </div>
+    <div class="formula">
+      <span class="label">Abstract</span>
+      (-) × (+) = (-)
+    </div>
+    <p>The abstract computation is <em>sound</em> (the sign is correct) and <em>fast</em> (no big multiplication needed).
+      This is abstract interpretation in miniature.</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h4>Concrete Domain (C)</h4>
+      <p>The actual program semantics — potentially infinite sets of program states, memory configurations,
+        execution traces. <strong>Uncomputable</strong> in general.</p>
+    </div>
+    <div class="card">
+      <h4>Abstract Domain (A)</h4>
+      <p>A simplified representation — intervals, signs, pointer graphs, shapes.
+        Must form a <strong>lattice</strong> with partial order ⊑, join ⊔, meet ⊓.</p>
+    </div>
+  </div>
+
+  <h3>The Galois Connection</h3>
+  <p>The formal bridge between concrete and abstract worlds:</p>
+
+  <div class="formula">
+    <span class="label">Galois Connection</span>
+    (C, ⊆) ⇆ (A, ⊑) &nbsp;&nbsp; via &nbsp;&nbsp; α : C → A &nbsp;(abstraction) &nbsp;&nbsp; γ : A → C &nbsp;(concretization)
+  </div>
+
+  <div class="formula">
+    <span class="label">Soundness Condition</span>
+    ∀ c ∈ C, a ∈ A : &nbsp; α(c) ⊑ a &nbsp;⟺&nbsp; c ⊆ γ(a)
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span>How Fixpoint Computation Works</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-body">
+      <p>Programs with loops create recursive equations. Abstract interpretation computes their solutions:</p>
+      <ol style="padding-left: 1.5rem; margin: 1rem 0;">
+        <li><strong>Initialize</strong>: Start with ⊥ (bottom of the lattice)</li>
+        <li><strong>Iterate</strong>: Apply abstract transfer function F♯ repeatedly: ⊥, F♯(⊥), F♯(F♯(⊥)), ...</li>
+        <li><strong>Converge</strong>: When F♯ⁿ(⊥) = F♯ⁿ⁺¹(⊥), we have found the fixpoint</li>
+        <li><strong>Widen if needed</strong>: If the lattice has infinite ascending chains, apply widening (∇) to force convergence</li>
+      </ol>
+      <div class="formula">
+        <span class="label">Widening</span>
+        x ∇ y ⊒ x ⊔ y &nbsp;&nbsp;&nbsp; (overshoots the join to guarantee termination)
+      </div>
+      <p>The result is a <strong>sound over-approximation</strong> of all possible program behaviors.</p>
+    </div>
+  </div>
+
+  <h3>How Infer Uses Abstract Interpretation</h3>
+
+  <div class="card green">
+    <p>Infer's <strong>Infer.AI framework</strong> is a textbook implementation of Cousot's theory.
+      To build a checker, you provide:</p>
+    <div class="grid-3" style="margin-top: 0.8rem;">
+      <div style="text-align:center;">
+        <div class="tag blue">1</div>
+        <p><strong>Abstract Domain</strong><br/>Type + ⊑ + ⊔ + ∇</p>
+      </div>
+      <div style="text-align:center;">
+        <div class="tag blue">2</div>
+        <p><strong>Transfer Functions</strong><br/>stmt → state → state</p>
+      </div>
+      <div style="text-align:center;">
+        <div class="tag blue">3</div>
+        <p><strong>Summary Type</strong><br/>For interprocedural</p>
+      </div>
+    </div>
+    <p style="margin-top: 0.8rem;">The framework handles iteration, convergence, widening, and the interprocedural worklist algorithm automatically.</p>
+  </div>
+
+  <div class="code-block">
+<span class="cm">(* OCaml: Minimal abstract domain interface in Infer *)</span>
+<span class="kw">module type</span> <span class="ty">AbstractDomain</span> = <span class="kw">sig</span>
+  <span class="kw">type</span> t                              <span class="cm">(* abstract state *)</span>
+  <span class="kw">val</span> <span class="fn">leq</span> : lhs:t -> rhs:t -> bool     <span class="cm">(* partial order ⊑ *)</span>
+  <span class="kw">val</span> <span class="fn">join</span> : t -> t -> t               <span class="cm">(* least upper bound ⊔ *)</span>
+  <span class="kw">val</span> <span class="fn">widen</span> : prev:t -> next:t -> t    <span class="cm">(* widening ∇ *)</span>
+  <span class="kw">val</span> <span class="fn">pp</span> : Format.formatter -> t -> unit <span class="cm">(* pretty-print *)</span>
+<span class="kw">end</span>
+  </div>
+</div>
+
+<!-- ===== SECTION: SEPARATION LOGIC ===== -->
+<div class="section" id="seplogic">
+  <h2>Separation Logic</h2>
+  <p>
+    Separation logic, developed by John C. Reynolds and Peter O'Hearn (building on work by Rod Burstall),
+    extends Hoare logic with operators for reasoning about <strong>mutable heap structures</strong>.
+    It is the abstract domain that makes Infer's memory analyses possible.
+  </p>
+
+  <h3>Why Hoare Logic Isn't Enough</h3>
+  <div class="card red">
+    <p>Classical Hoare logic can't distinguish between:</p>
+    <div class="code-block">
+<span class="cm">// Are x and y aliases? Hoare logic can't express this distinction.</span>
+*x = 5;     <span class="cm">// Does this also change *y?</span>
+*y = 10;    <span class="cm">// Does this also change *x?</span>
+    </div>
+    <p>Without knowing whether <code>x</code> and <code>y</code> point to the same memory cell,
+      reasoning about pointer programs is unsound.</p>
+  </div>
+
+  <h3>The Separating Conjunction (∗)</h3>
+  <div class="formula">
+    <span class="label">Core Operator</span>
+    A ∗ B &nbsp;&nbsp; holds when the heap splits into <strong>two disjoint parts</strong>, one satisfying A and one satisfying B
+  </div>
+
+  <div class="grid-2">
+    <div class="card highlight">
+      <h4>Points-to: x ↦ v</h4>
+      <p>Cell <code>x</code> exists in the heap and contains value <code>v</code>. Describes <strong>exactly one</strong> allocated cell.</p>
+    </div>
+    <div class="card green">
+      <h4>Separation: x ↦ v ∗ y ↦ w</h4>
+      <p>Two <strong>distinct</strong> cells exist: <code>x</code> holds <code>v</code>, <code>y</code> holds <code>w</code>, and
+        <strong>x ≠ y</strong> is guaranteed by the separating conjunction.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span>Visual: How ∗ Partitions the Heap</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="diagram">
+        <svg width="600" height="200" viewBox="0 0 600 200">
+          <!-- Full heap -->
+          <rect x="20" y="20" width="560" height="60" rx="6" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="5,5"/>
+          <text x="300" y="15" fill="#8b949e" font-size="12" text-anchor="middle">Full Heap</text>
+
+          <!-- Cells -->
+          <rect x="40" y="35" width="60" height="30" rx="4" fill="rgba(88,166,255,0.2)" stroke="#58a6ff"/>
+          <text x="70" y="55" fill="#58a6ff" font-size="12" text-anchor="middle">x→y</text>
+
+          <rect x="120" y="35" width="60" height="30" rx="4" fill="rgba(63,185,80,0.2)" stroke="#3fb950"/>
+          <text x="150" y="55" fill="#3fb950" font-size="12" text-anchor="middle">y→x</text>
+
+          <rect x="200" y="35" width="60" height="30" rx="4" fill="rgba(139,148,158,0.15)" stroke="#8b949e"/>
+          <text x="230" y="55" fill="#8b949e" font-size="12" text-anchor="middle">z→0</text>
+
+          <rect x="280" y="35" width="60" height="30" rx="4" fill="rgba(139,148,158,0.15)" stroke="#8b949e"/>
+          <text x="310" y="55" fill="#8b949e" font-size="12" text-anchor="middle">w→1</text>
+
+          <rect x="360" y="35" width="60" height="30" rx="4" fill="rgba(139,148,158,0.15)" stroke="#8b949e"/>
+          <text x="390" y="55" fill="#8b949e" font-size="12" text-anchor="middle">...</text>
+
+          <!-- Separated parts -->
+          <text x="175" y="110" fill="#c9d1d9" font-size="14" text-anchor="middle" font-weight="700">x ↦ y &nbsp;∗&nbsp; y ↦ x</text>
+          <text x="175" y="130" fill="#8b949e" font-size="12" text-anchor="middle">only describes the blue + green cells</text>
+
+          <!-- Left part -->
+          <rect x="40" y="145" width="120" height="40" rx="6" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1"/>
+          <text x="100" y="170" fill="#58a6ff" font-size="12" text-anchor="middle">sub-heap A: x ↦ y</text>
+
+          <!-- Star -->
+          <text x="195" y="170" fill="#d2a8ff" font-size="20" text-anchor="middle" font-weight="700">∗</text>
+
+          <!-- Right part -->
+          <rect x="230" y="145" width="120" height="40" rx="6" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-width="1"/>
+          <text x="290" y="170" fill="#3fb950" font-size="12" text-anchor="middle">sub-heap B: y ↦ x</text>
+
+          <!-- Disjoint label -->
+          <text x="480" y="170" fill="#f0883e" font-size="11" text-anchor="middle">disjoint = no aliasing</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <h3>The Frame Rule</h3>
+  <p>The most important inference rule in separation logic — it enables <strong>local reasoning</strong>:</p>
+
+  <div class="formula">
+    <span class="label">Frame Rule</span>
+    If &nbsp; {P} C {Q} &nbsp; then &nbsp; {P ∗ Frame} C {Q ∗ Frame}
+  </div>
+
+  <div class="card highlight">
+    <p><strong>Meaning:</strong> If program <code>C</code> only needs heap described by <code>P</code>,
+      then any additional heap (<code>Frame</code>) remains completely untouched.
+      You can reason about <code>C</code> using <em>only</em> the memory it accesses — ignoring the
+      rest of a potentially gigabyte-sized heap.</p>
+    <p style="margin-top:0.5rem;"><strong>Why it matters for Infer:</strong> This is why Infer can analyze individual functions
+      without knowing the full program state. Each function's spec mentions only the heap it touches.</p>
+  </div>
+
+  <h3>Separation Logic as an Abstract Domain</h3>
+  <div class="callout">
+    <strong>The connection to Cousot:</strong> Separation logic formulae (symbolic heaps) serve as the
+    <em>abstract domain</em> in Infer's abstract interpretation. The Galois connection maps concrete
+    heap states to symbolic heap formulas. Transfer functions map SL pre-conditions to SL post-conditions.
+    Loop invariants are computed as fixpoints over this SL domain using widening.
+  </div>
+</div>
+
+<!-- ===== SECTION: BI-ABDUCTION ===== -->
+<div class="section" id="biabduction">
+  <h2>Bi-Abduction</h2>
+  <p>
+    Bi-abduction is the algorithmic breakthrough that makes Infer <strong>scale to millions of lines</strong>.
+    Introduced by Calcagno, Distefano, O'Hearn, and Yang at POPL 2009 (Gödel Prize 2016), it enables
+    fully automatic, compositional analysis.
+  </p>
+
+  <h3>The Problem</h3>
+  <div class="card red">
+    <p>Traditional whole-program analysis requires analyzing all code at once. For Facebook's mobile apps
+      (tens of millions of lines), this is infeasible. We need <strong>per-procedure analysis</strong>
+      that can run on code diffs in minutes.</p>
+  </div>
+
+  <h3>What is Abduction?</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>Deduction (forward)</h4>
+      <div class="formula">A ⊢ B &nbsp;&nbsp; "A implies B"</div>
+      <p>Given A, conclude B. Standard logic.</p>
+    </div>
+    <div class="card purple">
+      <h4>Abduction (backward)</h4>
+      <div class="formula">A ∗ <span style="color:var(--accent4)">?X</span> ⊢ B &nbsp;&nbsp; "what's missing?"</div>
+      <p>Given A and B, find <strong>what additional facts X</strong> are needed to make A imply B.
+        Inference of missing preconditions.</p>
+    </div>
+  </div>
+
+  <h3>Bi-Abduction = Abduction + Frame Inference</h3>
+  <div class="formula">
+    <span class="label">Bi-Abduction Query</span>
+    A ∗ <span style="color:var(--accent4)">?antiframe</span> ⊢ B ∗ <span style="color:var(--accent3)">?frame</span>
+  </div>
+
+  <div class="grid-2">
+    <div class="card orange">
+      <h4>Antiframe <span style="color:var(--accent4)">?antiframe</span></h4>
+      <p>The <strong>missing precondition</strong> — what additional heap state must exist before
+        the operation for it to succeed. Becomes part of the procedure's pre-spec.</p>
+    </div>
+    <div class="card purple">
+      <h4>Frame <span style="color:var(--accent3)">?frame</span></h4>
+      <p>The <strong>unchanged remainder</strong> — heap state that passes through the operation
+        untouched. Carried forward to the post-spec.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span>Worked Example: Inferring Specs Automatically</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-body">
+      <p>Consider analyzing this code <em>without any annotations</em>:</p>
+      <div class="code-block">
+<span class="fn">closeResource</span>(r1);   <span class="cm">// spec: {r ↦ open} close(r) {r ↦ closed}</span>
+<span class="fn">closeResource</span>(r2);
+      </div>
+
+      <p><strong>Step 1:</strong> Analyze first call. Current state is empty (emp).</p>
+      <div class="formula">
+        emp ∗ <span style="color:var(--accent4)">?anti₁</span> ⊢ r1 ↦ open ∗ <span style="color:var(--accent3)">?frame₁</span>
+      </div>
+      <p>Solution: <span style="color:var(--accent4)">anti₁ = r1 ↦ open</span>, <span style="color:var(--accent3)">frame₁ = emp</span></p>
+      <p>After call: state is <code>r1 ↦ closed</code></p>
+
+      <p style="margin-top:1rem;"><strong>Step 2:</strong> Analyze second call. Current state is <code>r1 ↦ closed</code>.</p>
+      <div class="formula">
+        r1 ↦ closed ∗ <span style="color:var(--accent4)">?anti₂</span> ⊢ r2 ↦ open ∗ <span style="color:var(--accent3)">?frame₂</span>
+      </div>
+      <p>Solution: <span style="color:var(--accent4)">anti₂ = r2 ↦ open</span>, <span style="color:var(--accent3)">frame₂ = r1 ↦ closed</span></p>
+      <p>After call: state is <code>r1 ↦ closed ∗ r2 ↦ closed</code></p>
+
+      <p style="margin-top:1rem;"><strong>Result:</strong> Infer automatically discovered:</p>
+      <div class="formula">
+        <span class="label">Inferred Specification</span>
+        {r1 ↦ open ∗ r2 ↦ open} &nbsp; code &nbsp; {r1 ↦ closed ∗ r2 ↦ closed}
+      </div>
+      <p>No programmer annotations required. The antiframes accumulate into preconditions,
+        the frames carry through to postconditions.</p>
+    </div>
+  </div>
+
+  <h3>Why This Enables Scale</h3>
+  <div class="flow">
+    <div class="flow-box primary">Analyze proc A<br/><small>infer pre/post</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box secondary">Store summary<br/><small>SL formula</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box tertiary">Caller uses summary<br/><small>no re-analysis</small></div>
+  </div>
+  <ul>
+    <li><strong>Compositional:</strong> Each procedure analyzed once, producing a summary</li>
+    <li><strong>Incremental:</strong> When code changes, only re-analyze affected procedures</li>
+    <li><strong>Parallelizable:</strong> Independent procedures can be analyzed concurrently</li>
+    <li><strong>Bottom-up:</strong> Callees before callers — summaries compose</li>
+  </ul>
+</div>
+
+<!-- ===== SECTION: ARCHITECTURE ===== -->
+<div class="section" id="architecture">
+  <h2>Infer's Architecture</h2>
+
+  <h3>High-Level Pipeline</h3>
+  <div class="diagram">
+    <svg width="700" height="180" viewBox="0 0 700 180">
+      <!-- Capture phase -->
+      <rect x="20" y="40" width="130" height="100" rx="8" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="85" y="70" fill="#58a6ff" font-size="14" font-weight="700" text-anchor="middle">Capture</text>
+      <text x="85" y="90" fill="#8b949e" font-size="11" text-anchor="middle">Source → SIL</text>
+      <text x="85" y="106" fill="#8b949e" font-size="10" text-anchor="middle">Java / C / C++</text>
+      <text x="85" y="120" fill="#8b949e" font-size="10" text-anchor="middle">→ Smallfoot IL</text>
+
+      <line x1="150" y1="90" x2="185" y2="90" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+      <!-- Analysis phase -->
+      <rect x="185" y="20" width="280" height="140" rx="8" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="325" y="48" fill="#3fb950" font-size="14" font-weight="700" text-anchor="middle">Analysis Engine</text>
+
+      <!-- Sub-boxes -->
+      <rect x="200" y="60" width="115" height="35" rx="4" fill="rgba(210,168,255,0.1)" stroke="#d2a8ff"/>
+      <text x="257" y="82" fill="#d2a8ff" font-size="11" text-anchor="middle">AI Framework</text>
+
+      <rect x="335" y="60" width="115" height="35" rx="4" fill="rgba(240,136,62,0.1)" stroke="#f0883e"/>
+      <text x="392" y="82" fill="#f0883e" font-size="11" text-anchor="middle">SL + Bi-Abduction</text>
+
+      <rect x="200" y="105" width="250" height="40" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff"/>
+      <text x="325" y="130" fill="#58a6ff" font-size="11" text-anchor="middle">Checkers: Pulse · RacerD · Starvation · Topl · ...</text>
+
+      <line x1="465" y1="90" x2="500" y2="90" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+      <!-- Reporting phase -->
+      <rect x="500" y="40" width="130" height="100" rx="8" fill="rgba(255,123,114,0.1)" stroke="#ff7b72" stroke-width="1.5"/>
+      <text x="565" y="70" fill="#ff7b72" font-size="14" font-weight="700" text-anchor="middle">Report</text>
+      <text x="565" y="90" fill="#8b949e" font-size="11" text-anchor="middle">Issues → JSON</text>
+      <text x="565" y="106" fill="#8b949e" font-size="10" text-anchor="middle">null deref, leak,</text>
+      <text x="565" y="120" fill="#8b949e" font-size="10" text-anchor="middle">race, use-after-free</text>
+
+      <!-- Arrowhead -->
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#8b949e"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <h3>Implementation Details</h3>
+  <div class="inner-tabs" id="archTabs">
+    <button class="inner-tab active" data-tab="arch-lang">Language</button>
+    <button class="inner-tab" data-tab="arch-sil">SIL</button>
+    <button class="inner-tab" data-tab="arch-framework">Infer.AI</button>
+    <button class="inner-tab" data-tab="arch-interproc">Interprocedural</button>
+  </div>
+
+  <div class="inner-tab-content active" id="arch-lang">
+    <div class="card">
+      <h4>Written in OCaml</h4>
+      <p>Infer's core engine is implemented in OCaml — a natural fit for symbolic computation,
+        pattern matching on ASTs, and implementing abstract domains. OCaml's type system
+        helps ensure the soundness of abstract domain implementations.</p>
+      <p>Frontend translators (for Java via javac, C/C++/ObjC via Clang) convert source code
+        into Infer's intermediate representation.</p>
+    </div>
+  </div>
+
+  <div class="inner-tab-content" id="arch-sil">
+    <div class="card">
+      <h4>SIL — Smallfoot Intermediate Language</h4>
+      <p>All source languages are translated to SIL, a simple imperative language with:</p>
+      <ul>
+        <li>Variable assignments, loads, stores</li>
+        <li>Heap operations (alloc, dealloc, field access)</li>
+        <li>Control flow (branches, loops)</li>
+        <li>Procedure calls</li>
+      </ul>
+      <p>Named after <strong>Smallfoot</strong>, an early separation logic verifier by Berdine, Calcagno & O'Hearn
+        that proved the feasibility of automated SL reasoning.</p>
+      <p style="margin-top:0.5rem;">A newer <strong>"Textual"</strong> format allows frontends to emit SIL as text or JSON,
+        enabling support for new languages (e.g., Infer# for C#/.NET).</p>
+    </div>
+  </div>
+
+  <div class="inner-tab-content" id="arch-framework">
+    <div class="card">
+      <h4>Infer.AI — The Abstract Interpretation Framework</h4>
+      <p>A general-purpose framework for building new checkers. You provide:</p>
+      <div class="code-block">
+<span class="cm">(* 1. Abstract Domain *)</span>
+<span class="kw">module</span> <span class="ty">Domain</span> : <span class="ty">AbstractDomain.S</span>       <span class="cm">(* leq, join, widen *)</span>
+
+<span class="cm">(* 2. Transfer Functions *)</span>
+<span class="kw">module</span> <span class="ty">TransferFunctions</span> = <span class="kw">struct</span>
+  <span class="kw">let</span> <span class="fn">exec_instr</span> astate instr =          <span class="cm">(* SIL instruction → new state *)</span>
+    <span class="kw">match</span> instr <span class="kw">with</span>
+    | Load _ -> ...
+    | Store _ -> ...
+    | Call _ -> ...                         <span class="cm">(* look up callee summary *)</span>
+<span class="kw">end</span>
+
+<span class="cm">(* 3. Configure iteration *)</span>
+<span class="kw">module</span> <span class="ty">Analyzer</span> = AbstractInterpreter.<span class="fn">MakeRPO</span>(TransferFunctions)
+      </div>
+      <p>The framework then handles: CFG construction, worklist iteration, fixpoint convergence,
+        widening at loop heads, and interprocedural summary composition.</p>
+    </div>
+  </div>
+
+  <div class="inner-tab-content" id="arch-interproc">
+    <div class="card">
+      <h4>Compositional Interprocedural Analysis</h4>
+      <p>Infer's interprocedural analysis is <strong>bottom-up and modular</strong>:</p>
+      <ol style="padding-left: 1.5rem; margin: 0.5rem 0;">
+        <li>Build a call graph of the program</li>
+        <li>Analyze leaf procedures first (no callees)</li>
+        <li>For each procedure, compute a <strong>summary</strong> (pre/post Hoare triple in SL)</li>
+        <li>When analyzing a caller, <strong>instantiate callee summaries</strong> at call sites</li>
+        <li>Bi-abduction infers the missing anti-frame for each call</li>
+        <li>Summaries are cached — only re-computed when code changes</li>
+      </ol>
+      <div class="callout" style="margin-top: 1rem;">
+        <strong>Key property:</strong> Summaries are context-independent — they describe procedure behavior
+        for <em>any</em> calling context. This is what makes the analysis truly compositional and incremental.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION: CHECKERS ===== -->
+<div class="section" id="checkers">
+  <h2>Infer's Checkers</h2>
+  <p>
+    Infer ships with multiple specialized checkers, each targeting a different class of bugs.
+    Some use the full SL+bi-abduction machinery, others use simpler abstract domains via the Infer.AI framework.
+  </p>
+
+  <div class="grid-2">
+    <div class="card highlight">
+      <h4>Pulse <span class="tag blue">Primary</span> <span class="tag orange">ISL</span></h4>
+      <p><strong>Memory safety</strong> — null dereferences, use-after-free, memory leaks, uninitialized values.
+        The flagship analyzer, using incorrectness separation logic for under-approximate reasoning.
+        Replaced the original Biabduction checker.</p>
+      <ul>
+        <li>Abstract domain: symbolic heaps + value history</li>
+        <li>Tracks object lifetimes and ownership</li>
+        <li>Reports only <em>true</em> bugs (no false positives goal)</li>
+      </ul>
+    </div>
+    <div class="card green">
+      <h4>Biabduction <span class="tag green">Legacy</span></h4>
+      <p><strong>Original memory checker</strong> — the classic SL + bi-abduction analysis.
+        Over-approximate (sound but may have false positives). Produces pre/post summaries
+        for every procedure. Being gradually replaced by Pulse.</p>
+    </div>
+    <div class="card purple">
+      <h4>RacerD <span class="tag purple">Concurrency</span></h4>
+      <p><strong>Data race detection</strong> for Java/Android. Uses a custom abstract domain tracking
+        lock state, thread identity, and shared memory accesses. Compositional — each method
+        gets a "thread-safety summary".</p>
+      <ul>
+        <li>Models Java's synchronized, ReentrantLock, etc.</li>
+        <li>Ownership-based reasoning reduces false positives</li>
+      </ul>
+    </div>
+    <div class="card orange">
+      <h4>Starvation <span class="tag orange">Concurrency</span></h4>
+      <p><strong>Deadlock and starvation detection</strong>. Tracks lock acquisition orders across
+        threads and reports potential deadlocks when conflicting orders are found.</p>
+    </div>
+    <div class="card">
+      <h4>Topl <span class="tag blue">Temporal</span></h4>
+      <p><strong>User-defined temporal properties</strong>. You define a state machine representing
+        a property (e.g., "file must be closed after open"), and Topl monitors it using Pulse
+        as its underlying memory model. Essentially a typestate checker.</p>
+    </div>
+    <div class="card">
+      <h4>Litho <span class="tag red">Android</span></h4>
+      <p><strong>Android-specific thread safety</strong>. Checks that Litho component lifecycle methods
+        don't access state from the wrong thread. Domain-specific variant of thread-safety analysis.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span>Theory Used by Each Checker</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-body">
+      <table class="comparison-table">
+        <tr>
+          <th>Checker</th>
+          <th>Abstract Interpretation</th>
+          <th>Separation Logic</th>
+          <th>Bi-Abduction</th>
+          <th>Incorrectness Logic</th>
+        </tr>
+        <tr>
+          <td><strong>Pulse</strong></td>
+          <td>Fixpoint engine</td>
+          <td>Symbolic heaps</td>
+          <td>Spec inference</td>
+          <td>Under-approx reports</td>
+        </tr>
+        <tr>
+          <td><strong>Biabduction</strong></td>
+          <td>Fixpoint engine</td>
+          <td>Symbolic heaps</td>
+          <td>Core mechanism</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><strong>RacerD</strong></td>
+          <td>Fixpoint engine</td>
+          <td>Ownership model</td>
+          <td>Thread summaries</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><strong>Starvation</strong></td>
+          <td>Fixpoint engine</td>
+          <td>—</td>
+          <td>Lock-order summaries</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><strong>Topl</strong></td>
+          <td>Fixpoint engine</td>
+          <td>Via Pulse</td>
+          <td>Via Pulse</td>
+          <td>Via Pulse</td>
+        </tr>
+        <tr>
+          <td><strong>Liveness</strong></td>
+          <td>Backward fixpoint</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+      </table>
+      <p style="margin-top:0.8rem;">
+        <strong>Note:</strong> Abstract interpretation (fixpoint computation) is used by <em>every</em> checker —
+        it is the universal computational engine. Separation logic and bi-abduction are used primarily by
+        the heap-reasoning checkers.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION: INCORRECTNESS LOGIC ===== -->
+<div class="section" id="incorrectness">
+  <h2>Incorrectness Logic</h2>
+  <p>
+    Incorrectness Logic (IL), introduced by Peter O'Hearn in 2020, is a radical departure from traditional
+    program verification. While Hoare Logic proves the <em>absence</em> of bugs (over-approximation),
+    incorrectness logic proves the <em>presence</em> of bugs (under-approximation).
+  </p>
+
+  <h3>Over-Approximation vs Under-Approximation</h3>
+  <div class="grid-2">
+    <div class="card highlight">
+      <h4>Classical (Hoare Logic / AI)</h4>
+      <p><strong>Over-approximate:</strong> considers all possible behaviors, including impossible ones.</p>
+      <div class="formula">
+        <span class="label">Hoare Triple</span>
+        {P} C {Q}
+      </div>
+      <p>"If P holds before, then Q holds after <em>every</em> execution."</p>
+      <ul>
+        <li>Proves absence of bugs</li>
+        <li>May report <strong>false positives</strong> (spurious warnings)</li>
+        <li>Sound: if it says "no bugs," there are no bugs</li>
+      </ul>
+    </div>
+    <div class="card orange">
+      <h4>Incorrectness Logic</h4>
+      <p><strong>Under-approximate:</strong> considers only <em>actual</em> reachable behaviors.</p>
+      <div class="formula">
+        <span class="label">Incorrectness Triple</span>
+        [P] C [Q]
+      </div>
+      <p>"There <em>exists</em> an execution starting in P that reaches Q."</p>
+      <ul>
+        <li>Proves presence of bugs</li>
+        <li><strong>No false positives</strong> — every report is a real bug</li>
+        <li>May miss bugs (false negatives are acceptable)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>The shift in perspective:</strong> Traditional verification asks "can anything go wrong?"
+    and over-approximates to be safe. Incorrectness logic asks "does something definitely go wrong?"
+    and under-approximates to avoid false alarms. For a developer tool at scale, eliminating
+    false positives matters more than catching every bug — because developers ignore noisy tools.
+  </div>
+
+  <h3>Incorrectness Separation Logic (ISL)</h3>
+  <p>O'Hearn and collaborators combined incorrectness logic with separation logic to get
+    <strong>local reasoning about the presence of bugs</strong> in heap-manipulating programs:</p>
+
+  <div class="formula">
+    <span class="label">ISL Frame Rule</span>
+    If &nbsp; [P] C [Q<sub>err</sub>] &nbsp; then &nbsp; [P ∗ Frame] C [Q<sub>err</sub> ∗ Frame]
+  </div>
+
+  <p>This means: if there's a bug reachable from state P, adding more heap (Frame) doesn't eliminate the bug.
+    ISL is what powers <strong>Pulse</strong>, Infer's modern memory analyzer.</p>
+
+  <h3>Pulse: ISL in Practice</h3>
+  <div class="card green">
+    <h4>Real Results</h4>
+    <p>Pulse runs on every code diff at Meta (Facebook, Instagram, WhatsApp). It uses ISL to ensure
+      reported issues are <strong>true positives</strong> — each report includes a concrete
+      witness execution trace showing how the bug is triggered.</p>
+    <p style="margin-top:0.5rem;">Research extensions (Pulse-X) found 15 real bugs in OpenSSL that were
+      confirmed and fixed by maintainers, demonstrating the effectiveness of under-approximate reasoning
+      for security-critical code.</p>
+  </div>
+</div>
+
+<!-- ===== SECTION: TIMELINE ===== -->
+<div class="section" id="timeline">
+  <h2>History & Timeline</h2>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="year">1977</div>
+      <div class="event"><strong>Abstract Interpretation</strong> — Patrick & Radhia Cousot publish "Abstract interpretation:
+        a unified lattice model" at POPL. The theoretical foundation for all sound static analysis.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">1999–2002</div>
+      <div class="event"><strong>Separation Logic</strong> — John C. Reynolds and Peter O'Hearn develop separation logic
+        for reasoning about mutable heap structures. Reynolds publishes "Separation Logic: A Logic for Shared
+        Mutable Data Structures" (LICS 2002).</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2005</div>
+      <div class="event"><strong>Smallfoot</strong> — Berdine, Calcagno & O'Hearn build an automated verifier using
+        separation logic. First proof that SL-based analysis is practically feasible.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2006</div>
+      <div class="event"><strong>Space Invader</strong> — Scales SL verification to programs with 10,000+ lines.
+        Demonstrates that shape analysis with SL can handle real C code.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2009</div>
+      <div class="event"><strong>Bi-Abduction paper</strong> — Calcagno, Distefano, O'Hearn & Yang publish
+        "Compositional Shape Analysis by Means of Bi-Abduction" at POPL. The key algorithmic
+        innovation enabling compositional, scalable analysis. Experiments on hundreds of thousands of lines
+        of code including parts of the Linux kernel.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2009</div>
+      <div class="event"><strong>Monoidics founded</strong> — Calcagno, Distefano & O'Hearn create a startup
+        to commercialize their SL-based verification technology.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2013</div>
+      <div class="event"><strong>Facebook acquires Monoidics</strong> — The team joins Facebook to deploy
+        formal methods at industrial scale on mobile apps.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2015</div>
+      <div class="event"><strong>Infer open-sourced</strong> — Facebook releases Infer as open source.
+        Already deployed on Facebook's Android and iOS apps, catching thousands of bugs before shipping.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2016</div>
+      <div class="event"><strong>Gödel Prize</strong> — The bi-abduction paper wins the Gödel Prize,
+        one of the most prestigious awards in theoretical computer science.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2018</div>
+      <div class="event"><strong>RacerD deployed</strong> — Compositional race detection at scale. Runs on
+        every Android code diff at Facebook. O'Hearn publishes "Scaling Static Analyses at Facebook" (CACM).</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2019</div>
+      <div class="event"><strong>Most Influential POPL Paper Award</strong> — The 2009 bi-abduction paper
+        receives the 10-year retrospective award.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2020</div>
+      <div class="event"><strong>Incorrectness Logic</strong> — O'Hearn publishes the theory of under-approximate
+        reasoning. Combined with SL to create Incorrectness Separation Logic (ISL).</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2021+</div>
+      <div class="event"><strong>Pulse replaces Biabduction</strong> — Pulse, powered by ISL, becomes Infer's
+        primary memory analyzer. Under-approximate approach prioritizes true positives over coverage.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION: COMPARISON ===== -->
+<div class="section" id="comparison">
+  <h2>Abstract Interpretation vs Separation Logic</h2>
+  <p>
+    A common misconception is that Infer uses "either AI or SL." In reality, they operate
+    at different levels and are <strong>deeply complementary</strong>.
+  </p>
+
+  <table class="comparison-table">
+    <tr>
+      <th>Aspect</th>
+      <th style="color:var(--accent)">Abstract Interpretation (Cousot)</th>
+      <th style="color:var(--accent2)">Separation Logic (Reynolds/O'Hearn)</th>
+    </tr>
+    <tr>
+      <td><strong>What it is</strong></td>
+      <td>A theory of computing fixpoints over abstract domains</td>
+      <td>A logic for reasoning about heap-manipulating programs</td>
+    </tr>
+    <tr>
+      <td><strong>Role in Infer</strong></td>
+      <td>The computation engine — how to iterate, converge, and compose</td>
+      <td>The abstract domain — what to track about memory</td>
+    </tr>
+    <tr>
+      <td><strong>Answers</strong></td>
+      <td>"How do we compute a sound approximation?"</td>
+      <td>"What properties about the heap do we approximate?"</td>
+    </tr>
+    <tr>
+      <td><strong>Key operations</strong></td>
+      <td>⊑ (order), ⊔ (join), ∇ (widen), fixpoint iteration</td>
+      <td>∗ (separating conjunction), ↦ (points-to), frame rule</td>
+    </tr>
+    <tr>
+      <td><strong>Without the other</strong></td>
+      <td>Could analyze programs but not reason about heap aliasing</td>
+      <td>Could specify heap properties but not compute them automatically</td>
+    </tr>
+    <tr>
+      <td><strong>Level</strong></td>
+      <td>Meta-theory (framework for building analyses)</td>
+      <td>Object-level theory (specific domain of discourse)</td>
+    </tr>
+  </table>
+
+  <h3>How They Combine in Infer</h3>
+  <div class="diagram">
+    <svg width="650" height="260" viewBox="0 0 650 260">
+      <!-- AI box -->
+      <rect x="30" y="30" width="250" height="200" rx="10" fill="rgba(88,166,255,0.05)" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="155" y="55" fill="#58a6ff" font-weight="700" font-size="14" text-anchor="middle">Abstract Interpretation</text>
+      <text x="155" y="80" fill="#8b949e" font-size="11" text-anchor="middle">Provides the engine:</text>
+
+      <rect x="50" y="95" width="210" height="28" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-opacity="0.5"/>
+      <text x="155" y="114" fill="#79c0ff" font-size="11" text-anchor="middle">Worklist algorithm</text>
+
+      <rect x="50" y="130" width="210" height="28" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-opacity="0.5"/>
+      <text x="155" y="149" fill="#79c0ff" font-size="11" text-anchor="middle">Fixpoint convergence + widening</text>
+
+      <rect x="50" y="165" width="210" height="28" rx="4" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-opacity="0.5"/>
+      <text x="155" y="184" fill="#79c0ff" font-size="11" text-anchor="middle">Summary-based interprocedural</text>
+
+      <!-- SL box -->
+      <rect x="370" y="30" width="250" height="200" rx="10" fill="rgba(63,185,80,0.05)" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="495" y="55" fill="#3fb950" font-weight="700" font-size="14" text-anchor="middle">Separation Logic</text>
+      <text x="495" y="80" fill="#8b949e" font-size="11" text-anchor="middle">Provides the domain:</text>
+
+      <rect x="390" y="95" width="210" height="28" rx="4" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-opacity="0.5"/>
+      <text x="495" y="114" fill="#56d364" font-size="11" text-anchor="middle">Symbolic heap formulas</text>
+
+      <rect x="390" y="130" width="210" height="28" rx="4" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-opacity="0.5"/>
+      <text x="495" y="149" fill="#56d364" font-size="11" text-anchor="middle">Points-to + separating conj.</text>
+
+      <rect x="390" y="165" width="210" height="28" rx="4" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-opacity="0.5"/>
+      <text x="495" y="184" fill="#56d364" font-size="11" text-anchor="middle">Frame rule for local reasoning</text>
+
+      <!-- Connection arrows -->
+      <line x1="280" y1="108" x2="370" y2="108" stroke="#d2a8ff" stroke-width="2" marker-end="url(#purpleArrow)"/>
+      <line x1="370" y1="143" x2="280" y2="143" stroke="#d2a8ff" stroke-width="2" marker-end="url(#purpleArrow2)"/>
+
+      <text x="325" y="100" fill="#d2a8ff" font-size="10" text-anchor="middle">iterates</text>
+      <text x="325" y="105" fill="#d2a8ff" font-size="10" text-anchor="middle">over</text>
+      <text x="325" y="155" fill="#d2a8ff" font-size="10" text-anchor="middle">defines</text>
+      <text x="325" y="165" fill="#d2a8ff" font-size="10" text-anchor="middle">⊑, ⊔, ∇</text>
+
+      <defs>
+        <marker id="purpleArrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#d2a8ff"/>
+        </marker>
+        <marker id="purpleArrow2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#d2a8ff"/>
+        </marker>
+      </defs>
+
+      <!-- Result -->
+      <rect x="200" y="235" width="250" height="25" rx="4" fill="rgba(210,168,255,0.1)" stroke="#d2a8ff"/>
+      <text x="325" y="253" fill="#d2a8ff" font-size="12" text-anchor="middle" font-weight="600">Result: Scalable heap analysis with soundness</text>
+    </svg>
+  </div>
+
+  <div class="card purple">
+    <h4>Analogy</h4>
+    <p>Think of it like a <strong>game engine and physics rules</strong>:</p>
+    <ul>
+      <li><strong>Abstract Interpretation</strong> = the engine (renders frames, handles the game loop, manages state transitions)</li>
+      <li><strong>Separation Logic</strong> = the physics rules (defines how objects interact, what collisions mean, what forces apply)</li>
+      <li><strong>Bi-Abduction</strong> = the level-loading system (lets you load and analyze individual rooms without the whole world)</li>
+      <li><strong>Incorrectness Logic</strong> = the bug reporter (only flags issues a player can actually encounter, not theoretical edge cases)</li>
+    </ul>
+    <p>You need <em>all</em> of them for a working game (analyzer). None is sufficient alone.</p>
+  </div>
+</div>
+
+<!-- ===== SECTION: QUIZ ===== -->
+<div class="section" id="quiz">
+  <h2>Test Your Understanding</h2>
+  <p>Click each card to reveal the answer.</p>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q1: Does Facebook Infer use Cousot's abstract interpretation?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      <strong>Yes.</strong> Abstract interpretation provides the fixpoint computation engine that every Infer checker
+      uses. The Infer.AI framework is a direct implementation of the AI paradigm: abstract domains with ⊑, ⊔, ∇,
+      transfer functions, and worklist-based fixpoint iteration. However, Infer goes well beyond classical AI
+      by using separation logic as its abstract domain for heap reasoning, bi-abduction for compositional scaling,
+      and incorrectness logic for precision.
+    </div>
+  </div>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q2: What does the separating conjunction (∗) mean?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      <strong>A ∗ B</strong> means the heap can be divided into two <em>disjoint</em> sub-heaps,
+      one satisfying A and one satisfying B. This guarantees no aliasing between the two parts.
+      For example, <code>x ↦ 1 ∗ y ↦ 2</code> means x and y point to different cells.
+    </div>
+  </div>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q3: What problem does bi-abduction solve?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      Bi-abduction solves the problem of <strong>compositional analysis at scale</strong>.
+      Given a current state A and a required precondition B, bi-abduction simultaneously discovers:
+      (1) the <em>antiframe</em> — what additional state is needed (becomes the procedure's precondition), and
+      (2) the <em>frame</em> — what state is unchanged (carried to the postcondition).
+      This lets each procedure be analyzed independently, enabling incremental analysis on code diffs.
+    </div>
+  </div>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q4: What is the difference between Hoare triples and incorrectness triples?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      <strong>Hoare triple {P} C {Q}</strong>: for ALL executions starting in P, if they terminate, they end in Q.
+      Over-approximate — may include impossible behaviors → false positives possible.<br/><br/>
+      <strong>Incorrectness triple [P] C [Q]</strong>: there EXISTS an execution from P that reaches Q.
+      Under-approximate — only describes reachable behaviors → no false positives, but may miss bugs.
+    </div>
+  </div>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q5: Why did Infer transition from Biabduction checker to Pulse?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      The original Biabduction checker was <strong>over-approximate</strong> (sound but noisy).
+      At Meta's scale, false positives caused developers to ignore warnings. Pulse uses
+      <strong>incorrectness separation logic</strong> for under-approximate reasoning — it only
+      reports bugs it can prove are actually reachable. This dramatically improves signal-to-noise ratio,
+      even at the cost of potentially missing some bugs.
+    </div>
+  </div>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q6: What role does the Frame Rule play in Infer's scalability?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      The frame rule states: if {P} C {Q} then {P ∗ Frame} C {Q ∗ Frame}. This means a procedure
+      only needs to mention the heap it actually accesses. Everything else (Frame) passes through
+      unchanged. This enables <strong>local reasoning</strong> — analyzing a function without knowing
+      the entire program's memory layout — which is essential for scaling to millions of lines of code.
+    </div>
+  </div>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q7: What is SIL and why is it important?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      SIL (Smallfoot Intermediate Language) is Infer's intermediate representation. All source languages
+      (Java, C, C++, Objective-C) are translated to SIL during the "capture" phase. This means all
+      checkers only need to work with one language. Named after Smallfoot, an early automated
+      separation logic verifier that proved SL-based analysis is practical.
+    </div>
+  </div>
+
+  <div class="quiz-card" onclick="this.classList.toggle('revealed')">
+    <div class="quiz-q">Q8: How does abstract interpretation handle infinite loops?</div>
+    <div class="quiz-hint">Click to reveal</div>
+    <div class="quiz-a">
+      When the abstract domain has infinite ascending chains (e.g., the interval domain for integers),
+      naive fixpoint iteration may not converge. The <strong>widening operator (∇)</strong> forces
+      convergence by over-approximating: x ∇ y ⊒ x ⊔ y. It "overshoots" the least upper bound
+      to guarantee termination in finitely many steps, at the cost of precision. Subsequent
+      <strong>narrowing</strong> can recover some lost precision.
+    </div>
+  </div>
+</div>
+
+</div><!-- end container -->
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>
+    Sources:
+    <a href="https://fbinfer.com/docs/separation-logic-and-bi-abduction/">Infer: SL & Bi-Abduction</a> ·
+    <a href="https://fbinfer.com/docs/absint-framework/">Infer.AI Framework</a> ·
+    <a href="https://dl.acm.org/doi/10.1145/2049697.2049700">Bi-Abduction (JACM)</a> ·
+    <a href="https://en.wikipedia.org/wiki/Infer_Static_Analyzer">Wikipedia: Infer</a> ·
+    <a href="https://www.cs.cmu.edu/~jcr/seplogic.pdf">Reynolds: Separation Logic</a> ·
+    <a href="https://www.di.ens.fr/~cousot/COUSOTpapers/POPL77.shtml">Cousot & Cousot 1977</a> ·
+    <a href="http://www0.cs.ucl.ac.uk/staff/p.ohearn/papers/IncorrectnessLogic.pdf">O'Hearn: Incorrectness Logic</a>
+  </p>
+</div>
+
+<script>
+// Tab navigation
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.section).classList.add('active');
+  });
+});
+
+// Collapsible sections
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.parentElement.classList.toggle('open');
+  });
+});
+
+// Inner tabs
+document.querySelectorAll('.inner-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const parent = tab.closest('.section');
+    parent.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
+    parent.querySelectorAll('.inner-tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frontend→Analysis Boundary: KSC vs Facebook Infer</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --bg3: #0f3460;
+  --surface: #1e2a4a;
+  --surface2: #253557;
+  --border: #2a4080;
+  --text: #e0e0e0;
+  --text2: #a0b0d0;
+  --accent: #e94560;
+  --accent2: #f5a623;
+  --accent3: #7dd3fc;
+  --accent4: #86efac;
+  --accent5: #c4b5fd;
+  --code-bg: #0d1b2a;
+  --code-border: #1b3a5c;
+  --ksc: #f5a623;
+  --infer: #7dd3fc;
+  --grammar: #e94560;
+  --analysis: #86efac;
+  --generated: #c4b5fd;
+  --warning: #fbbf24;
+  --option-a: #f472b6;
+  --option-b: #38bdf8;
+  --option-c: #86efac;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+a { color: var(--accent3); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* -- Hero -- */
+.hero {
+  background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 50%, #1a1040 100%);
+  padding: 60px 40px 50px;
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle at 25% 50%, rgba(245,166,35,0.08) 0%, transparent 50%),
+              radial-gradient(circle at 75% 50%, rgba(125,211,252,0.08) 0%, transparent 50%);
+  animation: heroGlow 15s ease-in-out infinite alternate;
+}
+@keyframes heroGlow {
+  0% { transform: translateX(-5%); }
+  100% { transform: translateX(5%); }
+}
+.hero h1 {
+  font-size: 2.4em;
+  font-weight: 700;
+  position: relative;
+  background: linear-gradient(90deg, var(--ksc), var(--infer), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.hero .subtitle {
+  font-size: 1.15em;
+  color: var(--text2);
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* -- Layout -- */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 30px; }
+section { padding: 50px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 {
+  font-size: 1.8em;
+  margin-bottom: 20px;
+  color: var(--accent3);
+  border-left: 4px solid var(--accent);
+  padding-left: 16px;
+}
+h3 { font-size: 1.3em; margin: 20px 0 12px; color: var(--accent2); }
+h4 { font-size: 1.1em; margin: 16px 0 8px; color: var(--accent4); }
+p { margin-bottom: 14px; }
+ul, ol { margin-left: 24px; margin-bottom: 14px; }
+li { margin-bottom: 6px; }
+
+/* -- Code -- */
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.6;
+  margin: 14px 0;
+  font-family: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+}
+code {
+  font-family: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+  font-size: 0.9em;
+}
+:not(pre) > code {
+  background: var(--code-bg);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--code-border);
+  color: var(--accent3);
+}
+
+/* -- Collapsible -- */
+.collapsible {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 16px 0;
+  overflow: hidden;
+}
+.collapsible-header {
+  padding: 14px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  user-select: none;
+  transition: background 0.2s;
+}
+.collapsible-header:hover { background: var(--surface2); }
+.collapsible-header .arrow {
+  transition: transform 0.3s;
+  font-size: 0.8em;
+  color: var(--accent3);
+}
+.collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+.collapsible-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+  padding: 0 20px;
+}
+.collapsible.open .collapsible-body {
+  max-height: 6000px;
+  padding: 0 20px 20px;
+}
+
+/* -- Tabs -- */
+.tab-group { margin: 16px 0; }
+.tab-buttons {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  color: var(--accent3);
+  border-bottom-color: var(--accent);
+}
+.tab-panel { display: none; padding: 16px 0; }
+.tab-panel.active { display: block; }
+
+/* -- Comparison table -- */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.92em;
+}
+.comparison-table th {
+  background: var(--surface);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+}
+.comparison-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.comparison-table tr:hover td { background: rgba(255,255,255,0.02); }
+.col-ksc { color: var(--ksc); }
+.col-infer { color: var(--infer); }
+
+/* -- Diagrams -- */
+.diagram {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 10px;
+  padding: 24px;
+  margin: 20px 0;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85em;
+  line-height: 1.8;
+  overflow-x: auto;
+  white-space: pre;
+}
+.d-ksc { color: var(--ksc); }
+.d-infer { color: var(--infer); }
+.d-grammar { color: var(--grammar); }
+.d-analysis { color: var(--analysis); }
+.d-gen { color: var(--generated); }
+.d-dim { color: #556; }
+.d-arrow { color: var(--accent3); }
+.d-warn { color: var(--warning); }
+.d-opt-a { color: var(--option-a); }
+.d-opt-b { color: var(--option-b); }
+.d-opt-c { color: var(--option-c); }
+
+/* -- Callout boxes -- */
+.callout {
+  border-left: 4px solid;
+  padding: 14px 18px;
+  margin: 16px 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--surface);
+}
+.callout.insight { border-color: var(--accent4); }
+.callout.warning { border-color: var(--warning); }
+.callout.key { border-color: var(--accent); }
+.callout.compare { border-color: var(--accent5); }
+.callout-label {
+  font-weight: 700;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.callout.insight .callout-label { color: var(--accent4); }
+.callout.warning .callout-label { color: var(--warning); }
+.callout.key .callout-label { color: var(--accent); }
+.callout.compare .callout-label { color: var(--accent5); }
+
+/* -- Badge -- */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.badge-ksc { background: rgba(245,166,35,0.2); color: var(--ksc); }
+.badge-infer { background: rgba(125,211,252,0.2); color: var(--infer); }
+
+/* -- Quiz cards -- */
+.quiz { margin: 20px 0; }
+.quiz-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 12px 0;
+}
+.quiz-q { font-weight: 600; margin-bottom: 12px; }
+.quiz-options { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt {
+  padding: 10px 16px;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.quiz-opt:hover { border-color: var(--accent3); }
+.quiz-opt.correct { border-color: var(--accent4); background: rgba(134,239,172,0.1); }
+.quiz-opt.wrong { border-color: var(--accent); background: rgba(233,69,96,0.1); }
+.quiz-explain {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  display: none;
+  font-size: 0.92em;
+  color: var(--text2);
+}
+
+/* -- Option cards -- */
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.option-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+.option-card:hover { border-color: var(--accent3); }
+.option-card h4 { margin-top: 0; }
+.option-card .pros { color: var(--accent4); }
+.option-card .cons { color: var(--accent); }
+
+/* -- Flow highlight -- */
+.flow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 14px 0;
+  padding: 14px 18px;
+  background: var(--surface);
+  border-radius: 10px;
+  border-left: 4px solid var(--accent3);
+}
+.flow-num {
+  background: var(--accent);
+  color: white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+.flow-content { flex: 1; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero { padding: 40px 20px 30px; }
+  .hero h1 { font-size: 1.6em; }
+  .container { padding: 0 16px; }
+  section { padding: 30px 0; }
+  h2 { font-size: 1.4em; }
+  .tab-btn { padding: 8px 14px; font-size: 0.85em; }
+  pre { font-size: 0.8em; padding: 12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Frontend &rarr; Analysis Boundary</h1>
+  <p class="subtitle">How KSC and Facebook Infer handle the critical seam between
+  AST generation (frontends) and analysis (checkers) &mdash; and what design options exist</p>
+</div>
+
+<div class="container">
+
+<!-- ================================================================== -->
+<!-- SECTION 1: The Core Problem -->
+<!-- ================================================================== -->
+<section id="problem">
+<h2>1. The Core Problem</h2>
+
+<p>Every analysis framework that supports multiple source languages (or wants to evolve its
+AST independently of its analysis) faces a fundamental architectural question:</p>
+
+<div class="callout key">
+<div class="callout-label">The Boundary Question</div>
+<p>How does the <strong>analysis stage</strong> know about the <strong>node types</strong>
+defined by the frontend/grammar stage? How do you get <em>exhaustiveness guarantees</em>
+that every AST node kind is handled &mdash; and what happens when the grammar changes?</p>
+</div>
+
+<p>This is really three sub-problems:</p>
+
+<ol>
+  <li><strong>Type flow</strong> &mdash; how do AST node type definitions propagate from the grammar layer to the analysis layer?</li>
+  <li><strong>Exhaustiveness</strong> &mdash; how do you statically verify that the analysis handles all possible node kinds?</li>
+  <li><strong>Cross-validation</strong> &mdash; how do you detect when the analysis references node kinds that don't exist in the grammar?</li>
+</ol>
+
+<p>Both KSC and Infer have elegant but <em>very different</em> answers to these questions,
+driven by their different host languages (TypeScript vs OCaml) and different goals
+(attribute grammar evaluation vs abstract interpretation).</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 2: Facebook Infer's Architecture -->
+<!-- ================================================================== -->
+<section id="infer">
+<h2>2. Facebook Infer's Architecture</h2>
+
+<p>Infer is a static analyzer for Java, C/C++, Objective-C, Hack, and Erlang, written in OCaml.
+Its architecture has a clean <strong>capture &rarr; analyze</strong> pipeline with the
+Smallfoot Intermediate Language (SIL) as the boundary.</p>
+
+<div class="diagram"><span class="d-dim">┌──────────────────────────────────────────────────────────────────┐</span>
+<span class="d-dim">│</span>  <span class="d-infer">CAPTURE PHASE</span> (Per-Language Frontends)                          <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-grammar">Clang Frontend</span>      Clang AST <span class="d-arrow">──→</span> ATDGen OCaml types <span class="d-arrow">──→</span> SIL  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-grammar">Java Frontend</span>       Bytecode  <span class="d-arrow">──→</span> Javalib types     <span class="d-arrow">──→</span> SIL  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-grammar">Hack Frontend</span>       hackc     <span class="d-arrow">──→</span> Textual format    <span class="d-arrow">──→</span> SIL  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-grammar">Erlang Frontend</span>     erlc      <span class="d-arrow">──→</span> Erlang terms      <span class="d-arrow">──→</span> SIL  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-grammar">C# Frontend</span>         .NET IL   <span class="d-arrow">──→</span> JSON SIL          <span class="d-arrow">──→</span> SIL  <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">├──────────────────────────────────────────────────────────────────┤</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-warn">SIL</span> = Smallfoot Intermediate Language                            <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-warn">IR types</span>: Sil.instr, Typ.t, Procdesc.t, Exp.t, Tenv.t          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-warn">OCaml variant types</span> = exhaustive pattern matching                <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">├──────────────────────────────────────────────────────────────────┤</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-analysis">ANALYSIS PHASE</span> (Checkers over SIL)                               <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-analysis">Pulse</span>     &mdash; memory safety, null deref, leaks                   <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-analysis">RacerD</span>    &mdash; data race detection                                <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-analysis">Topl</span>      &mdash; temporal property checking                         <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-analysis">Liveness</span>  &mdash; dead variable detection                            <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-analysis">Nullsafe</span>  &mdash; nullability analysis                                <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">└──────────────────────────────────────────────────────────────────┘</span></div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>How Infer's Frontends Generate Type-Safe IR</span>
+  </div>
+  <div class="collapsible-body">
+    <h4>The Clang Frontend Pipeline</h4>
+    <p>Infer's most sophisticated frontend is for C/C++/Objective-C. It works through a
+    multi-stage codegen pipeline:</p>
+
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-content">
+        <strong>Clang AST export</strong> &mdash; A custom Clang plugin (<code>ASTExporter.h</code>)
+        serializes the Clang AST to JSON/Biniou format. ATD annotations embedded in C++ preprocessor
+        macros enumerate every Clang node kind.
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-content">
+        <strong>ATDGen codegen</strong> &mdash; The <code>atdgen</code> tool reads ATD definitions
+        extracted from the C++ source and generates OCaml variant types + parsers. This produces
+        <code>clang_ast_t.ml</code> with a variant constructor for every Clang AST node type.
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div class="flow-content">
+        <strong>Translation to SIL</strong> &mdash; <code>cTrans.ml</code> pattern-matches over
+        the <code>clang_ast_t</code> variant types, translating each AST construct to SIL instructions.
+        OCaml's exhaustive pattern matching <em>guarantees at compile time</em> that every Clang
+        AST node kind is handled.
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-num">4</div>
+      <div class="flow-content">
+        <strong>SIL validation</strong> &mdash; A <code>SilValidation</code> checker verifies
+        that all emitted SIL instructions conform to frontend-specific invariants. This provides
+        a runtime cross-check alongside the compile-time guarantees.
+      </div>
+    </div>
+
+    <h4>The SIL Type System</h4>
+    <p>SIL is defined as OCaml variant types in <code>infer/src/IR/Sil.mli</code>:</p>
+<pre>type instr =
+  | Load of { id: Ident.t; e: Exp.t; typ: Typ.t; loc: Location.t }
+  | Store of { e1: Exp.t; typ: Typ.t; e2: Exp.t; loc: Location.t }
+  | Prune of Exp.t * Location.t * bool * if_kind
+  | Call of (Ident.t * Typ.t) * Exp.t * (Exp.t * Typ.t) list * Location.t * CallFlags.t
+  | Metadata of instr_metadata</pre>
+    <p>Because this is a closed OCaml variant type with only 5 constructors, <em>every checker
+    that processes SIL instructions must handle all 5 cases</em>. The compiler enforces this.</p>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>How Checkers Consume the IR</span>
+  </div>
+  <div class="collapsible-body">
+    <h4>The Absint Framework</h4>
+    <p>Infer's abstract interpretation framework (<code>Absint</code>) is the standard way to
+    write analyses. A checker provides:</p>
+
+<pre><span style="color:var(--accent4)">module type TransferFunctions = sig</span>
+  <span style="color:var(--accent2)">type analysis_data</span>
+  <span style="color:var(--accent3)">module CFG : ProcCfg.S</span>
+
+  <span style="color:var(--text2)">(* The core: how does each SIL instruction transform the abstract state? *)</span>
+  <span style="color:var(--accent)">val exec_instr</span> :
+    Domain.t           <span style="color:var(--text2)">(* current abstract state *)</span>
+    -> analysis_data
+    -> CFG.Node.t      <span style="color:var(--text2)">(* CFG node containing the instruction *)</span>
+    -> int             <span style="color:var(--text2)">(* instruction index *)</span>
+    -> Sil.instr       <span style="color:var(--text2)">(* THE SIL INSTRUCTION *)</span>
+    -> Domain.t        <span style="color:var(--text2)">(* new abstract state *)</span>
+<span style="color:var(--accent4)">end</span></pre>
+
+    <p>The key parameter is <code>Sil.instr</code> &mdash; the checker operates on the <em>shared
+    intermediate language</em>, not on source-language AST nodes. This is what makes checkers
+    language-independent.</p>
+
+    <h4>Exhaustiveness in Checkers</h4>
+    <p>When a checker pattern-matches on <code>Sil.instr</code>:</p>
+<pre>let exec_instr astate _proc_data _node _idx instr =
+  match instr with
+  | Load {id; e; _} ->  <span style="color:var(--text2)">(* handle load *)</span>
+  | Store {e1; e2; _} -> <span style="color:var(--text2)">(* handle store *)</span>
+  | Call (ret, fun_exp, args, _, _) -> <span style="color:var(--text2)">(* handle call *)</span>
+  | Prune (cond, _, _, _) -> <span style="color:var(--text2)">(* handle branch *)</span>
+  | Metadata _ -> astate  <span style="color:var(--text2)">(* skip metadata *)</span></pre>
+    <p>OCaml's type system ensures that if a new SIL instruction variant is added, <em>every
+    checker fails to compile</em> until it handles the new case. This is the gold standard of
+    exhaustiveness enforcement.</p>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Infer's Multiple Input Formats (Evolution of the Boundary)</span>
+  </div>
+  <div class="collapsible-body">
+    <p>Over time, Infer has evolved three distinct ways for frontends to emit SIL:</p>
+
+    <table class="comparison-table">
+      <tr>
+        <th>Format</th><th>Used by</th><th>How it works</th>
+      </tr>
+      <tr>
+        <td><strong>Native OCaml</strong></td>
+        <td>Clang, Java frontends</td>
+        <td>Frontend directly constructs OCaml SIL data structures. Maximum type safety &mdash;
+        OCaml compiler catches all errors.</td>
+      </tr>
+      <tr>
+        <td><strong>Textual</strong></td>
+        <td>Hack frontend</td>
+        <td>Text-based SIL format parsed by Infer. Looser coupling &mdash; frontend can be in
+        any language. Validated at parse time.</td>
+      </tr>
+      <tr>
+        <td><strong>JSON SIL</strong></td>
+        <td>C# (Infer#)</td>
+        <td>Language-agnostic JSON serialization. Deserialized into OCaml SIL types. Runtime
+        validation during deserialization.</td>
+      </tr>
+    </table>
+
+    <div class="callout insight">
+      <div class="callout-label">Key Insight</div>
+      <p>The evolution from native OCaml → Textual → JSON shows a general tension: tighter coupling
+      gives stronger type safety, while looser coupling enables more frontends. Infer chose
+      to support all three, using <code>SilValidation</code> as a safety net for the
+      loosely-coupled paths.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 3: KSC's Architecture -->
+<!-- ================================================================== -->
+<section id="ksc">
+<h2>3. KSC's Architecture</h2>
+
+<p>KSC uses a <strong>two-functor specialization</strong> architecture where both the grammar
+and analysis stages are <em>code generators</em>, producing TypeScript source files that are
+then compiled together by <code>tsc</code>.</p>
+
+<div class="diagram"><span class="d-dim">┌──────────────────────────────────────────────────────────────────┐</span>
+<span class="d-dim">│</span>  <span class="d-ksc">FUNCTOR 1</span>: compileGrammar(GrammarSpec) → CompiledGrammar         <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-grammar">GrammarSpec</span>                    <span class="d-gen">Generated Output</span>                 <span class="d-dim">│</span>
+<span class="d-dim">│</span>  ┌─────────────────┐           ┌──────────────────────┐          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ nodes: Map       │ <span class="d-arrow">──────→</span>  │ node-types.ts        │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ sumTypes: Map    │           │ schema.ts            │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ convertGenerator │           │ builders.ts          │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  └─────────────────┘           │ serialize.ts         │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                │ kind-map.ts          │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                │ convert.ts (from spec)│          <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                │ index.ts             │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                └──────────────────────┘          <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                   <span class="d-arrow">│</span>  exports KSNode union,         <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                   <span class="d-arrow">│</span>  per-kind interfaces,          <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                   <span class="d-arrow">│</span>  KindToNode type map           <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                   <span class="d-arrow">▼</span>                                <span class="d-dim">│</span>
+<span class="d-dim">├──────────────────────────────────────────────────────────────────┤</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-ksc">FUNCTOR 2</span>: compileAnalysis(AnalysisSpec) → CompiledAnalyzer      <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-analysis">AnalysisSpec</span>                   <span class="d-gen">Generated Output</span>                 <span class="d-dim">│</span>
+<span class="d-dim">│</span>  ┌─────────────────┐           ┌──────────────────────┐          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ attrs: AttrDecl[]│ <span class="d-arrow">──────→</span>  │ evaluator.ts         │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ projections      │           │ attr-types.ts        │          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ grammarConfig    │           └──────────────────────┘          <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ violationRules   │              <span class="d-arrow">│</span>  imports KSNode from            <span class="d-dim">│</span>
+<span class="d-dim">│</span>  │ evaluatorSetup   │              <span class="d-arrow">│</span>  Functor 1 output               <span class="d-dim">│</span>
+<span class="d-dim">│</span>  └─────────────────┘              <span class="d-arrow">▼</span>                                <span class="d-dim">│</span>
+<span class="d-dim">├──────────────────────────────────────────────────────────────────┤</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">│</span>  <span class="d-warn">CROSS-VALIDATION</span>: validateSpec(AnalysisSpec, CompiledGrammar)    <span class="d-dim">│</span>
+<span class="d-dim">│</span>  Checks: equation case keys ∈ grammar kinds                      <span class="d-dim">│</span>
+<span class="d-dim">│</span>  Checks: triggerKind values ∈ grammar kinds                       <span class="d-dim">│</span>
+<span class="d-dim">│</span>                                                                  <span class="d-dim">│</span>
+<span class="d-dim">└──────────────────────────────────────────────────────────────────┘</span></div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Functor 1: Grammar → AST Types (the "Frontend")</span>
+  </div>
+  <div class="collapsible-body">
+    <p>KSC's Functor 1 is analogous to Infer's frontend: it takes a declarative grammar spec
+    and generates typed AST node definitions.</p>
+
+    <h4>GrammarSpec &mdash; the input</h4>
+<pre><span style="color:var(--accent4)">interface GrammarSpec</span> {
+  nodes: ReadonlyMap&lt;string, NodeEntry&gt;;     <span style="color:var(--text2)">// 364 node kinds</span>
+  sumTypes: ReadonlyMap&lt;string, SumTypeEntry&gt;; <span style="color:var(--text2)">// union types</span>
+  convertGenerator?: ConvertGenerator;          <span style="color:var(--text2)">// spec-owned</span>
+}</pre>
+
+    <h4>Generated output &mdash; what it produces</h4>
+    <p>The key files for the boundary question are:</p>
+    <ul>
+      <li><strong><code>node-types.ts</code></strong> &mdash; One TypeScript interface per node kind
+      (<code>KSIdentifier</code>, <code>KSCallExpression</code>, etc.) plus the <code>KSNode</code>
+      discriminated union of all 364 kinds</li>
+      <li><strong><code>kind-map.ts</code></strong> &mdash; <code>KindToNode</code> type mapping from
+      kind string literals to their interface types (enables type-safe violation predicates)</li>
+      <li><strong><code>schema.ts</code></strong> &mdash; Exhaustive child-field metadata table
+      (every kind has an entry) + <code>allKinds</code> set</li>
+    </ul>
+
+<pre><span style="color:var(--text2)">// Generated KSNode union type (364 members)</span>
+<span style="color:var(--accent4)">export type</span> KSNode =
+  | KSIdentifier
+  | KSCallExpression
+  | KSVariableDeclaration
+  | KSFunctionDeclaration
+  | ... <span style="color:var(--text2)">// 360 more</span>
+  ;
+
+<span style="color:var(--text2)">// Generated KindToNode type map</span>
+<span style="color:var(--accent4)">export type</span> KindToNode = {
+  'Identifier': KSIdentifier;
+  'CallExpression': KSCallExpression;
+  'VariableDeclaration': KSVariableDeclaration;
+  ... <span style="color:var(--text2)">// 361 more</span>
+};</pre>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Functor 2: Analysis → Evaluator (the "Backend")</span>
+  </div>
+  <div class="collapsible-body">
+    <p>KSC's Functor 2 generates an evaluator that processes the AST produced by Functor 1.
+    The generated evaluator imports <code>KSNode</code> from the grammar output and dispatches
+    on <code>node.kind</code> strings.</p>
+
+    <h4>How the evaluator uses grammar types</h4>
+<pre><span style="color:var(--text2)">// Generated evaluator.ts — imports grammar types</span>
+<span style="color:var(--accent4)">import type</span> { KSNode } from '../grammar/index.js';
+<span style="color:var(--accent4)">import</span> { getChildFields } from '../grammar/index.js';
+
+<span style="color:var(--text2)">// Switch dispatch on node.kind (string discriminant)</span>
+kindDefs(): KindDefinition[] {
+  switch (this.node.kind) {
+    case 'CompilationUnit': return this._c_kindDefs = eq_kindDefs_CompilationUnit(this, this._counter);
+    default: return this._c_kindDefs = eq_kindDefs_default();
+  }
+}</pre>
+
+    <h4>Key difference from Infer</h4>
+    <p>The evaluator does <strong>not</strong> need to exhaustively match all 364 kinds. Instead,
+    it uses <code>default</code> cases in switches. Analysis specs declare which specific kinds
+    they care about, and the rest fall through to defaults. The <code>getChildFields()</code>
+    schema function handles the exhaustive tree traversal.</p>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Cross-Validation: The Safety Net</span>
+  </div>
+  <div class="collapsible-body">
+    <p>Since TypeScript doesn't enforce exhaustive string matching the way OCaml enforces variant
+    matching, KSC uses a <em>codegen-time validation</em> step:</p>
+
+<pre><span style="color:var(--text2)">// analysis/validate.ts</span>
+<span style="color:var(--accent4)">function</span> validateSpec(spec: AnalysisSpec, grammar: CompiledGrammar) {
+  <span style="color:var(--text2)">// Check: every violation triggerKind exists in grammar</span>
+  for (const rule of spec.violationRules) {
+    if (!grammar.hasKind(rule.triggerKind)) {
+      diagnostics.push({ level: 'error', message: `...unknown kind '${rule.triggerKind}'...` });
+    }
+  }
+
+  <span style="color:var(--text2)">// Check: every equation case key exists in grammar</span>
+  for (const attr of spec.attrs) {
+    for (const caseName of Object.keys(attr.equations.cases)) {
+      if (!grammar.hasKind(caseName)) {
+        diagnostics.push({ level: 'error', message: `...unknown kind...` });
+      }
+    }
+  }
+}</pre>
+
+    <p>This catches typos and stale references <em>at codegen time</em>, before any generated
+    code is compiled or run. It's weaker than OCaml's compile-time exhaustiveness, but it
+    precisely targets the specific problem: "does the analysis reference valid grammar kinds?"</p>
+  </div>
+</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 4: Side-by-Side Comparison -->
+<!-- ================================================================== -->
+<section id="comparison">
+<h2>4. Side-by-Side Comparison</h2>
+
+<div class="tab-group">
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="type-flow">Type Flow</button>
+    <button class="tab-btn" data-tab="exhaustiveness">Exhaustiveness</button>
+    <button class="tab-btn" data-tab="dispatch">Dispatch Model</button>
+    <button class="tab-btn" data-tab="multi-lang">Multi-Language</button>
+    <button class="tab-btn" data-tab="evolution">Schema Evolution</button>
+  </div>
+
+  <!-- Type Flow -->
+  <div class="tab-panel active" id="tab-type-flow">
+    <h3>How AST Node Types Flow to Analysis</h3>
+    <table class="comparison-table">
+      <tr>
+        <th style="width:200px">Aspect</th>
+        <th><span class="col-infer">Infer</span></th>
+        <th><span class="col-ksc">KSC</span></th>
+      </tr>
+      <tr>
+        <td><strong>IR definition</strong></td>
+        <td>Hand-written OCaml variant types in <code>Sil.mli</code>.
+          5 instruction variants: Load, Store, Prune, Call, Metadata</td>
+        <td>Generated TypeScript interfaces from GrammarSpec.
+          364 node kind interfaces composing <code>KSNode</code> union</td>
+      </tr>
+      <tr>
+        <td><strong>Source AST types</strong></td>
+        <td>Auto-generated by ATDGen from Clang headers.
+          <code>clang_ast_t.ml</code> has one variant per Clang node type</td>
+        <td>Auto-generated by <code>compileGrammar</code> from spec.
+          <code>node-types.ts</code> has one interface per grammar kind</td>
+      </tr>
+      <tr>
+        <td><strong>What analysis sees</strong></td>
+        <td>Only SIL &mdash; source AST types are erased at the boundary.
+          Checkers never see Clang/Java AST nodes</td>
+        <td>The original AST types &mdash; analysis operates on <code>KSNode</code>,
+          the same type as the grammar output. No IR lowering</td>
+      </tr>
+      <tr>
+        <td><strong>Host language role</strong></td>
+        <td>OCaml's type system provides compile-time guarantees for variant exhaustiveness</td>
+        <td>TypeScript's structural typing + string literal discriminants.
+          Codegen-time validation compensates for weaker static checks</td>
+      </tr>
+    </table>
+
+    <div class="callout compare">
+      <div class="callout-label">Fundamental Difference</div>
+      <p>Infer <strong>lowers</strong> source ASTs to a shared IR (SIL), erasing language-specific
+      details. KSC <strong>preserves</strong> the full AST &mdash; analysis operates directly on
+      grammar-defined node types. This means KSC's analysis can inspect any grammar field
+      (e.g., <code>node.declarationKind</code>), while Infer's checkers only see SIL's 5
+      instruction types.</p>
+    </div>
+  </div>
+
+  <!-- Exhaustiveness -->
+  <div class="tab-panel" id="tab-exhaustiveness">
+    <h3>Exhaustiveness Guarantees</h3>
+    <table class="comparison-table">
+      <tr>
+        <th style="width:200px">Mechanism</th>
+        <th><span class="col-infer">Infer</span></th>
+        <th><span class="col-ksc">KSC</span></th>
+      </tr>
+      <tr>
+        <td><strong>Frontend → IR</strong></td>
+        <td><strong>Compile-time</strong>: OCaml pattern match on <code>clang_ast_t</code> variant.
+          Missing cases = compiler error</td>
+        <td><strong>Codegen-time</strong>: Grammar spec exhaustively defines all kinds.
+          <code>schema.ts</code> has an entry for every kind. Expression validation checks
+          extractor references</td>
+      </tr>
+      <tr>
+        <td><strong>IR → Analysis</strong></td>
+        <td><strong>Compile-time</strong>: OCaml pattern match on <code>Sil.instr</code>.
+          5 variants = easy to be exhaustive</td>
+        <td><strong>Not required</strong>: Analysis uses <code>default</code> cases in switches.
+          Only handles kinds it cares about. Tree traversal via <code>getChildFields()</code>
+          is exhaustive by construction (schema-generated)</td>
+      </tr>
+      <tr>
+        <td><strong>Invalid references</strong></td>
+        <td>OCaml compiler: referencing nonexistent variant = type error</td>
+        <td><code>validateSpec()</code> at codegen time: referencing nonexistent kind = validation error.
+          Also: TypeScript compilation catches nonexistent fields on typed node interfaces</td>
+      </tr>
+      <tr>
+        <td><strong>When caught</strong></td>
+        <td>OCaml compile time (before any code runs)</td>
+        <td>Codegen time (before generated TypeScript is compiled) + TS compile time for typed access</td>
+      </tr>
+    </table>
+
+    <div class="callout insight">
+      <div class="callout-label">Why KSC Doesn't Need Full Exhaustiveness</div>
+      <p>In Infer, checkers must handle every SIL instruction because missing a case means
+      <em>losing information</em> in the abstract state. In KSC's attribute grammar model,
+      the tree traversal is always exhaustive (every node is visited via schema-driven
+      <code>getChildFields</code>). Analysis specs only need kind-specific cases for nodes
+      where the default behavior isn't sufficient. An unhandled kind just gets the default
+      equation, which is <em>semantically correct</em> for the AG evaluation model.</p>
+    </div>
+  </div>
+
+  <!-- Dispatch Model -->
+  <div class="tab-panel" id="tab-dispatch">
+    <h3>How Analysis Code Dispatches on Node Types</h3>
+
+    <div class="tab-group">
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="dispatch-infer">Infer (OCaml Match)</button>
+        <button class="tab-btn" data-tab="dispatch-ksc">KSC (Switch + Equations)</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-dispatch-infer">
+<pre><span style="color:var(--text2)">(* Infer: checker matches on closed SIL.instr variant *)</span>
+<span style="color:var(--accent4)">let</span> exec_instr astate _ _ _ instr =
+  <span style="color:var(--accent2)">match</span> instr <span style="color:var(--accent2)">with</span>
+  | <span style="color:var(--accent)">Load</span> {id; e; typ; _} ->
+      <span style="color:var(--text2)">(* update abstract state for load *)</span>
+      Domain.add_live id astate
+  | <span style="color:var(--accent)">Store</span> {e1; _; e2; _} ->
+      <span style="color:var(--text2)">(* update abstract state for store *)</span>
+      Domain.kill_live e1 astate
+  | <span style="color:var(--accent)">Call</span> (ret, _, args, _, _) ->
+      <span style="color:var(--text2)">(* handle function call *)</span>
+      ...
+  | <span style="color:var(--accent)">Prune</span> _ -> astate
+  | <span style="color:var(--accent)">Metadata</span> _ -> astate
+  <span style="color:var(--text2)">(* Exhaustive — adding a 6th variant would break this *)</span></pre>
+        <p><strong>Model</strong>: Closed variant, exhaustive match required, language-independent.
+        Analysis <em>never</em> sees source-language constructs.</p>
+      </div>
+
+      <div class="tab-panel" id="tab-dispatch-ksc">
+<pre><span style="color:var(--text2)">// KSC: generated evaluator switches on node.kind string</span>
+<span style="color:var(--text2)">// (from analysis spec's equation cases)</span>
+
+<span style="color:var(--accent4)">kindDefs</span>(): KindDefinition[] {
+  <span style="color:var(--accent2)">switch</span> (this.node.kind) {
+    <span style="color:var(--accent)">case 'CompilationUnit'</span>:
+      return this._c_kindDefs = eq_kindDefs_CompilationUnit(this, this._counter);
+    <span style="color:var(--text2)">default</span>:
+      return this._c_kindDefs = eq_kindDefs_default();
+  }
+}
+
+<span style="color:var(--accent4)">kindAnnotations</span>(): KindDefinition[] {
+  <span style="color:var(--accent2)">switch</span> (this.node.kind) {
+    <span style="color:var(--accent)">case 'VariableDeclaration'</span>:
+      return this._c_kindAnnotations = _eq_kindAnnotations.cases!['VariableDeclaration']!(this, this.node);
+    <span style="color:var(--text2)">default</span>:
+      return this._c_kindAnnotations = _eq_kindAnnotations.default!(this);
+  }
+}</pre>
+        <p><strong>Model</strong>: Open dispatch with defaults. Analysis declares only the kinds
+        it handles. Tree traversal is exhaustive separately (via schema). Analysis sees the
+        <em>full</em> source AST with all grammar fields.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Language -->
+  <div class="tab-panel" id="tab-multi-lang">
+    <h3>Multi-Language Support</h3>
+    <table class="comparison-table">
+      <tr>
+        <th style="width:200px">Aspect</th>
+        <th><span class="col-infer">Infer</span></th>
+        <th><span class="col-ksc">KSC</span></th>
+      </tr>
+      <tr>
+        <td><strong>Strategy</strong></td>
+        <td><strong>Shared IR</strong>: All languages lower to the same SIL.
+          Write checker once, runs on all languages</td>
+        <td><strong>Separate grammars</strong>: Each language gets its own grammar spec.
+          Analysis specs are grammar-specific (nested under grammar dir)</td>
+      </tr>
+      <tr>
+        <td><strong>Adding a language</strong></td>
+        <td>Write a new frontend that emits SIL. Existing checkers work automatically.
+          The hard part: faithfully translating language semantics to SIL</td>
+        <td>Create new grammar spec in <code>specs/&lt;lang&gt;/grammar/</code>.
+          Write analysis specs that match that grammar's node kinds.
+          Analysis doesn't transfer between grammars</td>
+      </tr>
+      <tr>
+        <td><strong>Tradeoff</strong></td>
+        <td>Checkers are universal but can't exploit language-specific features.
+          SIL abstracts away source-level details</td>
+        <td>Analysis has full access to language-specific AST structure.
+          But you need separate analysis per grammar</td>
+      </tr>
+    </table>
+
+    <div class="callout warning">
+      <div class="callout-label">Key Tradeoff</div>
+      <p>Infer's shared IR means a null-pointer checker written once works for C, Java,
+      and Hack. But language-specific idioms may not translate cleanly to SIL.
+      KSC's grammar-specific analysis means you get <em>maximum expressiveness</em> for
+      each language, but no free cross-language transfer.</p>
+    </div>
+  </div>
+
+  <!-- Schema Evolution -->
+  <div class="tab-panel" id="tab-evolution">
+    <h3>What Happens When the Grammar Changes</h3>
+    <table class="comparison-table">
+      <tr>
+        <th style="width:200px">Scenario</th>
+        <th><span class="col-infer">Infer</span></th>
+        <th><span class="col-ksc">KSC</span></th>
+      </tr>
+      <tr>
+        <td><strong>New AST node type added</strong></td>
+        <td>If it maps to existing SIL: frontend handles it, checkers unaffected.
+          If new SIL variant needed: <em>every checker must update</em> (compile error)</td>
+        <td>New kind added to GrammarSpec, Functor 1 regenerates types.
+          Analysis specs with <code>default</code> cases work without changes.
+          Only specs that should specifically handle the new kind need updates</td>
+      </tr>
+      <tr>
+        <td><strong>AST node removed</strong></td>
+        <td>Frontend drops the case. SIL unchanged. Checkers unaffected</td>
+        <td>Kind removed from spec. <code>validateSpec()</code> catches any analysis
+          specs still referencing the removed kind. Codegen-time error</td>
+      </tr>
+      <tr>
+        <td><strong>Field added to existing node</strong></td>
+        <td>Frontend maps new field to SIL constructs (or ignores).
+          SIL types stable unless new semantic construct</td>
+        <td>Grammar spec adds field. Generated interface updated.
+          Existing analysis sees it via <code>(node as KSFoo).newField</code>.
+          Schema child traversal automatically follows new child fields</td>
+      </tr>
+    </table>
+
+    <div class="callout insight">
+      <div class="callout-label">KSC's Evolution Advantage</div>
+      <p>Because KSC analysis specs use <code>default</code> cases, adding new AST node kinds
+      is non-breaking for existing analyses. The attribute grammar evaluation model guarantees
+      that new nodes participate correctly in tree traversal, inherited attribute propagation,
+      and collection gathering &mdash; all without explicit handling. This is a significant
+      advantage over Infer's model where a new SIL variant is a global breaking change.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 5: The Deep Structural Differences -->
+<!-- ================================================================== -->
+<section id="deep">
+<h2>5. The Deep Structural Differences</h2>
+
+<h3>Source AST vs Shared IR: Two Fundamentally Different Boundaries</h3>
+
+<p>The most important architectural difference between KSC and Infer isn't a detail &mdash;
+it's a <em>category distinction</em> in where the frontend/analysis boundary sits:</p>
+
+<div class="diagram"><span class="d-infer">Infer</span>:  Source AST <span class="d-arrow">──→</span> <span class="d-warn">[TRANSLATION]</span> <span class="d-arrow">──→</span> <span class="d-gen">Shared IR (SIL)</span> <span class="d-arrow">──→</span> <span class="d-analysis">Analysis</span>
+                         <span class="d-dim">│</span>
+                         <span class="d-dim">│ Information loss: language-specific structure erased</span>
+                         <span class="d-dim">│ Information gain: uniform 5-instruction model</span>
+
+<span class="d-ksc">KSC</span>:    Source AST <span class="d-arrow">──→</span> <span class="d-warn">[CODEGEN]</span> <span class="d-arrow">──→</span> <span class="d-gen">Typed AST (KSNode)</span> <span class="d-arrow">──→</span> <span class="d-analysis">Analysis</span>
+                         <span class="d-dim">│</span>
+                         <span class="d-dim">│ No information loss: all fields preserved</span>
+                         <span class="d-dim">│ Schema metadata drives exhaustive traversal</span></div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Why This Difference Matters for Exhaustiveness</span>
+  </div>
+  <div class="collapsible-body">
+    <p>In Infer, exhaustiveness is <strong>mandatory</strong> because the analysis model
+    (abstract interpretation over CFGs) requires processing every instruction. Missing an
+    instruction means the abstract state could be unsound &mdash; you might miss a null
+    pointer dereference because a <code>Store</code> wasn't tracked.</p>
+
+    <p>In KSC, exhaustiveness is <strong>structural</strong> rather than behavioral. The
+    attribute grammar model separates two concerns:</p>
+
+    <ol>
+      <li><strong>Tree traversal</strong> (always exhaustive) &mdash; driven by the generated
+      schema's <code>getChildFields()</code>, which has an entry for every grammar kind.
+      Every node is visited, every child field is followed.</li>
+      <li><strong>Per-kind behavior</strong> (selective by design) &mdash; analysis specs
+      declare equations for specific kinds they care about. The AG evaluation model provides
+      correct defaults: inherited attributes propagate down, collections aggregate up,
+      synthesized attributes use the default equation.</li>
+    </ol>
+
+    <p>This means KSC gets a <em>different kind of exhaustiveness guarantee</em>: not "every
+    node kind has explicit handling" but "every node participates correctly in the attribute
+    evaluation regardless of whether it has explicit handling."</p>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Infer's ATDGen ≈ KSC's compileGrammar: The Codegen Analogy</span>
+  </div>
+  <div class="collapsible-body">
+    <p>Both systems use code generation to bridge the gap between language-specific AST
+    definitions and their analysis-consumable representations:</p>
+
+    <table class="comparison-table">
+      <tr>
+        <th>Step</th>
+        <th><span class="col-infer">Infer</span></th>
+        <th><span class="col-ksc">KSC</span></th>
+      </tr>
+      <tr>
+        <td>Input format</td>
+        <td>ATD definitions embedded in C++ macros (<code>ASTExporter.h</code>)</td>
+        <td>TypeScript GrammarSpec with builder DSL (<code>specs/.../spec.ts</code>)</td>
+      </tr>
+      <tr>
+        <td>Codegen tool</td>
+        <td><code>atdgen</code> (external OCaml tool)</td>
+        <td><code>compileGrammar()</code> (built-in TypeScript function)</td>
+      </tr>
+      <tr>
+        <td>Output</td>
+        <td>OCaml variant types + JSON parsers (<code>clang_ast_t.ml</code>)</td>
+        <td>TypeScript interfaces + schema + builders (<code>node-types.ts</code>, etc.)</td>
+      </tr>
+      <tr>
+        <td>What it enables</td>
+        <td>Exhaustive pattern matching on source AST for translation to SIL</td>
+        <td>Typed AST access + schema-driven traversal for attribute evaluation</td>
+      </tr>
+      <tr>
+        <td>Update process</td>
+        <td>Update Clang plugin → re-run <code>atdgen</code> → fix compile errors</td>
+        <td>Update grammar spec → re-run <code>compileGrammar</code> → fix validation errors</td>
+      </tr>
+    </table>
+
+    <div class="callout compare">
+      <div class="callout-label">The Key Parallel</div>
+      <p>Both systems solve the same problem: "given a description of AST node types, generate
+      type-safe code for processing those nodes." The difference is what happens <em>after</em>
+      the codegen: Infer translates to a simpler IR, while KSC preserves the full AST and
+      instead generates a schema that makes traversal safe.</p>
+    </div>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>String Discriminants vs Closed Variants: TypeScript's Limitation</span>
+  </div>
+  <div class="collapsible-body">
+    <p>A fundamental difference comes from the host language's type system:</p>
+
+    <h4>OCaml: Closed Algebraic Data Types</h4>
+<pre><span style="color:var(--text2)">(* The compiler KNOWS all possible variants *)</span>
+<span style="color:var(--accent4)">type</span> sil_instr = Load of ... | Store of ... | Prune of ... | Call of ... | Metadata of ...
+
+<span style="color:var(--text2)">(* Incomplete match = compile error *)</span>
+<span style="color:var(--accent2)">match</span> instr <span style="color:var(--accent2)">with</span>
+| Load _ -> ...
+| Store _ -> ...
+<span style="color:var(--accent)">(* Error: this pattern-matching is not exhaustive.
+   Here is an example of a case that is not matched: Prune _ *)</span></pre>
+
+    <h4>TypeScript: Discriminated Unions with String Literals</h4>
+<pre><span style="color:var(--text2)">// TypeScript CAN check exhaustiveness on discriminated unions...</span>
+<span style="color:var(--accent4)">type</span> KSNode = KSIdentifier | KSCallExpression | ...;
+
+<span style="color:var(--text2)">// ...but only with explicit exhaustive switch + never check:</span>
+<span style="color:var(--accent2)">switch</span> (node.kind) {
+  case 'Identifier': ...
+  case 'CallExpression': ...
+  default: {
+    const _exhaustive: never = node; <span style="color:var(--text2)">// compile error if cases missing</span>
+  }
+}
+
+<span style="color:var(--text2)">// However, with 364 kinds this is impractical!
+// KSC's approach: use `default:` for unhandled cases,
+// validate kind references at codegen time instead</span></pre>
+
+    <p>With 364 node kinds, TypeScript's exhaustive switch pattern is unwieldy. KSC's design
+    acknowledges this by making exhaustiveness a <em>schema-level</em> property (the generated
+    child-field table is exhaustive) rather than a <em>switch-level</em> property (individual
+    attribute methods don't need to be exhaustive).</p>
+  </div>
+</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 6: Design Options -->
+<!-- ================================================================== -->
+<section id="options">
+<h2>6. Design Options for KSC</h2>
+
+<p>Given these two reference architectures, what options exist for designing the
+frontend/analysis boundary? Here are three approaches, ranging from "more like Infer"
+to "more like current KSC" to "hybrid."</p>
+
+<div class="option-grid">
+  <div class="option-card" style="border-color: var(--option-a);">
+    <h4 style="color: var(--option-a)">Option A: Shared IR (Infer-style)</h4>
+    <p>Define a small, fixed IR that all grammars lower to. Analysis specs operate
+    on the shared IR, not on grammar-specific node types.</p>
+    <p class="pros">+ Checkers work across grammars</p>
+    <p class="pros">+ Small IR = easy exhaustive matching</p>
+    <p class="cons">&minus; Loses language-specific AST details</p>
+    <p class="cons">&minus; Translation is complex, error-prone</p>
+    <p class="cons">&minus; Doesn't suit AG model (attrs need tree structure)</p>
+  </div>
+
+  <div class="option-card" style="border-color: var(--option-b);">
+    <h4 style="color: var(--option-b)">Option B: Current KSC (Grammar-Preserving)</h4>
+    <p>Keep the current design: analysis operates on the full grammar AST.
+    Codegen-time validation catches invalid kind references. Schema-driven
+    traversal provides structural exhaustiveness.</p>
+    <p class="pros">+ Full AST access in analysis</p>
+    <p class="pros">+ AG model works naturally</p>
+    <p class="pros">+ Schema evolution is non-breaking</p>
+    <p class="cons">&minus; No cross-grammar checker reuse</p>
+    <p class="cons">&minus; String-based dispatch lacks compile-time safety</p>
+  </div>
+
+  <div class="option-card" style="border-color: var(--option-c);">
+    <h4 style="color: var(--option-c)">Option C: Hybrid (Typed Kind Groups)</h4>
+    <p>Generate TypeScript type-level groupings from grammar sum types.
+    Analysis specs declare which sum types they operate on. Codegen
+    generates type-narrowed dispatchers with partial exhaustiveness.</p>
+    <p class="pros">+ Better type safety than string dispatch</p>
+    <p class="pros">+ Preserves full AST access</p>
+    <p class="pros">+ Sum-type-level exhaustiveness feasible</p>
+    <p class="cons">&minus; More complex codegen</p>
+    <p class="cons">&minus; Requires sum types to be well-designed</p>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Option A Deep Dive: Shared IR</span>
+  </div>
+  <div class="collapsible-body">
+    <p>This would mean adding a "lowering" phase between Functor 1 and Functor 2:</p>
+
+    <div class="diagram"><span class="d-grammar">GrammarSpec</span> <span class="d-arrow">──→</span> <span class="d-gen">compileGrammar</span> <span class="d-arrow">──→</span> KSNode types
+                                        <span class="d-arrow">│</span>
+                                        <span class="d-arrow">▼</span>
+                               <span class="d-warn">lowerToIR(KSNode)</span> <span class="d-arrow">──→</span> KscIR
+                                                       <span class="d-arrow">│</span>
+                                                       <span class="d-arrow">▼</span>
+                            <span class="d-analysis">compileAnalysis(AnalysisSpec)</span> <span class="d-arrow">──→</span> evaluator over KscIR</div>
+
+    <p>You would define something like:</p>
+<pre><span style="color:var(--accent4)">type</span> KscIR =
+  | { type: 'declaration'; name: string; initializer?: KscIR }
+  | { type: 'expression'; operator?: string; operands: KscIR[] }
+  | { type: 'statement'; body: KscIR[] }
+  | { type: 'type-annotation'; typeKind: string }
+  | { type: 'literal'; value: unknown }
+  | { type: 'container'; children: KscIR[] }</pre>
+
+    <div class="callout warning">
+      <div class="callout-label">Why This Is Problematic for KSC</div>
+      <p>KSC's kind-checking analysis specifically needs to inspect language-level constructs
+      (e.g., "is this a <code>VariableDeclaration</code> with <code>const</code>?", "does this
+      <code>Identifier</code> resolve to an import?"). These questions are unanswerable from
+      a lowered IR. The attribute grammar model also relies on the tree structure matching the
+      source &mdash; lowering to a different tree shape would break inherited/synthesized
+      attribute propagation.</p>
+    </div>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Option B Deep Dive: Current KSC (Strengthened)</span>
+  </div>
+  <div class="collapsible-body">
+    <p>The current design is already well-suited to KSC's goals. Possible enhancements:</p>
+
+    <h4>Enhancement 1: Typed Equation Case Keys</h4>
+    <p>Currently, equation case keys are plain strings validated at codegen time. With
+    <code>KindToNode</code>, we could make them type-safe:</p>
+
+<pre><span style="color:var(--text2)">// Instead of: cases: { 'VariableDeclaration': fn }</span>
+<span style="color:var(--text2)">// Type-safe version using KindToNode:</span>
+<span style="color:var(--accent4)">type</span> TypedEquationSet&lt;K extends keyof KindToNode&gt; = {
+  cases: { [P in K]?: (ctx: Ctx, node: KindToNode[P]) => unknown };
+  default?: (ctx: Ctx) => unknown;
+};
+
+<span style="color:var(--text2)">// Compile error if you reference a non-existent kind:</span>
+cases: {
+  'VariableDeclaration': (ctx, node: KSVariableDeclaration) => ..., <span style="color:var(--accent4)">// ok</span>
+  'FakeNode': (ctx, node) => ...  <span style="color:var(--accent)">// TypeScript error!</span>
+}</pre>
+
+    <h4>Enhancement 2: Schema-Validated Runtime Dispatch</h4>
+    <p>The generated evaluator could include a development-mode check:</p>
+
+<pre><span style="color:var(--text2)">// In dev mode, verify at tree-build time that every node.kind is in allKinds</span>
+if (process.env.NODE_ENV === 'development') {
+  if (!allKinds.has(raw.kind)) {
+    throw new Error(`Unknown kind '${raw.kind}' not in grammar schema`);
+  }
+}</pre>
+
+    <h4>Enhancement 3: Coverage Reports</h4>
+    <p>Codegen could generate a coverage report showing which kinds have explicit
+    equation cases vs. falling through to defaults. This helps spec authors verify
+    they haven't forgotten important cases without requiring exhaustiveness.</p>
+  </div>
+</div>
+
+<div class="collapsible">
+  <div class="collapsible-header">
+    <span class="arrow">&#9654;</span>
+    <span>Option C Deep Dive: Hybrid with Sum Type Groups</span>
+  </div>
+  <div class="collapsible-body">
+    <p>This approach leverages KSC's existing sum types to create type-safe groups
+    that analysis specs can declare exhaustive matching over:</p>
+
+<pre><span style="color:var(--text2)">// Grammar already defines sum types:</span>
+sumType('Expression', ['CallExpression', 'Identifier', 'BinaryExpression', ...]);
+sumType('Statement', ['ExpressionStatement', 'ReturnStatement', ...]);
+
+<span style="color:var(--text2)">// Analysis spec could declare sum-type-scoped equations:</span>
+{
+  name: 'expressionPurity',
+  direction: 'syn',
+  <span style="color:var(--accent4)">scope: 'Expression'</span>,  <span style="color:var(--text2)">// restrict to this sum type</span>
+  equations: {
+    cases: {
+      'CallExpression': (ctx, node) => ...,
+      'Identifier': (ctx, node) => ...,
+      <span style="color:var(--text2)">// codegen warns about unhandled Expression members</span>
+    },
+    default: (ctx) => true,
+  }
+}</pre>
+
+    <p>The codegen could then:</p>
+    <ol>
+      <li>Validate that all case keys are members of the declared sum type</li>
+      <li>Generate a coverage warning for unhandled members</li>
+      <li>Use the sum type's type guard for narrowing:
+        <code>if (isExpression(this.node)) { ... }</code></li>
+    </ol>
+
+    <div class="callout insight">
+      <div class="callout-label">Why This Is Attractive</div>
+      <p>Sum types are small enough for practical exhaustive matching (typically 5-30 members
+      vs. 364 total kinds). They represent meaningful semantic groupings. And KSC's grammar
+      already generates type guards for them. The main cost is additional codegen complexity
+      and requiring sum types to be thoughtfully designed.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 7: Summary Matrix -->
+<!-- ================================================================== -->
+<section id="summary">
+<h2>7. Architecture Summary</h2>
+
+<table class="comparison-table">
+  <tr>
+    <th>Dimension</th>
+    <th><span class="col-infer">Infer</span></th>
+    <th><span class="col-ksc">KSC</span></th>
+  </tr>
+  <tr>
+    <td><strong>Host language</strong></td>
+    <td>OCaml (algebraic data types, pattern matching)</td>
+    <td>TypeScript (structural types, string discriminants)</td>
+  </tr>
+  <tr>
+    <td><strong>Analysis model</strong></td>
+    <td>Abstract interpretation over CFGs</td>
+    <td>Attribute grammar evaluation over trees</td>
+  </tr>
+  <tr>
+    <td><strong>Boundary shape</strong></td>
+    <td>Source AST → <strong>shared IR (SIL)</strong> → checkers</td>
+    <td>Grammar spec → <strong>typed AST (KSNode)</strong> → evaluator</td>
+  </tr>
+  <tr>
+    <td><strong>Node type count at boundary</strong></td>
+    <td>5 SIL instruction types (fixed)</td>
+    <td>364 grammar-specific node kinds (extensible)</td>
+  </tr>
+  <tr>
+    <td><strong>Exhaustiveness</strong></td>
+    <td>Compile-time (OCaml pattern match)</td>
+    <td>Schema-level (generated child-field table) + codegen-time validation</td>
+  </tr>
+  <tr>
+    <td><strong>Invalid reference detection</strong></td>
+    <td>OCaml type error (compile time)</td>
+    <td><code>validateSpec()</code> (codegen time) + TS compilation</td>
+  </tr>
+  <tr>
+    <td><strong>Schema evolution cost</strong></td>
+    <td>New SIL variant = global breaking change</td>
+    <td>New grammar kind = non-breaking (default cases)</td>
+  </tr>
+  <tr>
+    <td><strong>Cross-language reuse</strong></td>
+    <td>Checkers reuse across all languages (via shared IR)</td>
+    <td>Analysis specs are grammar-specific (by design)</td>
+  </tr>
+  <tr>
+    <td><strong>AST detail in analysis</strong></td>
+    <td>None (SIL abstracts away source structure)</td>
+    <td>Full (analysis sees every grammar field)</td>
+  </tr>
+  <tr>
+    <td><strong>Codegen pipeline</strong></td>
+    <td>ATDGen (Clang headers → OCaml types)</td>
+    <td>compileGrammar + compileAnalysis (spec → TS files)</td>
+  </tr>
+</table>
+
+<div class="callout key">
+  <div class="callout-label">The Architectural Insight</div>
+  <p>Infer and KSC represent two legitimate poles of the frontend/analysis boundary spectrum.
+  Infer prioritizes <strong>universal analysis</strong> (write once, analyze any language) at the
+  cost of losing source-level detail. KSC prioritizes <strong>source-level precision</strong>
+  (full AST access for language-specific analysis) at the cost of per-grammar analysis specs.
+  Neither is "better" &mdash; they serve different goals. The right choice depends on whether
+  your analyses need language-specific detail (KSC-style) or language-independent reasoning
+  (Infer-style).</p>
+</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 8: Quiz -->
+<!-- ================================================================== -->
+<section id="quiz">
+<h2>8. Check Your Understanding</h2>
+
+<div class="quiz">
+  <div class="quiz-card" data-correct="1">
+    <div class="quiz-q">Q1: In Infer, what ensures every checker handles all SIL instruction types?</div>
+    <div class="quiz-options">
+      <div class="quiz-opt" data-idx="0">Runtime validation by SilValidation checker</div>
+      <div class="quiz-opt" data-idx="1">OCaml's exhaustive pattern matching on closed variant types</div>
+      <div class="quiz-opt" data-idx="2">Unit tests that test each instruction type</div>
+      <div class="quiz-opt" data-idx="3">A codegen-time cross-validation step</div>
+    </div>
+    <div class="quiz-explain">OCaml's type system enforces that pattern matches on variant types
+    are exhaustive. If a new variant is added to <code>Sil.instr</code>, every <code>match</code>
+    expression that doesn't handle it becomes a compile error. SilValidation exists as an
+    <em>additional</em> runtime check for frontend-specific invariants, but the primary
+    guarantee is from the type system.</div>
+  </div>
+
+  <div class="quiz-card" data-correct="2">
+    <div class="quiz-q">Q2: Why doesn't KSC require exhaustive matching over all 364 node kinds?</div>
+    <div class="quiz-options">
+      <div class="quiz-opt" data-idx="0">TypeScript can't do exhaustive matching</div>
+      <div class="quiz-opt" data-idx="1">KSC uses runtime validation instead of compile-time checks</div>
+      <div class="quiz-opt" data-idx="2">The AG model provides correct defaults — tree traversal is exhaustive via schema, unhandled kinds get default equations</div>
+      <div class="quiz-opt" data-idx="3">The analysis never processes nodes directly</div>
+    </div>
+    <div class="quiz-explain">The attribute grammar evaluation model separates traversal
+    (always exhaustive via <code>getChildFields</code>) from per-kind behavior (selective).
+    Inherited attributes propagate down, collections aggregate up, and synthesized attributes
+    use default equations for unhandled kinds. This is semantically correct, not just
+    a workaround for TypeScript's limitations.</div>
+  </div>
+
+  <div class="quiz-card" data-correct="0">
+    <div class="quiz-q">Q3: What is the closest analog to Infer's ATDGen codegen in KSC?</div>
+    <div class="quiz-options">
+      <div class="quiz-opt" data-idx="0">compileGrammar() — takes grammar spec, generates typed AST interfaces</div>
+      <div class="quiz-opt" data-idx="1">compileAnalysis() — takes analysis spec, generates evaluator</div>
+      <div class="quiz-opt" data-idx="2">validateSpec() — cross-validates analysis against grammar</div>
+      <div class="quiz-opt" data-idx="3">convertGenerator() — generates source-to-AST translation</div>
+    </div>
+    <div class="quiz-explain">ATDGen takes Clang header definitions and generates OCaml types
+    for AST nodes. <code>compileGrammar()</code> takes a GrammarSpec and generates TypeScript
+    interfaces for AST nodes. Both solve the same problem: "given a description of node types,
+    generate type-safe code for processing them." <code>convertGenerator</code> is the closest
+    to Infer's <em>frontend translation</em> (AST → IR), not the type generation step.</div>
+  </div>
+
+  <div class="quiz-card" data-correct="1">
+    <div class="quiz-q">Q4: An Infer checker works on all supported languages because:</div>
+    <div class="quiz-options">
+      <div class="quiz-opt" data-idx="0">Infer generates language-specific checker variants</div>
+      <div class="quiz-opt" data-idx="1">All languages are lowered to the same SIL, so checkers only need to handle SIL types</div>
+      <div class="quiz-opt" data-idx="2">Infer uses dynamic dispatch to route to the right checker</div>
+      <div class="quiz-opt" data-idx="3">Each language frontend includes analysis hooks</div>
+    </div>
+    <div class="quiz-explain">This is the fundamental value proposition of a shared IR:
+    write a checker once against SIL's 5 instruction types, and it automatically works for
+    any language that has a frontend emitting SIL. The cost is that language-specific
+    constructs are erased — a checker can't ask "is this a Python list comprehension?"
+    because that concept doesn't exist in SIL.</div>
+  </div>
+
+  <div class="quiz-card" data-correct="2">
+    <div class="quiz-q">Q5: When a new node kind is added to KSC's grammar, what happens to existing analysis specs?</div>
+    <div class="quiz-options">
+      <div class="quiz-opt" data-idx="0">They fail to compile — every equation switch must be updated</div>
+      <div class="quiz-opt" data-idx="1">They fail validation — validateSpec() reports the uncovered kind</div>
+      <div class="quiz-opt" data-idx="2">They continue working — the new kind falls through to default equations and participates via schema-driven traversal</div>
+      <div class="quiz-opt" data-idx="3">They require a manual migration to add a case for the new kind</div>
+    </div>
+    <div class="quiz-explain">This is one of KSC's key design advantages. New node kinds
+    automatically participate in tree traversal (via the regenerated schema), inherit
+    attributes from parents, contribute to collections, and use default synthesized values.
+    Only analysis specs that need <em>kind-specific behavior</em> for the new kind need updates.
+    Compare this to Infer where a new SIL variant is a global breaking change requiring
+    every checker to update.</div>
+  </div>
+</div>
+</section>
+
+</div><!-- /container -->
+
+<script>
+// Collapsibles
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.parentElement.classList.toggle('open');
+  });
+});
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const group = btn.closest('.tab-group');
+    group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    group.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = group.querySelector('#tab-' + btn.dataset.tab);
+    if (panel) panel.classList.add('active');
+  });
+});
+
+// Quiz
+document.querySelectorAll('.quiz-card').forEach(card => {
+  const correct = parseInt(card.dataset.correct);
+  const explain = card.querySelector('.quiz-explain');
+  let answered = false;
+
+  card.querySelectorAll('.quiz-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      const idx = parseInt(opt.dataset.idx);
+      if (idx === correct) {
+        opt.classList.add('correct');
+      } else {
+        opt.classList.add('wrong');
+        card.querySelectorAll('.quiz-opt')[correct].classList.add('correct');
+      }
+      explain.style.display = 'block';
+    });
+  });
+});
+</script>
+
+</body>
+</html>

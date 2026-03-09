@@ -118,18 +118,21 @@ What gets walked depends on the target type:
 ## Programmatic API
 
 ```typescript
-import { createProgram, defineConfig, exportDashboardData } from 'kindscript';
+import { createProgram, defineConfig, extractASTData } from 'kindscript';
 
-const config = defineConfig({
-  domain: { path: './src/domain', rules: { pure: true, noIO: true } },
-});
+const config = defineConfig({ analysisDepth: 'check' });
+const program = createProgram(rootFiles, config, { strict: true, noEmit: true });
 
-const program = createProgram(rootFiles, config, { strict: true });
-const diagnostics = program.getKindDiagnostics();
+// Kind definitions and violations
+const defs = program.getKindDefinitions();
+const diags = program.getDiagnostics();
+console.log(`${defs.length} kinds, ${diags.length} violations`);
 
 // Dashboard export for visualization
-const data = exportDashboardData(program, { includeSource: true });
+const data = extractASTData(program.getKSTree(), 'check');
 ```
+
+See [`examples/programmatic-api.ts`](examples/programmatic-api.ts) for a complete working example.
 
 ## Integration
 
@@ -144,18 +147,125 @@ In type theory, a *kind* is the type of a type. `Type` has kind `*`. `Array` has
 
 The name also reflects the design philosophy: KindScript is TypeScript. It uses TypeScript's compiler, TypeScript's AST, TypeScript's tooling. It adds a layer of architectural verification without introducing a new language, new syntax, or new build step.
 
+## CLI
+
+```bash
+# Check your project
+ksc check
+
+# With options
+ksc check --config kindscript.config.ts
+ksc check --json
+ksc check --depth parse|bind|check
+ksc check --watch
+
+# Generate a config scaffold
+ksc init
+```
+
+**Exit codes:** 0 = no violations, 1 = violations found, 2 = error.
+
+**Config file discovery:** KSC auto-detects config files in order of precedence:
+1. `kindscript.config.ts`
+2. `kindscript.config.js`
+3. `ksc.config.ts`
+4. `ksc.config.js`
+
+Use `--config <path>` to override. Config is optional — KSC works without one.
+
+## CI/CD Integration
+
+```yaml
+# GitHub Actions
+- name: Check architecture
+  run: npx ksc check
+
+# With JSON output for machine parsing
+- name: Check architecture (JSON)
+  run: npx ksc check --json > ksc-report.json
+```
+
+The exit code tells CI whether violations were found (exit 1) or an error occurred (exit 2).
+
 ## AST Schema
 
-KindScript uses a schema-first architecture for its AST. A single source of truth (`ast-schema/schema.ts`) declares all 364 node kinds, their typed fields, and 48 sum type memberships — mirroring TypeScript's full AST structure. A codegen step generates:
+KindScript uses a schema-first architecture for its AST. A single source of truth (`specs/ts-ast/grammar/nodes.ts`) declares all 364 node kinds (362 from TypeScript + 2 KSC-specific: `Program`, `CompilationUnit`), their typed fields, and 48 sum type memberships — mirroring TypeScript's full AST structure. A codegen step generates:
 
 - **Typed interfaces** — `KSNode` union, per-node interfaces (e.g., `KSIfStatement`), sum type unions (`KSExpression`, `KSStatement`, etc.), type guards
 - **Runtime schema** — `getChildren()`, field introspection, completeness checking for AG equations
 - **Node definitions** — `defineNode()`/`defineLeaf()` calls with phantom-typed field descriptors
 
-Every child field is typed to a specific node kind or sum type. Operator and token enums are decoded to human-readable string literals (`'extends' | 'implements'`, not raw numbers). The schema covers 362/362 TypeScript SyntaxKinds with 0 verification errors.
+Every child field is typed to a specific node kind or sum type. Operator and token enums are decoded to human-readable string literals (`'extends' | 'implements'`, not raw numbers). The schema covers all 362 TypeScript SyntaxKinds with 0 verification errors.
 
-See [`docs/architecture/ast-schema-completeness.md`](docs/architecture/ast-schema-completeness.md) for details.
+## Project Structure
+
+```
+specs/                        Pluggable data specifications
+  ts-ast/                     TypeScript AST target
+    grammar/                  TS AST grammar (364 node kinds)
+      nodes.ts, extractors.ts, spec.ts
+    kind-checking/            Kind-checking analysis
+      spec.ts                 AnalysisSpec: 5 structural + 8 property declarations
+  mock/                       Mock target (testing)
+    grammar/                  Mock grammar (5 node kinds)
+      nodes.ts, spec.ts
+    mock-analysis/            Mock analysis (1 attr)
+      spec.ts
+
+grammar/                      Grammar machinery + compilation
+  builder.ts                  Scoped builder DSL (createGrammarBuilder, field helpers)
+  export.ts                   Dashboard data extraction
+  compile.ts                  Functor 1: compileGrammar(GrammarSpec) → 7 AST files
+  verify.ts                   Grammar verification against TypeScript AST
+  types.ts                    GrammarSpec, CompiledGrammar, GeneratedFile
+
+analysis/                     Analysis machinery + compilation
+  binder.ts, types.ts         Equation functions, domain types + spec interfaces
+  ctx.ts                      Ctx interface (equation contract)
+  compile.ts                  Functor 2: compileAnalysis(AnalysisSpec) → evaluator
+  validate.ts                 Cross-functor validation
+  violation.ts                Type-safe violation builder
+
+app/                          Composition roots + shared lib
+  index.ts                    Public API (npm package entry point)
+  cli.ts                      ksc CLI (check, init)
+  codegen/                    Codegen composition roots (one per grammar+analysis)
+    ts-kind-checking.ts       TS AST + kind-checking → generated/ts-ast/
+    mock.ts                   Mock grammar + mock analysis → generated-mock/mock/
+    lib/codegen.ts            Shared codegen helpers + CLI runner
+  lib/                        Shared code
+    program.ts, config.ts, parse.ts, types.ts
+
+generated/                    Machine-generated output (never edit, committed)
+  ts-ast/                     Output grouped by grammar target
+    grammar/                  Functor 1 output (node-types, schema, convert, etc.)
+    kind-checking/            Functor 2 output (evaluator.ts, attr-types.ts)
+
+test/                         Test suite (vitest, 262 tests)
+dashboard/                    Interactive AST visualization (React + Vite)
+examples/                     Usage examples (showcase, programmatic API)
+```
+
+### Separate Composition Roots
+
+Each grammar+analysis combination has its own composition root that selects
+specific data specs and wires them to the shared codegen pipeline.
+Shared logic lives in `app/codegen/lib/codegen.ts`.
+
+```
+app/codegen/ts-kind-checking.ts  → specs/ts-ast/grammar/ + specs/ts-ast/kind-checking/
+app/codegen/mock.ts              → specs/mock/grammar/   + specs/mock/mock-analysis/
+```
+
+### Specs vs Machinery Separation
+
+`specs/` contains **pluggable data specifications** — pure declarative definitions
+with no business logic. `grammar/` and `analysis/` contain **machinery** — DSLs,
+equation functions, and framework code shared across all specs.
+
+The nesting `specs/<target>/<analysis>/` makes the grammar dependency
+structural — an analysis always lives under the grammar target it covers.
 
 ## Status
 
-KindScript is a greenfield rewrite of an [earlier prototype](https://github.com/user/kindscript). The rewrite aligns the compiler's internal architecture directly with TypeScript's own compiler phases — scanner, parser, binder, checker — using the same names, same patterns, and same data flow model.
+KindScript is a greenfield rewrite of an [earlier prototype](https://github.com/user/kindscript). The architecture uses a two-functor compilation model with attribute grammars — see `docs/tutorial-adding-an-attribute.md` for details.

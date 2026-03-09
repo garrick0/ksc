@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analysis ↔ Grammar Boundary — How Functor 2 Consumes Grammar Information</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, #0f1117 0%, #151828 50%, #12101f 100%);
+  padding: 64px 24px 52px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle at 30% 50%, rgba(108,140,255,0.06) 0%, transparent 50%),
+              radial-gradient(circle at 70% 50%, rgba(167,139,250,0.06) 0%, transparent 50%);
+}
+.hero h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  position: relative;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 14px;
+}
+.hero .subtitle {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  max-width: 700px;
+  margin: 0 auto 20px;
+  position: relative;
+}
+.badge-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: relative;
+}
+.badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+.badge-blue { background: rgba(108,140,255,0.15); color: var(--accent); border: 1px solid rgba(108,140,255,0.3); }
+.badge-purple { background: rgba(167,139,250,0.15); color: var(--accent2); border: 1px solid rgba(167,139,250,0.3); }
+.badge-green { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+.badge-cyan { background: rgba(34,211,238,0.15); color: var(--cyan); border: 1px solid rgba(34,211,238,0.3); }
+.badge-pink { background: rgba(244,114,182,0.15); color: var(--pink); border: 1px solid rgba(244,114,182,0.3); }
+.badge-orange { background: rgba(251,146,60,0.15); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+
+/* ── Nav / TOC ── */
+.toc {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.toc-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toc-inner::-webkit-scrollbar { display: none; }
+.toc a {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.toc a:hover { color: var(--text); background: var(--surface2); }
+
+/* ── Container / Sections ── */
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+h2 .num {
+  display: inline-block;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  text-align: center;
+  line-height: 36px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin-right: 12px;
+  vertical-align: middle;
+}
+h3 { font-size: 1.15rem; color: var(--accent2); margin: 24px 0 10px; }
+p { margin-bottom: 14px; color: var(--text-dim); line-height: 1.7; }
+p strong { color: var(--text); }
+
+/* ── Code ── */
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  margin: 14px 0 18px;
+  color: var(--text);
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+}
+:not(pre) > code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: var(--cyan);
+}
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.fn-name { color: var(--accent); }
+
+/* ── Insight ── */
+.insight {
+  border-left: 3px solid var(--accent);
+  background: rgba(108,140,255,0.06);
+  padding: 14px 20px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 18px 0;
+  font-size: 0.92rem;
+  color: var(--text-dim);
+}
+.insight strong { color: var(--text); }
+.insight.warn {
+  border-left-color: var(--orange);
+  background: rgba(251,146,60,0.06);
+}
+.insight.good {
+  border-left-color: var(--green);
+  background: rgba(74,222,128,0.06);
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 0;
+}
+.tab {
+  padding: 10px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--text);
+  box-shadow: inset 0 2px 0 var(--accent);
+  background: var(--surface2);
+}
+.tab-content {
+  display: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) var(--radius);
+  padding: 20px;
+}
+.tab-content.active { display: block; }
+
+/* ── Data flow / Collapsible stages ── */
+.data-flow { margin: 16px 0; }
+.df-stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.df-stage:hover { border-color: rgba(108,140,255,0.4); }
+.df-stage-header {
+  padding: 14px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+.df-stage-title { font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 10px; }
+.df-num {
+  display: inline-flex;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.8rem;
+  font-weight: 800;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.df-expand {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  transition: transform 0.3s;
+}
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.3s;
+  padding: 0 20px;
+}
+.df-stage.active .df-detail {
+  max-height: 800px;
+  padding: 0 20px 16px;
+}
+.df-detail p { margin-bottom: 8px; font-size: 0.9rem; }
+.df-connector {
+  width: 2px;
+  height: 14px;
+  background: var(--border);
+  margin: 0 auto;
+}
+
+/* ── Cards / Grid ── */
+.constraint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.constraint-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.constraint-card:hover { border-color: var(--accent); }
+.constraint-card.selected { border-color: var(--accent); box-shadow: 0 0 12px rgba(108,140,255,0.15); }
+.cc-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+.cc-scope { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.cc-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
+.constraint-detail {
+  display: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 12px;
+}
+.constraint-detail.visible { display: block; }
+
+/* ── Pipeline Stepper ── */
+.pipeline-stepper {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+}
+.step-btn {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.step-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.step-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.step-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  border-color: transparent;
+}
+.step-content {
+  display: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.step-content.active { display: block; }
+
+/* ── Comparison table ── */
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 0.88rem;
+}
+.cmp-table th {
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.cmp-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  vertical-align: top;
+}
+.cmp-table tr:hover td { background: var(--surface); }
+
+/* ── Flashcard ── */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .constraint-grid { grid-template-columns: 1fr; }
+  .pipeline-stepper { flex-direction: column; }
+  .step-btn { border-radius: var(--radius) !important; }
+  .toc-inner { gap: 4px; }
+  .toc a { padding: 6px 10px; font-size: 0.78rem; }
+  .cmp-table { font-size: 0.8rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HERO ═══════════════════ -->
+<div class="hero">
+  <h1>Analysis ↔ Grammar Boundary</h1>
+  <p class="subtitle">How Functor 2 (analysis compilation) consumes grammar information — the four channels of data flow and where the boundary leaks</p>
+  <div class="badge-row">
+    <span class="badge badge-blue">Functor 2</span>
+    <span class="badge badge-purple">analysis/compile.ts</span>
+    <span class="badge badge-green">Separation of Concerns</span>
+    <span class="badge badge-cyan">Grammar Coupling</span>
+    <span class="badge badge-orange">Cleanup Options</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ TOC ═══════════════════ -->
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#s1">The Boundary</a>
+    <a href="#s2">Four Channels</a>
+    <a href="#s3">Hardcodings</a>
+    <a href="#s4">Grammar Side Comparison</a>
+    <a href="#s5">Cleanup Options</a>
+    <a href="#s6">Knowledge Check</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════ SECTION 1 ═══════════════════ -->
+<section id="s1">
+<div class="container">
+  <h2><span class="num">01</span>The Boundary</h2>
+
+  <p>KSC is a <strong>two-functor compilation system</strong>. Functor 1 (<code>grammar/compile.ts</code>) produces grammar output files from a <code>GrammarSpec</code>. Functor 2 (<code>analysis/compile.ts</code>) produces an evaluator from an <code>AnalysisSpec</code>. The central design question: <strong>how does Functor 2 get the grammar information it needs?</strong></p>
+
+  <p>The <code>analysis/</code> directory is designed to be <strong>generic</strong> — it has no imports from <code>specs/</code> or from grammar source code. But in practice, the boundary has several leak points where grammar-specific assumptions are baked into the "generic" machinery.</p>
+
+  <div class="insight">
+    <strong>Key insight:</strong> The analysis functor does <em>not</em> consume the generated grammar code at compile time. It reads the <code>AnalysisSpec</code> data structure and emits evaluator source code that will <em>import</em> from the generated grammar at runtime. The functor is a code generator — it produces <code>import</code> statements, not <code>import</code>s of its own.
+  </div>
+
+  <h3>The fundamental difference</h3>
+  <p>This is the single most important concept: <code>compileAnalysis</code> is a <strong>code generator</strong>, not a code consumer. It takes declarative spec data (attribute definitions, violation rules) and emits TypeScript source code. That emitted code <em>will</em> import from grammar output — but the compiler itself only needs to know the <strong>import paths</strong>, not the actual grammar types.</p>
+
+  <pre><span class="comment">// What compileAnalysis DOES:</span>
+<span class="keyword">function</span> <span class="fn-name">compileAnalysis</span>(spec: <span class="type-name">AnalysisSpec</span>, opts?) → {
+  evaluatorFile: { path: <span class="string-lit">'evaluator.ts'</span>, content: <span class="comment">/* generated source code */</span> },
+  attrTypesFile: { path: <span class="string-lit">'attr-types.ts'</span>, content: <span class="comment">/* generated source code */</span> },
+}
+
+<span class="comment">// What it emits (in the generated evaluator.ts):</span>
+<span class="keyword">import</span> <span class="keyword">type</span> { <span class="type-name">KSNode</span> } <span class="keyword">from</span> <span class="string-lit">'../grammar/index.js'</span>;      <span class="comment">// ← path configured via opts</span>
+<span class="keyword">import</span> { <span class="fn-name">getChildFields</span> } <span class="keyword">from</span> <span class="string-lit">'../grammar/index.js'</span>;  <span class="comment">// ← runtime schema access</span></pre>
+
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 2 ═══════════════════ -->
+<section id="s2">
+<div class="container">
+  <h2><span class="num">02</span>Four Channels of Grammar Info</h2>
+
+  <p>Grammar information flows into the analysis through exactly four channels. Click each stage to explore the details.</p>
+
+  <div class="data-flow">
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Codegen Import Paths</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The <code>CompileAnalysisOpts</code> interface lets each composition root configure where the generated evaluator should import from. These are <strong>string paths emitted into generated source code</strong>, not actual TypeScript imports.</p>
+        <pre><span class="keyword">interface</span> <span class="type-name">CompileAnalysisOpts</span> {
+  specImportPath?: <span class="type-name">string</span>;     <span class="comment">// default: '../specs/ts-ast/kind-checking/spec.js'</span>
+  grammarImportPath?: <span class="type-name">string</span>;  <span class="comment">// default: './ast/index.js'</span>
+  analysisImportPath?: <span class="type-name">string</span>; <span class="comment">// default: '../analysis'</span>
+  binderImportPath?: <span class="type-name">string</span>;   <span class="comment">// default: derived from analysisImportPath</span>
+}</pre>
+        <p>Note: the <strong>default values hardcode TS-specific paths</strong> — this is one of the leak points. A truly generic system would require these, not default them.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Cross-Functor Validation</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><code>analysis/validate.ts</code> checks that <code>triggerKind</code> values in violation rules and equation <code>cases</code> keys reference valid grammar kinds. This is the <strong>only place</strong> where analysis machinery actually receives a <code>CompiledGrammar</code> object.</p>
+        <pre><span class="fn-name">validateSpec</span>(spec: <span class="type-name">AnalysisSpec</span>, grammar: <span class="type-name">CompiledGrammar</span>): <span class="type-name">ValidationDiagnostic</span>[]
+
+<span class="comment">// Checks: grammar.hasKind(rule.triggerKind)
+// Checks: grammar.hasKind(caseName) for equation cases</span></pre>
+        <p>This is <strong>cleanly generic</strong> — it only uses the <code>hasKind()</code> method on <code>CompiledGrammar</code>. No grammar-specific knowledge needed.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Spec Type Imports (Generated Code)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The <strong>spec files</strong> (which live in <code>specs/</code>, not <code>analysis/</code>) import generated grammar types for their equation functions and violation predicates. This is the <em>intended</em> coupling point — specs are allowed to know about their grammar.</p>
+        <pre><span class="comment">// specs/ts-ast/kind-checking/spec.ts:</span>
+<span class="keyword">import</span> <span class="keyword">type</span> {
+  <span class="type-name">KSNode</span>, <span class="type-name">KSIdentifier</span>, <span class="type-name">KSVariableDeclaration</span>, ...
+} <span class="keyword">from</span> <span class="string-lit">'../../../generated/ts-ast/grammar/index.js'</span>;
+
+<span class="comment">// specs/ts-ast/kind-checking/binder.ts:</span>
+<span class="keyword">import</span> <span class="keyword">type</span> { <span class="type-name">KSCompilationUnit</span> } <span class="keyword">from</span> <span class="string-lit">'../../../generated/ts-ast/grammar/index.js'</span>;</pre>
+        <p>This is <strong>by design</strong> — analysis specs declare violation predicates like <code>(ctx, node: KSIdentifier) => node.resolvesToImport</code>. They need the generated types to be type-safe.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Runtime Schema Access (getChildFields)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The generated evaluator imports <code>getChildFields</code> from the grammar output. This is the <strong>runtime bridge</strong> between grammar and analysis — the evaluator uses it to build the decorated tree by discovering which fields of each node kind are child nodes.</p>
+        <pre><span class="comment">// In the generated evaluator.ts:</span>
+<span class="keyword">import</span> { <span class="fn-name">getChildFields</span> } <span class="keyword">from</span> <span class="string-lit">'../grammar/index.js'</span>;
+
+<span class="comment">// Used in buildKSCTree:</span>
+<span class="keyword">const</span> fields = <span class="fn-name">getChildFields</span>(raw.kind);  <span class="comment">// ← asks the grammar schema</span>
+<span class="keyword">for</span> (<span class="keyword">const</span> field <span class="keyword">of</span> fields) { ... }</pre>
+        <p>This is also <strong>cleanly generic</strong> — the grammar exposes a schema-querying function, the evaluator uses it. The evaluator doesn't need to know the actual node kinds.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="insight good">
+    <strong>Summary:</strong> Channels 2 and 4 are clean. Channel 3 is intentional (specs are allowed to know their grammar). Channel 1 has hardcoded defaults but is configurable. The real problems are <em>inside</em> the codegen logic of <code>compile.ts</code>, which we'll explore next.
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 3 ═══════════════════ -->
+<section id="s3">
+<div class="container">
+  <h2><span class="num">03</span>Hardcodings in compile.ts</h2>
+
+  <p>The analysis compiler (<code>analysis/compile.ts</code>) is supposed to be generic AG machinery that works with any analysis spec. In practice, it has three layers of assumptions baked in. Click each card to see the details.</p>
+
+  <div class="constraint-grid">
+
+    <div class="constraint-card" onclick="selectCard(this, 'detail-generic')">
+      <div class="cc-name">Generic AG Machinery</div>
+      <div class="cc-scope" style="color: var(--green)">Clean</div>
+      <div class="cc-desc">Dep graph, topo sort, cache fields, cycle detection, attr dispatch — all generic.</div>
+    </div>
+
+    <div class="constraint-card" onclick="selectCard(this, 'detail-pattern')">
+      <div class="cc-name">Kind-Checking Patterns</div>
+      <div class="cc-scope" style="color: var(--orange)">Hardcoded</div>
+      <div class="cc-desc">Context body hardcodes 'VariableDeclaration'. Violation body generates CheckerDiagnostic shape. allViolations collection.</div>
+    </div>
+
+    <div class="constraint-card" onclick="selectCard(this, 'detail-grammar')">
+      <div class="cc-name">TS Grammar Assumptions</div>
+      <div class="cc-scope" style="color: var(--red)">Hardcoded</div>
+      <div class="cc-desc">_findFileName() hardcodes 'CompilationUnit'. violation.ts imports from generated/ts-ast/grammar/kind-map.js.</div>
+    </div>
+
+  </div>
+
+  <div class="constraint-detail" id="detail-generic">
+    <h3>Generic AG machinery (no issues)</h3>
+    <p>These parts of <code>compile.ts</code> are truly generic and reusable across any grammar+analysis:</p>
+    <pre><span class="fn-name">deriveAllAttrs</span>(spec)          <span class="comment">// Derives context + violation + allViolations from properties</span>
+<span class="fn-name">buildDepGraphFromAttrs</span>(attrs)  <span class="comment">// Topological sort of attribute dependencies</span>
+<span class="fn-name">generateAttrTypes</span>(attrs)      <span class="comment">// Emits KSCAttrMap interface</span>
+<span class="fn-name">generateStructuralBody</span>(...)   <span class="comment">// Switch dispatch for structural attributes</span>
+KSCDNode class skeleton        <span class="comment">// Typed cache, attr(), hasAttr(), navigation</span>
+buildKSCTree                   <span class="comment">// Schema-aware tree construction via getChildFields</span></pre>
+    <p>This is the <strong>majority</strong> of the 739-line file — the generic parts work well.</p>
+  </div>
+
+  <div class="constraint-detail" id="detail-pattern">
+    <h3>Kind-checking pattern hardcodings</h3>
+    <p>The analysis compiler knows it's generating a <strong>kind-checking</strong> system. Three functions embed this pattern:</p>
+
+    <p><strong><code>generateContextBody()</code></strong> (line 586) — hardcodes <code>'VariableDeclaration'</code>:</p>
+    <pre><span class="keyword">if</span> ((this.parent!.node <span class="keyword">as</span> <span class="keyword">any</span>).kind === <span class="string-lit">'VariableDeclaration'</span>) {
+  <span class="keyword">const</span> kinds = this.parent!.kindAnnotations();
+  <span class="keyword">const</span> match = kinds.find((k: <span class="type-name">KindDefinition</span>) =>
+    (k.properties <span class="keyword">as</span> <span class="keyword">any</span>)[<span class="string-lit">'${prop.annotationKey}'</span>]);
+  <span class="keyword">if</span> (match) <span class="keyword">return</span> this._c_${a.name} = match;
+}</pre>
+    <p>This makes <code>VariableDeclaration</code> the only "annotation carrier" — a complexity analysis might want annotations on <code>FunctionDeclaration</code> instead.</p>
+
+    <p><strong><code>generateViolationBody()</code></strong> (line 600) — hardcodes the <code>CheckerDiagnostic</code> object shape:</p>
+    <pre>{
+  node: this.node,
+  message: rule.message(this, this.node, kindCtx),
+  kindName: kindCtx.name,
+  property: <span class="string-lit">'${prop.name}'</span>,
+  pos: this.node.pos, end: this.node.end,
+  fileName: this._findFileName(),
+}</pre>
+    <p>A different analysis might produce different diagnostic shapes.</p>
+
+    <p><strong><code>generateAllViolationsBody()</code></strong> (line 665) — the collection-of-violations pattern is hardcoded rather than being driven by the spec.</p>
+  </div>
+
+  <div class="constraint-detail" id="detail-grammar">
+    <h3>TS grammar assumptions</h3>
+
+    <p><strong><code>_findFileName()</code></strong> (line 364) — walks up the tree looking for <code>'CompilationUnit'</code>:</p>
+    <pre><span class="keyword">private</span> <span class="fn-name">_findFileName</span>(): <span class="type-name">string</span> {
+  <span class="keyword">let</span> current = this.parent;
+  <span class="keyword">while</span> (current && current.node.kind !== <span class="string-lit">'CompilationUnit'</span>) {
+    current = current.parent;
+  }
+  <span class="keyword">return</span> current ? (current.node <span class="keyword">as</span> <span class="keyword">any</span>).fileName : <span class="string-lit">'&lt;unknown&gt;'</span>;
+}</pre>
+    <p>This hardcodes the TS grammar's root node kind and its <code>fileName</code> field. A Python AST might have <code>'Module'</code> with a <code>filepath</code> field.</p>
+
+    <p><strong><code>analysis/violation.ts</code></strong> — imports directly from generated TS grammar output:</p>
+    <pre><span class="keyword">import</span> <span class="keyword">type</span> { <span class="type-name">KindToNode</span> } <span class="keyword">from</span> <span class="string-lit">'../generated/ts-ast/grammar/kind-map.js'</span>;</pre>
+    <p>This is the most direct coupling — a supposedly generic analysis utility imports from a specific grammar's generated code. The <code>violation()</code> builder provides type-safe node narrowing, but at the cost of binding <code>analysis/</code> to <code>generated/ts-ast/</code>.</p>
+
+    <div class="insight warn">
+      <strong>Watch out:</strong> The <code>violation.ts</code> import means you can't create a second grammar target without either (a) moving the violation builder to the spec, or (b) parameterizing it with a generic KindToNode map.
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 4 ═══════════════════ -->
+<section id="s4">
+<div class="container">
+  <h2><span class="num">04</span>Grammar Side Comparison</h2>
+
+  <p>The grammar side achieved clean separation through three moves. The analysis side hasn't had the same treatment yet. Here's the comparison:</p>
+
+  <table class="cmp-table">
+    <tr>
+      <th>Aspect</th>
+      <th>Grammar Side</th>
+      <th>Analysis Side</th>
+    </tr>
+    <tr>
+      <td><strong>Spec interface</strong></td>
+      <td><code>GrammarSpec</code> — minimal: <code>nodes</code>, <code>sumTypes</code>, <code>convertGenerator?</code></td>
+      <td><code>AnalysisSpec</code> — minimal: <code>structural</code>, <code>properties</code>, <code>projections</code></td>
+    </tr>
+    <tr>
+      <td><strong>Code generation</strong></td>
+      <td>6 files generic + convert.ts delegated to spec's <code>convertGenerator()</code></td>
+      <td>Evaluator + attr-types generated entirely by <code>compile.ts</code> — no delegation</td>
+    </tr>
+    <tr>
+      <td><strong>Spec-specific logic</strong></td>
+      <td>Spec owns its convert generator via closure — <code>grammar/compile.ts</code> just calls <code>spec.convertGenerator()</code></td>
+      <td>Pattern templates (context, violation, allViolations) are hardcoded in <code>compile.ts</code></td>
+    </tr>
+    <tr>
+      <td><strong>Grammar coupling</strong></td>
+      <td style="color: var(--green)">Zero — <code>grammar/</code> has no TS-specific imports</td>
+      <td style="color: var(--red)"><code>violation.ts</code> imports from <code>generated/ts-ast/</code>; <code>compile.ts</code> hardcodes 'CompilationUnit'</td>
+    </tr>
+    <tr>
+      <td><strong>Shared helpers</strong></td>
+      <td><code>convert-skeleton.ts</code>, <code>convert-codegen.ts</code>, <code>field-extractors.ts</code> — all generic</td>
+      <td>No shared helper libraries (all inline in <code>compile.ts</code>)</td>
+    </tr>
+    <tr>
+      <td><strong>Multiple targets</strong></td>
+      <td style="color: var(--green)">Works — mock grammar uses same machinery with zero changes</td>
+      <td style="color: var(--orange)">Would require fixing hardcodings</td>
+    </tr>
+  </table>
+
+  <div class="insight">
+    <strong>Key insight:</strong> The grammar side's clean separation was achieved by moving the spec-specific convert generation into a closure on <code>GrammarSpec.convertGenerator</code>. The equivalent move for analysis would be to let the spec provide <strong>code generation templates</strong> for the context, violation, and allViolations patterns.
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 5 ═══════════════════ -->
+<section id="s5">
+<div class="container">
+  <h2><span class="num">05</span>Cleanup Options</h2>
+
+  <p>Four approaches to fixing the boundary leaks, ranging from minimal to comprehensive:</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('opt-a')">A: Minimal</button>
+    <button class="step-btn" onclick="showStep('opt-b')">B: Parameterize</button>
+    <button class="step-btn" onclick="showStep('opt-c')">C: Full Delegation</button>
+    <button class="step-btn" onclick="showStep('opt-d')">D: violation.ts Only</button>
+  </div>
+
+  <div class="step-content active" id="opt-a">
+    <h3>Option A: Fix the grammar leaks only</h3>
+    <p><strong>Effort:</strong> Small. <strong>Impact:</strong> Removes TS grammar assumptions while keeping the kind-checking patterns.</p>
+    <p>Two changes:</p>
+    <pre><span class="comment">// 1. Parameterize _findFileName() — add to AnalysisSpec or CompileAnalysisOpts:</span>
+<span class="keyword">interface</span> <span class="type-name">CompileAnalysisOpts</span> {
+  rootKind?: <span class="type-name">string</span>;         <span class="comment">// default: 'CompilationUnit'</span>
+  fileNameField?: <span class="type-name">string</span>;    <span class="comment">// default: 'fileName'</span>
+}
+
+<span class="comment">// 2. Move violation.ts to specs/ts-ast/kind-checking/violation.ts</span>
+<span class="comment">//    The type-safe builder is spec-specific (it needs KindToNode)</span></pre>
+    <p>This keeps the kind-checking patterns in <code>compile.ts</code> but removes the grammar-specific assumptions. Pragmatic for a single-grammar system.</p>
+  </div>
+
+  <div class="step-content" id="opt-b">
+    <h3>Option B: Parameterize the pattern templates</h3>
+    <p><strong>Effort:</strong> Medium. <strong>Impact:</strong> The context/violation/allViolations patterns become configurable rather than hardcoded.</p>
+    <pre><span class="keyword">interface</span> <span class="type-name">AnalysisSpec</span> {
+  structural: <span class="type-name">StructuralAttr</span>[];
+  properties: <span class="type-name">PropertyDecl</span>[];
+  projections: { ... };
+
+  <span class="comment">// NEW: pattern configuration</span>
+  patterns?: {
+    annotationCarrier?: <span class="type-name">string</span>;      <span class="comment">// default: 'VariableDeclaration'</span>
+    annotationAttr?: <span class="type-name">string</span>;        <span class="comment">// default: 'kindAnnotations'</span>
+    diagnosticShape?: <span class="type-name">string</span>;       <span class="comment">// template for violation body</span>
+  };
+}</pre>
+    <p>This makes the system <strong>configurable</strong> without fully delegating code generation. A complexity analysis could set <code>annotationCarrier: 'FunctionDeclaration'</code>.</p>
+  </div>
+
+  <div class="step-content" id="opt-c">
+    <h3>Option C: Full spec-owned code generation (like grammar side)</h3>
+    <p><strong>Effort:</strong> Large. <strong>Impact:</strong> The analysis spec gets its own code generator closure, like <code>GrammarSpec.convertGenerator</code>.</p>
+    <pre><span class="keyword">interface</span> <span class="type-name">AnalysisSpec</span> {
+  structural: <span class="type-name">StructuralAttr</span>[];
+  properties: <span class="type-name">PropertyDecl</span>[];
+  projections: { ... };
+
+  <span class="comment">// NEW: spec-owned method generators</span>
+  methodGenerators?: {
+    contextBody?: (attr: <span class="type-name">DerivedAttr</span>) => <span class="type-name">string</span>[];
+    violationBody?: (attr: <span class="type-name">DerivedAttr</span>) => <span class="type-name">string</span>[];
+    allViolationsBody?: (spec: <span class="type-name">AnalysisSpec</span>) => <span class="type-name">string</span>[];
+  };
+}</pre>
+    <p>This mirrors the grammar side's architecture — the spec owns its patterns entirely. But the current kind-checking patterns are <strong>reasonable defaults</strong> for most analyses, making full delegation potentially over-engineered.</p>
+  </div>
+
+  <div class="step-content" id="opt-d">
+    <h3>Option D: Fix violation.ts only</h3>
+    <p><strong>Effort:</strong> Minimal. <strong>Impact:</strong> Removes the most egregious coupling.</p>
+    <pre><span class="comment">// Move analysis/violation.ts → specs/ts-ast/kind-checking/violation.ts</span>
+<span class="comment">// It imports from generated/ts-ast/grammar/kind-map.js anyway,</span>
+<span class="comment">// so it already belongs in the spec directory.</span>
+<span class="comment">//</span>
+<span class="comment">// The spec.ts file already imports and uses violation().</span>
+<span class="comment">// Only the import path changes.</span></pre>
+    <p>This is the lowest-risk change. The <code>violation()</code> builder is fundamentally spec-specific (it needs a <code>KindToNode</code> map from a specific grammar), so it belongs alongside its spec. The analysis machinery doesn't need it.</p>
+
+    <div class="insight good">
+      <strong>Recommendation:</strong> Start with D (move violation.ts), then A (parameterize _findFileName). These two changes remove all grammar coupling from <code>analysis/</code> with minimal risk. Consider B later if a second analysis type emerges with different annotation patterns.
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 6: KNOWLEDGE CHECK ═══════════════════ -->
+<section id="s6">
+<div class="container">
+  <h2><span class="num">06</span>Knowledge Check</h2>
+  <p style="margin-bottom: 20px; color: var(--text-dim);">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">7</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Does <code>compileAnalysis</code> import or read the generated grammar files?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>No. <code>compileAnalysis</code> is a code generator — it <em>emits</em> import statements that reference grammar output, but it never imports or reads the generated files itself. It only needs the import <strong>paths</strong> (configured via <code>CompileAnalysisOpts</code>).</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What are the four channels through which grammar information flows to the analysis?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>(1) <strong>Codegen import paths</strong> — string paths emitted into generated code. (2) <strong>Cross-functor validation</strong> — <code>validateSpec</code> receives a <code>CompiledGrammar</code> to check triggerKinds. (3) <strong>Spec type imports</strong> — spec files import generated grammar types. (4) <strong>Runtime schema access</strong> — generated evaluator uses <code>getChildFields</code> to build the decorated tree.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is <code>analysis/violation.ts</code> problematic from a separation-of-concerns perspective?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>It imports <code>KindToNode</code> directly from <code>generated/ts-ast/grammar/kind-map.js</code>. This makes the supposedly generic <code>analysis/</code> directory depend on a specific grammar target's generated code. It should live in <code>specs/ts-ast/kind-checking/</code> alongside the spec that uses it.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What grammar-specific kind name is hardcoded in <code>_findFileName()</code>, and what grammar-specific kind name is hardcoded in <code>generateContextBody()</code>?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>_findFileName()</code> hardcodes <code>'CompilationUnit'</code> — it walks up the tree to find the root node with a <code>fileName</code> field. <code>generateContextBody()</code> hardcodes <code>'VariableDeclaration'</code> — it checks if the parent is a VariableDeclaration to find kind annotations.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How did the grammar side achieve clean separation for spec-specific code generation? What's the analysis equivalent?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The grammar side uses <code>GrammarSpec.convertGenerator</code> — a <code>() => string</code> closure that the spec owns. <code>grammar/compile.ts</code> just calls it with no args. The analysis equivalent would be spec-owned method generators (Option C) — but unlike convert.ts, the kind-checking patterns are reasonable defaults for most analyses, so full delegation may be over-engineered.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does <code>deriveAllAttrs</code> produce from an <code>AnalysisSpec</code> with 5 structural attributes and 8 property declarations?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>22 total attributes: the 5 structural attrs + 8 <code>{name}Context</code> (inherited) + 8 <code>{violationAttr}</code> (synthesized) + 1 <code>allViolations</code> (collection). The 17 derived attrs are mechanically produced from the property declarations — no spec-specific logic needed.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>If you wanted to create a complexity analysis over the TS grammar (not kind-checking), what would break in the current <code>analysis/compile.ts</code>?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The <code>generateContextBody()</code> template assumes annotations live on <code>VariableDeclaration</code> nodes — a complexity analysis might want annotations on <code>FunctionDeclaration</code>. The <code>CheckerDiagnostic</code> shape is hardcoded in violation bodies. The <code>_findFileName()</code> hardcoding of <code>'CompilationUnit'</code> would be fine (same grammar), but <code>violation.ts</code>'s import from <code>generated/ts-ast/</code> is already coupled. The property-to-context-to-violation derivation pattern might not even apply.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 7</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<script>
+// ── Collapsible stages ──
+function toggleStage(el) { el.classList.toggle('active'); }
+
+// ── Cards ──
+function selectCard(card, detailId) {
+  document.querySelectorAll('.constraint-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  document.querySelectorAll('.constraint-detail').forEach(d => d.classList.remove('visible'));
+  document.getElementById(detailId).classList.add('visible');
+}
+
+// ── Pipeline stepper ──
+function showStep(stepId) {
+  document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Tabs ──
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  container.previousElementSibling.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ── Flashcards ──
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+
+</body>
+</html>
