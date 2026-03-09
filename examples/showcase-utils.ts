@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { execSync } from 'node:child_process';
-import type { ASTDashboardData } from '../ast-schema/export.js';
+import type { ASTDashboardData } from '../grammar/export.js';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const TEMP_DIR = path.join(PROJECT_ROOT, '.showcase-tmp');

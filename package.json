@@ -1,18 +1,30 @@
 {
   "name": "kindscript",
   "version": "0.1.0",
+  "type": "module",
   "description": "Architectural enforcement for TypeScript through the type system",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/app/index.js",
+  "types": "dist/app/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/app/index.d.ts",
+      "default": "./dist/app/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "bin": {
-    "ksc": "dist/cli/cli.js"
+    "ksc": "dist/app/cli.js"
   },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
+    "test:all": "vitest run --config vitest.config.all.ts",
     "test:watch": "vitest",
     "dashboard:dev": "vite --config dashboard/vite.config.ts",
     "dashboard:build": "vite build --config dashboard/vite.config.ts",
+    "codegen": "tsx app/codegen/ts-kind-checking.ts",
     "showcase": "tsx examples/showcase.ts",
     "showcase:fixed": "tsx examples/showcase.ts --mode=fixed",
     "showcase:live": "tsx examples/showcase.ts --mode=live"

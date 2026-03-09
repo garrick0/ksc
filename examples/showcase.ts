@@ -17,14 +17,15 @@
  */
 
 import { parseArgs } from 'node:util';
+import ts from 'typescript';
 import {
   setupTempProject,
   cleanupTemp,
   discoverRootFiles,
   serveDashboard,
 } from './showcase-utils.js';
-import { parseOnly } from '../src/pipeline/parse.js';
-import { extractASTData } from '../ast-schema/export.js';
+import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
+import { extractASTData } from '../grammar/export.js';
 
 const { values } = parseArgs({
   options: {
@@ -62,17 +63,22 @@ async function main() {
     process.exit(1);
   }
 
-  // Parse only — no binder/checker
-  console.log('  Parsing...');
-  const ksTree = parseOnly(rootFiles, {
+  // Full analysis: parse + type checker for all stamped fields
+  console.log('  Analyzing (check depth)...');
+  const tsProgram = ts.createProgram(rootFiles, {
     strict: true,
     noEmit: true,
     rootDir,
+    jsx: ts.JsxEmit.ReactJSX,
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ES2022,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
   });
+  const ksTree = buildKSTree(tsProgram, 'check');
 
   // Extract AST data for dashboard
-  const data = extractASTData(ksTree);
-  console.log(`  Parsed ${data.files.length} source files\n`);
+  const data = extractASTData(ksTree, 'check');
+  console.log(`  Analyzed ${data.files.length} source files\n`);
 
   // Serve
   const server = await serveDashboard(data);

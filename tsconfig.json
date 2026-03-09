@@ -14,6 +14,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "ast-schema/generated", "ksc-behavior", "ksc-generated"],
+  // Production source directories.
+  // Tests are excluded (vitest has its own TS handling).
+  // Dashboard has its own build via vite (see dashboard/vite.config.ts).
+  "include": ["app", "generated", "analysis", "grammar"],
   "exclude": ["node_modules", "dist", "test", "dashboard/app"]
 }

@@ -26,6 +26,9 @@ Thumbs.db
 # Showcase temp folder
 .showcase-tmp/
 
+# Mock codegen output (test artifact)
+generated-mock/
+
 # Environment
 .env
 .env.*
