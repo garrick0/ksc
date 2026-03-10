@@ -1,30 +1,36 @@
 /**
- * Analysis module — spec interfaces, compilation, and equation framework.
+ * Analysis module barrel — ports, compilation, and equation framework.
  *
- * Structure:
- *   types.ts      — spec interfaces (AnalysisSpec, AttrDecl discriminated union, etc.) + generic AG types
- *   compile.ts    — Functor 2: compileAnalysis(AnalysisSpec) → CompiledAnalyzer
+ * Ports:
+ *   AnalysisSpec<K, P>    — what an analysis definition provides
+ *   CodegenTarget<K, P>   — what a codegen composition root provides
+ *   Ctx / KindCtx<N>      — how equations interact with the AG tree
+ *
+ * Machinery:
+ *   compile.ts    — compileAnalysis(Grammar, AnalysisSpec) → CompiledAnalyzer
  *   validate.ts   — spec validation (attr dep consistency)
- *   ctx.ts        — Ctx interface (equation contract)
- *
- * Note: Domain types live in the spec that defines them
- * (e.g., specs/ts-ast/kind-checking/types.ts).
+ *   pivot.ts      — pivotToAttrCentric (equation reshaping)
  */
 
-// Generic AG types
+// Port interfaces
+export type { AnalysisSpec, AttrDecl, SynAttr, InhAttr, CollectionAttr } from './types.js';
+export type { CodegenTarget, GeneratedImports, ParamDef, ImportPaths } from './types.js';
+export type { Ctx, KindCtx } from './ctx.js';
+
+// Supporting types
 export type { AttributeDepGraph } from './types.js';
-
-// Spec interfaces
-export type { AnalysisSpec, AttrDecl, SynAttr, InhAttr, CollectionAttr, GrammarConfig, EvaluatorSetup } from './types.js';
-export type { CompiledAnalyzer, CompiledAttrDef } from './types.js';
+export type { CompiledAnalyzer, CompiledAttrDef, GeneratedFile } from './types.js';
 export type { CodeLiteral, AttrExpr } from './types.js';
-export { code, isCodeLiteral, withDeps, collectDepsForAttr } from './types.js';
-
-// Compilation
-export { compileAnalysis } from './compile.js';
+export { code, isCodeLiteral } from './types.js';
 
 // Validation
-export { validateSpec } from './validate.js';
+export type { ValidationDiagnostic } from './validate.js';
 
-// Equation context interface
-export type { Ctx } from './ctx.js';
+// Equation utilities
+export type { EquationFn } from './equation-utils.js';
+export { withDeps, collectDepsForAttr } from './equation-utils.js';
+
+// Machinery
+export { compileAnalysis, buildDepGraph, validateSpecConsistency } from './compile.js';
+export { validateSpec } from './validate.js';
+export { pivotToAttrCentric } from './pivot.js';

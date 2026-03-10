@@ -24,8 +24,8 @@ import {
   discoverRootFiles,
   serveDashboard,
 } from './showcase-utils.js';
-import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
-import { extractASTData } from '../grammar/export.js';
+import { frontend } from '../specs/ts-ast/frontend/convert.js';
+import { extractASTData } from '../app/user-api/lib/export.js';
 
 const { values } = parseArgs({
   options: {
@@ -74,7 +74,7 @@ async function main() {
     module: ts.ModuleKind.ES2022,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
   });
-  const ksTree = buildKSTree(tsProgram, 'check');
+  const ksTree = frontend.convert(tsProgram, 'check');
 
   // Extract AST data for dashboard
   const data = extractASTData(ksTree, 'check');

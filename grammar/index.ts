@@ -1,38 +1,57 @@
 /**
- * Grammar module — schema builder DSL, compilation, verification, and data export.
+ * Grammar module barrel — ports and runtime utilities.
  *
- * Structure:
- *   builder.ts  — schema builder API (createGrammarBuilder, field helpers)
- *   compile.ts  — Functor 1: compileGrammar(GrammarSpec) → CompiledGrammar
- *   export.ts   — dashboard-friendly AST data extraction
- *   types.ts    — GrammarSpec, CompiledGrammar, GeneratedFile
+ * Ports:
+ *   Grammar<K>         — what a grammar definition provides
+ *   Frontend<I, R, O>  — what a source-language converter provides
+ *   ASTNode            — base shape for all AST nodes
+ *   FieldDef           — field metadata contract
+ *
+ * Spec-specific types (KSNode, KindToNode) are in specs/<target>/grammar/index.ts.
  */
 
-// Builder DSL
-export { createGrammarBuilder, child, optChild, list, prop } from './builder.js';
-export type { GrammarBuilder, NodeEntry, SumTypeEntry, FieldDesc, ChildField, OptChildField, ListField, PropField } from './builder.js';
+// Port interfaces
+export type {
+  ASTNode,
+  ChildFieldDef,
+  PropFieldDef,
+  FieldDef,
+  Grammar,
+  Frontend,
+} from './ports.js';
 
-// Compilation
-export { compileGrammar } from './compile.js';
+// Grammar-level base types
+export type {
+  KSNodeBase,
+  KSCommentRange,
+} from './base-types.js';
 
-// Types
-export type { GrammarSpec, CompiledGrammar, GeneratedFile, ConvertGenerator } from './types.js';
+// Schema validation shapes
+export type {
+  NodeDefShape,
+  SumTypeDefShape,
+  FieldDescShape,
+} from './schema-shapes.js';
 
-// Convert codegen helpers (for spec-owned convert generators)
-export { buildConverterEntries, emitConverterRegistrations, getConvertFieldExpr, validateFieldExpressions } from './convert-codegen.js';
-export type { ConvertGeneratorInput, ConverterEntry, ExprValidationDiagnostic } from './convert-codegen.js';
+// Metadata computation utilities
+export {
+  computeFieldDefs,
+  computeAllKinds,
+  computeSumTypeMembers,
+  computeKindMembership,
+  createTypeGuard,
+  propagateSumTypeFields,
+  createGrammarMetadata,
+} from './metadata.js';
+export type { GrammarMetadata } from './metadata.js';
 
-// Convert skeleton (shared TS-frontend infrastructure template)
-export { emitConvertPreamble, emitConvertPostamble } from './convert-skeleton.js';
-export type { ConvertSkeletonConfig } from './convert-skeleton.js';
-
-// Field extractor assembly
-export { assembleFieldExtractors } from './field-extractors.js';
-export type { FieldExtractorConfig } from './field-extractors.js';
-
-// Type-safe extractor DSL
-export { statefulCallBuilders, pureCallBuilders, mapLookupBuilders } from './extractor-dsl.js';
-
-// Dashboard export
-export { extractASTData } from './export.js';
-export type { ASTDashboardData, ASTNode, ASTFieldEntry, ASTSchemaInfo } from './export.js';
+// Tree operation utilities
+export {
+  getChildren,
+  createNode,
+  nodeToJSON,
+  nodeFromJSON,
+  treeToJSON,
+  treeFromJSON,
+} from './tree-ops.js';
+export type { JSONNode, JSONTree } from './tree-ops.js';

@@ -1,23 +1,23 @@
 /**
- * Functor 2: Analysis Compilation (Generic AG Evaluator Generator)
+ * Analysis Compilation — Generic AG Dispatch Generator.
  *
  * compileAnalysis(AnalysisSpec) → CompiledAnalyzer
  *
  * Takes a declarative analysis specification and produces:
- *   - evaluator.ts  — KSCDNode class with typed cache, switch dispatch
+ *   - dispatch.ts  — per-attribute dispatch functions + config + dep graph
  *   - attr-types.ts — KSCAttrMap interface
  *   - dep graph     — static attribute dependency graph
  *
- * This module is fully generic — zero knowledge of specific grammars or
- * analysis patterns. Attribute method bodies are generated from direction-typed
- * declarations (SynAttr, InhAttr, CollectionAttr) with optional per-kind
- * equations and parameterized attribute support (JastAdd-style).
+ * The evaluator itself is hand-written (evaluator/engine.ts). This module
+ * generates only the per-spec dispatch functions that route attribute
+ * evaluation to the correct equation function based on node kind.
  *
  * Equation functions are referenced directly (not as strings). compile.ts
  * reads fn.name to generate imports and call expressions. Dependencies are
  * inferred from withDeps() metadata on the function references.
  */
 
+import type { Grammar } from '../grammar/index.js';
 import type {
   AnalysisSpec,
   AttrDecl,
@@ -28,28 +28,33 @@ import type {
   AttributeDepGraph,
   AttrExpr,
   ParamDef,
+  GeneratedImports,
 } from './types.js';
-import { collectDepsForAttr, isCodeLiteral } from './types.js';
+import { isCodeLiteral } from './types.js';
+import { collectDepsForAttr } from './equation-utils.js';
 
 // ── AttrExpr → generated code ───────────────────────────────────────
 
 /**
- * Convert an AttrExpr value to the code string emitted in the generated evaluator.
+ * Convert an AttrExpr value to the code string emitted in generated files.
  *
- * - Function → fn.name(this) or fn.name(this, param)
+ * - Function → fn.name(ctx) or fn.name(ctx, param)
+ *   When `kind` is provided, emits `fn.name(ctx as KindCtx<KindToNode['Kind']>, ...)`
+ *   to provide type-narrowed context to per-kind equation functions.
  * - null → 'null'
  * - number → the number as string
  * - boolean → 'true' / 'false'
  * - CodeLiteral → the raw code string
  */
-function emitExpr(value: AttrExpr, param?: ParamDef): string {
+function emitExpr(value: AttrExpr, param?: ParamDef, kind?: string): string {
   if (value === null) return 'null';
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return String(value);
   if (isCodeLiteral(value)) return value.code;
-  // Function
-  if (param) return `${value.name}(this, ${param.name})`;
-  return `${value.name}(this)`;
+  // Function — per-kind equations get a KindCtx cast
+  const ctx = kind ? `ctx as unknown as KindCtx<KindToNode['${kind}']>` : 'ctx';
+  if (param) return `${value.name}(${ctx}, ${param.name})`;
+  return `${value.name}(${ctx})`;
 }
 
 // ── Collect equation function names for auto-import ─────────────────
@@ -67,7 +72,7 @@ function collectEquationFunctions(attrs: AttrDecl[]): Set<string> {
         addIfFn(attr.default);
         if (attr.equations) {
           for (const fn of Object.values(attr.equations)) {
-            if (fn.name) names.add(fn.name);
+            if (fn && fn.name) names.add(fn.name);
           }
         }
         break;
@@ -75,7 +80,7 @@ function collectEquationFunctions(attrs: AttrDecl[]): Set<string> {
         addIfFn(attr.rootValue);
         if (attr.parentEquations) {
           for (const fn of Object.values(attr.parentEquations)) {
-            if (fn.name) names.add(fn.name);
+            if (fn && fn.name) names.add(fn.name);
           }
         }
         break;
@@ -89,6 +94,22 @@ function collectEquationFunctions(attrs: AttrDecl[]): Set<string> {
 }
 
 // ── Build dep graph ──────────────────────────────────────────────────
+
+/**
+ * Build an attribute dependency graph from attr declarations.
+ *
+ * Public API — used by composition roots to compute the dep graph at runtime
+ * (instead of relying on generated code).
+ */
+export function buildDepGraph(attrs: AttrDecl[]): AttributeDepGraph {
+  const { edges, order } = buildDepGraphFromAttrs(attrs);
+  return {
+    attributes: attrs.map(a => a.name),
+    edges,
+    order,
+    declarations: Object.fromEntries(attrs.map(a => [a.name, { direction: a.direction }])),
+  };
+}
 
 function buildDepGraphFromAttrs(attrs: AttrDecl[]): {
   edges: [string, string][];
@@ -142,8 +163,8 @@ function generateAttrTypes(
   L.push(` */`);
   L.push(``);
   // Spec-provided domain type imports (if any)
-  if (spec.evaluatorSetup?.attrTypesImports) {
-    const importLines = spec.evaluatorSetup.attrTypesImports(importPaths);
+  if (spec.typeImports) {
+    const importLines = spec.typeImports(importPaths);
     for (const line of importLines) L.push(line);
     L.push(``);
   }
@@ -157,431 +178,304 @@ function generateAttrTypes(
   return L.join('\n');
 }
 
-// ── Direction-aware method body generation ──────────────────────────
+// ── Per-attribute dispatch function generation ───────────────────────
 
-function generateSynBody(L: string[], a: SynAttr): void {
+function generateSynDispatch(L: string[], a: SynAttr, allKinds?: ReadonlySet<string>): void {
   const p = a.parameter;
+  const equations = a.equations as Record<string, Function> | undefined;
+  const hasDefault = a.default !== undefined;
+  const hasEquations = equations && Object.keys(equations).length > 0;
 
-  if (a.equations && Object.keys(a.equations).length > 0) {
-    if (p) {
-      L.push(`      let _r: ${a.type};`);
-      L.push(`      switch (this.node.kind) {`);
-      for (const [kind, fn] of Object.entries(a.equations)) {
-        L.push(`        case '${kind}': _r = ${emitExpr(fn, p)}; break;`);
+  const params = p ? `ctx: Ctx, ${p.name}: ${p.type}` : 'ctx: Ctx';
+  L.push(`function dispatch_${a.name}(${params}): ${a.type} {`);
+
+  if (hasEquations) {
+    const equationKinds = new Set(Object.keys(equations!));
+    const exhaustive = allKinds && allKinds.size > 0;
+    const remainingKinds = exhaustive
+      ? [...allKinds].filter(k => !equationKinds.has(k)).sort()
+      : [];
+
+    if (exhaustive) {
+      L.push(`  const _kind = (ctx.node as KSNode).kind;`);
+    }
+    L.push(`  switch (${exhaustive ? '_kind' : '(ctx.node as KSNode).kind'}) {`);
+
+    for (const [kind, fn] of Object.entries(equations!)) {
+      L.push(`    case '${kind}': return ${emitExpr(fn, p, kind)};`);
+    }
+
+    if (exhaustive) {
+      if (hasDefault && remainingKinds.length > 0) {
+        for (const kind of remainingKinds) {
+          L.push(`    case '${kind}':`);
+        }
+        L.push(`      return ${emitExpr(a.default!, p)};`);
       }
-      L.push(`        default: _r = ${emitExpr(a.default, p)}; break;`);
-      L.push(`      }`);
-      L.push(`      this._pc_${a.name}.set(${p.name}, _r);`);
-      L.push(`      return _r;`);
+      L.push(`    default: { const _exhaustive: never = _kind; throw new Error(\`Unhandled kind: \${_exhaustive}\`); }`);
     } else {
-      L.push(`      switch (this.node.kind) {`);
-      for (const [kind, fn] of Object.entries(a.equations)) {
-        L.push(`        case '${kind}': return this._c_${a.name} = ${emitExpr(fn)};`);
-      }
-      L.push(`        default: return this._c_${a.name} = ${emitExpr(a.default)};`);
-      L.push(`      }`);
+      L.push(`    default: return ${emitExpr(a.default!, p)};`);
     }
+    L.push(`  }`);
   } else {
-    if (p) {
-      L.push(`      const _r = ${emitExpr(a.default, p)};`);
-      L.push(`      this._pc_${a.name}.set(${p.name}, _r);`);
-      L.push(`      return _r;`);
-    } else {
-      L.push(`      return this._c_${a.name} = ${emitExpr(a.default)};`);
-    }
-  }
-}
-
-function generateInhBody(L: string[], a: InhAttr): void {
-  const p = a.parameter;
-
-  // Root value
-  if (p) {
-    L.push(`      if (this.isRoot) {`);
-    L.push(`        const _r = ${emitExpr(a.rootValue, p)};`);
-    L.push(`        this._pc_${a.name}.set(${p.name}, _r);`);
-    L.push(`        return _r;`);
-    L.push(`      }`);
-  } else {
-    L.push(`      if (this.isRoot) {`);
-    L.push(`        return this._c_${a.name} = ${emitExpr(a.rootValue)};`);
-    L.push(`      }`);
+    // No equations — just default
+    L.push(`  return ${emitExpr(a.default!, p)};`);
   }
 
-  // Parent equations (return T to override, undefined to copy-down)
-  if (a.parentEquations && Object.keys(a.parentEquations).length > 0) {
-    L.push(`      const _pKind = this.parent!.node.kind;`);
-    L.push(`      let _override: ${a.type} | undefined = undefined;`);
-    L.push(`      switch (_pKind) {`);
-    for (const [kind, fn] of Object.entries(a.parentEquations)) {
-      L.push(`        case '${kind}': _override = ${emitExpr(fn, p)}; break;`);
-    }
-    L.push(`      }`);
-    L.push(`      if (_override !== undefined) {`);
-    if (p) {
-      L.push(`        this._pc_${a.name}.set(${p.name}, _override);`);
-      L.push(`        return _override;`);
-    } else {
-      L.push(`        return this._c_${a.name} = _override;`);
-    }
-    L.push(`      }`);
-  }
-
-  // Copy-down from parent
-  if (p) {
-    L.push(`      const _r = this.parent!.${a.name}(${p.name});`);
-    L.push(`      this._pc_${a.name}.set(${p.name}, _r);`);
-    L.push(`      return _r;`);
-  } else {
-    L.push(`      return this._c_${a.name} = this.parent!.${a.name}();`);
-  }
-}
-
-function generateCollBody(L: string[], a: CollectionAttr): void {
-  const p = a.parameter;
-
-  L.push(`      const _combine = ${a.combine.code};`);
-  L.push(`      let _result = ${emitExpr(a.init)};`);
-  if (p) {
-    L.push(`      for (const child of this.children) {`);
-    L.push(`        _result = _combine(_result, child.${a.name}(${p.name}));`);
-    L.push(`      }`);
-    L.push(`      this._pc_${a.name}.set(${p.name}, _result);`);
-    L.push(`      return _result;`);
-  } else {
-    L.push(`      for (const child of this.children) {`);
-    L.push(`        _result = _combine(_result, child.${a.name}());`);
-    L.push(`      }`);
-    L.push(`      return this._c_${a.name} = _result;`);
-  }
-}
-
-// ── Method generation ────────────────────────────────────────────────
-
-function generateMethod(L: string[], a: AttrDecl): void {
-  const p = a.parameter;
-
-  if (p) {
-    const cycKey = `'${a.name}:' + ${p.name}`;
-    L.push(`  ${a.name}(${p.name}: ${p.type}): ${a.type} {`);
-    L.push(`    if (this._pc_${a.name}.has(${p.name})) return this._pc_${a.name}.get(${p.name})!;`);
-    L.push(`    if (this._cyc.has(${cycKey})) throw new Error(\`Circular attribute access: '${a.name}(\${${p.name}})' on \${this.node.kind}\`);`);
-    L.push(`    this._cyc.add(${cycKey});`);
-    L.push(`    try {`);
-  } else {
-    L.push(`  ${a.name}(): ${a.type} {`);
-    L.push(`    if (this._c_${a.name} !== undefined) return this._c_${a.name};`);
-    L.push(`    if (this._cyc.has('${a.name}')) throw new Error(\`Circular attribute access: '${a.name}' on \${this.node.kind}\`);`);
-    L.push(`    this._cyc.add('${a.name}');`);
-    L.push(`    try {`);
-  }
-
-  // Direction-specific body
-  switch (a.direction) {
-    case 'syn': generateSynBody(L, a as SynAttr); break;
-    case 'inh': generateInhBody(L, a as InhAttr); break;
-    case 'collection': generateCollBody(L, a as CollectionAttr); break;
-  }
-
-  if (p) {
-    const cycKey = `'${a.name}:' + ${p.name}`;
-    L.push(`    } finally { this._cyc.delete(${cycKey}); }`);
-  } else {
-    L.push(`    } finally { this._cyc.delete('${a.name}'); }`);
-  }
-  L.push(`  }`);
+  L.push(`}`);
   L.push(``);
 }
 
-// ── Generate evaluator.ts ────────────────────────────────────────────
+function generateInhRootDispatch(L: string[], a: InhAttr): void {
+  const p = a.parameter;
+  const params = p ? `ctx: Ctx, ${p.name}: ${p.type}` : 'ctx: Ctx';
 
-function generateEvaluator(
+  L.push(`function dispatch_${a.name}_root(${params}): ${a.type} {`);
+  L.push(`  return ${emitExpr(a.rootValue, p)};`);
+  L.push(`}`);
+  L.push(``);
+}
+
+function generateInhParentDispatch(L: string[], a: InhAttr, allKinds?: ReadonlySet<string>): void {
+  const parentEquations = a.parentEquations as Record<string, Function> | undefined;
+  if (!parentEquations || Object.keys(parentEquations).length === 0) return;
+
+  const p = a.parameter;
+  const params = p ? `ctx: Ctx, ${p.name}: ${p.type}` : 'ctx: Ctx';
+
+  L.push(`function dispatch_${a.name}_parent(${params}): ${a.type} | undefined {`);
+
+  const equationKinds = new Set(Object.keys(parentEquations));
+  const exhaustive = allKinds && allKinds.size > 0;
+  const remainingKinds = exhaustive
+    ? [...allKinds].filter(k => !equationKinds.has(k)).sort()
+    : [];
+
+  L.push(`  const _pKind = (ctx.parent!.node as KSNode).kind;`);
+  L.push(`  switch (_pKind) {`);
+
+  for (const [kind, fn] of Object.entries(parentEquations)) {
+    L.push(`    case '${kind}': return ${emitExpr(fn, p)};`);
+  }
+
+  if (exhaustive) {
+    for (const kind of remainingKinds) {
+      L.push(`    case '${kind}':`);
+    }
+    L.push(`      return undefined;`);
+    L.push(`    default: { const _exhaustive: never = _pKind; throw new Error(\`Unhandled parent kind: \${_exhaustive}\`); }`);
+  } else {
+    L.push(`    default: return undefined;`);
+  }
+
+  L.push(`  }`);
+  L.push(`}`);
+  L.push(``);
+}
+
+// ── Generate dispatch.ts ─────────────────────────────────────────────
+
+function generateDispatch(
   attrs: AttrDecl[],
-  graph: { edges: [string, string][]; order: string[] },
+  allKinds: ReadonlySet<string>,
   spec: AnalysisSpec,
   specImportPath: string,
   grammarImportPath: string,
   analysisImportPath: string,
+  evaluatorImportPath: string,
+  equationsImportPath: string,
 ): string {
-  const nonParam = attrs.filter(a => !a.parameter);
-  const paramAttrs = attrs.filter(a => !!a.parameter);
   const L: string[] = [];
 
   // ── Header ──
   L.push(`/**`);
   L.push(` * AUTO-GENERATED by compileAnalysis — do not edit.`);
   L.push(` *`);
-  L.push(` * KSC Compiled Evaluator — fully static AG pipeline.`);
-  L.push(` * KSCDNode: standalone decorated node with typed cache fields,`);
-  L.push(` * switch-based dispatch, and direct equation function calls.`);
+  L.push(` * Dispatch functions and configuration for the AG evaluator.`);
+  L.push(` * Per-attribute dispatch: switch/case over grammar kinds with`);
+  L.push(` * exhaustive checking and KindCtx type narrowing.`);
   L.push(` */`);
   L.push(``);
 
-  // ── Generic imports ──
-  L.push(`import type { KSNode } from '${grammarImportPath}';`);
-  L.push(`import { getChildFields } from '${grammarImportPath}';`);
-  L.push(`import type { KSCAttrMap } from './attr-types.js';`);
-  L.push(`import type { Ctx } from '${analysisImportPath}/ctx.js';`);
-  L.push(`import type { AttributeDepGraph } from '${analysisImportPath}/types.js';`);
+  // ── Imports ──
+  L.push(`import type { KSNode, KindToNode } from '${grammarImportPath}';`);
+  L.push(`import type { Ctx, KindCtx } from '${analysisImportPath}/index.js';`);
+  L.push(`import type { DispatchConfig } from '${evaluatorImportPath}/index.js';`);
   L.push(``);
 
   // ── Auto-generated equation imports ──
   const eqFnNames = collectEquationFunctions(attrs);
   if (eqFnNames.size > 0) {
-    const equationsPath = specImportPath.replace(/\/spec\.js$/, '/equations.js');
     L.push(`// Equation imports (auto-generated from function references)`);
     L.push(`import {`);
     for (const name of eqFnNames) {
       L.push(`  ${name},`);
     }
-    L.push(`} from '${equationsPath}';`);
+    L.push(`} from '${equationsImportPath}';`);
     L.push(``);
   }
 
-  // ── Spec-provided imports ──
-  if (spec.evaluatorSetup) {
-    const importLines = spec.evaluatorSetup.imports({
-      specImportPath,
-    });
-    for (const line of importLines) {
-      L.push(line);
-    }
+  // ── Domain type imports ──
+  if (spec.typeImports) {
+    const importLines = spec.typeImports({ specImportPath });
+    for (const line of importLines) L.push(line);
     L.push(``);
   }
 
-  // ── Spec-provided module-level setup ──
-  if (spec.evaluatorSetup?.moduleSetup && spec.evaluatorSetup.moduleSetup.length > 0) {
-    L.push(`// ── Spec-provided module setup ──`);
-    L.push(``);
-    for (const line of spec.evaluatorSetup.moduleSetup) {
-      L.push(line);
-    }
-    L.push(``);
-  }
-
-  // ── KSCDNode class ──
-  L.push(`// ── KSCDNode: typed cache + switch dispatch ──`);
+  // ── Per-attribute dispatch functions ──
+  L.push(`// ── Dispatch functions ──`);
   L.push(``);
 
-  L.push(`export class KSCDNode implements Ctx {`);
+  const kindsForExhaustive = allKinds.size > 0 ? allKinds : undefined;
 
-  // Navigation fields
-  L.push(`  readonly node: KSNode;`);
-  L.push(`  readonly parent: KSCDNode | undefined;`);
-  L.push(`  readonly children: readonly KSCDNode[];`);
-  L.push(`  readonly isRoot: boolean;`);
-  L.push(`  readonly fieldName: string | undefined;`);
-  L.push(``);
-
-  // Typed cache fields — non-parameterized
-  if (nonParam.length > 0) {
-    L.push(`  // Typed cache — undefined = not yet computed`);
-    for (const a of nonParam) {
-      const ct = a.type.includes('=>') ? `(${a.type})` : a.type;
-      L.push(`  private _c_${a.name}: ${ct} | undefined = undefined;`);
-    }
-    L.push(``);
-  }
-
-  // Typed cache fields — parameterized (Map-based)
-  if (paramAttrs.length > 0) {
-    L.push(`  // Parameterized cache — Map<param, value>`);
-    for (const a of paramAttrs) {
-      const ct = a.type.includes('=>') ? `(${a.type})` : a.type;
-      L.push(`  private _pc_${a.name} = new Map<${a.parameter!.type}, ${ct}>();`);
-    }
-    L.push(``);
-  }
-
-  L.push(`  private _cyc = new Set<string>();`);
-  L.push(``);
-
-  // Constructor
-  L.push(`  constructor(`);
-  L.push(`    node: KSNode,`);
-  L.push(`    parent: KSCDNode | undefined,`);
-  L.push(`    children: KSCDNode[],`);
-  L.push(`    fieldName: string | undefined,`);
-  L.push(`  ) {`);
-  L.push(`    this.node = node;`);
-  L.push(`    this.parent = parent;`);
-  L.push(`    this.children = children;`);
-  L.push(`    this.isRoot = !parent;`);
-  L.push(`    this.fieldName = fieldName;`);
-  L.push(`  }`);
-  L.push(``);
-
-  // attr() switch dispatch
-  L.push(`  // ── Attribute access (string-based, for equations and serialization) ──`);
-  L.push(``);
-  L.push(`  attr<K extends string & keyof KSCAttrMap>(name: K): KSCAttrMap[K];`);
-  L.push(`  attr(name: string, ...args: unknown[]): any {`);
-  L.push(`    switch (name) {`);
   for (const a of attrs) {
-    if (a.parameter) {
-      L.push(`      case '${a.name}': return this.${a.name}(args[0] as ${a.parameter.type});`);
-    } else {
-      L.push(`      case '${a.name}': return this.${a.name}();`);
+    switch (a.direction) {
+      case 'syn':
+        generateSynDispatch(L, a as SynAttr, kindsForExhaustive);
+        break;
+      case 'inh':
+        generateInhRootDispatch(L, a as InhAttr);
+        generateInhParentDispatch(L, a as InhAttr, kindsForExhaustive);
+        break;
+      case 'collection':
+        // No dispatch function — init + combine go directly in config
+        break;
     }
   }
-  L.push(`      default: throw new Error(\`Unknown attribute '\${name}' on \${this.node.kind ?? 'node'}\`);`);
-  L.push(`    }`);
-  L.push(`  }`);
-  L.push(``);
 
-  // Structural queries
-  L.push(`  // ── Structural queries ──`);
+  // ── Dispatch config export ──
+  L.push(`// ── Dispatch configuration ──`);
   L.push(``);
-  L.push(`  parentIs(kind: string, field?: string): boolean {`);
-  L.push(`    if (!this.parent) return false;`);
-  L.push(`    if (this.parent.node.kind !== kind) return false;`);
-  L.push(`    if (field !== undefined) return this.fieldName === field;`);
-  L.push(`    return true;`);
-  L.push(`  }`);
-  L.push(``);
-
-  // findFileName helper — public (Ctx interface)
-  const rootKind = spec.grammarConfig.rootKind;
-  const fileNameField = spec.grammarConfig.fileNameField;
-  L.push(`  findFileName(): string {`);
-  L.push(`    let current: KSCDNode | undefined = this.parent;`);
-  L.push(`    while (current && current.node.kind !== '${rootKind}') {`);
-  L.push(`      current = current.parent;`);
-  L.push(`    }`);
-  L.push(`    return current ? (current.node as any).${fileNameField} : '<unknown>';`);
-  L.push(`  }`);
-  L.push(``);
-
-  // Spec-provided helper methods
-  if (spec.evaluatorSetup?.helperMethods && spec.evaluatorSetup.helperMethods.length > 0) {
-    for (const line of spec.evaluatorSetup.helperMethods) {
-      L.push(line);
-    }
-    L.push(``);
-  }
-
-  // ── Direct typed attribute methods ──
-  L.push(`  // ── Direct typed attribute methods ──`);
-  L.push(``);
+  L.push(`export const dispatchConfig: DispatchConfig = {`);
   for (const a of attrs) {
-    generateMethod(L, a);
+    switch (a.direction) {
+      case 'syn':
+        L.push(`  ${a.name}: { direction: 'syn', compute: dispatch_${a.name} },`);
+        break;
+      case 'inh': {
+        const inhAttr = a as InhAttr;
+        const hasParentEqs = inhAttr.parentEquations && Object.keys(inhAttr.parentEquations).length > 0;
+        if (hasParentEqs) {
+          L.push(`  ${a.name}: { direction: 'inh', computeRoot: dispatch_${a.name}_root, computeParent: dispatch_${a.name}_parent },`);
+        } else {
+          L.push(`  ${a.name}: { direction: 'inh', computeRoot: dispatch_${a.name}_root },`);
+        }
+        break;
+      }
+      case 'collection': {
+        const ca = a as CollectionAttr;
+        const initCode = emitExpr(ca.init);
+        const combineCode = ca.combine.code;
+        L.push(`  ${a.name}: { direction: 'collection', init: ${initCode}, combine: ${combineCode} },`);
+        break;
+      }
+    }
   }
-
-  L.push(`}`);
-  L.push(``);
-
-  // ── buildKSCTree ──
-  L.push(`// ── Schema-aware tree builder ──`);
-  L.push(``);
-  L.push(`export function buildKSCTree(root: KSNode): KSCDNode {`);
-  L.push(`  function build(`);
-  L.push(`    raw: KSNode,`);
-  L.push(`    parent: KSCDNode | undefined,`);
-  L.push(`    fieldName: string | undefined,`);
-  L.push(`  ): KSCDNode {`);
-  L.push(`    const children: KSCDNode[] = [];`);
-  L.push(`    const dnode = new KSCDNode(raw, parent, children, fieldName);`);
-  L.push(``);
-  L.push(`    const fields = getChildFields(raw.kind);`);
-  L.push(`    for (const field of fields) {`);
-  L.push(`      const val = (raw as any)[field];`);
-  L.push(`      if (val == null) continue;`);
-  L.push(`      if (Array.isArray(val)) {`);
-  L.push(`        for (const item of val) {`);
-  L.push(`          if (item == null) continue;`);
-  L.push(`          children.push(build(item as KSNode, dnode, field));`);
-  L.push(`        }`);
-  L.push(`      } else {`);
-  L.push(`        children.push(build(val as KSNode, dnode, field));`);
-  L.push(`      }`);
-  L.push(`    }`);
-  L.push(``);
-  L.push(`    return dnode;`);
-  L.push(`  }`);
-  L.push(``);
-  L.push(`  return build(root, undefined, undefined);`);
-  L.push(`}`);
-  L.push(``);
-
-  // ── Static dependency graph ──
-  L.push(`// ── Static dependency graph ──`);
-  L.push(``);
-  L.push(`const KSC_STATIC_DEP_GRAPH: AttributeDepGraph = {`);
-  L.push(`  attributes: [`);
-  for (const a of attrs) L.push(`    '${a.name}',`);
-  L.push(`  ],`);
-  L.push(`  edges: [`);
-  for (const [from, to] of graph.edges) {
-    L.push(`    ['${from}', '${to}'],`);
-  }
-  L.push(`  ],`);
-  L.push(`  order: [`);
-  for (const name of graph.order) L.push(`    '${name}',`);
-  L.push(`  ],`);
-  L.push(`  declarations: {`);
-  for (const a of attrs) L.push(`    ${a.name}: { direction: '${a.direction}' },`);
-  L.push(`  },`);
   L.push(`};`);
   L.push(``);
 
-  // ── Spec-provided evaluation entry point ──
-  if (spec.evaluatorSetup?.evaluateBody) {
-    L.push(`// ── Evaluation ──`);
-    L.push(``);
-    const bodyLines = spec.evaluatorSetup.evaluateBody({
-      specImportPath,
-    });
-    for (const line of bodyLines) L.push(line);
+  return L.join('\n');
+}
+
+// ── Codegen-time spec validation ─────────────────────────────────────
+
+/**
+ * Validate spec consistency before code generation.
+ *
+ * Checks:
+ * 1. rootKind exists in allKinds (if allKinds non-empty)
+ * 2. All equation kind references exist in allKinds
+ * 3. All equation functions have names (for auto-import generation)
+ */
+export function validateSpecConsistency(grammar: Grammar, attrs: AttrDecl[]): void {
+  const { allKinds, rootKind } = grammar;
+  const hasKinds = allKinds.size > 0;
+  const errors: string[] = [];
+
+  // 1. Validate rootKind
+  if (hasKinds && !allKinds.has(rootKind)) {
+    errors.push(`rootKind '${rootKind}' is not a valid kind`);
   }
 
-  return L.join('\n') + '\n';
+  // 2-3. Validate equation kind references and function names
+  for (const attr of attrs) {
+    const eqs: Record<string, Function> | undefined =
+      attr.direction === 'syn' ? (attr.equations as Record<string, Function> | undefined) :
+      attr.direction === 'inh' ? (attr.parentEquations as Record<string, Function> | undefined) :
+      undefined;
+
+    if (eqs) {
+      for (const [kind, fn] of Object.entries(eqs)) {
+        if (hasKinds && !allKinds.has(kind)) {
+          errors.push(`Attr '${attr.name}': equation references unknown kind '${kind}'`);
+        }
+        if (!fn.name) {
+          errors.push(`Attr '${attr.name}', kind '${kind}': equation function has no name (anonymous)`);
+        }
+      }
+    }
+
+    // 4. Exhaustiveness: syn attrs without default must have equations for every kind
+    if (attr.direction === 'syn' && attr.default === undefined) {
+      if (!eqs || Object.keys(eqs).length === 0) {
+        errors.push(`Attr '${attr.name}': no default and no equations — attribute has no value`);
+      } else if (!hasKinds) {
+        errors.push(`Attr '${attr.name}': no default requires allKinds in grammar for exhaustiveness check`);
+      } else {
+        const eqKinds = new Set(Object.keys(eqs));
+        const missing = [...allKinds].filter(k => !eqKinds.has(k));
+        if (missing.length > 0) {
+          errors.push(`Attr '${attr.name}': no default — missing equations for ${missing.length} kinds (first 5: ${missing.slice(0, 5).join(', ')})`);
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Analysis spec validation failed:\n  - ${errors.join('\n  - ')}`);
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════
 // Public API
 // ═════════════════════════════════════════════════════════════════════
 
-export interface CompileAnalysisOpts {
-  /** Import path for the analysis spec (used in generated evaluator). */
-  specImportPath?: string;
-  /** Import path from generated evaluator to grammar output (e.g. '../grammar/index.js'). */
-  grammarImportPath?: string;
-  /** Import path from generated files to analysis/ machinery (e.g. '../../../analysis'). */
-  analysisImportPath?: string;
-}
-
 export function compileAnalysis(
+  grammar: Grammar,
   spec: AnalysisSpec,
-  opts?: CompileAnalysisOpts,
+  opts?: GeneratedImports,
 ): CompiledAnalyzer {
   const specImportPath = opts?.specImportPath ?? './spec.js';
   const grammarImportPath = opts?.grammarImportPath ?? '../grammar/index.js';
   const analysisImportPath = opts?.analysisImportPath ?? '../../../analysis';
+  const evaluatorImportPath = opts?.evaluatorImportPath ?? '../../../evaluator';
+  const equationsImportPath = opts?.equationsImportPath ?? specImportPath.replace(/\/spec\.js$/, '/equations/index.js');
 
   // 1. Read attrs directly from spec (no automatic derivation)
   const allAttrs = spec.attrs;
 
-  // 2. Build dep graph and topo sort
-  const graph = buildDepGraphFromAttrs(allAttrs);
+  // 1b. Validate spec consistency (catches equation key typos, anonymous fns)
+  validateSpecConsistency(grammar, allAttrs);
 
-  // 3. Generate evaluator
-  const evaluatorContent = generateEvaluator(allAttrs, graph, spec, specImportPath, grammarImportPath, analysisImportPath);
+  // 2. Build dep graph and topo sort (computed once, reused for result)
+  const { edges, order } = buildDepGraphFromAttrs(allAttrs);
+  const depGraph: AttributeDepGraph = {
+    attributes: allAttrs.map(a => a.name),
+    edges,
+    order,
+    declarations: Object.fromEntries(allAttrs.map(a => [a.name, { direction: a.direction }])),
+  };
+
+  // 3. Generate dispatch
+  const dispatchContent = generateDispatch(allAttrs, grammar.allKinds, spec, specImportPath, grammarImportPath, analysisImportPath, evaluatorImportPath, equationsImportPath);
 
   // 4. Generate attr-types
   const attrTypesContent = generateAttrTypes(allAttrs, spec, {
     specImportPath,
   });
 
-  // 5. Build result
-  const depGraph: AttributeDepGraph = {
-    attributes: allAttrs.map(a => a.name),
-    edges: graph.edges,
-    order: graph.order,
-    declarations: Object.fromEntries(allAttrs.map(a => [a.name, { direction: a.direction }])),
-  };
-
   return {
-    evaluatorFile: { path: 'evaluator.ts', content: evaluatorContent },
+    dispatchFile: { path: 'dispatch.ts', content: dispatchContent },
     attrTypesFile: { path: 'attr-types.ts', content: attrTypesContent },
     attrs: allAttrs.map(a => ({
       name: a.name,

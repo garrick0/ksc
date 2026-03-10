@@ -6,7 +6,7 @@
  */
 
 import type { AnalysisSpec } from './types.js';
-import { collectDepsForAttr } from './types.js';
+import { collectDepsForAttr } from './equation-utils.js';
 
 export interface ValidationDiagnostic {
   level: 'error' | 'warning';

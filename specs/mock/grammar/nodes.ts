@@ -1,40 +1,56 @@
 /**
  * Mock grammar — minimal AST for testing the two-functor pipeline.
  *
- * Defines 5 node kinds and 1 sum type. This is a minimal but complete
- * grammar that exercises all builder features (node, leaf, sumType,
+ * Defines 5 node kinds and 2 sum types. This is a minimal but complete
+ * grammar that exercises all definition features (node, leaf, sumType,
  * child, list, optChild, prop).
  */
 
-import type { GrammarBuilder } from '../../../grammar/builder.js';
-import { child, list, optChild, prop } from '../../../grammar/builder.js';
+import type { NodeDefShape, SumTypeDefShape } from '../../../grammar/index.js';
 
-export function defineGrammar(b: GrammarBuilder): void {
-  // Sum types
-  const Expr = b.sumType('MockExpression');
-  const Stmt = b.sumType('MockStatement');
+// ── Sum types ────────────────────────────────────────────────────────
 
+export const SUM_TYPES = {
+  MockExpression: {},
+  MockStatement: {},
+} satisfies Record<string, SumTypeDefShape>;
+
+// ── Nodes ────────────────────────────────────────────────────────────
+
+export const NODES = {
   // Root node
-  b.node('MockProgram', [], {
-    statements: list('MockStatement'),
-  });
+  MockProgram: {
+    memberOf: [],
+    fields: { statements: { tag: 'list', typeRef: 'MockStatement' } as const },
+  },
 
   // Statements
-  b.node('MockExpressionStatement', [Stmt], {
-    expression: child('MockExpression'),
-  });
-
-  b.node('MockLetStatement', [Stmt], {
-    name: prop('string'),
-    initializer: optChild('MockExpression'),
-  });
+  MockExpressionStatement: {
+    memberOf: ['MockStatement'],
+    fields: { expression: { tag: 'child', typeRef: 'MockExpression' } as const },
+  },
+  MockLetStatement: {
+    memberOf: ['MockStatement'],
+    fields: {
+      name: { tag: 'prop', propType: 'string' } as const,
+      initializer: { tag: 'optChild', typeRef: 'MockExpression' } as const,
+    },
+  },
 
   // Expressions
-  b.leaf('MockLiteral', Expr);
+  MockLiteral: {
+    memberOf: ['MockExpression'],
+    fields: {},
+  },
+  MockBinaryExpression: {
+    memberOf: ['MockExpression'],
+    fields: {
+      left: { tag: 'child', typeRef: 'MockExpression' } as const,
+      right: { tag: 'child', typeRef: 'MockExpression' } as const,
+      operator: { tag: 'prop', propType: 'string' } as const,
+    },
+  },
+} satisfies Record<string, NodeDefShape>;
 
-  b.node('MockBinaryExpression', [Expr], {
-    left: child('MockExpression'),
-    right: child('MockExpression'),
-    operator: prop('string'),
-  });
-}
+/** Union of all mock grammar node kind strings (derived at the type level). */
+export type MockKind = keyof typeof NODES;

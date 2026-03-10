@@ -1,5 +1,7 @@
 /**
- * KSC Analysis Specification — Kind Checking over TypeScript AST
+ * KSC Analysis Specification — Adapter: AnalysisSpec<TSNodeKind, KSCProjections>
+ *
+ * Implements the AnalysisSpec port for kind-checking over TypeScript AST.
  *
  * Assembles the full AnalysisSpec (8 attributes) from:
  *   equations.ts   — equation functions for runtime evaluation
@@ -14,45 +16,69 @@
  *   violationFor(p) — syn, parameterized: violation check per property
  *   allViolations   — syn: all violation diagnostics (recursive gather)
  *   nodeCount       — collection: total node count
+ *
+ * Per-kind equation overrides are organized production-centric in equations.ts
+ * and pivoted into attr-centric format here via pivotToAttrCentric().
  */
 
-import type { AnalysisSpec, AttrDecl } from '../../../analysis/types.js';
-import { code } from '../../../analysis/types.js';
-import type { Ctx } from '../../../analysis/ctx.js';
+import type { AnalysisSpec, AttrDecl, Ctx } from '../../../analysis/index.js';
+import { code, pivotToAttrCentric } from '../../../analysis/index.js';
 import type { KindDefinition, Diagnostic } from './types.js';
+import { resetCounter } from './equations/index.js';
+import type { TSNodeKind } from '../grammar/nodes.js';
 import {
   projectDefinitions,
-  eq_kindDefs_CompilationUnit,
   eq_kindDefs_default,
   eq_defEnv_root,
   eq_defLookup,
-  eq_kindAnnotations_VariableDeclaration,
   eq_kindAnnotations_default,
-  eq_contextOverride,
-  eq_violationFor_Identifier,
-  eq_violationFor_PropertyAccessExpression,
-  eq_violationFor_VariableDeclarationList,
-  eq_violationFor_CallExpression,
-  eq_violationFor_ExpressionStatement,
-  eq_violationFor_BinaryExpression,
-  eq_violationFor_PrefixUnaryExpression,
-  eq_violationFor_PostfixUnaryExpression,
-  eq_violationFor_DeleteExpression,
   eq_allViolations,
-} from './equations.js';
+  // Per-kind equation objects (production-centric)
+  CompilationUnitEquations,
+  VariableDeclarationEquations,
+  IdentifierEquations,
+  PropertyAccessExpressionEquations,
+  VariableDeclarationListEquations,
+  CallExpressionEquations,
+  ExpressionStatementEquations,
+  BinaryExpressionEquations,
+  PrefixUnaryExpressionEquations,
+  PostfixUnaryExpressionEquations,
+  DeleteExpressionEquations,
+} from './equations/index.js';
+
+type TSKind = TSNodeKind;
+
+// ═══════════════════════════════════════════════════════════════════════
+// Pivot production-centric overrides → attr-centric
+// ═══════════════════════════════════════════════════════════════════════
+
+const pivoted = pivotToAttrCentric<TSKind>({
+  CompilationUnit: CompilationUnitEquations,
+  VariableDeclaration: VariableDeclarationEquations,
+  Identifier: IdentifierEquations,
+  PropertyAccessExpression: PropertyAccessExpressionEquations,
+  VariableDeclarationList: VariableDeclarationListEquations,
+  CallExpression: CallExpressionEquations,
+  ExpressionStatement: ExpressionStatementEquations,
+  BinaryExpression: BinaryExpressionEquations,
+  PrefixUnaryExpression: PrefixUnaryExpressionEquations,
+  PostfixUnaryExpression: PostfixUnaryExpressionEquations,
+  DeleteExpression: DeleteExpressionEquations,
+});
 
 // ═══════════════════════════════════════════════════════════════════════
 // All 8 attributes — function references, deps inferred via withDeps()
 // ═══════════════════════════════════════════════════════════════════════
 
-const allAttrs: AttrDecl[] = [
+const allAttrs: AttrDecl<TSKind>[] = [
   // ── Structural attrs ──
   {
     name: 'kindDefs',
     direction: 'syn',
     type: 'KindDefinition[]',
     default: eq_kindDefs_default,
-    equations: { CompilationUnit: eq_kindDefs_CompilationUnit },
+    equations: pivoted.kindDefs,
   },
   {
     name: 'defEnv',
@@ -71,7 +97,7 @@ const allAttrs: AttrDecl[] = [
     direction: 'syn',
     type: 'KindDefinition[]',
     default: eq_kindAnnotations_default,
-    equations: { VariableDeclaration: eq_kindAnnotations_VariableDeclaration },
+    equations: pivoted.kindAnnotations,
   },
 
   // ── Parameterized attrs ──
@@ -81,7 +107,7 @@ const allAttrs: AttrDecl[] = [
     type: 'KindDefinition | null',
     parameter: { name: 'property', type: 'string' },
     rootValue: null,
-    parentEquations: { VariableDeclaration: eq_contextOverride },
+    parentEquations: pivoted.contextFor,
   },
   {
     name: 'violationFor',
@@ -89,17 +115,7 @@ const allAttrs: AttrDecl[] = [
     type: 'Diagnostic | null',
     parameter: { name: 'property', type: 'string' },
     default: null,
-    equations: {
-      Identifier: eq_violationFor_Identifier,
-      PropertyAccessExpression: eq_violationFor_PropertyAccessExpression,
-      VariableDeclarationList: eq_violationFor_VariableDeclarationList,
-      CallExpression: eq_violationFor_CallExpression,
-      ExpressionStatement: eq_violationFor_ExpressionStatement,
-      BinaryExpression: eq_violationFor_BinaryExpression,
-      PrefixUnaryExpression: eq_violationFor_PrefixUnaryExpression,
-      PostfixUnaryExpression: eq_violationFor_PostfixUnaryExpression,
-      DeleteExpression: eq_violationFor_DeleteExpression,
-    },
+    equations: pivoted.violationFor,
   },
 
   // ── Aggregate attrs ──
@@ -122,56 +138,23 @@ const allAttrs: AttrDecl[] = [
 // Analysis Spec
 // ═══════════════════════════════════════════════════════════════════════
 
-export const analysisSpec: AnalysisSpec = {
+/** Typed projection results for the kind-checking analysis. */
+export type KSCProjections = {
+  definitions: KindDefinition[];
+  diagnostics: Diagnostic[];
+};
+
+export const analysisSpec: AnalysisSpec<TSKind, KSCProjections> = {
   attrs: allAttrs,
   projections: {
     definitions: projectDefinitions,
     diagnostics: (root: Ctx): Diagnostic[] => root.attr('allViolations'),
   },
-  grammarConfig: {
-    rootKind: 'CompilationUnit',
-    fileNameField: 'fileName',
+  typeImports: ({ specImportPath }) => {
+    const specTypesPath = specImportPath.replace(/\/spec\.js$/, '/types.js');
+    return [
+      `import type { KindDefinition, Diagnostic } from '${specTypesPath}';`,
+    ];
   },
-  evaluatorSetup: {
-    imports: ({ specImportPath }) => {
-      const specTypesPath = specImportPath.replace(/\/spec\.js$/, '/types.js');
-      const equationsPath = specImportPath.replace(/\/spec\.js$/, '/equations.js');
-      return [
-        `// Domain type imports`,
-        `import type { KindDefinition, Diagnostic } from '${specTypesPath}';`,
-        ``,
-        `import { resetCounter } from '${equationsPath}';`,
-        ``,
-        `// Analysis spec — runtime access for projections`,
-        `import { analysisSpec } from '${specImportPath}';`,
-      ];
-    },
-    attrTypesImports: ({ specImportPath }) => {
-      const specTypesPath = specImportPath.replace(/\/spec\.js$/, '/types.js');
-      return [
-        `import type { KindDefinition, Diagnostic } from '${specTypesPath}';`,
-      ];
-    },
-    evaluateBody: () => [
-      `export interface EvaluationResult {`,
-      `  definitions: KindDefinition[];`,
-      `  diagnostics: Diagnostic[];`,
-      `  getDepGraph(): AttributeDepGraph;`,
-      `}`,
-      ``,
-      `export function evaluate(root: KSNode): EvaluationResult {`,
-      `  resetCounter();`,
-      `  const dnodeRoot = buildKSCTree(root);`,
-      `  const definitions = analysisSpec.projections.definitions(dnodeRoot) as KindDefinition[];`,
-      `  const diagnostics = analysisSpec.projections.diagnostics(dnodeRoot) as Diagnostic[];`,
-      `  return { definitions, diagnostics, getDepGraph: () => KSC_STATIC_DEP_GRAPH };`,
-      `}`,
-      ``,
-      `/** Build a KSCDNode tree for direct attribute inspection (used by tests). */`,
-      `export function buildTree(root: KSNode): KSCDNode {`,
-      `  resetCounter();`,
-      `  return buildKSCTree(root);`,
-      `}`,
-    ],
-  },
+  setup: resetCounter,
 };

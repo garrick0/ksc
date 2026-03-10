@@ -1,12 +1,18 @@
 /**
- * Analysis types — spec interfaces and generic AG infrastructure types.
+ * Analysis types — port interfaces for the analysis layer.
+ *
+ * Ports defined here:
+ *   - AnalysisSpec<K, P>  — what an analysis definition provides
+ *   - AttrDecl<K>         — attribute declarations (discriminated union)
+ *   - CodegenTarget<K, P> — what a codegen composition root provides
+ *   - GeneratedImports    — import path configuration for generated files
  *
  * Domain types live in the spec that defines them
  * (e.g., specs/ts-ast/kind-checking/types.ts).
- * This module only defines AG-level interfaces: AttrDecl, AnalysisSpec, etc.
  */
 
 import type { Ctx } from './ctx.js';
+import type { Grammar } from '../grammar/index.js';
 
 // ── Generated file output ──
 
@@ -31,7 +37,7 @@ export function code(expr: string): CodeLiteral {
 
 /** Type guard for CodeLiteral. */
 export function isCodeLiteral(value: unknown): value is CodeLiteral {
-  return value !== null && typeof value === 'object' && (value as any).__codeLiteral === true;
+  return value !== null && typeof value === 'object' && '__codeLiteral' in value && value.__codeLiteral === true;
 }
 
 /**
@@ -41,54 +47,6 @@ export function isCodeLiteral(value: unknown): value is CodeLiteral {
  * - CodeLiteral: raw code expression string
  */
 export type AttrExpr = Function | null | number | boolean | CodeLiteral;
-
-/**
- * Attach dependency metadata to an equation function.
- * Mutates the function in place (preserves fn.name for import generation).
- */
-export function withDeps<F extends (...args: any[]) => any>(deps: string[], fn: F): F & { deps: string[] } {
-  (fn as any).deps = deps;
-  return fn as F & { deps: string[] };
-}
-
-/**
- * Collect all dependency names for an attribute by reading .deps from
- * all Function-typed values in the attr declaration.
- */
-export function collectDepsForAttr(attr: AttrDecl): string[] {
-  const deps = new Set<string>();
-
-  function addFromValue(v: AttrExpr | undefined) {
-    if (typeof v === 'function' && Array.isArray((v as any).deps)) {
-      for (const d of (v as any).deps) deps.add(d);
-    }
-  }
-
-  function addFromRecord(rec: Record<string, Function> | undefined) {
-    if (!rec) return;
-    for (const fn of Object.values(rec)) {
-      if (Array.isArray((fn as any).deps)) {
-        for (const d of (fn as any).deps) deps.add(d);
-      }
-    }
-  }
-
-  switch (attr.direction) {
-    case 'syn':
-      addFromValue(attr.default);
-      addFromRecord(attr.equations);
-      break;
-    case 'inh':
-      addFromValue(attr.rootValue);
-      addFromRecord(attr.parentEquations);
-      break;
-    case 'collection':
-      addFromValue(attr.init);
-      break;
-  }
-
-  return [...deps];
-}
 
 // ── Attribute Dep Graph ──
 
@@ -130,21 +88,24 @@ interface AttrBase {
 }
 
 /** Synthesized: computed at each node, optionally dispatched by node kind. */
-export interface SynAttr extends AttrBase {
+export interface SynAttr<K extends string = string> extends AttrBase {
   direction: 'syn';
-  /** Default value: Function (called as fn(this) or fn(this, param)), literal, or code expression. */
-  default: AttrExpr;
+  /**
+   * Default value for kinds without explicit equations.
+   * If omitted, `equations` must cover every kind in `allKinds` (exhaustive).
+   */
+  default?: AttrExpr;
   /** Per-kind equation functions. Key = node kind, value = equation function reference. */
-  equations?: Record<string, Function>;
+  equations?: Partial<Record<K, Function>>;
 }
 
 /** Inherited: provided by parent, copied down the tree. */
-export interface InhAttr extends AttrBase {
+export interface InhAttr<K extends string = string> extends AttrBase {
   direction: 'inh';
   /** Root value: Function (called), literal, or code expression. */
   rootValue: AttrExpr;
   /** Per-parent-kind override equation functions. Return T to override, undefined = copy-down. */
-  parentEquations?: Record<string, Function>;
+  parentEquations?: Partial<Record<K, Function>>;
 }
 
 /** Collection: fold a per-node value over children. */
@@ -157,55 +118,66 @@ export interface CollectionAttr extends AttrBase {
 }
 
 /** A single attribute declaration in the analysis spec. */
-export type AttrDecl = SynAttr | InhAttr | CollectionAttr;
+export type AttrDecl<K extends string = string> = SynAttr<K> | InhAttr<K> | CollectionAttr;
 
-// ── Grammar config ──
+// ── Import path options ──
 
-/** Grammar-specific configuration provided by the spec. */
-export interface GrammarConfig {
-  /** The root node kind (e.g., 'CompilationUnit'). */
-  rootKind: string;
-  /** The field name on the root node that contains the file name (e.g., 'fileName'). */
-  fileNameField: string;
-}
-
-// ── Evaluator setup ──
-
-/** Import path options passed to evaluatorSetup callbacks. */
+/** Import path options passed to typeImports callbacks. */
 export interface ImportPaths {
   specImportPath: string;
 }
 
-/** Spec-provided evaluator customizations. */
-export interface EvaluatorSetup {
-  /** Additional import lines for the generated evaluator. */
-  imports: (paths: ImportPaths) => string[];
-  /** Import lines for generated attr-types.ts (domain type imports). */
-  attrTypesImports?: (paths: ImportPaths) => string[];
-  /** Module-level setup lines (emitted after imports). */
-  moduleSetup?: string[];
-  /** Additional helper methods on KSCDNode class. */
-  helperMethods?: string[];
-  /**
-   * Spec-provided evaluation entry point.
-   * Emitted after the static dep graph. Provides the full EvaluationResult
-   * interface, evaluate() function, and buildTree() helper.
-   * If omitted, compile.ts generates a generic no-op evaluate.
-   */
-  evaluateBody?: (paths: ImportPaths) => string[];
-}
-
 // ── Analysis spec ──
 
-export interface AnalysisSpec {
+export interface AnalysisSpec<K extends string = string, P extends Record<string, unknown> = Record<string, unknown>> {
   /** All attributes — spec provides the complete list (no automatic derivation). */
-  attrs: AttrDecl[];
-  /** Projection functions: extract final results from root. */
-  projections: Record<string, (root: Ctx) => unknown>;
-  /** Grammar-specific configuration (replaces hardcoded kind names in compile.ts). */
-  grammarConfig: GrammarConfig;
-  /** Spec-owned evaluator customizations (imports, module setup, helper methods). */
-  evaluatorSetup?: EvaluatorSetup;
+  attrs: AttrDecl<K>[];
+  /** Projection functions: extract final results from root. Typed by P for end-to-end type safety. */
+  projections: { [Key in keyof P]: (root: Ctx) => P[Key] };
+  /** Type import lines for generated files (domain types like KindDefinition, Diagnostic). */
+  typeImports?: (paths: ImportPaths) => string[];
+  /** Optional setup function called before each evaluation (e.g., resetCounter). */
+  setup?: () => void;
+}
+
+// ── Codegen target (composition root contract) ──
+
+/** Import paths emitted into generated files. */
+export interface GeneratedImports {
+  /** Import path for the analysis spec (used in generated dispatch). */
+  specImportPath?: string;
+  /** Import path from generated files to grammar output (e.g. '../grammar/index.js'). */
+  grammarImportPath?: string;
+  /** Import path from generated files to analysis/ machinery (e.g. '../../../analysis'). */
+  analysisImportPath?: string;
+  /** Import path from generated files to evaluator/ module (e.g. '../../../evaluator'). */
+  evaluatorImportPath?: string;
+  /** Import path for equation functions. Defaults to specImportPath with '/spec.js' replaced by '/equations/index.js'. */
+  equationsImportPath?: string;
+}
+
+/**
+ * Port: CodegenTarget — what a codegen composition root provides to the pipeline.
+ *
+ * Bundles the grammar + spec + output configuration that the codegen pipeline
+ * needs to generate dispatch functions and attr-type maps.
+ *
+ * The K type parameter links grammar and spec, preventing mismatched pairings.
+ *
+ * @example
+ *   // app/analysis-codegen/ts-kind-checking.ts
+ *   const target: CodegenTarget<TSNodeKind, KSCProjections> = {
+ *     grammar,
+ *     spec: analysisSpec,
+ *     outputDir: 'generated/ts-ast/kind-checking',
+ *     generatedImports: { specImportPath: '...', ... },
+ *   };
+ */
+export interface CodegenTarget<K extends string = string, P extends Record<string, unknown> = Record<string, unknown>> {
+  grammar: Grammar<K>;
+  spec: AnalysisSpec<K, P>;
+  outputDir: string;
+  generatedImports: GeneratedImports;
 }
 
 // ── Compiled output ──
@@ -217,7 +189,7 @@ export interface CompiledAttrDef {
 }
 
 export interface CompiledAnalyzer {
-  evaluatorFile: GeneratedFile;
+  dispatchFile: GeneratedFile;
   attrTypesFile: GeneratedFile;
   attrs: CompiledAttrDef[];
   depGraph: AttributeDepGraph;

@@ -17,7 +17,7 @@ export interface ASTNode {
 }
 
 export interface ASTSchemaInfo {
-  fieldDefs: Record<string, readonly { name: string; tag: string; typeRef?: string }[]>;
+  fieldDefs: Record<string, readonly ({ name: string; tag: 'child' | 'optChild' | 'list'; typeRef?: string } | { name: string; tag: 'prop'; propType: string; default?: unknown })[]>;
   sumTypes: Record<string, readonly string[]>;
 }
 

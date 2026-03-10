@@ -137,7 +137,7 @@ interface InspectorProps {
 interface PropDef {
   name: string;
   tag: string;
-  typeRef?: string;
+  propType?: string;
 }
 
 function categorizeProps(propDefs: PropDef[]): {
@@ -169,7 +169,7 @@ function categorizeProps(propDefs: PropDef[]): {
       d.name === 'resolvesToImport'
     ) {
       imports.push(d);
-    } else if (d.typeRef === 'boolean') {
+    } else if (d.propType === 'boolean') {
       flags.push(d);
     } else {
       other.push(d);
@@ -339,7 +339,7 @@ function NodeInspector({ node, path, source, schema, analysisDepth, onNavigate, 
             {categories.imports.map(d => {
               const val = getVal(d.name);
               if (val === undefined) return null;
-              if (d.typeRef === 'boolean') {
+              if (d.propType === 'boolean') {
                 return (
                   <div key={d.name} className="ast-insp-flag">
                     <span className={`ast-flag-indicator${val === true ? ' true' : ' false'}`}>
@@ -407,7 +407,7 @@ function NodeInspector({ node, path, source, schema, analysisDepth, onNavigate, 
                   key={i}
                   fieldName={field.name}
                   tag={def?.tag}
-                  typeRef={def?.typeRef}
+                  typeRef={def && 'typeRef' in def ? def.typeRef : undefined}
                   children={children}
                   onNavigate={onNavigate}
                 />

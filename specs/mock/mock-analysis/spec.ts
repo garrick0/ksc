@@ -1,17 +1,19 @@
 /**
- * Mock analysis specification — minimal spec for testing the two-functor pipeline.
+ * Mock analysis specification — Adapter: AnalysisSpec<MockKind, MockProjections>
  *
+ * Implements the AnalysisSpec port for the mock test analysis.
  * Defines 1 attribute (nodeCount) and 0 properties.
  * This exercises the compileAnalysis functor without requiring
  * the full kind-checking machinery.
  */
 
-import type { AnalysisSpec, AttrDecl } from '../../../analysis/types.js';
-import { code } from '../../../analysis/types.js';
+import type { AnalysisSpec, AttrDecl } from '../../../analysis/index.js';
+import { code } from '../../../analysis/index.js';
+import type { MockKind } from '../grammar/nodes.js';
 
 // ── Attributes ──────────────────────────────────────────────────────
 
-const nodeCountAttr: AttrDecl = {
+const nodeCountAttr: AttrDecl<MockKind> = {
   name: 'nodeCount',
   direction: 'collection',
   type: 'number',
@@ -21,35 +23,16 @@ const nodeCountAttr: AttrDecl = {
 
 // ── Analysis Spec ────────────────────────────────────────────────────
 
-export const analysisSpec: AnalysisSpec = {
+/** Typed projection results for mock analysis. */
+export type MockProjections = {
+  definitions: never[];
+  diagnostics: never[];
+};
+
+export const analysisSpec: AnalysisSpec<MockKind, MockProjections> = {
   attrs: [nodeCountAttr],
   projections: {
     definitions: () => [],
     diagnostics: () => [],
-  },
-  grammarConfig: {
-    rootKind: 'MockProgram',
-    fileNameField: 'fileName',
-  },
-  evaluatorSetup: {
-    imports: ({ specImportPath }) => [
-      `// Analysis spec — runtime access for projections`,
-      `import { analysisSpec } from '${specImportPath}';`,
-    ],
-    evaluateBody: () => [
-      `export interface EvaluationResult {`,
-      `  getDepGraph(): AttributeDepGraph;`,
-      `}`,
-      ``,
-      `export function evaluate(root: KSNode): EvaluationResult {`,
-      `  const dnodeRoot = buildKSCTree(root);`,
-      `  return { getDepGraph: () => KSC_STATIC_DEP_GRAPH };`,
-      `}`,
-      ``,
-      `/** Build a KSCDNode tree for direct attribute inspection (used by tests). */`,
-      `export function buildTree(root: KSNode): KSCDNode {`,
-      `  return buildKSCTree(root);`,
-      `}`,
-    ],
   },
 };

@@ -3,28 +3,30 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Architectural enforcement for TypeScript through the type system",
-  "main": "dist/app/index.js",
-  "types": "dist/app/index.d.ts",
+  "main": "dist/app/user-api/index.js",
+  "types": "dist/app/user-api/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/app/index.d.ts",
-      "default": "./dist/app/index.js"
+      "types": "./dist/app/user-api/index.d.ts",
+      "default": "./dist/app/user-api/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "bin": {
-    "ksc": "dist/app/cli.js"
+    "ksc": "dist/app/cli/cli.js"
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:all": "vitest run --config vitest.config.all.ts",
     "test:watch": "vitest",
     "dashboard:dev": "vite --config dashboard/vite.config.ts",
     "dashboard:build": "vite build --config dashboard/vite.config.ts",
-    "codegen": "tsx app/codegen/ts-kind-checking.ts",
+    "codegen": "tsx app/analysis-codegen/ts-kind-checking.ts",
+    "codegen:analysis": "tsx app/analysis-codegen/ts-kind-checking.ts",
     "showcase": "tsx examples/showcase.ts",
     "showcase:fixed": "tsx examples/showcase.ts --mode=fixed",
     "showcase:live": "tsx examples/showcase.ts --mode=live"
@@ -41,7 +43,7 @@
     "vitest": "^3.0.0"
   },
   "peerDependencies": {
-    "typescript": ">=5.0.0"
+    "typescript": ">=5.2.0"
   },
   "dependencies": {
     "d3": "^7.9.0",
