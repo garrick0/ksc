@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSC: Kind-Checking Dependency Analysis — Declarative Const Objects</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --accent3: #d2a8ff;
+    --warn: #d29922;
+    --error: #f85149;
+    --success: #3fb950;
+    --code-bg: #0d1117;
+    --highlight: rgba(88,166,255,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { color: var(--accent); font-size: 1.8rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h2 { color: var(--accent2); font-size: 1.4rem; margin: 2rem 0 1rem; }
+  h3 { color: var(--accent3); font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+  p { margin: 0.5rem 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.88em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+    margin: 0.75rem 0;
+  }
+
+  /* Tabs */
+  .tab-container { margin: 1.5rem 0; }
+  .tab-buttons { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--highlight); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; padding: 1rem 0; }
+  .tab-panel.active { display: block; }
+
+  /* Collapsible */
+  .collapsible {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .collapsible-header {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .collapsible-header:hover { background: var(--highlight); }
+  .collapsible-header .arrow {
+    transition: transform 0.2s;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  .collapsible.open .arrow { transform: rotate(90deg); }
+  .collapsible-content { display: none; padding: 0 1rem 1rem; }
+  .collapsible.open .collapsible-content { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin: 1rem 0;
+  }
+  .card.warn { border-left: 3px solid var(--warn); }
+  .card.error { border-left: 3px solid var(--error); }
+  .card.success { border-left: 3px solid var(--success); }
+  .card.info { border-left: 3px solid var(--accent); }
+
+  /* Dependency graph */
+  .dep-graph {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+  .dep-graph svg { display: block; margin: 0 auto; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.78em;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .badge.generated { background: #f8514930; color: var(--error); border: 1px solid #f8514950; }
+  .badge.spec { background: #3fb95030; color: var(--success); border: 1px solid #3fb95050; }
+  .badge.machinery { background: #58a6ff30; color: var(--accent); border: 1px solid #58a6ff50; }
+  .badge.type-only { background: #d2a8ff30; color: var(--accent3); border: 1px solid #d2a8ff50; }
+  .badge.removed { background: #8b949e30; color: var(--text-muted); border: 1px solid #8b949e50; text-decoration: line-through; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--accent); font-weight: 600; background: var(--surface); }
+  tr:hover td { background: var(--highlight); }
+
+  /* Comparison grid */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  @media (max-width: 800px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  /* Flow diagram helpers */
+  .flow-step {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0.5rem 0;
+    position: relative;
+  }
+  .flow-arrow {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    margin: 0.25rem 0;
+  }
+  .flow-step .label {
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+  }
+
+  /* Interactive graph */
+  .graph-container {
+    position: relative;
+    width: 100%;
+    min-height: 450px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .graph-container canvas { display: block; }
+  .graph-legend {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+
+  /* Quiz */
+  .quiz-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin: 1rem 0;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .quiz-card:hover { border-color: var(--accent); }
+  .quiz-q { font-weight: 600; color: var(--accent3); margin-bottom: 0.5rem; }
+  .quiz-a { display: none; color: var(--text); border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.5rem; }
+  .quiz-card.revealed .quiz-a { display: block; }
+  .quiz-hint { color: var(--text-muted); font-size: 0.85rem; font-style: italic; }
+
+  .strikethrough { text-decoration: line-through; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<h1>Kind-Checking Dependency Analysis</h1>
+<p class="subtitle">
+  How <code>specs/ts-ast/kind-checking/</code> was decoupled from generated code
+  using declarative const objects with <code>satisfies</code> &mdash; enabling independent codegen stages.
+</p>
+
+<!-- =============================================================== -->
+<!-- PART 1: BEFORE & AFTER -->
+<!-- =============================================================== -->
+
+<h2>Part 1: Before &amp; After</h2>
+
+<div class="tab-container" id="tabs-overview">
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="graph-before">Before (Old)</button>
+    <button class="tab-btn" data-tab="graph-after">After (Current)</button>
+    <button class="tab-btn" data-tab="graph-table">Import Comparison</button>
+  </div>
+
+  <div class="tab-panel active" id="graph-before">
+    <h3>Old Dependency Graph (the problem)</h3>
+    <div class="dep-graph">
+      <svg width="900" height="380" viewBox="0 0 900 380">
+        <!-- Background groups -->
+        <rect x="10" y="10" width="420" height="160" rx="8" fill="#1c2333" stroke="#30363d"/>
+        <text x="20" y="35" fill="#58a6ff" font-size="13" font-weight="600">Stage 1: Grammar Codegen</text>
+
+        <rect x="470" y="10" width="420" height="160" rx="8" fill="#1c2333" stroke="#30363d"/>
+        <text x="480" y="35" fill="#d2a8ff" font-size="13" font-weight="600">Stage 2: Analysis Codegen</text>
+
+        <rect x="10" y="210" width="420" height="160" rx="8" fill="#0d1117" stroke="#f8514950"/>
+        <text x="20" y="235" fill="#f85149" font-size="13" font-weight="600">Generated Output (Stage 1 must finish first)</text>
+
+        <rect x="470" y="210" width="420" height="160" rx="8" fill="#0d1117" stroke="#f8514950"/>
+        <text x="480" y="235" fill="#f85149" font-size="13" font-weight="600">Generated Output (Stage 2)</text>
+
+        <!-- Stage 1 nodes -->
+        <rect x="30" y="50" width="170" height="35" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="115" y="73" fill="#c9d1d9" font-size="11" text-anchor="middle">grammar/spec.ts</text>
+
+        <rect x="220" y="50" width="190" height="35" rx="4" fill="#58a6ff30" stroke="#58a6ff"/>
+        <text x="315" y="73" fill="#c9d1d9" font-size="11" text-anchor="middle">grammar/compile.ts</text>
+
+        <rect x="30" y="100" width="170" height="35" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="115" y="123" fill="#c9d1d9" font-size="11" text-anchor="middle">frontend/generator.ts</text>
+
+        <!-- Arrow: spec -> compile -->
+        <line x1="200" y1="67" x2="220" y2="67" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="200" y1="117" x2="260" y2="85" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Stage 2 nodes -->
+        <rect x="490" y="50" width="180" height="35" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="580" y="73" fill="#c9d1d9" font-size="11" text-anchor="middle">kind-checking/spec.ts</text>
+
+        <rect x="690" y="50" width="180" height="35" rx="4" fill="#58a6ff30" stroke="#58a6ff"/>
+        <text x="780" y="73" fill="#c9d1d9" font-size="11" text-anchor="middle">analysis/compile.ts</text>
+
+        <rect x="490" y="100" width="180" height="35" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="580" y="123" fill="#c9d1d9" font-size="11" text-anchor="middle">kind-checking/equations.ts</text>
+
+        <!-- Arrow: spec -> compile -->
+        <line x1="670" y1="67" x2="690" y2="67" stroke="#8b949e" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <!-- Generated outputs -->
+        <rect x="30" y="250" width="170" height="30" rx="4" fill="#f8514920" stroke="#f85149"/>
+        <text x="115" y="270" fill="#f85149" font-size="10" text-anchor="middle">node-types.ts</text>
+
+        <rect x="220" y="250" width="170" height="30" rx="4" fill="#f8514920" stroke="#f85149"/>
+        <text x="305" y="270" fill="#f85149" font-size="10" text-anchor="middle">schema.ts (fieldDefs)</text>
+
+        <rect x="30" y="290" width="170" height="30" rx="4" fill="#f8514920" stroke="#f85149"/>
+        <text x="115" y="310" fill="#f85149" font-size="10" text-anchor="middle">convert.ts</text>
+
+        <rect x="220" y="290" width="170" height="30" rx="4" fill="#f8514920" stroke="#f85149"/>
+        <text x="305" y="310" fill="#f85149" font-size="10" text-anchor="middle">index.ts</text>
+
+        <rect x="490" y="250" width="180" height="30" rx="4" fill="#f8514920" stroke="#f85149"/>
+        <text x="580" y="270" fill="#f85149" font-size="10" text-anchor="middle">evaluator.ts</text>
+
+        <rect x="690" y="250" width="180" height="30" rx="4" fill="#f8514920" stroke="#f85149"/>
+        <text x="780" y="270" fill="#f85149" font-size="10" text-anchor="middle">attr-types.ts</text>
+
+        <!-- compile -> output arrows -->
+        <line x1="315" y1="85" x2="305" y2="250" stroke="#8b949e" stroke-width="1" stroke-dasharray="4"/>
+        <line x1="780" y1="85" x2="580" y2="250" stroke="#8b949e" stroke-width="1" stroke-dasharray="4"/>
+
+        <!-- THE PROBLEM: spec.ts -> generated -->
+        <path d="M 490 67 C 440 67, 440 270, 390 270" stroke="#f85149" stroke-width="2.5" fill="none" marker-end="url(#arrowRed)"/>
+        <path d="M 490 117 C 400 117, 200 200, 115 250" stroke="#f85149" stroke-width="2" fill="none" stroke-dasharray="5" marker-end="url(#arrowRed)"/>
+
+        <text x="415" y="195" fill="#f85149" font-size="11" font-weight="600" text-anchor="middle">PROBLEM</text>
+        <text x="415" y="210" fill="#f8514990" font-size="9" text-anchor="middle">spec imported generated output</text>
+
+        <!-- Defs -->
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#8b949e"/>
+          </marker>
+          <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#f85149"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <div class="card error">
+      <strong>The old problem:</strong> <code>spec.ts</code> imported <code>KindToNode</code> (type) and <code>fieldDefs</code> (runtime value) from generated grammar output.
+      <code>equations.ts</code> imported 17 KS* type interfaces from generated code. This created an ordering constraint:
+      grammar codegen <em>had</em> to run before analysis codegen could even load.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="graph-after">
+    <h3>Current Dependency Graph (clean)</h3>
+    <div class="dep-graph">
+      <svg width="900" height="400" viewBox="0 0 900 400">
+        <!-- Source specs -->
+        <rect x="10" y="10" width="420" height="180" rx="8" fill="#1c2333" stroke="#30363d"/>
+        <text x="20" y="35" fill="#3fb950" font-size="13" font-weight="600">Source Specs (zero imports from generated/)</text>
+
+        <rect x="470" y="10" width="420" height="180" rx="8" fill="#1c2333" stroke="#30363d"/>
+        <text x="480" y="35" fill="#58a6ff" font-size="13" font-weight="600">Machinery (generic, zero spec knowledge)</text>
+
+        <!-- Generated outputs -->
+        <rect x="10" y="230" width="880" height="155" rx="8" fill="#0d1117" stroke="#3fb95050"/>
+        <text x="20" y="255" fill="#3fb950" font-size="13" font-weight="600">Generated Output (independent, no ordering constraint)</text>
+
+        <!-- Source spec nodes -->
+        <rect x="30" y="50" width="170" height="30" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="115" y="70" fill="#c9d1d9" font-size="10" text-anchor="middle">grammar/nodes.ts</text>
+
+        <rect x="30" y="90" width="170" height="30" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="115" y="110" fill="#c9d1d9" font-size="10" text-anchor="middle">grammar/spec.ts</text>
+
+        <rect x="30" y="130" width="170" height="30" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="115" y="150" fill="#c9d1d9" font-size="10" text-anchor="middle">frontend/generator.ts</text>
+
+        <rect x="230" y="50" width="180" height="30" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="320" y="70" fill="#c9d1d9" font-size="10" text-anchor="middle">kind-checking/spec.ts</text>
+
+        <rect x="230" y="90" width="180" height="30" rx="4" fill="#3fb95030" stroke="#3fb950"/>
+        <text x="320" y="110" fill="#c9d1d9" font-size="10" text-anchor="middle">kind-checking/equations.ts</text>
+
+        <rect x="230" y="130" width="180" height="30" rx="4" fill="#d2a8ff30" stroke="#d2a8ff"/>
+        <text x="320" y="150" fill="#c9d1d9" font-size="10" text-anchor="middle">kind-checking/types.ts</text>
+
+        <!-- Arrow: kind-checking/spec.ts -> grammar/nodes.ts (the key new dep) -->
+        <line x1="230" y1="65" x2="200" y2="65" stroke="#3fb950" stroke-width="2" marker-end="url(#arrowGreen)"/>
+        <text x="215" y="58" fill="#3fb95090" font-size="8" text-anchor="middle">TSNodeKind + NODES</text>
+
+        <!-- Arrow: grammar/spec.ts -> grammar/nodes.ts -->
+        <line x1="115" y1="90" x2="115" y2="80" stroke="#d2992280" stroke-width="1" marker-end="url(#arrowGold)"/>
+
+        <!-- Machinery nodes -->
+        <rect x="490" y="50" width="180" height="30" rx="4" fill="#58a6ff30" stroke="#58a6ff"/>
+        <text x="580" y="70" fill="#c9d1d9" font-size="10" text-anchor="middle">grammar/compile.ts</text>
+
+        <rect x="490" y="90" width="180" height="30" rx="4" fill="#58a6ff30" stroke="#58a6ff"/>
+        <text x="580" y="110" fill="#c9d1d9" font-size="10" text-anchor="middle">grammar/builder.ts</text>
+
+        <rect x="700" y="50" width="180" height="30" rx="4" fill="#58a6ff30" stroke="#58a6ff"/>
+        <text x="790" y="70" fill="#c9d1d9" font-size="10" text-anchor="middle">analysis/compile.ts</text>
+
+        <rect x="700" y="90" width="180" height="30" rx="4" fill="#58a6ff30" stroke="#58a6ff"/>
+        <text x="790" y="110" fill="#c9d1d9" font-size="10" text-anchor="middle">analysis/pivot.ts</text>
+
+        <rect x="700" y="130" width="180" height="30" rx="4" fill="#58a6ff30" stroke="#58a6ff"/>
+        <text x="790" y="150" fill="#c9d1d9" font-size="10" text-anchor="middle">analysis/types.ts</text>
+
+        <!-- spec -> machinery arrows -->
+        <line x1="410" y1="65" x2="490" y2="65" stroke="#58a6ff40" stroke-width="1" stroke-dasharray="4"/>
+        <line x1="410" y1="65" x2="700" y2="110" stroke="#58a6ff40" stroke-width="1" stroke-dasharray="4"/>
+
+        <!-- Generated outputs -->
+        <rect x="30" y="270" width="150" height="25" rx="4" fill="#3fb95020" stroke="#3fb95060"/>
+        <text x="105" y="287" fill="#3fb950" font-size="9" text-anchor="middle">node-types.ts</text>
+
+        <rect x="200" y="270" width="150" height="25" rx="4" fill="#3fb95020" stroke="#3fb95060"/>
+        <text x="275" y="287" fill="#3fb950" font-size="9" text-anchor="middle">schema.ts</text>
+
+        <rect x="370" y="270" width="150" height="25" rx="4" fill="#3fb95020" stroke="#3fb95060"/>
+        <text x="445" y="287" fill="#3fb950" font-size="9" text-anchor="middle">convert.ts</text>
+
+        <rect x="540" y="270" width="150" height="25" rx="4" fill="#3fb95020" stroke="#3fb95060"/>
+        <text x="615" y="287" fill="#3fb950" font-size="9" text-anchor="middle">index.ts</text>
+
+        <rect x="30" y="310" width="150" height="25" rx="4" fill="#3fb95020" stroke="#3fb95060"/>
+        <text x="105" y="327" fill="#3fb950" font-size="9" text-anchor="middle">evaluator.ts</text>
+
+        <rect x="200" y="310" width="150" height="25" rx="4" fill="#3fb95020" stroke="#3fb95060"/>
+        <text x="275" y="327" fill="#3fb950" font-size="9" text-anchor="middle">attr-types.ts</text>
+
+        <!-- Compile -> output arrows -->
+        <line x1="580" y1="80" x2="275" y2="270" stroke="#58a6ff30" stroke-width="1" stroke-dasharray="4"/>
+        <line x1="790" y1="80" x2="105" y2="310" stroke="#58a6ff30" stroke-width="1" stroke-dasharray="4"/>
+
+        <!-- Runtime deps between generated (fine!) -->
+        <path d="M 105 335 C 105 360, 275 360, 275 295" stroke="#8b949e50" stroke-width="1" fill="none" stroke-dasharray="3" marker-end="url(#arrowFaint)"/>
+        <text x="190" y="368" fill="#8b949e60" font-size="8" text-anchor="middle">runtime import (fine &mdash; both exist after codegen)</text>
+
+        <!-- NO red arrows! -->
+        <text x="450" y="205" fill="#3fb950" font-size="12" font-weight="600" text-anchor="middle">No red arrows &mdash; specs never import generated code</text>
+
+        <defs>
+          <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#3fb950"/>
+          </marker>
+          <marker id="arrowGold" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#d29922"/>
+          </marker>
+          <marker id="arrowFaint" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#8b949e50"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <div class="card success">
+      <strong>Clean!</strong> <code>kind-checking/spec.ts</code> imports <code>TSNodeKind</code> (type) and <code>NODES</code> (runtime value) directly from
+      <code>../grammar/nodes.ts</code> &mdash; the spec source, not generated code. Both codegen stages are fully independent.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="graph-table">
+    <h3>Import Comparison: Before vs After</h3>
+    <table>
+      <thead>
+        <tr><th>File</th><th>Old Import</th><th>New Import</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>spec.ts</code></td>
+          <td><code class="strikethrough">import type { KindToNode } from 'generated/.../node-types.js'</code></td>
+          <td><code>import type { TSNodeKind } from '../grammar/nodes.js'</code></td>
+          <td><span class="badge spec">from source</span></td>
+        </tr>
+        <tr>
+          <td><code>spec.ts</code></td>
+          <td><code class="strikethrough">import { fieldDefs } from 'generated/.../schema.js'</code></td>
+          <td><code>import { NODES } from '../grammar/nodes.js'</code></td>
+          <td><span class="badge spec">from source</span></td>
+        </tr>
+        <tr>
+          <td><code>spec.ts</code></td>
+          <td><code class="strikethrough">type TSKind = keyof KindToNode</code></td>
+          <td><code>type TSKind = TSNodeKind</code> (= <code>keyof typeof NODES</code>)</td>
+          <td><span class="badge spec">type-level from source</span></td>
+        </tr>
+        <tr>
+          <td><code>spec.ts</code></td>
+          <td><code class="strikethrough">new Set(Object.keys(fieldDefs))</code></td>
+          <td><code>new Set(Object.keys(NODES))</code></td>
+          <td><span class="badge spec">runtime from source</span></td>
+        </tr>
+        <tr>
+          <td><code>equations.ts</code></td>
+          <td><code>import type { KSNode, ... } from 'generated/.../index.js'</code></td>
+          <td><em>Same (kept &mdash; type-only, IDE safety)</em></td>
+          <td><span class="badge type-only">type-only</span></td>
+        </tr>
+        <tr>
+          <td><code>spec.ts</code></td>
+          <td><code>import { code } from 'analysis/types.js'</code></td>
+          <td><em>Same (machinery import)</em></td>
+          <td><span class="badge machinery">machinery</span></td>
+        </tr>
+        <tr>
+          <td><code>spec.ts</code></td>
+          <td><code>import { pivotToAttrCentric } from 'analysis/pivot.js'</code></td>
+          <td><em>Same (machinery import)</em></td>
+          <td><span class="badge machinery">machinery</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card success">
+      <strong>Result:</strong> 2 generated-code imports removed from <code>spec.ts</code>, replaced with source imports.
+      <code>equations.ts</code> retains its <code>import type</code> from generated code (type-only, erased at runtime, provides IDE type safety).
+      Zero runtime dependencies on generated code in the spec.
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- PART 2: THE SOLUTION - DECLARATIVE CONST OBJECTS -->
+<!-- =============================================================== -->
+
+<h2>Part 2: The Solution &mdash; Declarative Const Objects</h2>
+
+<div class="card info">
+  <strong>Core insight:</strong> Replace the imperative <code>GrammarBuilder</code> pattern (<code>b.node()</code>, <code>b.leaf()</code> calls)
+  with declarative <code>const</code> objects using TypeScript's <code>satisfies</code> keyword.
+  This preserves literal key types at the type level while checking structural compatibility &mdash;
+  enabling <code>keyof typeof NODES</code> to produce a 364-member string literal union from <em>source code</em>, no codegen needed.
+</div>
+
+<div class="tab-container" id="tabs-solution">
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="sol-pattern">The Pattern</button>
+    <button class="tab-btn" data-tab="sol-before-after">Code Comparison</button>
+    <button class="tab-btn" data-tab="sol-why-satisfies">Why <code>satisfies</code>?</button>
+    <button class="tab-btn" data-tab="sol-builder">The New <code>buildGrammar()</code></button>
+  </div>
+
+  <div class="tab-panel active" id="sol-pattern">
+    <h3>Declarative Const Objects + <code>satisfies</code></h3>
+
+    <p>The grammar is now defined as two plain const objects in <code>specs/ts-ast/grammar/nodes.ts</code>:</p>
+
+    <pre>import type { NodeDef, SumTypeDef } from '../../../grammar/builder.js';
+import { child, optChild, list, prop } from '../../../grammar/builder.js';
+
+export const SUM_TYPES = {
+  Expression: { fields: { typeString: prop('string') } },
+  UnaryExpression: {},
+  UpdateExpression: { includes: ['UnaryExpression'] },
+  // ... 48 sum types total
+} satisfies Record&lt;string, SumTypeDef&gt;;
+
+export const NODES = {
+  Program: {
+    memberOf: [],
+    fields: { compilationUnits: list('CompilationUnit') },
+  },
+  Identifier: {
+    memberOf: ['PrimaryExpression', 'MemberExpression', 'BindingName', /*...*/],
+    fields: {
+      escapedText: prop('string'),
+      resolvesToImport: prop('boolean'),
+      importModuleSpecifier: prop('string'),
+    },
+  },
+  // ... 364 nodes total
+} satisfies Record&lt;string, NodeDef&gt;;
+
+// The magic line:
+export type TSNodeKind = keyof typeof NODES;
+// = 'Program' | 'Identifier' | 'CompilationUnit' | ... (364 literals)</pre>
+
+    <div class="card success">
+      <strong>Key property:</strong> <code>TSNodeKind</code> is a <strong>364-member string literal union</strong> derived entirely from source code.
+      If you typo <code>'Identifer'</code> in an equation key, TypeScript catches it statically.
+      No generated code involved.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="sol-before-after">
+    <h3>Before vs After</h3>
+    <div class="compare-grid">
+      <div class="card error">
+        <h3 style="margin-top:0">Old: Imperative Builder</h3>
+        <pre>// specs/ts-ast/grammar/spec.ts
+import { createGrammarBuilder }
+  from '../../../grammar/builder.js';
+
+export function buildGrammarSpec(
+  builder: GrammarBuilder
+): GrammarSpec {
+  builder.sumType('Expression',
+    { typeString: prop('string') });
+  builder.sumType('UnaryExpression');
+
+  builder.node('Identifier',
+    ['PrimaryExpression', 'MemberExpression'],
+    {
+      escapedText: prop('string'),
+      resolvesToImport: prop('boolean'),
+    });
+  // ... 364 calls
+
+  return builder.build();
+}</pre>
+        <pre>// specs/ts-ast/kind-checking/spec.ts
+import type { KindToNode }
+  from '../../../generated/.../node-types.js';
+import { fieldDefs }
+  from '../../../generated/.../schema.js';
+
+type TSKind = keyof KindToNode;
+const ALL_TS_KINDS =
+  new Set(Object.keys(fieldDefs));</pre>
+        <p style="color:var(--error)">Kind union derived from generated code.<br>Runtime set derived from generated code.</p>
+      </div>
+      <div class="card success">
+        <h3 style="margin-top:0">New: Declarative Const Objects</h3>
+        <pre>// specs/ts-ast/grammar/nodes.ts
+export const NODES = {
+  Identifier: {
+    memberOf: ['PrimaryExpression', ...],
+    fields: {
+      escapedText: prop('string'),
+      resolvesToImport: prop('boolean'),
+    },
+  },
+  // ... 364 nodes
+} satisfies Record&lt;string, NodeDef&gt;;
+
+export type TSNodeKind =
+  keyof typeof NODES;</pre>
+        <pre>// specs/ts-ast/kind-checking/spec.ts
+import type { TSNodeKind }
+  from '../grammar/nodes.js';
+import { NODES }
+  from '../grammar/nodes.js';
+
+type TSKind = TSNodeKind;
+const ALL_TS_KINDS =
+  new Set(Object.keys(NODES));</pre>
+        <p style="color:var(--success)">Kind union derived from source.<br>Runtime set derived from source.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="sol-why-satisfies">
+    <h3>Why <code>satisfies</code> Instead of Type Annotation?</h3>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>The problem with <code>: Record&lt;string, NodeDef&gt;</code></strong></div>
+      <div class="collapsible-content">
+        <pre>// With type annotation: LOSES literal keys
+const NODES: Record&lt;string, NodeDef&gt; = {
+  Identifier: { ... },
+  CompilationUnit: { ... },
+};
+
+type TSNodeKind = keyof typeof NODES;
+// = string  &lt;-- too wide! All literal info lost.</pre>
+        <p>A <code>: Record&lt;string, T&gt;</code> annotation <strong>widens</strong> the key type to <code>string</code>. TypeScript forgets the specific keys.</p>
+      </div>
+    </div>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>The solution with <code>satisfies Record&lt;string, NodeDef&gt;</code></strong></div>
+      <div class="collapsible-content">
+        <pre>// With satisfies: PRESERVES literal keys + CHECKS structure
+const NODES = {
+  Identifier: { ... },
+  CompilationUnit: { ... },
+} satisfies Record&lt;string, NodeDef&gt;;
+
+type TSNodeKind = keyof typeof NODES;
+// = 'Identifier' | 'CompilationUnit'  &lt;-- exact union!</pre>
+        <p><code>satisfies</code> validates that the object conforms to <code>Record&lt;string, NodeDef&gt;</code> (each value is a valid <code>NodeDef</code>), but <strong>does not widen the type</strong>. TypeScript retains the literal key information.</p>
+      </div>
+    </div>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>The problem with no annotation at all</strong></div>
+      <div class="collapsible-content">
+        <pre>// No annotation: preserves keys but no structural checking
+const NODES = {
+  Identifier: { membrrOf: ['Expression'] },  // typo not caught!
+};
+
+type TSNodeKind = keyof typeof NODES;
+// = 'Identifier'  &lt;-- preserves keys, but no guarantee values are valid NodeDefs</pre>
+        <p>Without <code>satisfies</code>, TypeScript doesn't check that each value conforms to <code>NodeDef</code>. Typos in field names or missing required properties aren't caught.</p>
+      </div>
+    </div>
+
+    <div class="card info">
+      <strong><code>satisfies</code> gives you both:</strong> structural validation (every value is a valid <code>NodeDef</code>) + literal key preservation (every key is individually tracked).
+      It's the TypeScript 4.9+ feature that makes this whole approach possible.
+    </div>
+  </div>
+
+  <div class="tab-panel" id="sol-builder">
+    <h3>The New <code>buildGrammar()</code> Function</h3>
+
+    <p>The old <code>GrammarBuilder</code> interface with mutable state was replaced by a pure function:</p>
+
+    <pre>// grammar/builder.ts
+
+export interface NodeDef {
+  memberOf: readonly string[];
+  fields: Record&lt;string, FieldDesc&gt;;
+}
+
+export interface SumTypeDef {
+  includes?: readonly string[];
+  fields?: Record&lt;string, FieldDesc&gt;;
+}
+
+export function buildGrammar(
+  nodeDefs: Record&lt;string, NodeDef&gt;,
+  sumTypeDefs: Record&lt;string, SumTypeDef&gt;,
+): { nodes: Map&lt;string, NodeEntry&gt;; sumTypes: Map&lt;string, SumTypeEntry&gt; } {
+  // 1. Initialize sum type registry
+  // 2. Build node registry, populating sum type members
+  // 3. Resolve transitive includes (fixed-point)
+  // 4. Propagate sum type fields to all members
+  return { nodes: nodeRegistry, sumTypes: sumTypeRegistry };
+}</pre>
+
+    <p>Grammar specs now call it directly:</p>
+
+    <pre>// specs/ts-ast/grammar/spec.ts
+import { buildGrammar } from '../../../grammar/builder.js';
+import { NODES, SUM_TYPES } from './nodes.js';
+
+export function buildGrammarSpec(): GrammarSpec {
+  const { nodes, sumTypes } = buildGrammar(NODES, SUM_TYPES);
+  return { nodes, sumTypes, convertGenerator: ... };
+}</pre>
+
+    <div class="card">
+      <strong>What changed:</strong>
+      <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+        <li>Removed: <code>GrammarBuilder</code> interface, <code>createGrammarBuilder()</code> factory</li>
+        <li>Added: <code>NodeDef</code>, <code>SumTypeDef</code> input types, <code>buildGrammar()</code> pure function</li>
+        <li>Unchanged: <code>NodeEntry</code>, <code>SumTypeEntry</code> output types, field helpers (<code>child</code>, <code>optChild</code>, <code>list</code>, <code>prop</code>)</li>
+        <li><code>buildGrammarSpec()</code> now takes no arguments (was <code>buildGrammarSpec(builder: GrammarBuilder)</code>)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- PART 3: REMAINING GENERATED CODE REFERENCE -->
+<!-- =============================================================== -->
+
+<h2>Part 3: The Remaining <code>import type</code> in equations.ts</h2>
+
+<div class="collapsible open">
+  <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>equations.ts still has <code>import type</code> from generated code &mdash; is this a problem?</strong></div>
+  <div class="collapsible-content">
+    <pre>// specs/ts-ast/kind-checking/equations.ts
+import type {
+  KSNode, KSIdentifier, KSTypeAliasDeclaration,
+  KSCompilationUnit, KSVariableStatement,
+  // ... 17 types total
+} from '../../../generated/ts-ast/grammar/index.js';</pre>
+
+    <p><strong>No, this is fine.</strong> These imports are:</p>
+    <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+      <li><strong><code>import type</code></strong> &mdash; erased at runtime by transpilers (esbuild/tsx). Zero JavaScript code emitted.</li>
+      <li><strong>IDE type safety</strong> &mdash; used for <code>KindCtx&lt;KSIdentifier&gt;</code> type narrowing in equation signatures, enabling autocomplete and type checking on <code>ctx.node.escapedText</code>.</li>
+      <li><strong>Always available</strong> &mdash; generated files are committed to the repo. They always exist for <code>tsc</code>.</li>
+      <li><strong>Analogous to <code>ts.Node</code></strong> &mdash; importing a stable published type for IDE support is standard practice.</li>
+    </ul>
+
+    <p style="margin-top: 0.75rem;">The key constraint was: <strong>no runtime dependency on generated code in the spec</strong>. That's achieved. The <code>import type</code> doesn't create any runtime dependency, codegen ordering constraint, or circular knowledge flow.</p>
+  </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- PART 4: INDEPENDENT CODEGEN STAGES -->
+<!-- =============================================================== -->
+
+<h2>Part 4: Independent Codegen Stages</h2>
+
+<div class="card success">
+  <strong>Achievement unlocked:</strong> With the generated-code imports removed from <code>spec.ts</code>,
+  grammar codegen and analysis codegen are now <strong>fully independent</strong>. They can run in any order, or in parallel.
+</div>
+
+<div class="tab-container" id="tabs-stages">
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="stage-old">Old: Sequential Dependency</button>
+    <button class="tab-btn" data-tab="stage-new">Current: Independent Stages</button>
+    <button class="tab-btn" data-tab="stage-why">Why It Works</button>
+  </div>
+
+  <div class="tab-panel active" id="stage-old">
+    <h3>Old: Sequential Two-Stage Pipeline</h3>
+    <div class="flow-step">
+      <div class="label">Stage 1: Grammar Codegen</div>
+      <code>npx tsx app/grammar-codegen/ts-ast.ts</code>
+      <p style="margin-top:0.5rem">Reads: <code>specs/ts-ast/grammar/spec.ts</code> + <code>specs/ts-ast/frontend/</code></p>
+      <p>Writes: <code>generated/ts-ast/grammar/</code> (5 files)</p>
+    </div>
+    <div class="flow-arrow">&#x2193; <span style="color: var(--error); font-size: 0.8rem;">MUST complete first</span></div>
+    <div class="flow-step" style="border-color: var(--error);">
+      <div class="label" style="color:var(--error)">Ordering Constraint (old)</div>
+      <p>Stage 2 imported <code>analysisSpec</code> which transitively imported <code>fieldDefs</code> from Stage 1's output. Node.js resolved all imports eagerly &mdash; if generated files didn't exist, the process crashed.</p>
+    </div>
+    <div class="flow-arrow">&#x2193;</div>
+    <div class="flow-step">
+      <div class="label">Stage 2: Analysis Codegen</div>
+      <code>npx tsx app/analysis-codegen/ts-kind-checking.ts</code>
+      <p style="margin-top:0.5rem">Reads: <code>specs/ts-ast/kind-checking/spec.ts</code> (which imported from generated/)</p>
+      <p>Writes: <code>generated/ts-ast/kind-checking/</code> (2 files)</p>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="stage-new">
+    <h3>Current: Independent Stages</h3>
+    <div class="compare-grid">
+      <div class="flow-step" style="border-color: var(--success);">
+        <div class="label" style="color:var(--success)">Grammar Codegen</div>
+        <code>npx tsx app/grammar-codegen/ts-ast.ts</code>
+        <p style="margin-top:0.5rem">Reads: <code>specs/ts-ast/grammar/</code> + <code>specs/ts-ast/frontend/</code></p>
+        <p>Writes: <code>generated/ts-ast/grammar/</code></p>
+      </div>
+      <div class="flow-step" style="border-color: var(--success);">
+        <div class="label" style="color:var(--success)">Analysis Codegen</div>
+        <code>npx tsx app/analysis-codegen/ts-kind-checking.ts</code>
+        <p style="margin-top:0.5rem">Reads: <code>specs/ts-ast/kind-checking/</code> + <code>specs/ts-ast/grammar/nodes.ts</code></p>
+        <p>Writes: <code>generated/ts-ast/kind-checking/</code></p>
+      </div>
+    </div>
+
+    <div class="card success">
+      <strong>No arrows between stages.</strong> Both read only from source specs and machinery.
+      They can run in any order &mdash; or concurrently:
+    </div>
+
+    <pre># These can run in parallel:
+npx tsx app/grammar-codegen/ts-ast.ts &amp;
+npx tsx app/analysis-codegen/ts-kind-checking.ts &amp;
+wait</pre>
+  </div>
+
+  <div class="tab-panel" id="stage-why">
+    <h3>Why Independent Codegen Works</h3>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>The generated evaluator imports from generated grammar &mdash; isn't that a dependency?</strong></div>
+      <div class="collapsible-content">
+        <p>Yes, the generated <code>evaluator.ts</code> does <code>import { fieldDefs } from '../grammar/index.js'</code>. But this is a <strong>runtime dependency between two generated files</strong> &mdash; both exist after codegen completes. The analysis compiler doesn't evaluate this import; it just <em>emits</em> it as a string literal.</p>
+        <div class="compare-grid">
+          <div class="card">
+            <h3 style="margin-top:0; color: var(--accent);">Codegen-time deps</h3>
+            <pre>grammar codegen:
+  reads: specs/ts-ast/grammar/
+  writes: generated grammar files
+
+analysis codegen:
+  reads: specs/ts-ast/kind-checking/
+         + specs/ts-ast/grammar/nodes.ts
+  writes: generated analysis files
+
+&#8594; Independent! No shared state.</pre>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0; color: var(--accent3);">Runtime deps</h3>
+            <pre>evaluator.ts:
+  imports: grammar/index.js
+  imports: equations.js
+  imports: analysis/ctx.js
+
+&#8594; All files exist after codegen.
+   Runtime deps are fine.</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>What does <code>compileAnalysis()</code> actually need?</strong></div>
+      <div class="collapsible-content">
+        <table>
+          <tr><td><code>spec.attrs</code></td><td>Attribute declarations</td><td><span class="badge spec">from spec source</span></td></tr>
+          <tr><td><code>spec.projections</code></td><td>Projection functions</td><td><span class="badge spec">from spec source</span></td></tr>
+          <tr><td><code>spec.grammarConfig.allKinds</code></td><td>Set of all node kind strings</td><td><span class="badge spec">from NODES (source)</span></td></tr>
+          <tr><td><code>spec.grammarConfig.rootKind</code></td><td>Root node kind name</td><td><span class="badge spec">hardcoded string</span></td></tr>
+          <tr><td><code>spec.evaluatorSetup</code></td><td>Custom imports/body templates</td><td><span class="badge spec">from spec source</span></td></tr>
+          <tr><td><code>opts.grammarImportPath</code></td><td>String path for import statements</td><td><span class="badge spec">from composition root</span></td></tr>
+        </table>
+        <p style="margin-top: 0.75rem;"><strong>None of these require generated files to exist.</strong> The analysis compiler is a pure function from spec data to output strings.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- PART 5: WHAT CHANGED -->
+<!-- =============================================================== -->
+
+<h2>Part 5: Complete Change Summary</h2>
+
+<div class="tab-container" id="tabs-changes">
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="change-files">Files Changed</button>
+    <button class="tab-btn" data-tab="change-arch">Architecture Impact</button>
+  </div>
+
+  <div class="tab-panel active" id="change-files">
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>grammar/builder.ts</strong> &mdash; rewritten</div>
+      <div class="collapsible-content">
+        <p>Removed <code>GrammarBuilder</code> interface and <code>createGrammarBuilder()</code> factory. Added <code>NodeDef</code>, <code>SumTypeDef</code> input types and <code>buildGrammar(nodeDefs, sumTypeDefs)</code> pure function. Same resolution logic (transitive includes, field propagation), different input surface.</p>
+      </div>
+    </div>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>specs/ts-ast/grammar/nodes.ts</strong> &mdash; converted (1489 lines)</div>
+      <div class="collapsible-content">
+        <p>364 <code>b.node()</code>/<code>b.leaf()</code> calls + 48 <code>b.sumType()</code> calls converted to two declarative const objects (<code>NODES</code> and <code>SUM_TYPES</code>) with <code>satisfies</code>. Exports <code>type TSNodeKind = keyof typeof NODES</code>.</p>
+      </div>
+    </div>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>specs/mock/grammar/nodes.ts</strong> &mdash; converted (5 nodes)</div>
+      <div class="collapsible-content">
+        <p>Same treatment as the TS AST grammar. 5 nodes, 2 sum types. Exports <code>type MockKind = keyof typeof NODES</code>.</p>
+      </div>
+    </div>
+
+    <div class="collapsible open">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>specs/ts-ast/kind-checking/spec.ts</strong> &mdash; the key change</div>
+      <div class="collapsible-content">
+        <pre style="color: var(--error)">- import type { KindToNode } from '../../../generated/ts-ast/grammar/node-types.js';
+- import { fieldDefs } from '../../../generated/ts-ast/grammar/schema.js';
+- type TSKind = keyof KindToNode;
+- const ALL_TS_KINDS = new Set(Object.keys(fieldDefs)) as ReadonlySet&lt;TSKind&gt;;</pre>
+        <pre style="color: var(--success)">+ import type { TSNodeKind } from '../grammar/nodes.js';
++ import { NODES } from '../grammar/nodes.js';
++ type TSKind = TSNodeKind;
++ const ALL_TS_KINDS = new Set(Object.keys(NODES)) as ReadonlySet&lt;TSKind&gt;;</pre>
+      </div>
+    </div>
+
+    <div class="collapsible">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>specs/ts-ast/grammar/spec.ts</strong> &mdash; simplified</div>
+      <div class="collapsible-content">
+        <p><code>buildGrammarSpec()</code> now takes no arguments. Internally calls <code>buildGrammar(NODES, SUM_TYPES)</code>. No more <code>GrammarBuilder</code> parameter.</p>
+      </div>
+    </div>
+
+    <div class="collapsible">
+      <div class="collapsible-header"><span class="arrow">&#9654;</span> <strong>Composition roots + tests</strong> &mdash; simplified</div>
+      <div class="collapsible-content">
+        <p>All <code>createGrammarBuilder()</code> calls removed. <code>buildGrammarSpec()</code> called with no arguments. Tests updated accordingly. 314/314 tests pass, typecheck clean.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="change-arch">
+    <h3>Architectural Impact</h3>
+
+    <table>
+      <thead>
+        <tr><th>Aspect</th><th>Before</th><th>After</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Kind union source</td>
+          <td>Generated <code>KindToNode</code> type</td>
+          <td>Source <code>keyof typeof NODES</code> (364 literals)</td>
+        </tr>
+        <tr>
+          <td>Runtime kind set source</td>
+          <td>Generated <code>fieldDefs</code> (runtime value)</td>
+          <td>Source <code>NODES</code> (const object)</td>
+        </tr>
+        <tr>
+          <td>Grammar definition pattern</td>
+          <td>Imperative builder (<code>b.node()</code>, <code>b.leaf()</code>)</td>
+          <td>Declarative const objects + <code>satisfies</code></td>
+        </tr>
+        <tr>
+          <td>Spec factory signature</td>
+          <td><code>buildGrammarSpec(builder: GrammarBuilder)</code></td>
+          <td><code>buildGrammarSpec()</code> (no args)</td>
+        </tr>
+        <tr>
+          <td>Codegen stage ordering</td>
+          <td>Sequential (grammar before analysis)</td>
+          <td>Independent (any order or parallel)</td>
+        </tr>
+        <tr>
+          <td>Type safety for kind strings</td>
+          <td>Via generated <code>KindToNode</code> map</td>
+          <td>Via source <code>TSNodeKind</code> union (same safety, no codegen)</td>
+        </tr>
+        <tr>
+          <td>IDE support for equations</td>
+          <td><code>import type</code> from generated (KS* interfaces)</td>
+          <td>Same (kept &mdash; type-only, harmless)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- PART 6: INTERACTIVE GRAPH -->
+<!-- =============================================================== -->
+
+<h2>Part 6: Interactive Dependency Graph (Current State)</h2>
+
+<div class="graph-container" id="dep-graph-canvas-container">
+  <canvas id="dep-graph-canvas" width="1160" height="500"></canvas>
+  <div class="graph-legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div> Spec source</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div> Machinery</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d2a8ff"></div> Domain types</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div> Grammar spec</div>
+  </div>
+</div>
+<p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">
+  Hover over nodes for details. Green edges = source-to-source dependencies (clean). No red edges &mdash; no generated code dependencies.
+</p>
+
+<!-- =============================================================== -->
+<!-- PART 7: QUIZ -->
+<!-- =============================================================== -->
+
+<h2>Knowledge Check</h2>
+
+<div class="quiz-card" onclick="this.classList.toggle('revealed')">
+  <div class="quiz-q">Q1: Why does <code>satisfies</code> enable <code>keyof typeof NODES</code> to be a 364-member union, but <code>: Record&lt;string, NodeDef&gt;</code> would give just <code>string</code>?</div>
+  <div class="quiz-hint">Click to reveal answer</div>
+  <div class="quiz-a"><code>satisfies</code> checks structural compatibility <em>without widening the inferred type</em>. TypeScript preserves the literal key types from the object literal. A type annotation (<code>:</code>) replaces the inferred type with the annotation, widening keys to <code>string</code>.</div>
+</div>
+
+<div class="quiz-card" onclick="this.classList.toggle('revealed')">
+  <div class="quiz-q">Q2: How many runtime (non-type) imports does kind-checking/spec.ts now have from generated code?</div>
+  <div class="quiz-hint">Click to reveal answer</div>
+  <div class="quiz-a"><strong>Zero.</strong> The old <code>fieldDefs</code> import was replaced by <code>NODES</code> from <code>../grammar/nodes.js</code> (source). The old <code>KindToNode</code> type import was replaced by <code>TSNodeKind</code> from the same source file.</div>
+</div>
+
+<div class="quiz-card" onclick="this.classList.toggle('revealed')">
+  <div class="quiz-q">Q3: equations.ts still imports types from generated code. Why is this acceptable?</div>
+  <div class="quiz-hint">Click to reveal answer</div>
+  <div class="quiz-a">The imports are <code>import type</code> &mdash; erased at runtime by transpilers. They provide IDE type safety (<code>KindCtx&lt;KSIdentifier&gt;</code> narrowing) but create zero runtime dependency. Generated files are committed to the repo, so they always exist for <code>tsc</code>. It's analogous to importing <code>ts.Node</code> from the TypeScript package.</div>
+</div>
+
+<div class="quiz-card" onclick="this.classList.toggle('revealed')">
+  <div class="quiz-q">Q4: Can grammar codegen and analysis codegen now run in parallel?</div>
+  <div class="quiz-hint">Click to reveal answer</div>
+  <div class="quiz-a"><strong>Yes!</strong> Both <code>compileGrammar()</code> and <code>compileAnalysis()</code> are pure functions from spec data to output strings. Neither reads the other's output. The analysis spec gets <code>allKinds</code> from source <code>NODES</code>, not from generated grammar files. Both stages can run concurrently.</div>
+</div>
+
+<div class="quiz-card" onclick="this.classList.toggle('revealed')">
+  <div class="quiz-q">Q5: What replaced the <code>GrammarBuilder</code> interface?</div>
+  <div class="quiz-hint">Click to reveal answer</div>
+  <div class="quiz-a"><code>NodeDef</code> and <code>SumTypeDef</code> input types + a pure <code>buildGrammar(nodeDefs, sumTypeDefs)</code> function. Grammar definitions are now declarative const objects (<code>NODES</code>, <code>SUM_TYPES</code>) with <code>satisfies</code> for structural validation. The same resolution logic (transitive includes, field propagation) runs inside <code>buildGrammar()</code>.</div>
+</div>
+
+<!-- =============================================================== -->
+<!-- PART 8: SUMMARY -->
+<!-- =============================================================== -->
+
+<h2>Summary</h2>
+
+<div class="card success">
+  <h3 style="margin-top:0">What Was Done</h3>
+  <p>Replaced the imperative <code>GrammarBuilder</code> pattern with <strong>declarative const objects</strong> using TypeScript's <code>satisfies</code> keyword. This enables <code>keyof typeof NODES</code> to produce a 364-member string literal union from source code &mdash; eliminating the need to import kind types or runtime data from generated code.</p>
+
+  <h3>Key Result</h3>
+  <p><code>specs/ts-ast/kind-checking/spec.ts</code> now has <strong>zero imports from generated code</strong>. <code>TSNodeKind</code> and the runtime kind set are both derived from <code>specs/ts-ast/grammar/nodes.ts</code> (source). The two codegen stages (grammar + analysis) are <strong>fully independent</strong> and can run in any order or in parallel.</p>
+
+  <h3>Verification</h3>
+  <p>314/314 tests pass. TypeScript typecheck clean. Zero regressions.</p>
+</div>
+
+<!-- =============================================================== -->
+<!-- JavaScript -->
+<!-- =============================================================== -->
+
+<script>
+// -- Tab switching --
+document.querySelectorAll('.tab-container').forEach(container => {
+  container.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+});
+
+// -- Collapsible --
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.parentElement.classList.toggle('open');
+  });
+});
+
+// -- Interactive Dependency Graph (Current State - Clean) --
+const canvas = document.getElementById('dep-graph-canvas');
+const ctx2d = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+canvas.width = 1160 * dpr;
+canvas.height = 500 * dpr;
+canvas.style.width = '1160px';
+canvas.style.height = '500px';
+ctx2d.scale(dpr, dpr);
+
+const nodes = [
+  // kind-checking spec files
+  { id: 'spec',     label: 'kind-checking/spec.ts',    x: 120, y: 120, w: 190, h: 36, color: '#3fb950', group: 'spec' },
+  { id: 'eq',       label: 'kind-checking/equations.ts',x: 120, y: 200, w: 190, h: 36, color: '#3fb950', group: 'spec' },
+  { id: 'types',    label: 'kind-checking/types.ts',    x: 120, y: 280, w: 190, h: 36, color: '#d2a8ff', group: 'domain' },
+
+  // grammar source (the new dep target)
+  { id: 'gram-node',label: 'grammar/nodes.ts',          x: 450, y: 80,  w: 200, h: 36, color: '#d29922', group: 'grammar-spec' },
+  { id: 'gram-spec',label: 'grammar/spec.ts',           x: 450, y: 160, w: 200, h: 36, color: '#d29922', group: 'grammar-spec' },
+
+  // analysis machinery
+  { id: 'ctx',      label: 'analysis/ctx.ts',           x: 800, y: 80,  w: 170, h: 36, color: '#58a6ff', group: 'machinery' },
+  { id: 'atypes',   label: 'analysis/types.ts',         x: 800, y: 160, w: 170, h: 36, color: '#58a6ff', group: 'machinery' },
+  { id: 'pivot',    label: 'analysis/pivot.ts',          x: 800, y: 240, w: 170, h: 36, color: '#58a6ff', group: 'machinery' },
+
+  // grammar machinery
+  { id: 'builder',  label: 'grammar/builder.ts',        x: 450, y: 320, w: 200, h: 36, color: '#58a6ff', group: 'machinery' },
+];
+
+const edges = [
+  // kind-checking/spec.ts -> grammar source (the KEY clean dep)
+  { from: 'spec', to: 'gram-node', color: '#3fb950',   width: 2.5, label: 'TSNodeKind + NODES', dashed: false },
+
+  // kind-checking -> analysis machinery
+  { from: 'eq',   to: 'ctx',      color: '#58a6ff80', width: 1.5, label: '', dashed: false },
+  { from: 'eq',   to: 'atypes',   color: '#58a6ff80', width: 1.5, label: 'withDeps()', dashed: false },
+  { from: 'spec', to: 'atypes',   color: '#58a6ff80', width: 1.5, label: '', dashed: false },
+  { from: 'spec', to: 'pivot',    color: '#58a6ff80', width: 1.5, label: '', dashed: false },
+  { from: 'spec', to: 'ctx',      color: '#58a6ff80', width: 1.5, label: '', dashed: false },
+
+  // kind-checking -> local types
+  { from: 'eq',   to: 'types',    color: '#d2a8ff80', width: 1.5, label: '', dashed: false },
+  { from: 'spec', to: 'types',    color: '#d2a8ff80', width: 1.5, label: '', dashed: false },
+
+  // grammar spec -> nodes + builder
+  { from: 'gram-spec', to: 'gram-node', color: '#d2992280', width: 1, label: '', dashed: false },
+  { from: 'gram-spec', to: 'builder',   color: '#d2992280', width: 1, label: 'buildGrammar()', dashed: false },
+
+  // nodes.ts -> builder (imports field helpers)
+  { from: 'gram-node', to: 'builder',   color: '#58a6ff40', width: 1, label: 'child, prop, ...', dashed: true },
+];
+
+let hoveredNode = null;
+
+function getNodeById(id) { return nodes.find(n => n.id === id); }
+
+function drawEdge(edge, highlight) {
+  const from = getNodeById(edge.from);
+  const to = getNodeById(edge.to);
+  if (!from || !to) return;
+
+  const alpha = highlight ? 1 : (hoveredNode ? 0.15 : 0.7);
+
+  ctx2d.beginPath();
+  ctx2d.strokeStyle = edge.color;
+  ctx2d.globalAlpha = alpha;
+  ctx2d.lineWidth = highlight ? edge.width + 1 : edge.width;
+  if (edge.dashed) ctx2d.setLineDash([6, 4]);
+  else ctx2d.setLineDash([]);
+
+  const x1 = from.x + from.w / 2;
+  const y1 = from.y + from.h / 2;
+  const x2 = to.x + to.w / 2;
+  const y2 = to.y + to.h / 2;
+
+  ctx2d.moveTo(x1, y1);
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2 - 15;
+  ctx2d.quadraticCurveTo(cx, cy, x2, y2);
+  ctx2d.stroke();
+  ctx2d.setLineDash([]);
+  ctx2d.globalAlpha = 1;
+
+  // Arrow head
+  if (alpha > 0.3) {
+    const angle = Math.atan2(y2 - cy, x2 - cx);
+    ctx2d.beginPath();
+    ctx2d.globalAlpha = alpha;
+    ctx2d.fillStyle = edge.color;
+    ctx2d.moveTo(x2, y2);
+    ctx2d.lineTo(x2 - 10 * Math.cos(angle - 0.3), y2 - 10 * Math.sin(angle - 0.3));
+    ctx2d.lineTo(x2 - 10 * Math.cos(angle + 0.3), y2 - 10 * Math.sin(angle + 0.3));
+    ctx2d.closePath();
+    ctx2d.fill();
+    ctx2d.globalAlpha = 1;
+  }
+
+  // Label
+  if (edge.label && highlight) {
+    ctx2d.font = '10px -apple-system, sans-serif';
+    ctx2d.fillStyle = edge.color;
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText(edge.label, cx, cy - 8);
+  }
+}
+
+function drawNode(node, highlight) {
+  const alpha = highlight ? 1 : (hoveredNode ? 0.3 : 1);
+
+  if (highlight) {
+    ctx2d.shadowColor = node.color;
+    ctx2d.shadowBlur = 12;
+  }
+
+  ctx2d.globalAlpha = alpha;
+  ctx2d.fillStyle = node.color + '20';
+  ctx2d.strokeStyle = node.color;
+  ctx2d.lineWidth = highlight ? 2 : 1;
+  ctx2d.beginPath();
+  ctx2d.roundRect(node.x, node.y, node.w, node.h, 6);
+  ctx2d.fill();
+  ctx2d.stroke();
+
+  ctx2d.shadowBlur = 0;
+
+  ctx2d.fillStyle = '#c9d1d9';
+  ctx2d.font = `${highlight ? '12' : '11'}px 'SF Mono', monospace`;
+  ctx2d.textAlign = 'center';
+  ctx2d.textBaseline = 'middle';
+  ctx2d.fillText(node.label, node.x + node.w / 2, node.y + node.h / 2);
+  ctx2d.globalAlpha = 1;
+}
+
+function draw() {
+  ctx2d.clearRect(0, 0, 1160, 500);
+
+  // Section labels
+  ctx2d.fillStyle = '#8b949e';
+  ctx2d.font = '13px -apple-system, sans-serif';
+  ctx2d.textAlign = 'left';
+  ctx2d.textBaseline = 'top';
+  ctx2d.fillText('specs/ts-ast/kind-checking/', 25, 15);
+  ctx2d.fillText('specs/ts-ast/grammar/', 400, 15);
+  ctx2d.fillText('analysis/ + grammar/ machinery', 720, 15);
+
+  // Separator regions
+  ctx2d.strokeStyle = '#30363d';
+  ctx2d.lineWidth = 1;
+  ctx2d.setLineDash([4, 4]);
+  ctx2d.strokeRect(15, 40, 330, 310);
+  ctx2d.strokeRect(370, 40, 330, 330);
+  ctx2d.strokeRect(720, 40, 300, 280);
+  ctx2d.setLineDash([]);
+
+  // "No red arrows" label
+  ctx2d.fillStyle = '#3fb950';
+  ctx2d.font = '11px -apple-system, sans-serif';
+  ctx2d.textAlign = 'center';
+  ctx2d.fillText('All edges are green/blue (source-to-source or source-to-machinery)', 580, 420);
+  ctx2d.fillText('Zero dependencies on generated/ code', 580, 440);
+
+  // Draw edges
+  const relatedEdges = hoveredNode
+    ? edges.filter(e => e.from === hoveredNode.id || e.to === hoveredNode.id)
+    : [];
+
+  edges.forEach(e => {
+    const hl = !hoveredNode || relatedEdges.includes(e);
+    drawEdge(e, hl);
+  });
+
+  // Draw nodes
+  nodes.forEach(n => {
+    const hl = !hoveredNode || n === hoveredNode
+      || relatedEdges.some(e => e.from === n.id || e.to === n.id);
+    drawNode(n, hl);
+  });
+
+  // Tooltip
+  if (hoveredNode) {
+    const inEdges = edges.filter(e => e.from === hoveredNode.id);
+    const outEdges = edges.filter(e => e.to === hoveredNode.id);
+    const tooltip = [];
+    if (inEdges.length > 0) tooltip.push(`Imports from: ${inEdges.map(e => getNodeById(e.to).label).join(', ')}`);
+    if (outEdges.length > 0) tooltip.push(`Imported by: ${outEdges.map(e => getNodeById(e.from).label).join(', ')}`);
+
+    if (tooltip.length > 0) {
+      const tx = hoveredNode.x + hoveredNode.w / 2;
+      const ty = hoveredNode.y - 12;
+      ctx2d.font = '10px -apple-system, sans-serif';
+      const maxW = Math.max(...tooltip.map(t => ctx2d.measureText(t).width));
+      const pw = maxW + 16;
+      const ph = tooltip.length * 16 + 8;
+
+      ctx2d.fillStyle = '#1c2333';
+      ctx2d.strokeStyle = '#30363d';
+      ctx2d.lineWidth = 1;
+      ctx2d.beginPath();
+      ctx2d.roundRect(tx - pw / 2, ty - ph, pw, ph, 4);
+      ctx2d.fill();
+      ctx2d.stroke();
+
+      ctx2d.fillStyle = '#c9d1d9';
+      ctx2d.textAlign = 'center';
+      tooltip.forEach((line, i) => {
+        ctx2d.fillText(line, tx, ty - ph + 14 + i * 16);
+      });
+    }
+  }
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  hoveredNode = nodes.find(n =>
+    mx >= n.x && mx <= n.x + n.w && my >= n.y && my <= n.y + n.h
+  ) || null;
+
+  canvas.style.cursor = hoveredNode ? 'pointer' : 'default';
+  draw();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoveredNode = null;
+  draw();
+});
+
+draw();
+</script>
+
+</body>
+</html>

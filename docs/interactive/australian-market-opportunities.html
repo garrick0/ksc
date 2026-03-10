@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Australian Market Opportunities &mdash; Formal Verification & Abstract Analysis</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --bg-card: #1a1f2b;
+    --border: #30363d;
+    --border-light: #3d444d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #6e7681;
+    --accent: #58a6ff;
+    --accent-light: #79c0ff;
+    --accent-dim: #1f6feb33;
+    --green: #3fb950;
+    --green-dim: #23863633;
+    --yellow: #d29922;
+    --yellow-dim: #9e6a0333;
+    --red: #f85149;
+    --red-dim: #da363333;
+    --purple: #bc8cff;
+    --purple-dim: #8957e533;
+    --orange: #f0883e;
+    --orange-dim: #bd561d33;
+    --cyan: #39d2c0;
+    --cyan-dim: #1b7c6e33;
+    --gold: #e3b341;
+    --gold-dim: #bb800926;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 40%, #1a2040 70%, #0d2818 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 2.1rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--gold), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  .header .subtitle {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 750px;
+    margin: 0 auto;
+  }
+
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-tab {
+    padding: 0.85rem 1.2rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    font-size: 0.86rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--bg-tertiary); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-tertiary); }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.2rem;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border-light); }
+  .card h3 { font-size: 1.1rem; margin-bottom: 0.7rem; color: var(--accent-light); }
+  .card p, .card li { color: var(--text-muted); font-size: 0.9rem; }
+  .card ul { padding-left: 1.4rem; }
+  .card li { margin-bottom: 0.3rem; }
+
+  .collapsible {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .collapsible-header {
+    padding: 1rem 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+    font-size: 1rem;
+    user-select: none;
+    transition: background 0.2s;
+  }
+  .collapsible-header:hover { background: var(--bg-tertiary); }
+  .collapsible-header .arrow { transition: transform 0.2s; color: var(--text-dim); font-size: 0.8rem; }
+  .collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+  .collapsible-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, padding 0.3s; padding: 0 1.3rem; }
+  .collapsible.open .collapsible-body { max-height: 8000px; padding: 0 1.3rem 1.3rem; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.86rem; }
+  th {
+    text-align: left;
+    padding: 0.65rem 0.9rem;
+    background: var(--bg-tertiary);
+    color: var(--text);
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  td { padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text-muted); vertical-align: top; }
+  tr:hover td { background: var(--bg-secondary); }
+
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 10px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .badge-blue { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+  .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow); }
+  .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+  .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple); }
+  .badge-orange { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--orange); }
+  .badge-cyan { background: var(--cyan-dim); color: var(--cyan); border: 1px solid var(--cyan); }
+  .badge-gold { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold); }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem;
+    text-align: center;
+  }
+  .stat-card .stat-value { font-size: 1.7rem; font-weight: 700; margin-bottom: 0.2rem; }
+  .stat-card .stat-label { font-size: 0.8rem; color: var(--text-muted); }
+
+  .insight {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .insight.warning { background: var(--yellow-dim); border-color: var(--yellow); }
+  .insight.success { background: var(--green-dim); border-color: var(--green); }
+  .insight.danger { background: var(--red-dim); border-color: var(--red); }
+  .insight strong { color: var(--text); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+  }
+  @media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .header h1 { font-size: 1.5rem; }
+    .content { padding: 1rem; }
+    .nav-tab { padding: 0.7rem 0.8rem; font-size: 0.78rem; }
+  }
+
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.2rem;
+  }
+  @media (max-width: 900px) { .three-col { grid-template-columns: 1fr; } }
+
+  .contract-highlight {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem;
+    margin: 0.8rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .contract-highlight .ch-left { flex: 1; min-width: 200px; }
+  .contract-highlight .ch-title { font-weight: 600; font-size: 0.92rem; }
+  .contract-highlight .ch-detail { font-size: 0.8rem; color: var(--text-muted); }
+  .contract-highlight .ch-value { font-size: 1.35rem; font-weight: 700; color: var(--green); white-space: nowrap; }
+
+  .section-header { margin-bottom: 1.5rem; }
+  .section-header h2 { font-size: 1.45rem; margin-bottom: 0.4rem; }
+  .section-header p { color: var(--text-muted); font-size: 0.9rem; }
+  h4 { margin: 1rem 0 0.5rem; color: var(--text); font-size: 0.95rem; }
+
+  .company-profile { display: flex; gap: 1.1rem; align-items: flex-start; }
+  .company-profile .cp-icon {
+    width: 46px; height: 46px; border-radius: 10px; background: var(--bg-tertiary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; font-weight: 700; color: var(--accent); flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .company-profile .cp-body { flex: 1; }
+  .company-profile .cp-name { font-weight: 600; font-size: 0.98rem; }
+  .company-profile .cp-meta { font-size: 0.78rem; color: var(--text-dim); }
+  .company-profile .cp-desc { font-size: 0.86rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+  .opportunity-score {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+  }
+  .opp-dots {
+    display: flex;
+    gap: 3px;
+  }
+  .opp-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+  }
+  .opp-dot.filled { border-color: transparent; }
+  .opp-label { font-size: 0.78rem; color: var(--text-dim); }
+
+  .bar-chart { margin: 1.2rem 0; }
+  .bar-row { display: flex; align-items: center; margin: 0.5rem 0; }
+  .bar-label { min-width: 180px; font-size: 0.8rem; color: var(--text-muted); text-align: right; padding-right: 0.8rem; }
+  .bar-track { flex: 1; height: 26px; background: var(--bg-tertiary); border-radius: 4px; position: relative; overflow: hidden; }
+  .bar-fill {
+    height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 0.7rem;
+    font-size: 0.76rem; font-weight: 600; color: #fff; white-space: nowrap; transition: width 0.8s ease;
+  }
+
+  /* Maturity gauge */
+  .maturity-gauge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0.3rem 0;
+  }
+  .mg-segment {
+    height: 6px;
+    flex: 1;
+    border-radius: 3px;
+    background: var(--bg-tertiary);
+    max-width: 40px;
+  }
+
+  /* Flashcards */
+  .flashcard-container { margin: 1.5rem 0; }
+  .flashcard {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 2rem; cursor: pointer; min-height: 130px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    position: relative; user-select: none; transition: transform 0.3s, border-color 0.2s;
+  }
+  .flashcard:hover { border-color: var(--accent); }
+  .flashcard .fc-question { font-size: 1.02rem; font-weight: 600; }
+  .flashcard .fc-answer {
+    display: none; font-size: 0.92rem; color: var(--text-muted);
+    margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid var(--border); text-align: left; width: 100%;
+  }
+  .flashcard.revealed .fc-answer { display: block; }
+  .flashcard .fc-hint { font-size: 0.73rem; color: var(--text-dim); position: absolute; bottom: 0.7rem; }
+  .flashcard.revealed .fc-hint { display: none; }
+  .fc-nav { display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; }
+  .fc-nav button {
+    background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text);
+    padding: 0.5rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s;
+  }
+  .fc-nav button:hover { background: var(--bg-card); border-color: var(--accent); }
+  .fc-counter { text-align: center; font-size: 0.78rem; color: var(--text-dim); margin-top: 0.5rem; }
+
+  /* Persona cards */
+  .persona-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.3rem;
+    margin-bottom: 1rem;
+  }
+  .persona-card .persona-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.8rem;
+  }
+  .persona-card .persona-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .persona-card .persona-name { font-weight: 600; font-size: 0.95rem; }
+  .persona-card .persona-role { font-size: 0.78rem; color: var(--text-dim); }
+  .persona-card .persona-cares {
+    font-size: 0.85rem; color: var(--text-muted);
+  }
+  .persona-card .care-tag {
+    display: inline-block;
+    padding: 0.12rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin: 0.2rem 0.2rem 0.2rem 0;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Australian Market Opportunities</h1>
+  <p class="subtitle">Formal verification &amp; abstract analysis: current landscape, underserved markets, and go-to-market strategies for Australia</p>
+</div>
+
+<div class="nav-tabs" id="navTabs">
+  <div class="nav-tab active" data-section="landscape">Landscape</div>
+  <div class="nav-tab" data-section="current-buyers">Current Buyers</div>
+  <div class="nav-tab" data-section="defence-aukus">Defence & AUKUS</div>
+  <div class="nav-tab" data-section="underserved">Underserved Markets</div>
+  <div class="nav-tab" data-section="mining-auto">Mining & Autonomy</div>
+  <div class="nav-tab" data-section="regulated">Regulated Industries</div>
+  <div class="nav-tab" data-section="buyer-personas">Buyer Personas</div>
+  <div class="nav-tab" data-section="go-to-market">Go-to-Market</div>
+  <div class="nav-tab" data-section="quiz">Quiz</div>
+</div>
+
+<div class="content">
+
+<!-- ===================== LANDSCAPE ===================== -->
+<div class="section active" id="section-landscape">
+  <div class="section-header">
+    <h2>Australian Market Landscape</h2>
+    <p>Australia punches well above its weight in formal methods research (seL4 was born here), has massive infrastructure projects demanding safety-critical software, and faces intensifying cyber regulation &mdash; yet formal verification adoption remains nascent outside defence.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--gold);">$59B</div>
+      <div class="stat-label">Defence Budget 2025&ndash;26</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--green);">$8.5&ndash;11B</div>
+      <div class="stat-label">Defence ICT (10-year horizon)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent);">$55B+</div>
+      <div class="stat-label">Rail Mega-Projects (active)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--purple);">$7B</div>
+      <div class="stat-label">Cyber Security Market (AUD)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--orange);">$500M+</div>
+      <div class="stat-label">Medical Device R&amp;D/yr (Cochlear+ResMed)</div>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Opportunity Heat Map</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Market</th>
+        <th>Adoption Maturity</th>
+        <th>Regulatory Push</th>
+        <th>Addressable Spend</th>
+        <th>Entry Difficulty</th>
+        <th>Opportunity</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Defence / AUKUS</strong></td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td><span class="badge badge-red">Strong</span></td>
+        <td>$8.5&ndash;11B ICT</td>
+        <td><span class="badge badge-orange">Through primes</span></td>
+        <td><span class="badge badge-green">Very High</span></td>
+      </tr>
+      <tr>
+        <td><strong>Rail (CBTC/ETCS)</strong></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-red">Strong (EN 50128)</span></td>
+        <td>$55B+ projects</td>
+        <td><span class="badge badge-orange">Through integrators</span></td>
+        <td><span class="badge badge-green">High</span></td>
+      </tr>
+      <tr>
+        <td><strong>Autonomous Mining</strong></td>
+        <td><span class="badge badge-red">Low</span></td>
+        <td><span class="badge badge-yellow">Growing (ISO 17757)</span></td>
+        <td>Billions in autonomy</td>
+        <td><span class="badge badge-green">Direct to miners</span></td>
+        <td><span class="badge badge-green">Very High</span></td>
+      </tr>
+      <tr>
+        <td><strong>Medical Devices</strong></td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td><span class="badge badge-red">Strong (IEC 62304)</span></td>
+        <td>$500M+/yr R&amp;D</td>
+        <td><span class="badge badge-green">Direct</span></td>
+        <td><span class="badge badge-green">High</span></td>
+      </tr>
+      <tr>
+        <td><strong>Telecom (post-breach)</strong></td>
+        <td><span class="badge badge-red">Very Low</span></td>
+        <td><span class="badge badge-yellow">SOCI Act</span></td>
+        <td>Billions in telco IT</td>
+        <td><span class="badge badge-green">Direct</span></td>
+        <td><span class="badge badge-green">High</span></td>
+      </tr>
+      <tr>
+        <td><strong>Banking / Fintech</strong></td>
+        <td><span class="badge badge-red">Very Low</span></td>
+        <td><span class="badge badge-yellow">APRA CPS 234</span></td>
+        <td>Billions in bank IT</td>
+        <td><span class="badge badge-yellow">Enterprise sales</span></td>
+        <td><span class="badge badge-yellow">Medium-High</span></td>
+      </tr>
+      <tr>
+        <td><strong>Energy / Smart Grid</strong></td>
+        <td><span class="badge badge-red">Very Low</span></td>
+        <td><span class="badge badge-yellow">AESCSF + SOCI</span></td>
+        <td>Growing</td>
+        <td><span class="badge badge-yellow">Through AEMO</span></td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+      </tr>
+      <tr>
+        <td><strong>Space / Satellite</strong></td>
+        <td><span class="badge badge-red">Very Low</span></td>
+        <td><span class="badge badge-blue">Emerging</span></td>
+        <td>$100M+ growing</td>
+        <td><span class="badge badge-green">Direct</span></td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+      </tr>
+      <tr>
+        <td><strong>Autonomous Vehicles</strong></td>
+        <td><span class="badge badge-purple">Nascent</span></td>
+        <td><span class="badge badge-blue">AVSL 2027</span></td>
+        <td>Future</td>
+        <td><span class="badge badge-blue">Standards influence</span></td>
+        <td><span class="badge badge-yellow">Medium (long-term)</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight success">
+    <strong>Australia's unique advantage:</strong> The seL4 microkernel &mdash; the world's first formally verified OS kernel &mdash; was created at UNSW/Data61 in Sydney. Australia has world-class formal methods research talent and institutional knowledge. Proofcraft (seL4 commercial spin-off) is based here. This creates a "homegrown innovation" narrative that resonates with government sovereign capability priorities.
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Key Regulatory Drivers</h3>
+  <div class="three-col">
+    <div class="card">
+      <h3>SOCI Act 2018</h3>
+      <p>Covers 22 asset classes across 11 sectors. Mandatory cyber incident reporting within 12 hours. CIRMP required. Nov 2024 amendments expand to data storage holding operational code. Creates baseline demand for software assurance.</p>
+    </div>
+    <div class="card">
+      <h3>ASD Essential Eight</h3>
+      <p>Mandatory at Maturity Level 2 for all Commonwealth entities. Focus on patching and application control. Does NOT explicitly mandate static analysis &mdash; a gap that creates an advocacy opportunity.</p>
+    </div>
+    <div class="card">
+      <h3>AUKUS Pillar 2</h3>
+      <p>Advanced cyber is 1 of 6 technology areas. Drives harmonized cyber standards across US/UK/AU. Push for verified, trustworthy software across the naval supply chain. Creates top-down demand.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CURRENT BUYERS ===================== -->
+<div class="section" id="section-current-buyers">
+  <div class="section-header">
+    <h2>Current Australian Buyers &amp; Users</h2>
+    <p>Organizations in Australia that already use or procure formal verification, abstract analysis, or advanced static analysis tools and services.</p>
+  </div>
+
+  <!-- seL4 Ecosystem -->
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      seL4 Ecosystem &mdash; Australia's Formal Verification Crown Jewel
+      <span class="badge badge-gold" style="margin-left: auto;">World-Leading</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon" style="color: var(--gold);">s4</div>
+        <div class="cp-body">
+          <div class="cp-name">seL4 Foundation / Data61 / CSIRO / UNSW</div>
+          <div class="cp-meta">Founded April 2020 &bull; Originating from NICTA/UNSW Sydney</div>
+          <div class="cp-desc">The world's first formally verified operating system microkernel. 8,700 lines of C with machine-checked proof of functional correctness, integrity, and confidentiality. Used in automotive, aerospace, IoT, military, and intelligence sectors globally.</div>
+        </div>
+      </div>
+
+      <h4>Key Australian Entities</h4>
+      <table>
+        <thead><tr><th>Entity</th><th>Role</th><th>Focus</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Data61 / CSIRO</strong></td><td>Founding member</td><td>Original research + ongoing development</td></tr>
+          <tr><td><strong>Proofcraft</strong></td><td>Commercial spin-off</td><td>Formal verification consulting + seL4 support</td></tr>
+          <tr><td><strong>UNSW Trustworthy Systems</strong></td><td>Research group</td><td>OS verification, security proofs, concurrency</td></tr>
+          <tr><td><strong>seL4 Foundation</strong></td><td>Governance body</td><td>Ecosystem coordination, standards, community</td></tr>
+        </tbody>
+      </table>
+
+      <div class="insight">
+        <strong>Key researchers:</strong> Gerwin Klein and June Andronick (Proofcraft founders, UNSW Conjoint Professors) are among the world's leading formal verification practitioners. Their presence in Australia means world-class expertise is available locally.
+      </div>
+
+      <h4>Commercial Applications</h4>
+      <ul>
+        <li><strong>DARPA HACMS:</strong> Collins Aerospace (RTX) used seL4 to retrofit autonomous military vehicles with formally verified security</li>
+        <li><strong>HENSOLDT Cyber:</strong> seL4-based secure embedded platform for defence/industrial</li>
+        <li><strong>Cog Systems:</strong> seL4-based secure mobile platform</li>
+        <li><strong>DornerWorks:</strong> DARPA SBIR for seL4 RISC-V port</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Defence Primes -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Defence Primes in Australia
+      <span class="badge badge-red" style="margin-left: auto;">Major Programs</span>
+    </div>
+    <div class="collapsible-body">
+      <table>
+        <thead><tr><th>Prime</th><th>Major Program</th><th>Verification Activities</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Lockheed Martin Australia</strong></td>
+            <td>AIR6500 (Joint Air Battle Management)</td>
+            <td>Software development, V&amp;V, systems integration</td>
+          </tr>
+          <tr>
+            <td><strong>BAE Systems Australia</strong></td>
+            <td>Hunter Class Frigate (SEA5000)</td>
+            <td>Combat system software, 19+ SW engineers/yr cohort, SA Govt $450K apprenticeship pilot</td>
+          </tr>
+          <tr>
+            <td><strong>Leidos Australia</strong></td>
+            <td>AIR6500 subcontractor</td>
+            <td>Software development, cyber security, verification &amp; validation services</td>
+          </tr>
+          <tr>
+            <td><strong>QinetiQ Australia</strong></td>
+            <td>AIR6500 T&amp;E</td>
+            <td>Test and evaluation, verification &amp; validation, certification &amp; assurance</td>
+          </tr>
+          <tr>
+            <td><strong>Northrop Grumman AU</strong></td>
+            <td>Strategic alliance with DSTG</td>
+            <td>C4ISR, biometrics, autonomous systems research</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="insight warning">
+        <strong>Entry point:</strong> Defence primes are the primary route to defence contracts. They subcontract verification tools and services. Getting approved as a supplier to LMA, BAE, or Leidos opens access to multi-billion dollar programs.
+      </div>
+    </div>
+  </div>
+
+  <!-- Rail -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Rail Signalling &mdash; Massive Active Programs
+      <span class="badge badge-green" style="margin-left: auto;">$55B+ Projects</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Sydney Metro &mdash; Alstom Urbalis 400 CBTC</div>
+          <div class="ch-detail">Australia's first fully automated driverless metro. EUR 350M for trains + CBTC signalling.</div>
+        </div>
+        <div class="ch-value">AUD $12B+</div>
+      </div>
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Melbourne Metro Tunnel &mdash; Alstom Urbalis Flo</div>
+          <div class="ch-detail">Australia's first brownfield CBTC. Mixed-mode signalling. 4,000+ hours of dynamic testing.</div>
+        </div>
+        <div class="ch-value">AUD $12.5B</div>
+      </div>
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Inland Rail &mdash; ARTC + Wabtec ETCS</div>
+          <div class="ch-detail">1,600 km Melbourne&ndash;Brisbane freight line. Mandatory ETCS for all future digital signalling.</div>
+        </div>
+        <div class="ch-value">AUD $31B+</div>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 0.8rem;"><strong>Regulator:</strong> ONRSR requires EN 50126/50128/50129 compliance. EN 50128 explicitly recommends formal methods for SIL 3/4 software. All signalling works must be independently verified and validated.</p>
+    </div>
+  </div>
+
+  <!-- Medical -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Medical Device Companies
+      <span class="badge badge-purple" style="margin-left: auto;">IEC 62304</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="two-col">
+        <div>
+          <div class="company-profile">
+            <div class="cp-icon" style="color: var(--purple);">Co</div>
+            <div class="cp-body">
+              <div class="cp-name">Cochlear (ASX: COH)</div>
+              <div class="cp-meta">Sydney &bull; ~2,200 AU employees &bull; AUD $180M+/yr R&amp;D</div>
+              <div class="cp-desc">Class III implantable medical devices (highest risk). Firmware and sound processing verification. Cochlear implants have zero tolerance for runtime errors &mdash; direct patient safety impact.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="company-profile">
+            <div class="cp-icon" style="color: var(--purple);">RM</div>
+            <div class="cp-body">
+              <div class="cp-name">ResMed (ASX/NYSE: RMD)</div>
+              <div class="cp-meta">AU-founded &bull; USD $320M/yr R&amp;D globally</div>
+              <div class="cp-desc">Cloud-connected respiratory devices (AirSense 11). Embedded systems + SaaS. IEC 62304 for device software, plus cloud security for patient data.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 0.8rem;"><strong>Regulatory:</strong> TGA recognizes IEC 62304 as state-of-the-art. Class C software (Cochlear implants) requires the most rigorous verification. TGA releasing AI medical software guidance in 2026.</p>
+    </div>
+  </div>
+
+  <!-- DSTG/Universities -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Research Institutions
+      <span class="badge badge-blue" style="margin-left: auto;">World-Class</span>
+    </div>
+    <div class="collapsible-body">
+      <table>
+        <thead><tr><th>Institution</th><th>Group</th><th>Focus</th></tr></thead>
+        <tbody>
+          <tr><td><strong>UNSW Sydney</strong></td><td>Trustworthy Systems + Formal Methods</td><td>OS verification, seL4, concurrency, security proofs</td></tr>
+          <tr><td><strong>Monash University</strong></td><td>PL / Analysis Research</td><td>Abstract interpretation frameworks, non-lattice abstract domains</td></tr>
+          <tr><td><strong>ANU</strong></td><td>CS Department</td><td>Formal methods in software engineering (COMP2600)</td></tr>
+          <tr><td><strong>DSTG</strong></td><td>Cyber + Information Sciences</td><td>Cybersecurity research, strategic alliances with industry. ~$430M annual budget.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DEFENCE & AUKUS ===================== -->
+<div class="section" id="section-defence-aukus">
+  <div class="section-header">
+    <h2>Defence &amp; AUKUS &mdash; The Largest Opportunity</h2>
+    <p>Australia's defence transformation &mdash; driven by AUKUS, the $368B submarine program, and $8.5&ndash;11B in ICT investment &mdash; creates the single largest addressable market for formal verification in Australia.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--gold);">$368B</div>
+      <div class="stat-label">AUKUS Submarine Program (AU share)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--green);">$8.5&ndash;11B</div>
+      <div class="stat-label">Defence ICT Investment (10yr)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent);">6</div>
+      <div class="stat-label">AUKUS Pillar 2 Tech Areas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--red);">$59B</div>
+      <div class="stat-label">2025&ndash;26 Defence Budget</div>
+    </div>
+  </div>
+
+  <div class="insight danger">
+    <strong>Critical gap:</strong> Despite billions in software-intensive defence programs (AIR6500, SEA5000, AUKUS submarines), no publicly visible formal verification-specific contracts appear on AusTender. Verification activities are embedded within prime contracts but not broken out. This suggests formal verification is either classified, bundled, or &mdash; more likely &mdash; underutilized.
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">AUKUS Pillar 2 &mdash; Formal Verification Alignment</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Tech Area</th><th>FM Relevance</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Undersea Capabilities</strong></td>
+          <td><span class="badge badge-red">Critical</span></td>
+          <td>Submarine combat system software (AN/BYG-1 derivative). Life-safety systems. No room for runtime errors at depth.</td>
+        </tr>
+        <tr>
+          <td><strong>Advanced Cyber</strong></td>
+          <td><span class="badge badge-red">Critical</span></td>
+          <td>AUKUS explicitly calls for verified, trustworthy software in the naval supply chain. Harmonized cyber standards across US/UK/AU.</td>
+        </tr>
+        <tr>
+          <td><strong>AI &amp; Autonomy</strong></td>
+          <td><span class="badge badge-orange">High</span></td>
+          <td>Autonomous systems require verified decision-making. DARPA HACMS proved formal methods work for autonomous military platforms.</td>
+        </tr>
+        <tr>
+          <td><strong>Quantum Technologies</strong></td>
+          <td><span class="badge badge-yellow">Medium</span></td>
+          <td>Post-quantum cryptographic implementations need correctness guarantees.</td>
+        </tr>
+        <tr>
+          <td><strong>Hypersonics</strong></td>
+          <td><span class="badge badge-orange">High</span></td>
+          <td>Real-time flight control software. No margin for error at Mach 5+.</td>
+        </tr>
+        <tr>
+          <td><strong>Electronic Warfare</strong></td>
+          <td><span class="badge badge-yellow">Medium</span></td>
+          <td>Signal processing software correctness, real-time response guarantees.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Defence Entry Strategy</h3>
+  <div class="two-col">
+    <div class="card">
+      <h3>Path 1: Through Defence Primes</h3>
+      <ul>
+        <li>Become approved supplier to LMA, BAE, Leidos, QinetiQ</li>
+        <li>Subcontract verification tools/services on AIR6500, SEA5000</li>
+        <li>Align with DO-178C (airborne), DEF STAN 00-56 (system safety)</li>
+        <li>Leverage primes' need for AUKUS-compliant software assurance</li>
+        <li><strong>Timeline:</strong> 6&ndash;18 months to supplier approval</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Path 2: Direct to Defence / DSTG</h3>
+      <ul>
+        <li>Respond to AusTender RFTs for software assurance tools</li>
+        <li>Engage DSTG's incubation branch for sovereign technology evaluation</li>
+        <li>Position as sovereign capability (Australian-made verification)</li>
+        <li>Align with Defence Digital Strategy 2024 priorities</li>
+        <li><strong>Timeline:</strong> 12&ndash;24 months for direct contracts</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight success">
+    <strong>Sovereign capability narrative:</strong> The 2024 Defence Digital Strategy explicitly prioritizes "best-in-class sovereign capabilities" and a new incubation branch evaluates sovereign technology. An Australian-made formal verification tool plays directly into this priority, especially given the seL4 heritage showing Australia can lead in this space.
+  </div>
+</div>
+
+<!-- ===================== UNDERSERVED MARKETS ===================== -->
+<div class="section" id="section-underserved">
+  <div class="section-header">
+    <h2>Underserved Markets</h2>
+    <p>Sectors where formal verification would deliver significant value but adoption is minimal or nonexistent. These represent the greenfield opportunity &mdash; markets where an accessible, cost-effective tool could create entirely new demand.</p>
+  </div>
+
+  <h3 style="margin: 0 0 1rem; font-size: 1.1rem;">The Core Gap: Regulatory Intent vs Tooling Reality</h3>
+  <div class="insight warning">
+    <strong>Pattern across all underserved markets:</strong> Australian regulations (SOCI Act, APRA CPS 234, ASD ISM, AESCSF) increasingly mandate "software assurance" and "secure development" &mdash; but none explicitly require static analysis or formal verification. They specify the outcome (secure software) without specifying the method. This creates a gap: organizations know they need better software assurance but lack tooling mandates to justify procurement. A vendor that can map tool capabilities to regulatory outcomes has a significant first-mover advantage.
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Market Readiness Assessment</h3>
+
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">Autonomous Mining</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 90%; background: linear-gradient(90deg, #238636, #3fb950);">Very High &mdash; post-incident pressure, no FM adoption</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Telecom (post-breach)</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 85%; background: linear-gradient(90deg, #da3633, #f85149);">Very High &mdash; Optus breach was literally a code bug</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Banking / Fintech</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 70%; background: linear-gradient(90deg, #9e6a03, #d29922);">High &mdash; APRA pressure, breach fear, massive IT spend</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Energy / Smart Grid</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 55%; background: linear-gradient(90deg, #1f6feb, #58a6ff);">Medium &mdash; SOCI Act, SCADA modernization</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Government Digital</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 50%; background: linear-gradient(90deg, #8957e5, #bc8cff);">Medium &mdash; DTA assurance framework, $34B+ govt IT</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Space / Satellite</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 40%; background: linear-gradient(90deg, #1b7c6e, #39d2c0);">Medium &mdash; growing, but small and early-stage</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Water / Utilities SCADA</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 35%; background: linear-gradient(90deg, #6e7681, #8b949e);">Lower &mdash; long lifecycles, legacy systems</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Autonomous Vehicles</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 25%; background: linear-gradient(90deg, #bd561d, #f0883e);">Nascent &mdash; regulation from 2027, influence window now</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">What Would Make Them Buy?</h3>
+  <div class="card">
+    <p style="margin-bottom: 0.8rem;">Each underserved market has different purchase triggers. An improved offering needs to address the specific barriers that have kept formal verification out of these sectors:</p>
+    <table>
+      <thead><tr><th>Barrier</th><th>Current Reality</th><th>What Would Change the Game</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Cost</strong></td>
+          <td>$50K&ndash;$500K+/yr for safety-critical tools (Astr&eacute;e, Polyspace)</td>
+          <td>10x lower price point opens mid-market: $5K&ndash;$50K/yr makes ROI clear for mining, telco, fintech</td>
+        </tr>
+        <tr>
+          <td><strong>Expertise Required</strong></td>
+          <td>PhD-level formal methods knowledge assumed</td>
+          <td>DARPA PROVERS goal: usable by non-expert developers. First to achieve this wins mid-market.</td>
+        </tr>
+        <tr>
+          <td><strong>Integration Effort</strong></td>
+          <td>Months-long deployment, custom configuration</td>
+          <td>CI/CD-native, drop-in integration, results in minutes not months</td>
+        </tr>
+        <tr>
+          <td><strong>Language Support</strong></td>
+          <td>Mostly C/C++/Ada focused (safety-critical legacy)</td>
+          <td>TypeScript, Python, Rust, Go support opens fintech, cloud, modern codebases</td>
+        </tr>
+        <tr>
+          <td><strong>Regulatory Mapping</strong></td>
+          <td>Tools speak "abstract interpretation" language</td>
+          <td>Tool that maps findings to SOCI Act, APRA CPS 234, ASD ISM compliance. Speaks the buyer's language.</td>
+        </tr>
+        <tr>
+          <td><strong>Soundness Perception</strong></td>
+          <td>"Static analysis = noisy false positives"</td>
+          <td>Sound analysis with zero/low false positives (like Astr&eacute;e for Airbus) changes the value proposition entirely</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===================== MINING & AUTONOMY ===================== -->
+<div class="section" id="section-mining-auto">
+  <div class="section-header">
+    <h2>Autonomous Mining &amp; Autonomy</h2>
+    <p>Australia's mining sector operates the world's largest autonomous vehicle fleets. This is arguably the most underserved high-value market for formal verification anywhere in the world.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--gold);">500+</div>
+      <div class="stat-label">Autonomous Vehicles (Rio+BHP+FMG)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--green);">7M+ km</div>
+      <div class="stat-label">AutoHaul Autonomous Rail (Rio Tinto)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--red);">240 tonnes</div>
+      <div class="stat-label">Weight of Autonomous Haul Truck</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--orange);">1,200 km</div>
+      <div class="stat-label">Perth to Pilbara (Remote Control)</div>
+    </div>
+  </div>
+
+  <div class="insight danger">
+    <strong>The Fortescue incident (2019):</strong> An autonomous truck-to-truck collision at Christmas Creek mine was caused by a <em>Wi-Fi communications software error</em>. These are 240-tonne vehicles operating 24/7 in remote areas. The consequences of a software bug in this domain are catastrophic &mdash; and the incident demonstrates that testing alone is insufficient. This is exactly the kind of bug formal verification catches.
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">The Big Three</h3>
+
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Rio Tinto &mdash; World Leader in Mining Autonomy
+    </div>
+    <div class="collapsible-body">
+      <ul>
+        <li><strong>AutoHaul:</strong> World's first fully autonomous heavy-haul railway (7M+ km traveled)</li>
+        <li><strong>Autonomous haul trucks:</strong> ~80% of Pilbara truck fleet is autonomous</li>
+        <li><strong>Gudai-Darri mine:</strong> Autonomous water carts, digital twin software, AGVs</li>
+        <li>All supervised from a Perth operations centre 1,200 km from mine sites</li>
+        <li>Uses pre-defined GPS courses with proximity detection</li>
+      </ul>
+      <h4>Verification Gap</h4>
+      <p style="color: var(--text-muted); font-size: 0.88rem;">Rio Tinto participates in GMG functional safety guidelines but there is no public evidence of formal verification of autonomous vehicle software. Current approach is testing-based. Communication protocol verification, decision-making software, and proximity detection logic are all candidates for formal analysis.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      BHP &mdash; Expanding Autonomous Fleet
+    </div>
+    <div class="collapsible-body">
+      <ul>
+        <li>Autonomous truck trials with Caterpillar vehicles</li>
+        <li>Expanding autonomous fleet across Australian operations</li>
+        <li>Participates in GMG functional safety initiatives</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Fortescue &mdash; 220+ Autonomous Vehicles
+    </div>
+    <div class="collapsible-body">
+      <ul>
+        <li>220+ autonomous vehicles (haul trucks, drill rigs, light vehicles)</li>
+        <li><strong>2019 Christmas Creek incident:</strong> Wi-Fi comms error &rarr; truck-to-truck collision</li>
+        <li>Post-incident: increased focus on software safety management</li>
+        <li>Strong motivation to adopt more rigorous verification</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Standards Landscape</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Standard</th><th>Scope</th><th>FM Relevance</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>ISO 17757:2019 / AS 17757:2020</strong></td>
+          <td>Autonomous mining machine safety</td>
+          <td>Calls for functional safety processes but does not mandate formal methods. Opportunity to advocate.</td>
+        </tr>
+        <tr>
+          <td><strong>GMG Functional Safety Guideline</strong></td>
+          <td>Applying functional safety to autonomous mining</td>
+          <td>Covers software safety management, V&amp;V, but testing-focused. Formal methods would strengthen.</td>
+        </tr>
+        <tr>
+          <td><strong>IEC 61508 (via AS 61508)</strong></td>
+          <td>Generic functional safety</td>
+          <td>Highly recommends formal methods for SIL 3/4. Applicable to mining safety systems.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">What Miners Would Care About</h3>
+  <div class="three-col">
+    <div class="card">
+      <h3 style="color: var(--red);">Safety</h3>
+      <p>Prove absence of runtime errors in autonomous vehicle control software. Verify communication protocol correctness. Prevent another Fortescue-type incident. Each incident risks multi-million dollar damage + reputational harm + regulatory scrutiny.</p>
+    </div>
+    <div class="card">
+      <h3 style="color: var(--green);">Uptime / Productivity</h3>
+      <p>Every autonomous truck that stops = lost production. Proving software correctness reduces unplanned stops from software faults. At $100K+/hour for a haul truck fleet, even small improvements in uptime are worth millions annually.</p>
+    </div>
+    <div class="card">
+      <h3 style="color: var(--accent);">Regulatory De-risking</h3>
+      <p>ISO 17757 compliance. Safety case evidence. Demonstrating "state of the art" verification to regulators. Proactive verification is cheaper than reactive incident response + investigation + remediation.</p>
+    </div>
+  </div>
+
+  <div class="insight success">
+    <strong>Pitch to miners:</strong> "You're operating 240-tonne vehicles autonomously at scale, supervised from 1,200 km away. Your current verification is testing-based. We can mathematically prove your control software is free of the class of bugs that caused the 2019 Fortescue collision &mdash; communication errors, race conditions, overflow bugs. The cost of our tool is less than one hour of fleet downtime."
+  </div>
+</div>
+
+<!-- ===================== REGULATED INDUSTRIES ===================== -->
+<div class="section" id="section-regulated">
+  <div class="section-header">
+    <h2>Regulated Industries &mdash; Telco, Banking, Energy</h2>
+    <p>Post-breach Australia has created a new regulatory reality. The Optus breach, Medibank hack, and SOCI Act expansion mean software quality is now a board-level concern across multiple sectors.</p>
+  </div>
+
+  <!-- Telecom -->
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Telecommunications &mdash; Post-Breach Opportunity
+      <span class="badge badge-red" style="margin-left: auto;">Urgent</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="insight danger">
+        <strong>The Optus breach (2022):</strong> An <em>access control coding error</em> in an API exposed 10 million customers' personal data. This was not a sophisticated attack &mdash; it was a simple software bug. Static analysis or formal verification of the API code would have caught it. Remediation costs are in the hundreds of millions. The coding error was so basic that it would have been flagged by even mid-range static analysis tools.
+      </div>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Optus 2024 &mdash; Second Breach</div>
+          <div class="ch-detail">Software flaw in identity verification provider enabled SIM-swap fraud. Again, a software bug &mdash; not a sophisticated attack.</div>
+        </div>
+        <div class="ch-value">Ongoing</div>
+      </div>
+
+      <h4>Why They'd Buy Now</h4>
+      <ul>
+        <li><strong>Regulatory:</strong> SOCI Act TSSR requirements consolidating into SOCI Act by Nov 2025</li>
+        <li><strong>Reputational:</strong> Optus, Telstra breaches created board-level urgency around software quality</li>
+        <li><strong>Financial:</strong> Cost of breach &gt;&gt; cost of verification tooling</li>
+        <li><strong>Third-party risk:</strong> Optus's second breach came through a vendor &mdash; supply chain verification needed</li>
+        <li><strong>5G:</strong> Massive new software attack surface being deployed now</li>
+      </ul>
+
+      <h4>Target Companies</h4>
+      <p style="color: var(--text-muted); font-size: 0.88rem;">Optus (SingTel), Telstra, TPG Telecom, Vocus. Also their software vendors and identity verification providers.</p>
+
+      <div class="insight success">
+        <strong>Pitch:</strong> "The Optus breach was caused by a single access control coding error. Our tool proves the absence of this entire class of bug across your API codebase. The annual cost of our tool is a fraction of 1% of the Optus breach remediation."
+      </div>
+    </div>
+  </div>
+
+  <!-- Banking -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Banking &amp; Fintech &mdash; APRA Regulated
+      <span class="badge badge-yellow" style="margin-left: auto;">APRA CPS 234</span>
+    </div>
+    <div class="collapsible-body">
+      <h4>Regulatory Framework</h4>
+      <ul>
+        <li><strong>APRA CPS 234 (Information Security):</strong> Requires "systematic testing and assurance" for security control effectiveness</li>
+        <li>Internal audit must review information security controls</li>
+        <li>Testing reviewed annually; independent specialists required</li>
+        <li>Does NOT explicitly require static analysis &mdash; but "systematic testing and assurance" creates the justification</li>
+      </ul>
+
+      <h4>Target Companies</h4>
+      <table>
+        <thead><tr><th>Company</th><th>Type</th><th>IT Spend</th><th>Angle</th></tr></thead>
+        <tbody>
+          <tr><td><strong>CBA</strong></td><td>Big 4 bank</td><td>$5B+/yr tech invest</td><td>Largest AU tech spender, runs massive API estate</td></tr>
+          <tr><td><strong>NAB</strong></td><td>Big 4 bank</td><td>$2B+/yr</td><td>Cloud migration = new verification needs</td></tr>
+          <tr><td><strong>ANZ</strong></td><td>Big 4 bank</td><td>$2B+/yr</td><td>ANZ Plus (new digital bank) = greenfield</td></tr>
+          <tr><td><strong>Westpac</strong></td><td>Big 4 bank</td><td>$2B+/yr</td><td>Post-AUSTRAC fine ($1.3B) = compliance focus</td></tr>
+          <tr><td><strong>Afterpay/Block</strong></td><td>Fintech</td><td>Growing</td><td>Fast-moving codebase, payment processing</td></tr>
+        </tbody>
+      </table>
+
+      <h4>What They'd Care About</h4>
+      <ul>
+        <li>API security verification (the Optus story resonates here too)</li>
+        <li>APRA CPS 234 compliance evidence</li>
+        <li>Third-party/vendor code assurance</li>
+        <li>Reducing penetration test remediation cycles</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Energy -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Energy &amp; Smart Grid
+      <span class="badge badge-blue" style="margin-left: auto;">SOCI + AESCSF</span>
+    </div>
+    <div class="collapsible-body">
+      <h4>Regulatory Framework</h4>
+      <ul>
+        <li><strong>AESCSF:</strong> AEMO's Australian Energy Sector Cyber Security Framework (aligned to NIST CSF + ISO 27001)</li>
+        <li><strong>SOCI Act:</strong> Energy is one of 11 critical infrastructure sectors. Mandatory CIRMP + incident reporting.</li>
+        <li>Focus is currently on security controls, NOT software quality &mdash; but expanding</li>
+      </ul>
+
+      <h4>Opportunity</h4>
+      <ul>
+        <li>SCADA/OT systems designed for isolated networks now being connected &mdash; new software attack surfaces</li>
+        <li>Distributed energy resources (rooftop solar, smart appliances) expanding software footprint</li>
+        <li>Grid management software becoming more complex and critical</li>
+        <li>IT/OT convergence creates verification gaps that pure network security doesn't address</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Space -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Space &amp; Satellite &mdash; Emerging
+      <span class="badge badge-cyan" style="margin-left: auto;">Growing</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="two-col">
+        <div>
+          <div class="company-profile">
+            <div class="cp-icon" style="color: var(--cyan);">GS</div>
+            <div class="cp-body">
+              <div class="cp-name">Gilmour Space</div>
+              <div class="cp-meta">Gold Coast &bull; Orbital launch vehicle (Eris)</div>
+              <div class="cp-desc">First Australian orbital launch. Software modifications part of testing process. Launch vehicle control software = life-safety.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="company-profile">
+            <div class="cp-icon" style="color: var(--cyan);">My</div>
+            <div class="cp-body">
+              <div class="cp-name">Myriota</div>
+              <div class="cp-meta">Adelaide &bull; $100M+ investment &bull; ~100 employees</div>
+              <div class="cp-desc">Satellite IoT. Embedded SDKs running on constrained devices. $25M NRFC manufacturing investment.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 0.8rem;"><strong>Also:</strong> Fleet Space Technologies (Adelaide), Spiral Blue (on-board satellite compute). As these companies mature and seek defence/international customers, formal verification becomes a differentiator. Space technology is a SOCI Act critical infrastructure sector.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== BUYER PERSONAS ===================== -->
+<div class="section" id="section-buyer-personas">
+  <div class="section-header">
+    <h2>Buyer Personas &amp; What They Care About</h2>
+    <p>Different buyers have different motivations, budgets, and decision criteria. Understanding these is critical for go-to-market.</p>
+  </div>
+
+  <div class="persona-card" style="border-left: 3px solid var(--red);">
+    <div class="persona-header">
+      <div class="persona-avatar">&#9881;</div>
+      <div>
+        <div class="persona-name">Safety Engineer / Functional Safety Manager</div>
+        <div class="persona-role">Defence prime, rail integrator, medical device company, mining automation</div>
+      </div>
+    </div>
+    <div class="persona-cares">
+      <p><strong>Primary motivation:</strong> Compliance with safety standards (DO-178C, EN 50128, IEC 62304, ISO 26262). Needs evidence for safety case / certification dossier.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="care-tag" style="border-color: var(--red); color: var(--red);">Safety case evidence</span>
+        <span class="care-tag" style="border-color: var(--red); color: var(--red);">Tool qualification</span>
+        <span class="care-tag">Zero false negatives (soundness)</span>
+        <span class="care-tag">Low false positives</span>
+        <span class="care-tag">Traceability</span>
+        <span class="care-tag">Certification body acceptance</span>
+      </div>
+      <p style="margin-top: 0.5rem;"><strong>Budget authority:</strong> $50K&ndash;$500K for tooling. Can justify based on certification cost reduction.</p>
+      <p><strong>Decision process:</strong> Technical evaluation &rarr; safety board approval &rarr; procurement. 3&ndash;12 months.</p>
+    </div>
+  </div>
+
+  <div class="persona-card" style="border-left: 3px solid var(--accent);">
+    <div class="persona-header">
+      <div class="persona-avatar">&#128274;</div>
+      <div>
+        <div class="persona-name">CISO / Head of Application Security</div>
+        <div class="persona-role">Bank, telco, government agency, energy utility</div>
+      </div>
+    </div>
+    <div class="persona-cares">
+      <p><strong>Primary motivation:</strong> Prevent breaches. Regulatory compliance (APRA CPS 234, SOCI Act, ASD ISM). Board-level security reporting.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="care-tag" style="border-color: var(--accent); color: var(--accent);">Breach prevention</span>
+        <span class="care-tag" style="border-color: var(--accent); color: var(--accent);">Regulatory compliance mapping</span>
+        <span class="care-tag">CI/CD integration</span>
+        <span class="care-tag">Developer-friendly UX</span>
+        <span class="care-tag">Coverage metrics for board reporting</span>
+        <span class="care-tag">API security</span>
+      </div>
+      <p style="margin-top: 0.5rem;"><strong>Budget authority:</strong> $50K&ndash;$500K for enterprise security tools. Can justify based on breach cost avoidance.</p>
+      <p><strong>Decision process:</strong> POC &rarr; security team evaluation &rarr; CISO approval &rarr; procurement. 2&ndash;6 months.</p>
+    </div>
+  </div>
+
+  <div class="persona-card" style="border-left: 3px solid var(--green);">
+    <div class="persona-header">
+      <div class="persona-avatar">&#128187;</div>
+      <div>
+        <div class="persona-name">VP Engineering / CTO</div>
+        <div class="persona-role">Startup (space, fintech, IoT), scale-up, digital-native company</div>
+      </div>
+    </div>
+    <div class="persona-cares">
+      <p><strong>Primary motivation:</strong> Ship quality software fast. Differentiate on reliability. Attract enterprise customers who require assurance.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="care-tag" style="border-color: var(--green); color: var(--green);">Developer experience</span>
+        <span class="care-tag" style="border-color: var(--green); color: var(--green);">Speed of integration</span>
+        <span class="care-tag">Modern language support</span>
+        <span class="care-tag">Low noise (minimal false positives)</span>
+        <span class="care-tag">Pricing that scales with team</span>
+        <span class="care-tag">Competitive differentiator</span>
+      </div>
+      <p style="margin-top: 0.5rem;"><strong>Budget authority:</strong> $5K&ndash;$50K. Needs clear ROI vs alternatives (SonarQube, CodeQL, Semgrep).</p>
+      <p><strong>Decision process:</strong> Free trial &rarr; engineering team evaluation &rarr; CTO approval. 1&ndash;4 weeks.</p>
+    </div>
+  </div>
+
+  <div class="persona-card" style="border-left: 3px solid var(--gold);">
+    <div class="persona-header">
+      <div class="persona-avatar">&#127891;</div>
+      <div>
+        <div class="persona-name">Chief Engineer / Systems Architect</div>
+        <div class="persona-role">Mining automation (Rio Tinto, BHP, Fortescue), autonomous systems</div>
+      </div>
+    </div>
+    <div class="persona-cares">
+      <p><strong>Primary motivation:</strong> Operational safety + uptime. Demonstrate "state of the art" verification. Prevent incidents that trigger regulator attention and production shutdowns.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="care-tag" style="border-color: var(--gold); color: var(--gold);">Incident prevention</span>
+        <span class="care-tag" style="border-color: var(--gold); color: var(--gold);">Production uptime</span>
+        <span class="care-tag">Communication protocol verification</span>
+        <span class="care-tag">Real-time system analysis</span>
+        <span class="care-tag">ISO 17757 / IEC 61508 alignment</span>
+        <span class="care-tag">Works with embedded C/C++</span>
+      </div>
+      <p style="margin-top: 0.5rem;"><strong>Budget authority:</strong> $100K&ndash;$1M for safety-critical tooling. Trivial compared to cost of one incident.</p>
+      <p><strong>Decision process:</strong> Technical assessment &rarr; safety team review &rarr; engineering leadership &rarr; procurement. 3&ndash;9 months.</p>
+    </div>
+  </div>
+
+  <div class="persona-card" style="border-left: 3px solid var(--purple);">
+    <div class="persona-header">
+      <div class="persona-avatar">&#127963;</div>
+      <div>
+        <div class="persona-name">Defence Program Manager / Systems Integrator</div>
+        <div class="persona-role">Defence prime (LMA, BAE, Leidos, QinetiQ), CASG, ASA</div>
+      </div>
+    </div>
+    <div class="persona-cares">
+      <p><strong>Primary motivation:</strong> Meet DEF STAN / DO-178C / AUKUS requirements. Sovereign capability. Schedule and cost certainty for verification milestones.</p>
+      <div style="margin-top: 0.5rem;">
+        <span class="care-tag" style="border-color: var(--purple); color: var(--purple);">Sovereign capability</span>
+        <span class="care-tag" style="border-color: var(--purple); color: var(--purple);">Standards compliance</span>
+        <span class="care-tag">Security clearance compatible</span>
+        <span class="care-tag">Qualification kits</span>
+        <span class="care-tag">Predictable cost/schedule</span>
+        <span class="care-tag">Interop with US/UK tools</span>
+      </div>
+      <p style="margin-top: 0.5rem;"><strong>Budget authority:</strong> $100K&ndash;$1M+ (embedded in program budget). Justified by verification milestone de-risking.</p>
+      <p><strong>Decision process:</strong> Capability demonstration &rarr; prime supplier approval &rarr; program integration. 6&ndash;18 months.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== GO-TO-MARKET ===================== -->
+<div class="section" id="section-go-to-market">
+  <div class="section-header">
+    <h2>Go-to-Market Strategy</h2>
+    <p>Mapping the opportunity landscape to concrete entry strategies, timelines, and value propositions.</p>
+  </div>
+
+  <h3 style="margin: 0 0 0.8rem; font-size: 1.1rem;">Prioritized Market Entry Sequence</h3>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Market</th><th>Timeline</th><th>Why This Order</th><th>First Target</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1</strong></td>
+          <td><span class="badge badge-green">Mining Autonomy</span></td>
+          <td>0&ndash;6 months</td>
+          <td>Direct access, clear pain point (Fortescue incident), massive ROI, no incumbent FM vendor</td>
+          <td>Fortescue (most motivated post-incident)</td>
+        </tr>
+        <tr>
+          <td><strong>2</strong></td>
+          <td><span class="badge badge-red">Telecom</span></td>
+          <td>0&ndash;6 months</td>
+          <td>Post-breach urgency, simple narrative ("catch the bug that caused Optus"), direct sales</td>
+          <td>Optus (post-breach remediation budget)</td>
+        </tr>
+        <tr>
+          <td><strong>3</strong></td>
+          <td><span class="badge badge-purple">Medical Devices</span></td>
+          <td>3&ndash;12 months</td>
+          <td>Clear regulatory driver (IEC 62304), concentrated buyers (Cochlear, ResMed), high R&amp;D spend</td>
+          <td>Cochlear (Class III devices = highest verification need)</td>
+        </tr>
+        <tr>
+          <td><strong>4</strong></td>
+          <td><span class="badge badge-blue">Defence / AUKUS</span></td>
+          <td>6&ndash;18 months</td>
+          <td>Largest market but longest sales cycle. Start relationship building now. Sovereign capability angle.</td>
+          <td>QinetiQ AU or Leidos AU (V&amp;V subcontractors)</td>
+        </tr>
+        <tr>
+          <td><strong>5</strong></td>
+          <td><span class="badge badge-yellow">Banking</span></td>
+          <td>6&ndash;12 months</td>
+          <td>Large budgets, APRA pressure, but enterprise sales cycles. Start with POC at one Big 4.</td>
+          <td>CBA (largest tech spender, innovation-oriented)</td>
+        </tr>
+        <tr>
+          <td><strong>6</strong></td>
+          <td><span class="badge badge-green">Rail</span></td>
+          <td>6&ndash;18 months</td>
+          <td>Strong standards (EN 50128) but access through integrators (Alstom, Hitachi Rail, Wabtec)</td>
+          <td>Wabtec (ARTC ETCS contract = greenfield)</td>
+        </tr>
+        <tr>
+          <td><strong>7</strong></td>
+          <td><span class="badge badge-cyan">Space / Startups</span></td>
+          <td>3&ndash;9 months</td>
+          <td>Smaller deals but fast sales cycles. Good for case studies and brand building.</td>
+          <td>Myriota (Adelaide, embedded IoT)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Competitive Advantages to Build</h3>
+  <div class="three-col">
+    <div class="card" style="border-left: 3px solid var(--gold);">
+      <h3 style="color: var(--gold);">Sovereign Capability</h3>
+      <p>Australian-built formal verification. Aligns with Defence Digital Strategy 2024, DSTG incubation branch, and AUKUS sovereign tech priorities. "seL4 proved Australia can lead in formal methods. This is the next chapter."</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--green);">
+      <h3 style="color: var(--green);">Accessibility</h3>
+      <p>DARPA is spending millions (PROVERS program) to make formal methods usable by non-experts. First vendor to achieve this in a commercial product wins the entire mid-market (mining, telco, fintech, space startups).</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--accent);">
+      <h3 style="color: var(--accent);">Regulatory Mapping</h3>
+      <p>Build compliance mapping to Australian regulations: SOCI Act, APRA CPS 234, ASD ISM, TGA IEC 62304, ONRSR EN 50128. Tool output speaks the auditor's language, not the researcher's.</p>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Pricing Strategy by Segment</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Segment</th><th>Target Price</th><th>Comparison</th><th>Value Justification</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Startup / Scale-up</strong></td>
+          <td>$5K&ndash;$20K/yr</td>
+          <td>vs SonarQube Enterprise ($20K+)</td>
+          <td>Sound analysis (not heuristic). Competitive differentiator for enterprise customers.</td>
+        </tr>
+        <tr>
+          <td><strong>Mid-market (telco, mining)</strong></td>
+          <td>$20K&ndash;$100K/yr</td>
+          <td>vs Coverity ($100K&ndash;$500K)</td>
+          <td>10x cheaper than incumbent. "One incident costs more than a decade of licensing."</td>
+        </tr>
+        <tr>
+          <td><strong>Enterprise (banks, defence)</strong></td>
+          <td>$50K&ndash;$250K/yr</td>
+          <td>vs Polyspace/Astr&eacute;e ($50K&ndash;$500K)</td>
+          <td>Competitive with incumbents but with modern UX, CI/CD integration, broader language support.</td>
+        </tr>
+        <tr>
+          <td><strong>Safety-critical + qualification</strong></td>
+          <td>$100K&ndash;$500K/yr</td>
+          <td>vs SCADE + Astr&eacute;e ($200K&ndash;$1M+)</td>
+          <td>Tool qualification kits, certification consulting, dedicated support.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 0.8rem; font-size: 1.1rem;">Key Relationships to Build</h3>
+  <div class="two-col">
+    <div class="card">
+      <h3>Research &amp; Credibility</h3>
+      <ul>
+        <li><strong>UNSW Trustworthy Systems:</strong> Academic collaboration, access to talent pipeline</li>
+        <li><strong>Proofcraft:</strong> Potential partnership &mdash; they verify kernels, you verify applications</li>
+        <li><strong>DSTG:</strong> Strategic alliance application for sovereign tech evaluation</li>
+        <li><strong>Monash PL group:</strong> Abstract interpretation research collaboration</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Market Access</h3>
+      <ul>
+        <li><strong>QinetiQ Australia:</strong> V&amp;V services for defence programs</li>
+        <li><strong>GMG (Global Mining Guidelines):</strong> Participate in functional safety working groups</li>
+        <li><strong>AustCyber:</strong> Ecosystem membership for government/enterprise introductions</li>
+        <li><strong>ONRSR:</strong> Rail regulator engagement for EN 50128 alignment</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight success">
+    <strong>The big picture:</strong> Australia is a $55B+ addressable market across defence, rail, mining, medical, telco, and banking &mdash; with world-class formal methods research, intensifying regulation, and major post-breach urgency. Formal verification adoption outside defence is near zero. This is a greenfield opportunity for a vendor that can make formal methods accessible, affordable, and mapped to Australian regulatory requirements.
+  </div>
+</div>
+
+<!-- ===================== QUIZ ===================== -->
+<div class="section" id="section-quiz">
+  <div class="section-header">
+    <h2>Knowledge Check</h2>
+    <p>Test your understanding of the Australian market opportunity. Click each card to reveal the answer.</p>
+  </div>
+
+  <div class="flashcard-container" id="flashcards">
+    <div class="flashcard" onclick="this.classList.toggle('revealed')">
+      <div class="fc-question">What Australian-created technology is the world's first formally verified OS kernel?</div>
+      <div class="fc-answer"><strong>seL4</strong> &mdash; created at NICTA/UNSW Sydney, now managed through the seL4 Foundation. 8,700 lines of C with machine-checked proof of functional correctness. Proofcraft (commercial spin-off) provides commercial support from Australia.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What caused the 2019 Fortescue autonomous truck collision at Christmas Creek mine?</div>
+      <div class="fc-answer">A <strong>Wi-Fi communications software error</strong> caused a truck-to-truck collision between 240-tonne autonomous haul vehicles. This is exactly the class of bug (communication protocol errors, race conditions) that formal verification can prove absent.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What specific type of software bug caused the 2022 Optus data breach affecting 10 million Australians?</div>
+      <div class="fc-answer">An <strong>access control coding error</strong> in an API. The API was left open due to a simple coding mistake. This was not a sophisticated attack &mdash; basic static analysis would have flagged it. Remediation costs were in the hundreds of millions.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">How much is Australia investing in Defence ICT over the next 10 years?</div>
+      <div class="fc-answer"><strong>$8.5&ndash;$11 billion</strong> through the 2024 Integrated Investment Program. The 2025&ndash;26 Defence budget alone is $59B. The Defence Digital Strategy 2024 prioritizes sovereign capabilities and has created a new incubation branch to evaluate sovereign technology.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What does the SOCI Act cover and why does it matter for formal verification?</div>
+      <div class="fc-answer">The <strong>Security of Critical Infrastructure Act 2018</strong> covers 22 asset classes across 11 sectors (comms, finance, energy, health, transport, water, defence, space, data storage, etc.). Nov 2024 amendments expand to data storage holding operational code. Creates mandatory incident reporting + risk management requirements that formal verification tools can help satisfy.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What are the three largest active rail projects in Australia and their approximate costs?</div>
+      <div class="fc-answer"><strong>Inland Rail</strong> (AUD $31B+, Melbourne&ndash;Brisbane freight), <strong>Melbourne Metro Tunnel</strong> (AUD $12.5B, first brownfield CBTC), and <strong>Sydney Metro</strong> (AUD $12B+, first fully driverless metro). All require EN 50128 compliance for signalling software, which explicitly recommends formal methods for SIL 3/4.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What is DARPA's PROVERS program trying to achieve, and why does it matter for market opportunity?</div>
+      <div class="fc-answer">PROVERS (42-month, multi-performer) aims to make <strong>formal methods accessible to non-expert developers</strong> &mdash; removing the PhD-expertise barrier. The first commercial vendor to achieve this wins the entire mid-market (mining, telco, fintech, startups) that currently can't justify hiring formal methods specialists.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">How many autonomous vehicles do Australian mining companies collectively operate?</div>
+      <div class="fc-answer"><strong>500+</strong> across Rio Tinto (~80% of Pilbara fleet), BHP, and Fortescue (220+ vehicles). Rio Tinto also operates AutoHaul, the world's first fully autonomous heavy-haul railway (7M+ km). All supervised from Perth, 1,200 km from mine sites.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">Why is "sovereign capability" a particularly powerful sales angle in Australia right now?</div>
+      <div class="fc-answer">The <strong>2024 Defence Digital Strategy</strong> explicitly prioritizes sovereign capabilities and created a new incubation branch for sovereign technology. <strong>AUKUS</strong> drives demand for trusted, allied-nation software. Australia's seL4 heritage proves it can lead in formal methods. An Australian-built verification tool fits perfectly into this narrative and procurement priority.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What is Cochlear's R&D spend and why are they an ideal target for formal verification?</div>
+      <div class="fc-answer">Cochlear spends <strong>AUD $180M+/year</strong> on R&D. Their cochlear implants are <strong>Class III medical devices</strong> (highest risk classification) with embedded firmware that directly interfaces with the human nervous system. IEC 62304 Class C software requires the most rigorous verification. A runtime error in a cochlear implant has direct patient safety consequences. Abstract interpretation proving absence of runtime errors is directly applicable.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+  </div>
+
+  <div class="fc-nav">
+    <button onclick="navigateCard(-1)">&#8592; Previous</button>
+    <button onclick="navigateCard(1)">Next &#8594;</button>
+  </div>
+  <div class="fc-counter" id="fcCounter">1 / 10</div>
+</div>
+
+</div><!-- end content -->
+
+<script>
+const tabs = document.querySelectorAll('.nav-tab');
+const sections = document.querySelectorAll('.section');
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const sectionId = 'section-' + tab.dataset.section;
+    tabs.forEach(t => t.classList.remove('active'));
+    sections.forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(sectionId).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.parentElement.classList.toggle('open');
+  });
+});
+
+let currentCard = 0;
+const cards = document.querySelectorAll('.flashcard');
+function showCard(index) {
+  cards.forEach((c, i) => { c.style.display = i === index ? 'flex' : 'none'; c.classList.remove('revealed'); });
+  document.getElementById('fcCounter').textContent = (index + 1) + ' / ' + cards.length;
+}
+function navigateCard(direction) {
+  currentCard = (currentCard + direction + cards.length) % cards.length;
+  showCard(currentCard);
+}
+showCard(0);
+</script>
+
+</body>
+</html>

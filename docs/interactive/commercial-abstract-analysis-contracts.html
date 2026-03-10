@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commercial Contracts for Abstract Analysis & Formal Verification Systems</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --bg-card: #1a1f2b;
+    --border: #30363d;
+    --border-light: #3d444d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #6e7681;
+    --accent: #58a6ff;
+    --accent-light: #79c0ff;
+    --accent-dim: #1f6feb33;
+    --green: #3fb950;
+    --green-dim: #23863633;
+    --yellow: #d29922;
+    --yellow-dim: #9e6a0333;
+    --red: #f85149;
+    --red-dim: #da363333;
+    --purple: #bc8cff;
+    --purple-dim: #8957e533;
+    --orange: #f0883e;
+    --orange-dim: #bd561d33;
+    --cyan: #39d2c0;
+    --cyan-dim: #1b7c6e33;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #1a1040 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  .header .subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* Navigation tabs */
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-tab {
+    padding: 0.9rem 1.3rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    font-size: 0.88rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--bg-tertiary); }
+  .nav-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--bg-tertiary);
+  }
+
+  /* Content */
+  .content { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.2rem;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border-light); }
+  .card h3 {
+    font-size: 1.15rem;
+    margin-bottom: 0.8rem;
+    color: var(--accent-light);
+  }
+  .card p, .card li { color: var(--text-muted); font-size: 0.92rem; }
+  .card ul { padding-left: 1.4rem; }
+  .card li { margin-bottom: 0.3rem; }
+
+  /* Collapsible sections */
+  .collapsible {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .collapsible-header {
+    padding: 1rem 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+    font-size: 1rem;
+    user-select: none;
+    transition: background 0.2s;
+  }
+  .collapsible-header:hover { background: var(--bg-tertiary); }
+  .collapsible-header .arrow {
+    transition: transform 0.2s;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+  }
+  .collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+  .collapsible-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s;
+    padding: 0 1.3rem;
+  }
+  .collapsible.open .collapsible-body {
+    max-height: 5000px;
+    padding: 0 1.3rem 1.3rem;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.88rem;
+  }
+  th {
+    text-align: left;
+    padding: 0.7rem 1rem;
+    background: var(--bg-tertiary);
+    color: var(--text);
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: top;
+  }
+  tr:hover td { background: var(--bg-secondary); }
+
+  /* Badges/Tags */
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .badge-blue { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+  .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow); }
+  .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+  .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple); }
+  .badge-orange { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--orange); }
+  .badge-cyan { background: var(--cyan-dim); color: var(--cyan); border: 1px solid var(--cyan); }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .stat-card .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+  .stat-card .stat-label {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  /* Pricing tier visualization */
+  .tier-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 0.5rem 0;
+    padding: 0.7rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent);
+  }
+  .tier-bar .tier-label {
+    min-width: 160px;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .tier-bar .tier-range {
+    flex: 1;
+    height: 24px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tier-bar .tier-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+  .tier-bar .tier-price {
+    min-width: 140px;
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* Timeline */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+    margin: 1.5rem 0;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+    padding-left: 1rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.55rem;
+    top: 0.5rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+  .timeline-item .tl-date {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .timeline-item .tl-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0.2rem 0;
+  }
+  .timeline-item .tl-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  /* Market chart (CSS bar chart) */
+  .bar-chart {
+    margin: 1.5rem 0;
+  }
+  .bar-row {
+    display: flex;
+    align-items: center;
+    margin: 0.6rem 0;
+  }
+  .bar-label {
+    min-width: 220px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: right;
+    padding-right: 1rem;
+  }
+  .bar-track {
+    flex: 1;
+    height: 28px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    transition: width 0.8s ease;
+  }
+
+  /* Flashcards */
+  .flashcard-container {
+    margin: 1.5rem 0;
+  }
+  .flashcard {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 2rem;
+    cursor: pointer;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    user-select: none;
+    transition: transform 0.3s, border-color 0.2s;
+  }
+  .flashcard:hover { border-color: var(--accent); }
+  .flashcard .fc-question {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .flashcard .fc-answer {
+    display: none;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+  }
+  .flashcard.revealed .fc-answer { display: block; }
+  .flashcard .fc-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    position: absolute;
+    bottom: 0.8rem;
+  }
+  .flashcard.revealed .fc-hint { display: none; }
+  .fc-nav {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .fc-nav button {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+  }
+  .fc-nav button:hover { background: var(--bg-card); border-color: var(--accent); }
+  .fc-counter {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+  }
+
+  /* Key insight boxes */
+  .insight {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .insight.warning {
+    background: var(--yellow-dim);
+    border-color: var(--yellow);
+  }
+  .insight strong { color: var(--text); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header h1 { font-size: 1.6rem; }
+    .content { padding: 1rem; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .bar-label { min-width: 120px; font-size: 0.75rem; }
+    .tier-bar .tier-label { min-width: 100px; }
+    .nav-tab { padding: 0.7rem 0.9rem; font-size: 0.8rem; }
+  }
+
+  /* Section headers */
+  .section-header {
+    margin-bottom: 1.5rem;
+  }
+  .section-header h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+  .section-header p {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+  }
+
+  /* Two column layout */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+  }
+  @media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  /* Source links */
+  .source {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+  }
+  .source a { color: var(--accent); text-decoration: none; }
+  .source a:hover { text-decoration: underline; }
+
+  /* Contract highlight */
+  .contract-highlight {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin: 0.8rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .contract-highlight .ch-left { flex: 1; min-width: 200px; }
+  .contract-highlight .ch-title { font-weight: 600; font-size: 0.95rem; }
+  .contract-highlight .ch-detail { font-size: 0.82rem; color: var(--text-muted); }
+  .contract-highlight .ch-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--green);
+    white-space: nowrap;
+  }
+
+  /* Company profile */
+  .company-profile {
+    display: flex;
+    gap: 1.2rem;
+    align-items: flex-start;
+  }
+  .company-profile .cp-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .company-profile .cp-body { flex: 1; }
+  .company-profile .cp-name { font-weight: 600; font-size: 1rem; }
+  .company-profile .cp-meta { font-size: 0.8rem; color: var(--text-dim); }
+  .company-profile .cp-desc { font-size: 0.88rem; color: var(--text-muted); margin-top: 0.4rem; }
+
+  h4 { margin: 1rem 0 0.5rem; color: var(--text); font-size: 0.95rem; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Commercial Contracts for Abstract Analysis & Formal Verification</h1>
+  <p class="subtitle">A comprehensive survey of commercial contracts, pricing, and market dynamics across safety-critical industries &mdash; aerospace, automotive, nuclear, rail, defense, and general enterprise</p>
+</div>
+
+<div class="nav-tabs" id="navTabs">
+  <div class="nav-tab active" data-section="overview">Overview</div>
+  <div class="nav-tab" data-section="aerospace">Aerospace / DO-178C</div>
+  <div class="nav-tab" data-section="automotive">Automotive / ISO 26262</div>
+  <div class="nav-tab" data-section="nuclear-rail-medical">Nuclear / Rail / Medical</div>
+  <div class="nav-tab" data-section="sast-market">SAST Market</div>
+  <div class="nav-tab" data-section="consulting">Consulting Firms</div>
+  <div class="nav-tab" data-section="government">Government / Defense</div>
+  <div class="nav-tab" data-section="pricing">Pricing Deep-Dive</div>
+  <div class="nav-tab" data-section="quiz">Quiz</div>
+</div>
+
+<div class="content">
+
+<!-- ===================== OVERVIEW ===================== -->
+<div class="section active" id="section-overview">
+  <div class="section-header">
+    <h2>Market Overview</h2>
+    <p>Abstract analysis and formal verification tools are a growing, high-value market driven by safety regulations, increasing software complexity, and autonomous systems.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent);">$1.1&ndash;1.4B</div>
+      <div class="stat-label">Static Code Analysis Market (2024)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--green);">$5.1B</div>
+      <div class="stat-label">Total AppSec Testing Market (2025)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--purple);">$5.9B</div>
+      <div class="stat-label">Automotive Embedded Toolchain (2025)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--orange);">$100M+</div>
+      <div class="stat-label">DARPA Formal Methods Investment</div>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Market Size by Segment (2024&ndash;2025)</h3>
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">Embedded Software (Total)</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff);">$17.9B</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Auto. Embedded Toolchain</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 33%; background: linear-gradient(90deg, #8957e5, #bc8cff);">$5.9B</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Application Security Testing</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 28%; background: linear-gradient(90deg, #238636, #3fb950);">$5.1B</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Safety-Critical SW Testing</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 22%; background: linear-gradient(90deg, #bd561d, #f0883e);">$2.7&ndash;5.9B</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Static Code Analysis</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 7.5%; background: linear-gradient(90deg, #9e6a03, #d29922);">$1.1&ndash;1.4B</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">SAST Software</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 3.6%; background: linear-gradient(90deg, #da3633, #f85149);">$0.64B</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Key trend:</strong> The safety-critical verification market is growing at 17.4% CAGR, significantly outpacing general static analysis (7.4% CAGR). Autonomous systems, electrification, and increasing regulatory mandates (EU Cyber Resilience Act, UNECE WP.29) are primary drivers.
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Contract Categories at a Glance</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Typical Contract Size</th>
+        <th>Duration</th>
+        <th>Key Standards</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-blue">Aerospace</span></td>
+        <td>$50K &ndash; $500K+/yr</td>
+        <td>Multi-year perpetual + annual maintenance</td>
+        <td>DO-178C, DO-330, DO-254</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-purple">Automotive</span></td>
+        <td>$100K &ndash; $1M+/yr</td>
+        <td>Annual subscription / program-length</td>
+        <td>ISO 26262, MISRA, AUTOSAR</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-orange">Nuclear/Rail/Medical</span></td>
+        <td>$100K &ndash; $500K+/yr</td>
+        <td>Project-based or perpetual</td>
+        <td>IEC 61508, EN 50128, IEC 62304</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-green">Enterprise SAST</span></td>
+        <td>$15K &ndash; $500K+/yr</td>
+        <td>Annual subscription</td>
+        <td>OWASP, CWE, PCI-DSS</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-red">Defense/Government</span></td>
+        <td>$1.8M &ndash; $80M per program</td>
+        <td>2&ndash;5 year programs</td>
+        <td>MIL-STD, NIST, custom</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-cyan">FM Consulting</span></td>
+        <td>$500K &ndash; $12M per engagement</td>
+        <td>Engagement-based</td>
+        <td>Varies by domain</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===================== AEROSPACE ===================== -->
+<div class="section" id="section-aerospace">
+  <div class="section-header">
+    <h2>Aerospace & Avionics &mdash; DO-178C</h2>
+    <p>The aerospace sector is the most mature market for formal verification. DO-178C (and its tool qualification companion DO-330) mandate rigorous verification of all airborne software. Abstract interpretation has been used in production since 2003.</p>
+  </div>
+
+  <div class="insight">
+    <strong>Landmark achievement:</strong> In November 2003, Astr&eacute;e analyzed 132,000 lines of Airbus A340 fly-by-wire code in 1h20m with <em>zero false alarms</em>. This was the first industrial proof of absence of all runtime errors in a safety-critical system of that scale.
+  </div>
+
+  <!-- Astree -->
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Astr&eacute;e &mdash; AbsInt GmbH
+      <span class="badge badge-blue" style="margin-left: auto;">Flagship</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">Ab</div>
+        <div class="cp-body">
+          <div class="cp-name">AbsInt GmbH</div>
+          <div class="cp-meta">Founded 1998 &bull; Saarbr&uuml;cken, Germany &bull; ~17 employees &bull; ~$4M annual revenue</div>
+          <div class="cp-desc">Produces Astr&eacute;e, aiT (WCET analysis), StackAnalyzer, RuleChecker, and distributes CompCert (formally verified C compiler). Spin-off from Saarland University.</div>
+        </div>
+      </div>
+
+      <h4>The Airbus Deployment (2003&ndash;present)</h4>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="tl-date">November 2003</div>
+          <div class="tl-title">A340 fly-by-wire primary flight control</div>
+          <div class="tl-desc">132,000 lines of C analyzed. 1h20m on 2.8 GHz PC, 300 MB RAM. <strong>Zero false alarms.</strong></div>
+        </div>
+        <div class="timeline-item">
+          <div class="tl-date">January 2004</div>
+          <div class="tl-title">Extended to A380 electric flight controls</div>
+          <div class="tl-desc">Operational at Airbus France by end of 2004, ahead of the A380 maiden flight (April 27, 2005). Again zero false alarms for complex floating-point computations.</div>
+        </div>
+        <div class="timeline-item">
+          <div class="tl-date">2004&ndash;present</div>
+          <div class="tl-title">Continuous production use at Airbus</div>
+          <div class="tl-desc">Astr&eacute;e deployed in ongoing safety-critical flight control software development across Airbus programs.</div>
+        </div>
+      </div>
+
+      <h4>Other Major Customers</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Bosch, Cariad (VW Group), Daimler, Diehl, Elektrobit, Helbako, OHB, Rolls-Royce, Siemens, Vestas, Framatome (nuclear &mdash; TELEPERM XS reactor control)</p>
+
+      <h4>Licensing Model</h4>
+      <ul>
+        <li>Perpetual license with one-time fee based on concurrent users and parallel analyses</li>
+        <li>Node-locked, floating, cloud, and company-wide licenses available</li>
+        <li>All commercial licenses include 180 days of free support/updates</li>
+        <li>Optional <strong>Qualification Support Kits</strong> for DO-178B/C, ISO 26262, IEC 61508, EN 50128</li>
+        <li>Pricing is custom/NDA &mdash; not publicly disclosed</li>
+      </ul>
+
+      <h4>CompCert (Formally Verified Compiler)</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Distributed by AbsInt since 2015. Deployed at Airbus Toulouse for over a decade. Qualified by MTU Friedrichshafen for IEC 60880 (nuclear) and IEC 61508-3 SCL 3. CompCert mathematically proves that compiled machine code preserves the semantics of the source C program &mdash; eliminating an entire class of compiler-introduced bugs.</p>
+    </div>
+  </div>
+
+  <!-- Polyspace -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Polyspace &mdash; MathWorks
+      <span class="badge badge-green" style="margin-left: auto;">Major Vendor</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">MW</div>
+        <div class="cp-body">
+          <div class="cp-name">MathWorks (Polyspace)</div>
+          <div class="cp-meta">Natick, MA &bull; $1.5B+ revenue &bull; Polyspace is a product line within MATLAB/Simulink ecosystem</div>
+          <div class="cp-desc">Polyspace Bug Finder (fast defect detection) and Polyspace Code Prover (abstract interpretation proving absence of runtime errors). T&Uuml;V S&Uuml;D certified for ISO 26262, IEC 62304, and other safety standards.</div>
+        </div>
+      </div>
+
+      <h4>Product Suite</h4>
+      <ul>
+        <li><strong>Polyspace Bug Finder:</strong> Fast pattern-based + dataflow defect detection. Finds concurrency issues, security vulnerabilities, MISRA/CERT violations.</li>
+        <li><strong>Polyspace Code Prover:</strong> Full abstract interpretation. Proves absence of runtime errors (overflows, divide-by-zero, out-of-bounds, etc.). Color-coded: green (proven safe), red (proven bug), orange (potential issue), gray (dead code).</li>
+      </ul>
+
+      <h4>Pricing</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">MathWorks average software cost is ~$5,691/year across all products. Polyspace products are priced on request with custom enterprise quotes. Enterprise deals with multiple products and site licenses significantly exceed this average. Polyspace is typically sold bundled with Simulink/Embedded Coder in automotive/aerospace toolchains.</p>
+
+      <h4>Key Industries</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Automotive (ECU validation, ISO 26262), Aerospace (DO-178C), Medical devices (IEC 62304), Industrial (IEC 61508). Deep integration with Model-Based Design workflow (Simulink &rarr; Embedded Coder &rarr; Polyspace).</p>
+    </div>
+  </div>
+
+  <!-- SCADE -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      SCADE Suite &mdash; Ansys (Esterel Technologies)
+      <span class="badge badge-purple" style="margin-left: auto;">Model-Based</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">An</div>
+        <div class="cp-body">
+          <div class="cp-name">Ansys SCADE Suite</div>
+          <div class="cp-meta">Acquired Esterel Technologies Aug 2012 for ~$58M &bull; ~80 employees at time &bull; EUR 15M revenue (FY 2011)</div>
+          <div class="cp-desc">Model-based development for safety-critical embedded software. KCG qualified code generator (DO-178C/DO-330 TQL-1, IEC 61508 SIL 3, EN 50128 SIL 3/4, ISO 26262 ASIL D). Design Verifier uses Prover PSL engine with SAT, bounded model checking, k-induction, and PDR/IC3.</div>
+        </div>
+      </div>
+
+      <h4>Key Differentiator</h4>
+      <div class="insight">
+        <strong>Qualified code generator:</strong> SCADE KCG generates C/Ada code that is <em>correct by construction</em>. The generator itself is qualified to the highest tool qualification levels, meaning the generated code does not need to be separately verified &mdash; dramatically reducing certification costs for DAL A/ASIL D systems.
+      </div>
+
+      <h4>Contract Model</h4>
+      <ul>
+        <li>Enterprise licensing: perpetual, subscription, or custom</li>
+        <li>Includes model-based development environment + qualified code generator</li>
+        <li>Professional services for adoption, training, and certification support</li>
+        <li>Pricing: custom enterprise quotes (not publicly disclosed)</li>
+      </ul>
+
+      <h4>Industries</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Avionics flight controls, nuclear I&C, rail signaling, automotive ADAS, medical devices. Used on programs including Airbus, Eurocopter, Thales, Alstom.</p>
+    </div>
+  </div>
+
+  <!-- AdaCore SPARK -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      SPARK Pro &mdash; AdaCore
+      <span class="badge badge-orange" style="margin-left: auto;">Formal Proof</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">Ac</div>
+        <div class="cp-body">
+          <div class="cp-name">AdaCore</div>
+          <div class="cp-meta">Paris, France &bull; ~143&ndash;152 employees &bull; ~$21.2M annual revenue (2024)</div>
+          <div class="cp-desc">GNAT Pro (Ada/SPARK compiler toolchain), SPARK Pro (formal verification), CodePeer (advanced static analysis). Certified toolchains for EN 50128/EN 50657 (rail SIL 3/4) and qualified for DO-178C (aerospace).</div>
+        </div>
+      </div>
+
+      <h4>SPARK Technology</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">SPARK is a formally verifiable subset of Ada. SPARK Pro uses automated provers (Alt-Ergo, CVC4, Z3) to prove absence of runtime errors, verify functional contracts, and establish information flow properties. Unlike abstract interpretation, SPARK proves full functional correctness of annotated code.</p>
+
+      <h4>Notable Deployments</h4>
+      <ul>
+        <li><strong>Secunet (Germany):</strong> SPARK + Isabelle for secure government/military multi-level workstations</li>
+        <li><strong>US Army/Air Force:</strong> GNAT Pro maintenance contracts (ACC Redstone, Dec 2025)</li>
+        <li>Defense and aerospace are primary verticals</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Typical Aerospace Contract Scope</h3>
+  <div class="card">
+    <p>A DO-178C verification tool contract typically includes four components:</p>
+    <table>
+      <thead>
+        <tr><th>Component</th><th>Description</th><th>Cost Range</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Software Licenses</strong></td><td>Per-seat or floating, annual or perpetual</td><td>$20K&ndash;$200K+</td></tr>
+        <tr><td><strong>Qualification Support Kits</strong></td><td>Pre-packaged tool qualification artifacts for DO-178C/DO-330. Eliminates months of manual qualification effort.</td><td>$10K&ndash;$50K</td></tr>
+        <tr><td><strong>Professional Services</strong></td><td>Integration, training, tool adoption consulting, certification consulting</td><td>$20K&ndash;$200K</td></tr>
+        <tr><td><strong>Annual Maintenance</strong></td><td>Updates, support, bug fixes. Typically 15&ndash;20% of license cost per year.</td><td>$5K&ndash;$50K/yr</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 0.8rem; font-weight: 600;">Total range: $50K&ndash;$500K+/yr depending on toolchain breadth, seat count, and DAL level (DAL A being most expensive).</p>
+  </div>
+</div>
+
+<!-- ===================== AUTOMOTIVE ===================== -->
+<div class="section" id="section-automotive">
+  <div class="section-header">
+    <h2>Automotive &mdash; ISO 26262 / MISRA / AUTOSAR</h2>
+    <p>The automotive sector is the fastest-growing market for formal verification tools, driven by ISO 26262 functional safety, MISRA coding standards, AUTOSAR compliance, and UNECE WP.29 cybersecurity regulations.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--purple);">$5.9B</div>
+      <div class="stat-label">Auto. Embedded Toolchain Market (2025)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--green);">$10.4B</div>
+      <div class="stat-label">Projected by 2030 (12% CAGR)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--orange);">20%</div>
+      <div class="stat-label">Cybersecurity Tools CAGR</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent);">$0.9B</div>
+      <div class="stat-label">Auto. Cybersecurity Homologation (2025)</div>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Key Vendors &amp; Tools</h3>
+  <table>
+    <thead>
+      <tr><th>Vendor</th><th>Tool</th><th>Certification</th><th>Focus Area</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>AbsInt</strong></td>
+        <td>Astr&eacute;e</td>
+        <td><span class="badge badge-red">ASIL D</span></td>
+        <td>Runtime error absence proof</td>
+      </tr>
+      <tr>
+        <td><strong>MathWorks</strong></td>
+        <td>Polyspace</td>
+        <td><span class="badge badge-red">T&Uuml;V S&Uuml;D ISO 26262</span></td>
+        <td>Bug finding + code proving</td>
+      </tr>
+      <tr>
+        <td><strong>Parasoft</strong></td>
+        <td>C/C++test</td>
+        <td><span class="badge badge-orange">T&Uuml;V S&Uuml;D ISO 26262</span></td>
+        <td>MISRA/AUTOSAR static analysis</td>
+      </tr>
+      <tr>
+        <td><strong>Perforce</strong></td>
+        <td>Klocwork</td>
+        <td><span class="badge badge-yellow">ISO 26262</span></td>
+        <td>SAST + coding standards</td>
+      </tr>
+      <tr>
+        <td><strong>Qt / Axivion</strong></td>
+        <td>Axivion SCA</td>
+        <td><span class="badge badge-red">SGS-T&Uuml;V ASIL D</span></td>
+        <td>Static analysis + architecture</td>
+      </tr>
+      <tr>
+        <td><strong>QA Systems</strong></td>
+        <td>QA-MISRA + Cantata</td>
+        <td><span class="badge badge-red">T&Uuml;V S&Uuml;D TCL1 ASIL D</span></td>
+        <td>MISRA compliance + unit testing</td>
+      </tr>
+      <tr>
+        <td><strong>TrustInSoft</strong></td>
+        <td>TIS Analyzer</td>
+        <td><span class="badge badge-yellow">ISO 26262</span></td>
+        <td>Exhaustive formal verification</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Contract Structure</h3>
+  <div class="two-col">
+    <div class="card">
+      <h3>OEM / Tier-1 Enterprise Deal</h3>
+      <ul>
+        <li>Site-wide or division-wide licensing</li>
+        <li>Covers multiple ECU teams / platforms</li>
+        <li>MISRA + AUTOSAR checker bundles</li>
+        <li>CI/CD pipeline integration support</li>
+        <li>Annual compliance reporting</li>
+        <li><strong>Range: $100K &ndash; $1M+/yr</strong></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Tier-2 / Startup</h3>
+      <ul>
+        <li>Per-seat or small floating pool</li>
+        <li>Focused on specific MISRA checker</li>
+        <li>May use open-source alternatives + commercial overlay</li>
+        <li>Often bundled with compiler toolchain</li>
+        <li><strong>Range: $15K &ndash; $100K/yr</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Key Automotive Customers (AbsInt)</h3>
+  <p style="color: var(--text-muted); font-size: 0.9rem;">Bosch, Cariad (VW Group), Daimler, Elektrobit, Helbako &mdash; these represent some of the world's largest automotive suppliers and OEMs, all using Astr&eacute;e for ISO 26262 ASIL D compliance.</p>
+
+  <div class="insight warning">
+    <strong>Market driver:</strong> China's automotive toolchain market is growing 50% faster than the global average, driven by rapid EV and autonomous driving development. The EU Cyber Resilience Act and UNECE WP.29 are creating mandatory compliance requirements that didn't exist 5 years ago.
+  </div>
+</div>
+
+<!-- ===================== NUCLEAR/RAIL/MEDICAL ===================== -->
+<div class="section" id="section-nuclear-rail-medical">
+  <div class="section-header">
+    <h2>Nuclear / Rail / Medical</h2>
+    <p>Three distinct safety-critical domains with overlapping standards lineage (IEC 61508 is the parent standard), each with their own verification traditions and vendor ecosystems.</p>
+  </div>
+
+  <!-- Nuclear -->
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Nuclear &mdash; IEC 61508, IEC 60880
+      <span class="badge badge-red" style="margin-left: auto;">Highest Integrity</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Nuclear reactor I&C software has the most stringent verification requirements. Formal methods have deep roots here &mdash; the French nuclear industry co-funded development of Frama-C and other abstract interpretation tools.</p>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Framatome &mdash; TELEPERM XS Platform</div>
+          <div class="ch-detail">AbsInt Astr&eacute;e + StackAnalyzer for safety-critical reactor I&C. IEC 61508 + IEC 60880 compliance.</div>
+        </div>
+        <div class="ch-value">Ongoing</div>
+      </div>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">MTU Friedrichshafen &mdash; CompCert Qualification</div>
+          <div class="ch-detail">Formally verified C compiler qualified for IEC 60880 Category A and IEC 61508-3 SCL 3.</div>
+        </div>
+        <div class="ch-value">Qualified</div>
+      </div>
+
+      <h4>Key Vendors in Nuclear</h4>
+      <ul>
+        <li><strong>AbsInt:</strong> Astr&eacute;e, StackAnalyzer, CompCert for reactor I&C verification</li>
+        <li><strong>TrustInSoft:</strong> Frama-C-based verification (originally funded by CEA &mdash; French Atomic Energy Commission)</li>
+        <li><strong>CLEARSY (Atelier B):</strong> B Method formal system validation for nuclear I&C</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Rail -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Rail &mdash; EN 50128, EN 50129
+      <span class="badge badge-green" style="margin-left: auto;">Mature FM Market</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Rail has the longest commercial history of formal methods, with the B Method used in production since the 1990s. Paris Metro Line 14 (driverless, 1998) was a landmark achievement.</p>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">RATP &mdash; Paris Metro Formal Data Validation</div>
+          <div class="ch-detail">CLEARSY developed the first formal data validation tool (2005) for Paris Metro. B Method used for Line 14 driverless system.</div>
+        </div>
+        <div class="ch-value">SIL 4</div>
+      </div>
+
+      <h4>Key Vendors in Rail</h4>
+      <table>
+        <thead>
+          <tr><th>Vendor</th><th>Tool</th><th>Certification</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>CLEARSY</strong></td>
+            <td>Atelier B (B Method)</td>
+            <td>EN 50128 SIL 4 (T2 Certified Edition)</td>
+          </tr>
+          <tr>
+            <td><strong>Prover Technology</strong></td>
+            <td>Prover Certifier</td>
+            <td>T&Uuml;V Nord T2 for rail control</td>
+          </tr>
+          <tr>
+            <td><strong>AdaCore</strong></td>
+            <td>GNAT Pro Embedded</td>
+            <td>EN 50128 SIL 3/4 runtime; tools qualified T2</td>
+          </tr>
+          <tr>
+            <td><strong>Ansys</strong></td>
+            <td>SCADE KCG</td>
+            <td>EN 50128 SIL 3/4</td>
+          </tr>
+          <tr>
+            <td><strong>Parasoft</strong></td>
+            <td>C/C++test</td>
+            <td>T&Uuml;V S&Uuml;D for EN 50128</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Medical -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Medical Devices &mdash; IEC 62304
+      <span class="badge badge-purple" style="margin-left: auto;">Growing Market</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Medical device software verification is a rapidly growing segment, driven by increasing software content in devices (SaMD &mdash; Software as a Medical Device) and FDA emphasis on cybersecurity.</p>
+
+      <h4>Key Vendors in Medical</h4>
+      <table>
+        <thead>
+          <tr><th>Vendor</th><th>Tool</th><th>Certification</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>MathWorks</strong></td><td>Polyspace</td><td>T&Uuml;V S&Uuml;D for IEC 62304</td></tr>
+          <tr><td><strong>Parasoft</strong></td><td>C/C++test</td><td>T&Uuml;V S&Uuml;D for IEC 62304 (all classes)</td></tr>
+          <tr><td><strong>QA Systems</strong></td><td>Cantata</td><td>T&Uuml;V S&Uuml;D approved for IEC 62304</td></tr>
+          <tr><td><strong>Qt / Axivion</strong></td><td>Axivion SCA</td><td>Certified for medical software</td></tr>
+          <tr><td><strong>Verifysoft</strong></td><td>Testwell CTC++ + CodeSonar</td><td>Code coverage + static analysis</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Standards Hierarchy</h3>
+  <div class="card">
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.8rem;">All safety-critical domain standards derive from IEC 61508 (functional safety of E/E/PE safety-related systems):</p>
+    <table>
+      <thead>
+        <tr><th>Standard</th><th>Domain</th><th>Max Integrity Level</th><th>Formal Methods</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>IEC 61508</strong></td><td>Generic (parent)</td><td>SIL 4</td><td>Highly recommended at SIL 3/4</td></tr>
+        <tr><td><strong>DO-178C / DO-333</strong></td><td>Aerospace</td><td>DAL A</td><td>DO-333 = formal methods supplement</td></tr>
+        <tr><td><strong>ISO 26262</strong></td><td>Automotive</td><td>ASIL D</td><td>Recommended at ASIL C/D</td></tr>
+        <tr><td><strong>EN 50128</strong></td><td>Rail</td><td>SIL 4</td><td>Highly recommended at SIL 3/4</td></tr>
+        <tr><td><strong>IEC 60880</strong></td><td>Nuclear</td><td>Category A</td><td>Required for Cat A systems</td></tr>
+        <tr><td><strong>IEC 62304</strong></td><td>Medical</td><td>Class C</td><td>Recommended at Class B/C</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===================== SAST MARKET ===================== -->
+<div class="section" id="section-sast-market">
+  <div class="section-header">
+    <h2>General SAST &amp; Static Analysis Market</h2>
+    <p>The broader static analysis market extends well beyond safety-critical domains into enterprise security, quality, and compliance. This is a large, growing market with very different dynamics from safety-critical verification.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent);">$1.1&ndash;1.4B</div>
+      <div class="stat-label">Static Analysis Market (2024)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--green);">$2.57B</div>
+      <div class="stat-label">Projected by 2034 (7.4% CAGR)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--red);">$2.1B</div>
+      <div class="stat-label">Synopsys SIG Sale Price (2024)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--purple);">$42B</div>
+      <div class="stat-label">Total AppSec Market by 2033</div>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Major Vendors &amp; Pricing</h3>
+
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      SonarQube / SonarSource
+      <span class="badge badge-green" style="margin-left: auto;">Transparent Pricing</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">One of the few vendors with publicly listed pricing. Tiered by edition and lines of code.</p>
+      <table>
+        <thead>
+          <tr><th>Edition</th><th>Entry Price</th><th>At Scale</th><th>Model</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Community</td><td>Free / open source</td><td>Free</td><td>Self-hosted</td></tr>
+          <tr><td>Developer</td><td>&euro;120/yr (100K LOC)</td><td>&euro;50,000/yr (20M LOC)</td><td>Per LOC tier</td></tr>
+          <tr><td>Enterprise</td><td>~$20,000/yr</td><td>$50,000&ndash;$100K+/yr</td><td>Per LOC + features</td></tr>
+          <tr><td>Data Center</td><td>&euro;100,000/yr</td><td>&euro;100K+/yr</td><td>High availability</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Coverity &mdash; Synopsys / Black Duck
+      <span class="badge badge-red" style="margin-left: auto;">Premium</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Coverity is one of the most respected (and expensive) static analysis tools. Synopsys sold its entire Software Integrity Group (including Coverity) to Clearlake/Francisco Partners in October 2024.</p>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Synopsys Software Integrity Group Sale</div>
+          <div class="ch-detail">Sold to Clearlake Capital + Francisco Partners, Oct 2024. SIG was ~8&ndash;9% of Synopsys revenue.</div>
+        </div>
+        <div class="ch-value">$2.1B</div>
+      </div>
+
+      <h4>Pricing</h4>
+      <ul>
+        <li>Annual licensing based on users (not LOC)</li>
+        <li>Enterprise deals reportedly in the <strong>$100K&ndash;$500K+/yr</strong> range</li>
+        <li>Custom quotes required; described as "expensive" by users</li>
+        <li>DHS contracted Coverity in 2006 to scan 150+ open source projects, finding 6,000 bugs across 53 projects</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Veracode
+      <span class="badge badge-orange" style="margin-left: auto;">Enterprise AppSec</span>
+    </div>
+    <div class="collapsible-body">
+      <table>
+        <thead>
+          <tr><th>Tier</th><th>Price Range</th><th>Includes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Basic</td><td>~$15,000/yr</td><td>SAST for limited apps</td></tr>
+          <tr><td>Standard Platform</td><td>$50,000&ndash;$100,000/yr</td><td>SAST + DAST + SCA</td></tr>
+          <tr><td>Enterprise</td><td>$100,000&ndash;$500,000+/yr</td><td>Full platform, unlimited scans, API integrations</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Klocwork &mdash; Perforce
+      <span class="badge badge-cyan" style="margin-left: auto;">Embedded Focus</span>
+    </div>
+    <div class="collapsible-body">
+      <ul>
+        <li>Subscription-based with perpetual license options</li>
+        <li>Proprietary pricing (custom quotes)</li>
+        <li>ISO 26262 certified; strong in automotive + embedded</li>
+        <li>CI/CD integration focus (real-time, incremental analysis)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Safety-Critical vs General SAST: Key Differences</h3>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Dimension</th><th>Safety-Critical (Astr&eacute;e, Polyspace Code Prover)</th><th>General SAST (Coverity, Veracode)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Analysis Type</strong></td>
+          <td>Sound abstract interpretation &mdash; proves absence of bugs</td>
+          <td>Heuristic pattern matching &mdash; finds bugs (no soundness guarantee)</td>
+        </tr>
+        <tr>
+          <td><strong>False Negatives</strong></td>
+          <td>Zero (sound analysis)</td>
+          <td>Common (incomplete analysis)</td>
+        </tr>
+        <tr>
+          <td><strong>False Positives</strong></td>
+          <td>Possible but minimized (Astr&eacute;e: zero for Airbus)</td>
+          <td>Common; major user complaint</td>
+        </tr>
+        <tr>
+          <td><strong>Certification</strong></td>
+          <td>T&Uuml;V / DO-330 tool qualification</td>
+          <td>Typically none</td>
+        </tr>
+        <tr>
+          <td><strong>Pricing</strong></td>
+          <td>Premium ($50K&ndash;$500K+/yr)</td>
+          <td>Moderate ($15K&ndash;$500K/yr based on scale)</td>
+        </tr>
+        <tr>
+          <td><strong>Buyer</strong></td>
+          <td>Safety/certification team</td>
+          <td>AppSec / DevSecOps team</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===================== CONSULTING FIRMS ===================== -->
+<div class="section" id="section-consulting">
+  <div class="section-header">
+    <h2>Formal Methods Consulting Firms</h2>
+    <p>A small but elite group of firms specialize in applying formal methods to real-world systems. Most derive significant revenue from government/defense contracts.</p>
+  </div>
+
+  <!-- Galois -->
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Galois, Inc. &mdash; Portland, OR
+      <span class="badge badge-red" style="margin-left: auto;">DARPA Primary</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">G</div>
+        <div class="cp-body">
+          <div class="cp-name">Galois, Inc.</div>
+          <div class="cp-meta">Founded 1999 &bull; Portland, OR &bull; 51&ndash;200 employees &bull; ~$3.3&ndash;11.6M revenue (private)</div>
+          <div class="cp-desc">High-assurance software, formal methods, functional programming, cryptography. Named after mathematician &Eacute;variste Galois. One of the most prolific formal methods firms in government contracting.</div>
+        </div>
+      </div>
+
+      <h4>Known Contracts</h4>
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">DARPA COOP &mdash; Trusted Computing</div>
+          <div class="ch-detail">Formal methods + side-channel analysis for trusted computing platforms.</div>
+        </div>
+        <div class="ch-value">$12.6M</div>
+      </div>
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Office of Naval Research &mdash; DoD Legacy Modernization</div>
+          <div class="ch-detail">Toolset for modernizing Department of Defense legacy systems using formal methods.</div>
+        </div>
+        <div class="ch-value">$6.0M</div>
+      </div>
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">DARPA Blockchain Verification (w/ Guardtime)</div>
+          <div class="ch-detail">Formal verification of the KSI blockchain integrity monitoring system.</div>
+        </div>
+        <div class="ch-value">$1.8M</div>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 0.8rem;"><strong>Additional programs:</strong> DARPA HARDEN (performer), NASA collaborations, US Air Force contracts.</p>
+    </div>
+  </div>
+
+  <!-- D-RisQ -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      D-RisQ &mdash; Malvern, UK
+      <span class="badge badge-blue" style="margin-left: auto;">Aerospace FM</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">DR</div>
+        <div class="cp-body">
+          <div class="cp-name">D-RisQ Ltd</div>
+          <div class="cp-meta">Founded 2012 &bull; Malvern, UK &bull; Technology from Oxford (Hoare) and Cambridge (Gordon) research</div>
+          <div class="cp-desc">Automated formal verification for safety-critical systems. Products: Modelworks, Kapture, CLawZ. Spun out of QinetiQ's formal methods team.</div>
+        </div>
+      </div>
+
+      <h4>Notable Achievement</h4>
+      <div class="insight">
+        <strong>Eurofighter Typhoon:</strong> While at QinetiQ, the D-RisQ team mathematically verified flight and engine control software for the Eurofighter Typhoon, plus auto-throttle and auto-pilot systems. This is one of the highest-profile formal verification deployments in military aviation.
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.9rem;"><strong>Sectors:</strong> Aerospace, autonomous systems (air/land/sea/underwater), automotive, marine, defense, cybersecurity, nuclear decommissioning.</p>
+    </div>
+  </div>
+
+  <!-- TrustInSoft -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      TrustInSoft &mdash; Paris, France
+      <span class="badge badge-purple" style="margin-left: auto;">Frama-C Based</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">TiS</div>
+        <div class="cp-body">
+          <div class="cp-name">TrustInSoft</div>
+          <div class="cp-meta">Founded 2013 &bull; CEA spin-off (French Atomic Energy Commission)</div>
+          <div class="cp-desc">Commercial formal verification based on the Frama-C platform. Launched Formal Verification Services (FVS) in August 2024 &mdash; expert-driven verification combining customer teams with TrustInSoft engineers.</div>
+        </div>
+      </div>
+
+      <h4>Customers</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Thales, Safran, Mitsubishi, Sony Interactive Entertainment</p>
+
+      <h4>Service Model</h4>
+      <ul>
+        <li><strong>TrustInSoft Analyzer:</strong> Tool license (self-service formal verification)</li>
+        <li><strong>Formal Verification Services (FVS):</strong> Expert-led engagements (launched Aug 2024)</li>
+        <li><strong>Standards:</strong> ISO 26262, DO-178C, IEC 62304, IEC 61508</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CLEARSY -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      CLEARSY &mdash; Aix-en-Provence, France
+      <span class="badge badge-green" style="margin-left: auto;">B Method</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">CL</div>
+        <div class="cp-body">
+          <div class="cp-name">CLEARSY</div>
+          <div class="cp-meta">Founded 2001 &bull; Aix-en-Provence, France</div>
+          <div class="cp-desc">Developer and maintainer of Atelier B (the B Method formal tool). Pioneered formal data validation for railway systems. B Method used for Paris Metro Line 14 driverless system.</div>
+        </div>
+      </div>
+
+      <h4>Key Deliverables</h4>
+      <ul>
+        <li>Atelier B T2 Certified Edition (EN 50128 SIL 4)</li>
+        <li>Formal data validation tools for railway signaling</li>
+        <li>Consulting services for nuclear, military, space, automotive</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Altran Praxis -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Altran Praxis &mdash; now Capgemini Engineering
+      <span class="badge badge-yellow" style="margin-left: auto;">Acquired</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="company-profile">
+        <div class="cp-icon">CE</div>
+        <div class="cp-body">
+          <div class="cp-name">Capgemini Engineering (ex-Altran Praxis)</div>
+          <div class="cp-meta">Originally Praxis Systems (1983) &bull; Now part of Capgemini via Altran acquisition</div>
+          <div class="cp-desc">Ultra-low-defect software engineering using formal methods (Z notation, SPARK). Developed the SPARK toolset. Led the Tokeneer secure system &mdash; a landmark formal methods case study for the NSA.</div>
+        </div>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.9rem;"><strong>Sectors:</strong> Aerospace & defense, rail, nuclear, air traffic management, automotive, medical, security.</p>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Other Notable Firms</h3>
+  <table>
+    <thead>
+      <tr><th>Firm</th><th>Location</th><th>Specialty</th><th>Revenue</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Rapita Systems</strong> (Danlaw)</td><td>UK</td><td>DO-178C verification tools/services</td><td>$15.6M (2025)</td></tr>
+      <tr><td><strong>LDRA</strong></td><td>UK</td><td>DO-178C / ISO 26262 static analysis, testing, traceability</td><td>Private</td></tr>
+      <tr><td><strong>Prover Technology</strong></td><td>Sweden</td><td>Rail formal verification (T&Uuml;V Nord T2)</td><td>Private</td></tr>
+      <tr><td><strong>Verifysoft Technology</strong></td><td>Germany</td><td>Code coverage + static analysis for medical/auto/aero</td><td>Private</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===================== GOVERNMENT ===================== -->
+<div class="section" id="section-government">
+  <div class="section-header">
+    <h2>Government & Defense Contracts</h2>
+    <p>Government agencies &mdash; particularly DARPA &mdash; are the largest single source of formal methods R&D funding. These contracts are often public record and provide the best visibility into contract scope and pricing.</p>
+  </div>
+
+  <h3 style="margin: 0 0 1rem; font-size: 1.1rem;">DARPA Formal Methods Portfolio</h3>
+  <div class="insight">
+    <strong>Scale of investment:</strong> DARPA's HACMS program alone was funded at $80M over 4 years. Combined with PROVERS, HARDEN, COOP, CLARA, SafeDocs, and SSITH, DARPA has invested well over $100M in formal methods programs since 2012. This represents the single largest concentration of formal methods funding worldwide.
+  </div>
+
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      HACMS &mdash; High-Assurance Cyber Military Systems (2012&ndash;2016)
+      <span class="badge badge-red" style="margin-left: auto;">$80M</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">DARPA HACMS Program</div>
+          <div class="ch-detail">Making formal methods practical for military vehicle and UAV software. Demonstrated on Boeing Unmanned Little Bird helicopter.</div>
+        </div>
+        <div class="ch-value">$80M total</div>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">HACMS was a watershed moment for formal methods. Red teams were unable to penetrate formally verified components of the Unmanned Little Bird during live cyber exercises. This demonstration convinced many DoD stakeholders that formal methods could work at scale in real systems.</p>
+      <h4>Key Performers</h4>
+      <ul>
+        <li>Galois (Haskell/Ivory DSL for safe embedded C generation)</li>
+        <li>Data61/CSIRO (seL4 formally verified microkernel)</li>
+        <li>Boeing (integration on Little Bird)</li>
+        <li>University of Minnesota, Rockwell Collins</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      PROVERS &mdash; Pipelined Reasoning of Verifiers Enabling Robust Systems (2023&ndash;present)
+      <span class="badge badge-blue" style="margin-left: auto;">Active</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">42-month program to make formal methods accessible to non-expert developers. Goal: enable ordinary software engineers to use formal verification without PhD-level expertise.</p>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">BAE Systems FAST Labs</div>
+          <div class="ch-detail">PROVERS performer &mdash; automated verification pipeline for DoD systems.</div>
+        </div>
+        <div class="ch-value">$6.0M</div>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.88rem;"><strong>Other performers:</strong> Carnegie Mellon University, Collins Aerospace</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      HARDEN &mdash; Hardening Development Toolchains Against Emergent Execution Engines (2021&ndash;present)
+      <span class="badge badge-blue" style="margin-left: auto;">Active</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">48-month program combining formal verification with AI for cyber hardening. Focus on finding and eliminating weird machines / emergent execution in compiled code.</p>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">Narf Industries</div>
+          <div class="ch-detail">HARDEN performer &mdash; formal methods for binary analysis and cyber defense.</div>
+        </div>
+        <div class="ch-value">$6.3M</div>
+      </div>
+
+      <div class="contract-highlight">
+        <div class="ch-left">
+          <div class="ch-title">University of Illinois at Urbana-Champaign</div>
+          <div class="ch-detail">HARDEN performer &mdash; academic formal methods research.</div>
+        </div>
+        <div class="ch-value">~$4.0M</div>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.88rem;"><strong>Other performers:</strong> Galois, Northrop Grumman, Arizona State University</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Other DARPA Programs
+    </div>
+    <div class="collapsible-body">
+      <table>
+        <thead>
+          <tr><th>Program</th><th>Status</th><th>Focus</th><th>Notable Awards</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>COOP</strong></td>
+            <td><span class="badge badge-blue">Active</span></td>
+            <td>Trusted computing via formal methods</td>
+            <td>Galois: $12.6M</td>
+          </tr>
+          <tr>
+            <td><strong>CLARA</strong></td>
+            <td><span class="badge badge-green">2025+</span></td>
+            <td>AI + formal verification integration</td>
+            <td>Up to $2M/performer</td>
+          </tr>
+          <tr>
+            <td><strong>SafeDocs</strong></td>
+            <td><span class="badge badge-yellow">Completed</span></td>
+            <td>Parser security verification</td>
+            <td>Not disclosed</td>
+          </tr>
+          <tr>
+            <td><strong>SSITH</strong></td>
+            <td><span class="badge badge-yellow">2017+</span></td>
+            <td>Secure hardware via formal methods</td>
+            <td>Not disclosed</td>
+          </tr>
+          <tr>
+            <td><strong>AISS</strong></td>
+            <td><span class="badge badge-yellow">2020</span></td>
+            <td>Auto-implementation of secure silicon</td>
+            <td>Synopsys partner</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3 style="margin: 1.5rem 0 1rem; font-size: 1.1rem;">Other Government Activity</h3>
+  <div class="two-col">
+    <div class="card">
+      <h3>US Department of Homeland Security</h3>
+      <p>In 2006, DHS contracted Coverity to scan 150+ open source projects used in critical internet infrastructure. Found 6,000 defects across 53 projects. This was one of the first large-scale government-sponsored static analysis initiatives.</p>
+    </div>
+    <div class="card">
+      <h3>US Army / Air Force</h3>
+      <p>AdaCore GNAT Pro maintenance contract (ACC Redstone, Dec 2025). Multiple ongoing contracts for Ada/SPARK toolchain maintenance across DoD Ada-based systems. seL4 microkernel (formally verified) funded through DARPA SBIR via DornerWorks.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>German Cyberagentur</h3>
+    <p>Funded Kry10 for seL4 user-space component verification. Germany's federal cybersecurity innovation agency is investing in formally verified operating system components for government use.</p>
+  </div>
+</div>
+
+<!-- ===================== PRICING DEEP-DIVE ===================== -->
+<div class="section" id="section-pricing">
+  <div class="section-header">
+    <h2>Pricing Deep-Dive</h2>
+    <p>A comprehensive comparison of pricing across all market segments, from open source to government mega-contracts.</p>
+  </div>
+
+  <h3 style="margin: 0 0 1rem; font-size: 1.1rem;">Pricing Spectrum (Annual Cost)</h3>
+
+  <div class="tier-bar" style="border-left-color: var(--green);">
+    <div class="tier-label" style="color: var(--green);">SonarQube Dev</div>
+    <div class="tier-range">
+      <div class="tier-fill" style="width: 5%; background: var(--green);"></div>
+    </div>
+    <div class="tier-price">&euro;120 &ndash; &euro;50K/yr</div>
+  </div>
+
+  <div class="tier-bar" style="border-left-color: var(--yellow);">
+    <div class="tier-label" style="color: var(--yellow);">Veracode Basic</div>
+    <div class="tier-range">
+      <div class="tier-fill" style="width: 3%; background: var(--yellow);"></div>
+    </div>
+    <div class="tier-price">~$15K/yr</div>
+  </div>
+
+  <div class="tier-bar" style="border-left-color: var(--accent);">
+    <div class="tier-label" style="color: var(--accent);">Aero Tool License</div>
+    <div class="tier-range">
+      <div class="tier-fill" style="width: 25%; background: var(--accent);"></div>
+    </div>
+    <div class="tier-price">$50K &ndash; $500K/yr</div>
+  </div>
+
+  <div class="tier-bar" style="border-left-color: var(--orange);">
+    <div class="tier-label" style="color: var(--orange);">Auto OEM Enterprise</div>
+    <div class="tier-range">
+      <div class="tier-fill" style="width: 40%; background: var(--orange);"></div>
+    </div>
+    <div class="tier-price">$100K &ndash; $1M+/yr</div>
+  </div>
+
+  <div class="tier-bar" style="border-left-color: var(--purple);">
+    <div class="tier-label" style="color: var(--purple);">Coverity Enterprise</div>
+    <div class="tier-range">
+      <div class="tier-fill" style="width: 25%; background: var(--purple);"></div>
+    </div>
+    <div class="tier-price">$100K &ndash; $500K+/yr</div>
+  </div>
+
+  <div class="tier-bar" style="border-left-color: var(--cyan);">
+    <div class="tier-label" style="color: var(--cyan);">SonarQube DC</div>
+    <div class="tier-range">
+      <div class="tier-fill" style="width: 5%; background: var(--cyan);"></div>
+    </div>
+    <div class="tier-price">&euro;100K+/yr</div>
+  </div>
+
+  <div class="tier-bar" style="border-left-color: var(--red);">
+    <div class="tier-label" style="color: var(--red);">Veracode Enterprise</div>
+    <div class="tier-range">
+      <div class="tier-fill" style="width: 25%; background: var(--red);"></div>
+    </div>
+    <div class="tier-price">$100K &ndash; $500K+/yr</div>
+  </div>
+
+  <h3 style="margin: 2rem 0 1rem; font-size: 1.1rem;">What Drives Price Variation?</h3>
+  <div class="two-col">
+    <div class="card">
+      <h3>Cost Multipliers</h3>
+      <ul>
+        <li><strong>Certification level:</strong> DAL A / ASIL D / SIL 4 = highest premium</li>
+        <li><strong>Tool qualification kits:</strong> Pre-packaged DO-330/ISO 26262 artifacts add $10K&ndash;$50K</li>
+        <li><strong>Seat count:</strong> Enterprise floating licenses scale linearly</li>
+        <li><strong>Professional services:</strong> Integration, training, certification consulting</li>
+        <li><strong>Soundness guarantee:</strong> Sound analysis (Astr&eacute;e) commands premium over heuristic analysis</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Cost Reducers</h3>
+      <ul>
+        <li><strong>Academic licensing:</strong> Many tools free or heavily discounted for universities</li>
+        <li><strong>Open source alternatives:</strong> Frama-C, Infer (Meta), SonarQube Community</li>
+        <li><strong>Multi-year commitments:</strong> 15&ndash;25% discounts on 3&ndash;5 year deals</li>
+        <li><strong>Bundling:</strong> Polyspace cheaper when bundled with MATLAB/Simulink</li>
+        <li><strong>Lower integrity levels:</strong> ASIL A/B significantly less expensive than ASIL D</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin: 2rem 0 1rem; font-size: 1.1rem;">Contract Components Breakdown</h3>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Component</th><th>% of Total</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Software License</strong></td><td>40&ndash;60%</td><td>Core tool access (perpetual one-time or annual subscription)</td></tr>
+        <tr><td><strong>Qualification Kit</strong></td><td>5&ndash;15%</td><td>Pre-built certification artifacts (DO-330, ISO 26262, etc.)</td></tr>
+        <tr><td><strong>Professional Services</strong></td><td>15&ndash;30%</td><td>Integration, training, custom configuration, certification consulting</td></tr>
+        <tr><td><strong>Annual Maintenance</strong></td><td>15&ndash;20%</td><td>Updates, support, bug fixes (percentage of license cost)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin: 2rem 0 1rem; font-size: 1.1rem;">Government Contract Scale</h3>
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">DARPA HACMS (total)</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 100%; background: linear-gradient(90deg, #da3633, #f85149);">$80.0M</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Galois &mdash; DARPA COOP</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 15.8%; background: linear-gradient(90deg, #1f6feb, #58a6ff);">$12.6M</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Narf &mdash; DARPA HARDEN</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 7.9%; background: linear-gradient(90deg, #8957e5, #bc8cff);">$6.3M</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">BAE &mdash; DARPA PROVERS</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 7.5%; background: linear-gradient(90deg, #238636, #3fb950);">$6.0M</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Galois &mdash; ONR DoD Modernization</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 7.5%; background: linear-gradient(90deg, #9e6a03, #d29922);">$6.0M</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">UIUC &mdash; DARPA HARDEN</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 5%; background: linear-gradient(90deg, #bd561d, #f0883e);">~$4.0M</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">DARPA CLARA (per performer)</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 2.5%; background: linear-gradient(90deg, #1b7c6e, #39d2c0);">Up to $2.0M</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Galois/Guardtime &mdash; Blockchain</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: 2.3%; background: linear-gradient(90deg, #6e7681, #8b949e);">$1.8M</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== QUIZ ===================== -->
+<div class="section" id="section-quiz">
+  <div class="section-header">
+    <h2>Knowledge Check</h2>
+    <p>Test your understanding of the commercial abstract analysis landscape. Click each card to reveal the answer.</p>
+  </div>
+
+  <div class="flashcard-container" id="flashcards">
+    <div class="flashcard" onclick="this.classList.toggle('revealed')">
+      <div class="fc-question">What was the landmark achievement of Astr&eacute;e at Airbus in 2003?</div>
+      <div class="fc-answer">Astr&eacute;e analyzed 132,000 lines of A340 fly-by-wire code with <strong>zero false alarms</strong> &mdash; the first industrial proof of absence of all runtime errors in a safety-critical system of that scale. Analysis took 1h20m on a 2.8 GHz PC.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">How much did DARPA invest in the HACMS formal methods program?</div>
+      <div class="fc-answer"><strong>$80 million</strong> over 4 years (2012&ndash;2016). The program demonstrated formal methods on a Boeing Unmanned Little Bird helicopter. Red teams were unable to penetrate formally verified components during live cyber exercises.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What is the key difference between sound abstract interpretation (Astr&eacute;e) and heuristic SAST (Coverity)?</div>
+      <div class="fc-answer">Sound analysis <strong>proves the absence of bugs</strong> (zero false negatives) &mdash; if no error is reported, there is mathematically no error. Heuristic SAST <strong>finds bugs</strong> but cannot guarantee their absence &mdash; it may miss real bugs (false negatives) and report non-bugs (false positives).</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">How much was Synopsys' Software Integrity Group (Coverity) sold for in 2024?</div>
+      <div class="fc-answer"><strong>Up to $2.1 billion</strong> (including earnouts), sold to Clearlake Capital and Francisco Partners in October 2024. SIG accounted for ~8&ndash;9% of Synopsys revenue (~$525M business).</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">Which formal methods firm verified the Eurofighter Typhoon's flight control software?</div>
+      <div class="fc-answer"><strong>D-RisQ</strong> (while at QinetiQ). The team mathematically verified flight and engine control software, plus auto-throttle and auto-pilot, for the Eurofighter Typhoon. D-RisQ technology originates from Oxford (Hoare) and Cambridge (Gordon) research groups.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What is the typical annual cost range for a DO-178C verification tool enterprise contract?</div>
+      <div class="fc-answer"><strong>$50K &ndash; $500K+/year</strong>, depending on toolchain breadth, seat count, and DAL level (DAL A being most expensive). This includes software licenses (40&ndash;60%), qualification support kits (5&ndash;15%), professional services (15&ndash;30%), and annual maintenance (15&ndash;20%).</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What does SCADE KCG's "qualified code generator" mean for certification costs?</div>
+      <div class="fc-answer">KCG is qualified to the highest tool qualification levels (DO-178C/DO-330 TQL-1, ASIL D, SIL 3/4). This means the <strong>generated code does not need to be separately verified</strong> &mdash; it is correct by construction. This can eliminate months of manual verification effort and dramatically reduce certification costs for safety-critical systems.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What is the projected total Application Security Testing market size by 2033?</div>
+      <div class="fc-answer"><strong>$42 billion</strong> by 2033, growing at 18.8% CAGR from ~$5.1B in 2025. This includes SAST, DAST, IAST, and SCA. The safety-critical subset is growing at 17.4% CAGR, significantly outpacing general static analysis (7.4%).</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">Which French formal methods tool was used for the Paris Metro Line 14 driverless system?</div>
+      <div class="fc-answer"><strong>Atelier B</strong> (the B Method), developed and maintained by CLEARSY. The first formal data validation tool was developed in 2005 for RATP. The B Method has been the standard for SIL 4 rail safety software in France since the 1990s.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+
+    <div class="flashcard" onclick="this.classList.toggle('revealed')" style="display:none;">
+      <div class="fc-question">What is Galois, Inc.'s largest known single contract?</div>
+      <div class="fc-answer">The <strong>DARPA COOP</strong> contract for trusted computing &mdash; <strong>$12.6 million</strong>. They also hold a $6M Office of Naval Research contract for DoD legacy system modernization, and a $1.8M DARPA contract (with Guardtime) for blockchain formal verification.</div>
+      <div class="fc-hint">Click to reveal answer</div>
+    </div>
+  </div>
+
+  <div class="fc-nav">
+    <button onclick="navigateCard(-1)">&#8592; Previous</button>
+    <button onclick="navigateCard(1)">Next &#8594;</button>
+  </div>
+  <div class="fc-counter" id="fcCounter">1 / 10</div>
+</div>
+
+</div><!-- end content -->
+
+<script>
+// Tab navigation
+const tabs = document.querySelectorAll('.nav-tab');
+const sections = document.querySelectorAll('.section');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const sectionId = 'section-' + tab.dataset.section;
+    tabs.forEach(t => t.classList.remove('active'));
+    sections.forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(sectionId).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+// Collapsible sections
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.parentElement.classList.toggle('open');
+  });
+});
+
+// Flashcard navigation
+let currentCard = 0;
+const cards = document.querySelectorAll('.flashcard');
+
+function showCard(index) {
+  cards.forEach((c, i) => {
+    c.style.display = i === index ? 'flex' : 'none';
+    c.classList.remove('revealed');
+  });
+  document.getElementById('fcCounter').textContent = (index + 1) + ' / ' + cards.length;
+}
+
+function navigateCard(direction) {
+  currentCard = (currentCard + direction + cards.length) % cards.length;
+  showCard(currentCard);
+}
+
+showCard(0);
+</script>
+
+</body>
+</html>

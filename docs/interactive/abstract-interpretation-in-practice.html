@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abstract Interpretation in Practice — What It Proves, What's Hard, and How AI Changes Everything</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: var(--cyan);
+}
+pre {
+  font-family: var(--mono); font-size: 0.84em; line-height: 1.6;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px 20px; overflow-x: auto; margin: 14px 0;
+}
+pre .keyword { color: var(--accent2); }
+pre .type-name { color: var(--cyan); }
+pre .string-lit { color: var(--green); }
+pre .comment { color: var(--text-dim); font-style: italic; }
+pre .num-lit { color: var(--orange); }
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+/* Hero */
+.hero {
+  text-align: center; padding: 80px 24px 50px;
+  background: linear-gradient(180deg, #151830 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.hero h1 {
+  font-size: 3rem; font-weight: 800; line-height: 1.15; margin-bottom: 14px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--pink) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero .subtitle { color: var(--text-dim); font-size: 1.12rem; max-width: 680px; margin: 0 auto 24px; line-height: 1.6; }
+.hero-badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.hero-badge {
+  padding: 5px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+  border: 1px solid var(--border); color: var(--text-dim); background: var(--surface);
+}
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 100; background: var(--bg);
+  border-bottom: 1px solid var(--border); overflow-x: auto;
+}
+.nav-inner { display: flex; gap: 2px; max-width: 960px; margin: 0 auto; padding: 0 24px; }
+.nav-link {
+  padding: 12px 16px; font-size: 0.82rem; font-weight: 600; color: var(--text-dim);
+  text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent;
+  transition: all 0.2s; cursor: pointer;
+}
+.nav-link:hover { color: var(--text); }
+.nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Sections */
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; }
+h2 .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font-size: 0.85rem;
+  font-weight: 800; margin-right: 12px; vertical-align: middle;
+}
+.section-sub { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 28px; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent2); margin: 28px 0 10px; }
+
+/* Insight */
+.insight {
+  border-left: 3px solid var(--accent); background: #6c8cff0d; border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 20px; margin: 20px 0; font-size: 0.92rem;
+}
+.insight strong { color: var(--text); }
+.insight.warn { border-left-color: var(--orange); background: #fb923c0d; }
+.insight.danger { border-left-color: var(--red); background: #f871710d; }
+.insight.good { border-left-color: var(--green); background: #4ade800d; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
+th {
+  background: var(--surface2); color: var(--accent); text-align: left;
+  padding: 10px 14px; border: 1px solid var(--border); font-weight: 700;
+}
+td { padding: 9px 14px; border: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+tr:hover td { background: var(--surface); }
+
+/* Data flow / collapsible stages */
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 0; overflow: hidden; transition: border-color 0.2s;
+}
+.df-stage:hover { border-color: #3d4460; }
+.df-stage-header {
+  padding: 14px 18px; cursor: pointer; display: flex; align-items: center;
+  justify-content: space-between; user-select: none;
+}
+.df-stage-title { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 10px; }
+.df-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; font-size: 0.78rem; font-weight: 800;
+  flex-shrink: 0;
+}
+.df-expand { color: var(--text-dim); transition: transform 0.2s; font-size: 0.75rem; }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail { display: none; padding: 0 18px 16px; border-top: 1px solid var(--border); margin-top: 0; }
+.df-stage.active .df-detail { display: block; padding-top: 14px; }
+.df-connector {
+  width: 2px; height: 18px; background: var(--border); margin: 0 auto;
+}
+.df-stage .df-detail p, .df-stage .df-detail li { color: var(--text-dim); font-size: 0.88rem; }
+.df-stage .df-detail ul { padding-left: 18px; margin: 8px 0; }
+.df-stage .df-detail li { margin-bottom: 4px; }
+
+/* Badge */
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 10px;
+  font-size: 0.72rem; font-weight: 700; vertical-align: middle;
+}
+.badge-red { background: var(--red); color: var(--bg); }
+.badge-green { background: var(--green); color: var(--bg); }
+.badge-orange { background: var(--orange); color: var(--bg); }
+.badge-blue { background: var(--accent); color: var(--bg); }
+.badge-purple { background: var(--accent2); color: var(--bg); }
+.badge-cyan { background: var(--cyan); color: var(--bg); }
+.badge-yellow { background: var(--yellow); color: var(--bg); }
+.badge-pink { background: var(--pink); color: var(--bg); }
+
+/* Cards grid */
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 14px; margin: 18px 0;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; transition: border-color 0.2s;
+}
+.card:hover { border-color: #3d4460; }
+.card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+.card p { color: var(--text-dim); font-size: 0.86rem; }
+.card-icon { font-size: 1.4rem; margin-bottom: 8px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 2px; border-bottom: 2px solid var(--border); margin-bottom: 0; }
+.tab {
+  padding: 10px 20px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+  color: var(--text-dim); border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none;
+  font-family: inherit;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-content { display: none; padding: 20px 0; }
+.tab-content.active { display: block; }
+
+/* Diagram */
+.diagram {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin: 18px 0; overflow-x: auto;
+}
+.diagram-title { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 16px; }
+
+/* Abstract domain visual */
+.domain-vis {
+  display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center;
+}
+.domain-box {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; text-align: center; min-width: 200px; flex: 1; max-width: 280px;
+  cursor: pointer; transition: all 0.2s;
+}
+.domain-box:hover { border-color: var(--accent); }
+.domain-box.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.domain-box h4 { font-size: 0.9rem; margin-bottom: 8px; }
+.domain-canvas {
+  width: 160px; height: 120px; margin: 8px auto; position: relative;
+  background: #0d0f15; border-radius: 6px; overflow: hidden;
+}
+.domain-box .domain-meta { font-size: 0.76rem; color: var(--text-dim); margin-top: 8px; }
+
+/* Domain detail */
+.domain-detail {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; margin-top: 16px; min-height: 80px; font-size: 0.88rem; color: var(--text-dim);
+}
+.domain-detail strong { color: var(--text); }
+
+/* Pipeline visual */
+.pipeline { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 18px 0; justify-content: center; }
+.pipe-node {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 16px; text-align: center; min-width: 120px;
+}
+.pipe-node h4 { font-size: 0.8rem; font-weight: 700; margin-bottom: 2px; }
+.pipe-node p { font-size: 0.72rem; color: var(--text-dim); }
+.pipe-arrow { color: var(--text-dim); font-size: 1.2rem; padding: 0 6px; flex-shrink: 0; }
+
+/* CLI sim */
+.cli-sim {
+  background: #0c0e14; border: 1px solid var(--border); border-radius: var(--radius);
+  margin: 18px 0; overflow: hidden; font-family: var(--mono); font-size: 0.82rem;
+}
+.cli-sim-bar {
+  padding: 8px 12px; background: var(--surface); display: flex; gap: 6px; border-bottom: 1px solid var(--border);
+}
+.cli-sim-dot { width: 10px; height: 10px; border-radius: 50%; }
+.cli-sim-body { padding: 16px 18px; line-height: 1.8; white-space: pre-wrap; }
+.cli-prompt { color: var(--green); font-weight: 700; }
+.cli-output { color: var(--text-dim); }
+.cli-highlight { color: var(--accent); font-weight: 600; }
+.cli-warn { color: var(--orange); }
+.cli-good { color: var(--green); font-weight: 600; }
+.cli-dim { color: #555570; }
+.cli-label { color: var(--accent2); font-weight: 700; }
+
+/* Comparison grid */
+.compare-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 18px 0;
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+}
+.compare-col { padding: 20px; }
+.compare-col:first-child { border-right: 1px solid var(--border); }
+.compare-col h4 { font-size: 0.9rem; margin-bottom: 12px; font-weight: 700; }
+.compare-col ul { padding-left: 16px; }
+.compare-col li { font-size: 0.86rem; color: var(--text-dim); margin-bottom: 6px; }
+.compare-old { background: #f871710a; }
+.compare-new { background: #4ade800a; }
+
+/* Quiz */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s; font-family: inherit;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* Responsive */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .domain-vis { flex-direction: column; align-items: center; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .compare-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+  .card-grid { grid-template-columns: 1fr; }
+  .pipeline { flex-direction: column; }
+  .pipe-arrow { transform: rotate(90deg); }
+  .nav-inner { padding: 0 12px; }
+  .nav-link { padding: 10px 10px; font-size: 0.76rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<div class="hero">
+  <div class="container">
+    <h1>Abstract Interpretation<br>in Practice</h1>
+    <p class="subtitle">What "proving absence of runtime errors" really means, why it's hard, and how LLM/AI could make it 10x more accessible</p>
+    <div class="hero-badges">
+      <span class="hero-badge">Sound Analysis</span>
+      <span class="hero-badge">C Undefined Behavior</span>
+      <span class="hero-badge">Safety-Critical Systems</span>
+      <span class="hero-badge">Abstract Domains</span>
+      <span class="hero-badge">LLM-Assisted Configuration</span>
+      <span class="hero-badge">Zero False Alarms</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-link active" href="#what-it-proves">What It Proves</a>
+    <a class="nav-link" href="#how-it-works">How It Works</a>
+    <a class="nav-link" href="#abstract-domains">Abstract Domains</a>
+    <a class="nav-link" href="#six-hard-problems">The 6 Hard Problems</a>
+    <a class="nav-link" href="#ai-transformation">AI Transformation</a>
+    <a class="nav-link" href="#the-key-insight">The Key Insight</a>
+    <a class="nav-link" href="#business-model">Business Model Shift</a>
+    <a class="nav-link" href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- ============ SECTION 1: WHAT IT PROVES ============ -->
+<section id="what-it-proves">
+<div class="container">
+  <h2><span class="num">01</span>What "Absence of Runtime Errors" Actually Means</h2>
+  <p class="section-sub">It does <strong>not</strong> mean "absence of all bugs." It means something far more specific and mathematically precise.</p>
+
+  <div class="insight warn">
+    <strong>Common misconception:</strong> "Formally verified = bug-free." No. It means a specific, bounded class of errors has been proven impossible. The software could still compute the wrong answer, implement the wrong formula, or violate a business requirement. What it <em>cannot</em> do is exhibit undefined behavior.
+  </div>
+
+  <h3>The closed set of C undefined behaviors</h3>
+  <p style="color: var(--text-dim); margin-bottom: 14px;">The C language standard defines specific situations where program behavior becomes <em>mathematically undefined</em> &mdash; the compiler can generate any code it wants, including code that crashes, corrupts memory, or silently produces wrong results. Astr&eacute;e proves none of these can ever occur:</p>
+
+  <div class="card-grid">
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <div class="card-icon">&#9888;</div>
+      <h4 style="color: var(--red);">Signed Integer Overflow</h4>
+      <p><code>INT_MAX + 1</code> is undefined. The compiler may assume it never happens and optimize based on that assumption, silently breaking your code.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <div class="card-icon">&#247;</div>
+      <h4 style="color: var(--red);">Division by Zero</h4>
+      <p><code>x / 0</code> and <code>x % 0</code>. Not just a crash risk &mdash; it's undefined, so the compiler can do anything, including "succeed" with a garbage value.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <div class="card-icon">&#9646;</div>
+      <h4 style="color: var(--red);">Array Out-of-Bounds</h4>
+      <p><code>a[n]</code> where <code>n >= length</code>. Reads/writes arbitrary memory. The #1 source of security vulnerabilities in C code.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <div class="card-icon">&#8709;</div>
+      <h4 style="color: var(--red);">Null Pointer Dereference</h4>
+      <p><code>*p</code> where <code>p == NULL</code>. May crash, may silently read page zero, may be optimized away entirely by the compiler.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <div class="card-icon">&#63;</div>
+      <h4 style="color: var(--orange);">Uninitialized Variable Reads</h4>
+      <p>Reading a variable before it's assigned. The value isn't "zero" or "random" &mdash; it's undefined, and can change between runs or compiler versions.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <div class="card-icon">&#8644;</div>
+      <h4 style="color: var(--orange);">Invalid Pointer Arithmetic</h4>
+      <p>Pointer math that goes before the start or past one-past-the-end of an allocation. Undefined even if you never dereference the result.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <div class="card-icon">&#8734;</div>
+      <h4 style="color: var(--orange);">Floating-Point Exceptions</h4>
+      <p>NaN and infinity in contexts that don't expect them. In flight control: a NaN in an actuator command is catastrophic.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--orange);">
+      <div class="card-icon">&#8214;</div>
+      <h4 style="color: var(--orange);">Data Races</h4>
+      <p>Concurrent unsynchronized access to shared memory. Results are undefined &mdash; not just "one thread wins" but literally anything can happen.</p>
+    </div>
+  </div>
+
+  <h3>What it proves vs. what it doesn't</h3>
+  <div class="compare-grid">
+    <div class="compare-col compare-new">
+      <h4 style="color: var(--green);">&#10003; Proven</h4>
+      <ul>
+        <li>Program always executes per C semantics</li>
+        <li>No undefined behavior on <em>any</em> execution path</li>
+        <li>No undefined behavior for <em>any</em> possible input</li>
+        <li>Compiled code will behave as source code says</li>
+        <li>Entire class of UB eliminated mathematically</li>
+      </ul>
+    </div>
+    <div class="compare-col compare-old">
+      <h4 style="color: var(--red);">&#10007; Not Proven</h4>
+      <ul>
+        <li>Software does what the pilot intended</li>
+        <li>Requirements are correct</li>
+        <li>Aerodynamic model is accurate</li>
+        <li>Sensors provide correct readings</li>
+        <li>Logical bugs (wrong formula, swapped variable)</li>
+        <li>Timing deadlines are met (that's WCET analysis)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Why this matters for fly-by-wire:</strong> The A340's flight control reads sensor data, computes actuator commands, and writes them to control surfaces. If the C program has undefined behavior, the compiler's optimizer may have generated machine code that does something entirely different from what the source code appears to say. Proving absence of UB means: whatever the code computes, it's <em>at least computing what the C says</em>, not something random an optimizer decided.
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 2: HOW IT WORKS ============ -->
+<section id="how-it-works">
+<div class="container">
+  <h2><span class="num">02</span>How Abstract Interpretation Works</h2>
+  <p class="section-sub">Over-approximate all possible program states. If every possible state is safe, the program is safe. The theory is elegant. The practice is hard.</p>
+
+  <h3>The core idea in one diagram</h3>
+  <div class="diagram">
+    <div class="diagram-title">The Analysis Pipeline</div>
+    <div class="pipeline">
+      <div class="pipe-node" style="border-color: var(--accent);">
+        <h4 style="color: var(--accent);">Source Code</h4>
+        <p>C program<br>132K lines</p>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-node" style="border-color: var(--accent2);">
+        <h4 style="color: var(--accent2);">Abstract</h4>
+        <p>Replace concrete<br>values with sets</p>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-node" style="border-color: var(--cyan);">
+        <h4 style="color: var(--cyan);">Propagate</h4>
+        <p>Execute abstractly<br>through all paths</p>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-node" style="border-color: var(--yellow);">
+        <h4 style="color: var(--yellow);">Check</h4>
+        <p>Can any abstract<br>state trigger UB?</p>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-node" style="border-color: var(--green);">
+        <h4 style="color: var(--green);">Verdict</h4>
+        <p>SAFE or<br>ALARM</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>The fundamental tradeoff: precision vs. cost</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">The Precision Spectrum</div>
+    <div style="display: flex; align-items: center; gap: 0; margin: 10px 0;">
+      <div style="flex:1; text-align: center; padding: 14px; background: #f871710a; border-radius: var(--radius) 0 0 var(--radius); border: 1px solid var(--border); border-right: none;">
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--red);">Trivial Analysis</div>
+        <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 4px;">"Every int is [INT_MIN, INT_MAX]"</div>
+        <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">Sound but useless &mdash; everything is a potential error</div>
+      </div>
+      <div style="flex:1; text-align: center; padding: 14px; background: #4ade800a; border: 1px solid var(--border);">
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--green);">Sweet Spot</div>
+        <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 4px;">Precise enough for zero false alarms</div>
+        <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">This is what Astr&eacute;e achieves for Airbus</div>
+      </div>
+      <div style="flex:1; text-align: center; padding: 14px; background: #a78bfa0a; border-radius: 0 var(--radius) var(--radius) 0; border: 1px solid var(--border); border-left: none;">
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--accent2);">Perfect Precision</div>
+        <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 4px;">Track every concrete value exactly</div>
+        <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">Undecidable &mdash; equivalent to the halting problem</div>
+      </div>
+    </div>
+  </div>
+
+  <p style="color: var(--text-dim); font-size: 0.9rem;">The entire engineering challenge of abstract interpretation is navigating this spectrum: precise enough that most checks are proven safe (avoiding false alarms), but abstract enough that the analysis terminates in reasonable time. <strong>Abstract domains</strong> are the mathematical structures that define where you sit on this spectrum.</p>
+</div>
+</section>
+
+<!-- ============ SECTION 3: ABSTRACT DOMAINS ============ -->
+<section id="abstract-domains">
+<div class="container">
+  <h2><span class="num">03</span>Abstract Domains</h2>
+  <p class="section-sub">The mathematical structures that define what the analysis "knows" about variable values. Each domain trades precision for speed differently. Click each domain to learn more.</p>
+
+  <div class="domain-vis" id="domain-vis">
+    <div class="domain-box selected" onclick="selectDomain('intervals')">
+      <h4 style="color: var(--green);">Intervals</h4>
+      <div class="domain-canvas" id="canvas-intervals">
+        <svg width="160" height="120" viewBox="0 0 160 120">
+          <line x1="20" y1="100" x2="140" y2="100" stroke="#2a2e3d" stroke-width="1"/>
+          <line x1="20" y1="100" x2="20" y2="10" stroke="#2a2e3d" stroke-width="1"/>
+          <!-- interval for x -->
+          <rect x="40" y="85" width="60" height="10" rx="2" fill="#4ade8033" stroke="#4ade80" stroke-width="1"/>
+          <text x="70" y="80" fill="#4ade80" font-size="9" text-anchor="middle" font-family="monospace">x: [3, 9]</text>
+          <!-- interval for y -->
+          <rect x="55" y="55" width="45" height="10" rx="2" fill="#6c8cff33" stroke="#6c8cff" stroke-width="1"/>
+          <text x="77" y="50" fill="#6c8cff" font-size="9" text-anchor="middle" font-family="monospace">y: [5, 12]</text>
+          <!-- point -->
+          <circle cx="70" cy="30" r="3" fill="#f87171"/>
+          <text x="85" y="33" fill="#f87171" font-size="8" font-family="monospace">actual</text>
+        </svg>
+      </div>
+      <div class="badge badge-green">Fast</div>
+      <div class="domain-meta">Tracks [min, max] per variable independently</div>
+    </div>
+
+    <div class="domain-box" onclick="selectDomain('octagons')">
+      <h4 style="color: var(--accent);">Octagons</h4>
+      <div class="domain-canvas" id="canvas-octagons">
+        <svg width="160" height="120" viewBox="0 0 160 120">
+          <line x1="20" y1="100" x2="140" y2="100" stroke="#2a2e3d" stroke-width="1"/>
+          <line x1="20" y1="100" x2="20" y2="10" stroke="#2a2e3d" stroke-width="1"/>
+          <!-- octagon shape -->
+          <polygon points="50,85 90,85 105,65 105,35 90,20 50,20 35,35 35,65" fill="#6c8cff15" stroke="#6c8cff" stroke-width="1"/>
+          <text x="70" y="55" fill="#6c8cff" font-size="8" text-anchor="middle" font-family="monospace">x-y &le; 5</text>
+          <!-- point -->
+          <circle cx="70" cy="45" r="3" fill="#f87171"/>
+        </svg>
+      </div>
+      <div class="badge badge-blue">Medium</div>
+      <div class="domain-meta">Tracks &plusmn;x &plusmn; y &le; c constraints</div>
+    </div>
+
+    <div class="domain-box" onclick="selectDomain('polyhedra')">
+      <h4 style="color: var(--accent2);">Polyhedra</h4>
+      <div class="domain-canvas" id="canvas-polyhedra">
+        <svg width="160" height="120" viewBox="0 0 160 120">
+          <line x1="20" y1="100" x2="140" y2="100" stroke="#2a2e3d" stroke-width="1"/>
+          <line x1="20" y1="100" x2="20" y2="10" stroke="#2a2e3d" stroke-width="1"/>
+          <!-- arbitrary convex polygon -->
+          <polygon points="45,80 95,85 110,50 80,20 40,40" fill="#a78bfa15" stroke="#a78bfa" stroke-width="1"/>
+          <text x="72" y="55" fill="#a78bfa" font-size="8" text-anchor="middle" font-family="monospace">ax+by &le; c</text>
+          <circle cx="72" cy="50" r="3" fill="#f87171"/>
+        </svg>
+      </div>
+      <div class="badge badge-purple">Precise</div>
+      <div class="domain-meta">Arbitrary linear constraints between all variables</div>
+    </div>
+
+    <div class="domain-box" onclick="selectDomain('filters')">
+      <h4 style="color: var(--pink);">Digital Filters</h4>
+      <div class="domain-canvas" id="canvas-filters">
+        <svg width="160" height="120" viewBox="0 0 160 120">
+          <!-- signal wave -->
+          <path d="M20,60 Q40,20 60,60 Q80,100 100,60 Q120,20 140,60" fill="none" stroke="#f472b6" stroke-width="1.5" opacity="0.6"/>
+          <!-- bounded envelope -->
+          <path d="M20,30 L140,30" stroke="#f472b633" stroke-width="1" stroke-dasharray="4"/>
+          <path d="M20,90 L140,90" stroke="#f472b633" stroke-width="1" stroke-dasharray="4"/>
+          <text x="80" y="18" fill="#f472b6" font-size="8" text-anchor="middle" font-family="monospace">bounded output</text>
+          <text x="80" y="110" fill="#f472b6" font-size="8" text-anchor="middle" font-family="monospace">stability proof</text>
+        </svg>
+      </div>
+      <div class="badge badge-pink">Specialized</div>
+      <div class="domain-meta">Domain-specific for IIR/FIR signal processing</div>
+    </div>
+  </div>
+
+  <div class="domain-detail" id="domain-detail">
+    <p><strong>Intervals</strong> track each variable independently as a range [min, max]. For example, knowing <code>x &isin; [3, 9]</code> and <code>y &isin; [5, 12]</code>. Fast (O(n) per program point) but loses all relationships between variables. If <code>y = x + 2</code>, intervals can only say <code>y &isin; [5, 11]</code> &mdash; it doesn't know that when x=3, y must be 5. This means <code>y - x</code> is estimated as [-6, 9] instead of the exact value 2. That lost precision can cause false alarms on expressions like <code>a[y - x]</code> where the array has size 3.</p>
+  </div>
+
+  <div class="insight">
+    <strong>Key idea:</strong> Astr&eacute;e doesn't pick one domain &mdash; it runs <em>all of them simultaneously</em>, combining their knowledge at every program point. The interval domain handles simple range checks. Octagons catch <code>x - y</code> relationships. The filter domain understands digital signal processing stability. Each domain contributes what it's good at. This is called a <strong>reduced product</strong> of abstract domains.
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 4: THE 6 HARD PROBLEMS ============ -->
+<section id="six-hard-problems">
+<div class="container">
+  <h2><span class="num">04</span>The 6 Hard Problems</h2>
+  <p class="section-sub">Understanding abstract interpretation theory takes a semester. Making it work on 132,000 lines of real flight control code with zero false alarms takes years. Here's why.</p>
+
+  <div class="data-flow">
+    <!-- Problem 1 -->
+    <div class="df-stage active" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title">
+          <span class="df-num" style="background: var(--red); color: var(--bg);">1</span>
+          Choosing &amp; Tuning Abstract Domains
+        </span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The analyzer needs to be precise enough for <em>every single check</em> in the program. One imprecise abstraction anywhere = one false alarm = failure.</p>
+        <p style="margin-top: 10px;">For the Airbus code, the Astr&eacute;e team had to <em>invent new abstract domains</em>:</p>
+        <ul>
+          <li><strong>Digital filter domain:</strong> Understands mathematical stability properties of IIR/FIR filters used in flight control. Without this domain, the analyzer cannot prove that a feedback loop's output stays bounded &mdash; it just sees "multiply by coefficient, add to accumulator" and the accumulator's abstract value grows unboundedly.</li>
+          <li><strong>Floating-point domain:</strong> Tracks rounding errors precisely. Not just "some float" but "a float in [3.14159265, 3.14159266]." IEEE 754 rounding is deterministic, so the analysis can track it exactly, but only if it models the specific rounding mode the hardware uses.</li>
+          <li><strong>Relational domains:</strong> When one variable bounds another (e.g., an index computed from an array length), the analysis needs to track that relationship. Intervals alone lose this information completely.</li>
+        </ul>
+        <p style="margin-top: 10px;">Getting zero false alarms on 132K lines required the abstract domains to be precise enough for every single one of the thousands of array accesses, divisions, pointer dereferences, and arithmetic operations in the program.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <!-- Problem 2 -->
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title">
+          <span class="df-num" style="background: var(--orange); color: var(--bg);">2</span>
+          Loop Invariants &amp; Widening
+        </span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Loops are THE hard part.</strong> If a loop runs 10,000 iterations, you can't analyze each one separately &mdash; you need to find a <em>loop invariant</em>: a property that holds at the start of every iteration.</p>
+
+        <p style="margin-top: 10px;">Abstract interpretation uses <strong>widening</strong> to force convergence: after a few iterations, it jumps to a safe over-approximation. But widening is inherently imprecise:</p>
+
+        <div class="cli-sim" style="margin: 14px 0;">
+          <div class="cli-sim-bar">
+            <span class="cli-sim-dot" style="background:#ff5f57"></span>
+            <span class="cli-sim-dot" style="background:#ffbd2e"></span>
+            <span class="cli-sim-dot" style="background:#28c840"></span>
+          </div>
+          <div class="cli-sim-body"><span class="cli-label">Loop:</span>  <span class="cli-output">for (int i = 0; i < 1024; i++)</span>
+
+<span class="cli-label">Iter 0:</span> <span class="cli-good">i &isin; [0, 0]</span>
+<span class="cli-label">Iter 1:</span> <span class="cli-good">i &isin; [0, 1]</span>
+<span class="cli-label">Iter 2:</span> <span class="cli-good">i &isin; [0, 2]</span>
+<span class="cli-dim">   ... analyzing 1024 iterations is too slow ...</span>
+<span class="cli-label">Widen: </span> <span class="cli-warn">i &isin; [0, +&infin;)</span>  <span class="cli-dim">&larr; sound but imprecise!</span>
+<span class="cli-dim">   a[i] with i &isin; [0, +&infin;) &rarr; ALARM (potential out-of-bounds)</span>
+
+<span class="cli-label">Fix:  </span> <span class="cli-highlight">Add widening threshold {i: 1024}</span>
+<span class="cli-label">Widen: </span> <span class="cli-good">i &isin; [0, 1023]</span>  <span class="cli-dim">&larr; precise, and a[i] is safe</span></div>
+        </div>
+
+        <p>Each loop in the program potentially needs its own widening strategy. Techniques include:</p>
+        <ul>
+          <li><strong>Widening with thresholds:</strong> Provide hints about bounds ("this counter is bounded by 1024")</li>
+          <li><strong>Loop unrolling:</strong> Analyze the first N iterations precisely before widening</li>
+          <li><strong>Delayed widening:</strong> Wait longer before giving up on precise iteration</li>
+          <li><strong>Narrowing:</strong> After widening, iterate backwards to tighten the approximation</li>
+        </ul>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <!-- Problem 3 -->
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title">
+          <span class="df-num" style="background: var(--yellow); color: var(--bg);">3</span>
+          Pointer &amp; Memory Analysis
+        </span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>C has unconstrained pointers. To prove an array access is safe, you need to know both <em>what the pointer points to</em> and <em>what the index value is</em>.</p>
+        <p style="margin-top: 8px;">For Airbus code with complex data structures (linked sensor data, flight state records), the pointer analysis needs to track aliasing relationships precisely. If two pointers might alias the same memory, a write through one pointer invalidates everything the analysis knew about the other. Imprecise aliasing = massive precision loss = false alarms everywhere.</p>
+        <p style="margin-top: 8px;">The analyzer must model the memory layout: struct field offsets, array strides, stack vs. heap allocation, and alignment. For embedded systems, this includes memory-mapped I/O regions with specific address ranges.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <!-- Problem 4 -->
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title">
+          <span class="df-num" style="background: var(--cyan); color: var(--bg);">4</span>
+          Concurrency &amp; Scheduling
+        </span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The A340 flight control runs multiple tasks on a real-time scheduler. Proving absence of data races requires modeling the <em>specific RTOS scheduler semantics</em>.</p>
+        <p style="margin-top: 8px;">The analyzer doesn't just check each task in isolation &mdash; it must consider all possible interleavings of task executions that the scheduler permits. For a priority-based preemptive scheduler, this means modeling which tasks can preempt which, and proving that shared data is always accessed under the correct synchronization.</p>
+        <p style="margin-top: 8px;">This is where soundness matters most: an analysis that ignores concurrency is unsound (could miss real data races), but an analysis that considers all possible interleavings is exponentially expensive. The abstract scheduler model must be precise enough to eliminate impossible interleavings while remaining tractable.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <!-- Problem 5 -->
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title">
+          <span class="df-num" style="background: var(--accent); color: var(--bg);">5</span>
+          Environment Modeling
+        </span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The code reads from sensors and writes to actuators. The analysis needs a model of <em>what values sensors can produce</em>. Get this wrong and everything falls apart:</p>
+        <table>
+          <thead><tr><th>Model</th><th>Constraint</th><th>Problem</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Too wide</strong></td>
+              <td><code>altitude: [-&infin;, +&infin;]</code></td>
+              <td>False alarms everywhere &mdash; analysis thinks altitude can overflow any computation</td>
+            </tr>
+            <tr>
+              <td><strong>Too narrow</strong></td>
+              <td><code>altitude: [0, 45000]</code></td>
+              <td>Unsound if sensor can report negative values during nose-down pitch &mdash; missed real bugs</td>
+            </tr>
+            <tr>
+              <td><strong>Just right</strong></td>
+              <td><code>altitude: [-1000, 60000]</code></td>
+              <td>Matches sensor hardware spec + all flight regimes. Sound and precise.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top: 10px;">Getting these ranges right requires collaboration with the systems engineering team, reading hardware datasheets, understanding sensor behavior in all flight regimes (normal, abnormal, failure modes), and sometimes physical testing.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <!-- Problem 6 -->
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title">
+          <span class="df-num" style="background: var(--accent2); color: var(--bg);">6</span>
+          Manual Annotation &amp; Configuration
+        </span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>This is where the real labor is.</strong> To achieve zero false alarms, the Astr&eacute;e team had to:</p>
+        <ul>
+          <li><strong>Specify entry points &amp; initial conditions:</strong> What functions are called, in what order, with what initial state</li>
+          <li><strong>Provide environment constraints:</strong> Sensor value ranges, timer frequencies, memory-mapped I/O behavior</li>
+          <li><strong>Add widening hints:</strong> Thresholds for every difficult loop in the program</li>
+          <li><strong>Configure domain precision:</strong> Which abstract domains to enable for which code regions</li>
+          <li><strong>Tune partitioning:</strong> Where to split the analysis into separate cases (e.g., analyze "flaps up" and "flaps down" paths separately)</li>
+          <li><strong>Iterate on false alarms:</strong> For each alarm, determine if it's a real bug or a precision issue, then refine the configuration</li>
+        </ul>
+
+        <div class="insight warn" style="margin-top: 14px;">
+          <strong>The real timeline:</strong> For the Airbus work, this was a <em>multi-year research collaboration</em> between the Astr&eacute;e team (ENS Paris, CNRS) and Airbus engineers. It wasn't "install tool, press run, get results." It was "run analysis, get 500 false alarms, understand why each one occurred, design new abstract domains or tuning strategies, repeat for months until zero false alarms." Ongoing use on incremental changes is faster, but initial setup for a new codebase is where 80% of the cost sits.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 5: AI TRANSFORMATION ============ -->
+<section id="ai-transformation">
+<div class="container">
+  <h2><span class="num">05</span>How LLM/AI Transforms Each Hard Problem</h2>
+  <p class="section-sub">The six hard problems map almost perfectly to things LLMs are good at: structured extraction from documents, pattern recognition in code, and navigating large configuration spaces.</p>
+
+  <div class="tabs" id="ai-tabs">
+    <button class="tab active" onclick="switchTab('ai-content','ai1')">Environment Modeling</button>
+    <button class="tab" onclick="switchTab('ai-content','ai2')">Widening Hints</button>
+    <button class="tab" onclick="switchTab('ai-content','ai3')">False Alarm Diagnosis</button>
+    <button class="tab" onclick="switchTab('ai-content','ai4')">Domain Selection</button>
+    <button class="tab" onclick="switchTab('ai-content','ai5')">Compliance Mapping</button>
+    <button class="tab" onclick="switchTab('ai-content','ai6')">Iterative Refinement</button>
+  </div>
+  <div id="ai-content">
+
+    <!-- AI Opportunity 1 -->
+    <div class="tab-content active" id="ai1">
+      <h3>Automated Environment Modeling <span class="badge badge-green">High Impact</span></h3>
+      <div class="compare-grid">
+        <div class="compare-col compare-old">
+          <h4 style="color: var(--red);">Today: Manual</h4>
+          <ul>
+            <li>Engineer spends weeks reading hardware datasheets</li>
+            <li>Cross-references system specs with code I/O interfaces</li>
+            <li>Manually writes formal constraints like <code>sensor_temp: [-40.0, 85.0]</code></li>
+            <li>Mistakes are costly: too wide = false alarms, too narrow = unsound</li>
+          </ul>
+        </div>
+        <div class="compare-col compare-new">
+          <h4 style="color: var(--green);">With LLM: Automated Extraction</h4>
+          <ul>
+            <li>Feed LLM the hardware datasheet + system spec + code interfaces</li>
+            <li>LLM extracts constraints: "altimeter range -1000ft to 50000ft, 1ft resolution"</li>
+            <li>Converts to formal intervals: <code>alt_reading: [-1000, 50000]</code></li>
+            <li>Cross-references multiple documents to catch inconsistencies</li>
+          </ul>
+        </div>
+      </div>
+      <div class="insight good">
+        <strong>Why LLMs excel here:</strong> This is structured extraction from technical documents &mdash; exactly what LLMs are best at. The datasheet says "12-bit ADC, 0-3.3V reference" and the LLM outputs <code>adc_raw: [0, 4095]</code>. It can even flag: "The spec says 12-bit ADC but the code uses <code>uint16_t</code> for the reading &mdash; is this intentional?"
+      </div>
+    </div>
+
+    <!-- AI Opportunity 2 -->
+    <div class="tab-content" id="ai2">
+      <h3>Widening Hint Generation <span class="badge badge-blue">Medium Impact</span></h3>
+      <div class="cli-sim">
+        <div class="cli-sim-bar">
+          <span class="cli-sim-dot" style="background:#ff5f57"></span>
+          <span class="cli-sim-dot" style="background:#ffbd2e"></span>
+          <span class="cli-sim-dot" style="background:#28c840"></span>
+        </div>
+        <div class="cli-sim-body"><span class="cli-label">Analyzer:</span> <span class="cli-warn">ALARM at line 892 &mdash; potential array out-of-bounds</span>
+<span class="cli-dim">         Loop variable `idx` widened to [0, +&infin;)</span>
+
+<span class="cli-label">LLM:</span>     <span class="cli-output">"This loop processes a circular buffer declared as</span>
+         <span class="cli-output">uint8_t buf[256]. The index is masked with 0xFF</span>
+         <span class="cli-output">on every iteration. Suggesting widening threshold:</span>
+         <span class="cli-highlight">idx: [0, 255]</span><span class="cli-output">"</span>
+
+<span class="cli-label">Analyzer:</span> <span class="cli-dim">Re-running with threshold...</span>
+<span class="cli-label">Result:</span>  <span class="cli-good">&#10003; Line 892 proven safe. idx &isin; [0, 255].</span></div>
+      </div>
+      <div class="insight">
+        <strong>Critical property:</strong> The LLM doesn't need to be correct &mdash; only helpful. If it suggests a wrong invariant (e.g., <code>idx: [0, 127]</code>), the abstract interpretation engine will <em>reject it</em> because it can't prove the invariant holds. Wrong suggestions are harmlessly discarded. Good suggestions save hours of expert time.
+      </div>
+    </div>
+
+    <!-- AI Opportunity 3 -->
+    <div class="tab-content" id="ai3">
+      <h3>False Alarm Diagnosis &amp; Resolution <span class="badge badge-red">Highest Impact</span></h3>
+      <p style="color: var(--text-dim); margin-bottom: 14px;">This is the single most expensive manual step. An expert sees "potential overflow at line 4732" and must determine: real bug or precision limitation? If precision, what configuration change fixes it?</p>
+
+      <div class="cli-sim">
+        <div class="cli-sim-bar">
+          <span class="cli-sim-dot" style="background:#ff5f57"></span>
+          <span class="cli-sim-dot" style="background:#ffbd2e"></span>
+          <span class="cli-sim-dot" style="background:#28c840"></span>
+        </div>
+        <div class="cli-sim-body"><span class="cli-label">Analyzer:</span> <span class="cli-warn">ALARM at line 4732 &mdash; potential signed integer overflow</span>
+<span class="cli-dim">         velocity_delta * time_step may exceed INT32_MAX</span>
+
+<span class="cli-label">LLM:</span>     <span class="cli-output">"Reading context... velocity_delta is clamped to</span>
+         <span class="cli-output">[-MAX_VELOCITY, MAX_VELOCITY] at line 4508 via</span>
+         <span class="cli-output">clamp_velocity(). time_step is always 10ms (line 201).</span>
+         <span class="cli-output">The interval domain loses the clamp relationship because</span>
+         <span class="cli-output">there are 200 lines of intervening code.</span>
+
+         <span class="cli-highlight">Diagnosis: precision issue, not a real bug.</span>
+         <span class="cli-output">Suggestion: enable octagon domain for velocity_ctrl.c</span>
+         <span class="cli-output">to track the velocity_delta &le; MAX_VELOCITY relationship."</span>
+
+<span class="cli-label">Analyzer:</span> <span class="cli-dim">Re-running with octagon domain enabled for velocity_ctrl.c...</span>
+<span class="cli-label">Result:</span>  <span class="cli-good">&#10003; Line 4732 proven safe. Product bounded by MAX_VELOCITY * 10.</span></div>
+      </div>
+      <p style="color: var(--text-dim); font-size: 0.88rem; margin-top: 12px;">The LLM is doing something genuinely difficult here: combining <em>natural language understanding of code intent</em> with <em>knowledge of abstract interpretation techniques</em>. It knows that a clamp 200 lines earlier creates a bound that the interval domain can't track across intervening code, and that the octagon domain can. This cross-domain reasoning is exactly where LLMs shine.</p>
+    </div>
+
+    <!-- AI Opportunity 4 -->
+    <div class="tab-content" id="ai4">
+      <h3>Domain-Specific Abstract Domain Selection <span class="badge badge-blue">Medium Impact</span></h3>
+      <p style="color: var(--text-dim); margin-bottom: 14px;">Using polyhedra everywhere is too slow. Using only intervals is too imprecise. The LLM profiles code and generates a per-module precision configuration:</p>
+
+      <div class="cli-sim">
+        <div class="cli-sim-bar">
+          <span class="cli-sim-dot" style="background:#ff5f57"></span>
+          <span class="cli-sim-dot" style="background:#ffbd2e"></span>
+          <span class="cli-sim-dot" style="background:#28c840"></span>
+        </div>
+        <div class="cli-sim-body"><span class="cli-label">LLM analyzing codebase...</span>
+
+<span class="cli-highlight">flight_ctrl/pid.c</span>        <span class="cli-output">&rarr; filter domain + octagons</span>
+<span class="cli-dim">  PID controller with coupled float variables, feedback loops</span>
+
+<span class="cli-highlight">nav/waypoint_calc.c</span>     <span class="cli-output">&rarr; polyhedra (small module)</span>
+<span class="cli-dim">  Trigonometric computations, tight float bounds needed</span>
+
+<span class="cli-highlight">comm/message_parse.c</span>    <span class="cli-output">&rarr; octagons + intervals</span>
+<span class="cli-dim">  Array indexing with computed offsets, index-length relationships</span>
+
+<span class="cli-highlight">sensor/adc_read.c</span>       <span class="cli-output">&rarr; intervals only (sufficient)</span>
+<span class="cli-dim">  Simple integer arithmetic, bounded by ADC hardware range</span>
+
+<span class="cli-highlight">rtos/scheduler.c</span>        <span class="cli-output">&rarr; concurrency domain + intervals</span>
+<span class="cli-dim">  Task switching, shared state, priority scheduling</span></div>
+      </div>
+    </div>
+
+    <!-- AI Opportunity 5 -->
+    <div class="tab-content" id="ai5">
+      <h3>Regulatory Compliance Mapping <span class="badge badge-orange">Time Saver</span></h3>
+      <p style="color: var(--text-dim); margin-bottom: 14px;">After analysis completes, someone must write the compliance documentation. This typically takes weeks per certification cycle.</p>
+
+      <div class="compare-grid">
+        <div class="compare-col compare-old">
+          <h4 style="color: var(--red);">Manual: Weeks of Work</h4>
+          <ul>
+            <li>Read DO-178C Table A-5, identify which objectives the tool satisfies</li>
+            <li>Map each proven check to a specific verification objective</li>
+            <li>Write traceability matrices</li>
+            <li>Document tool qualification rationale per DO-330</li>
+            <li>Repeat for every certification cycle and every standard</li>
+          </ul>
+        </div>
+        <div class="compare-col compare-new">
+          <h4 style="color: var(--green);">LLM: Auto-Generated</h4>
+          <ul>
+            <li>"Analysis of module X proves absence of runtime errors per DO-178C Table A-5 objectives 1, 2, 5"</li>
+            <li>Auto-generated traceability: check &rarr; code location &rarr; standard objective</li>
+            <li>Compliance report in auditor's language, not researcher's language</li>
+            <li>Template adapts to DO-178C, IEC 62304, ISO 26262, EN 50128</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Opportunity 6 -->
+    <div class="tab-content" id="ai6">
+      <h3>Iterative Refinement as a Conversation <span class="badge badge-purple">Paradigm Shift</span></h3>
+      <p style="color: var(--text-dim); margin-bottom: 14px;">The most profound change: instead of an expert manually editing configuration files over months, the process becomes an automated dialogue between the LLM and the verification engine.</p>
+
+      <div class="cli-sim">
+        <div class="cli-sim-bar">
+          <span class="cli-sim-dot" style="background:#ff5f57"></span>
+          <span class="cli-sim-dot" style="background:#ffbd2e"></span>
+          <span class="cli-sim-dot" style="background:#28c840"></span>
+        </div>
+        <div class="cli-sim-body"><span class="cli-label">Run 1:</span>  <span class="cli-output">4,891 checks proven safe.</span> <span class="cli-warn">47 alarms remaining.</span>
+
+<span class="cli-label">LLM:</span>    <span class="cli-output">[analyzes 47 alarms in batch]</span>
+         <span class="cli-output">38 alarms from imprecise loop widening &mdash; generating thresholds</span>
+         <span class="cli-output">6 alarms from missing environment constraints &mdash; extracting from spec</span>
+         <span class="cli-output">2 alarms from pointer aliasing &mdash; suggesting partitioning</span>
+         <span class="cli-highlight">1 alarm appears to be a genuine bug (signed overflow in edge case)</span>
+
+<span class="cli-label">Run 2:</span>  <span class="cli-output">4,935 checks proven safe.</span> <span class="cli-warn">3 alarms remaining.</span>
+
+<span class="cli-label">LLM:</span>    <span class="cli-output">[analyzes 3 remaining alarms]</span>
+         <span class="cli-output">2 need octagon domain enabled for specific functions</span>
+         <span class="cli-highlight">1 confirmed genuine bug &mdash; same signed overflow</span>
+
+<span class="cli-label">Run 3:</span>  <span class="cli-good">4,937 checks proven safe. 1 genuine bug found. 0 false alarms.</span>
+<span class="cli-dim">         Total wall time: 3 iterations &times; 1.5 hours = 4.5 hours</span>
+<span class="cli-dim">         Traditional approach: 3-6 months of expert iteration</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ============ SECTION 6: THE KEY INSIGHT ============ -->
+<section id="the-key-insight">
+<div class="container">
+  <h2><span class="num">06</span>The Key Insight: Soundness Never Depends on the LLM</h2>
+  <p class="section-sub">This is the critical architectural property that makes the entire approach work &mdash; and what makes it fundamentally different from using LLMs for code generation.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Why this is uniquely safe</div>
+    <div class="pipeline">
+      <div class="pipe-node" style="border-color: var(--accent2);">
+        <h4 style="color: var(--accent2);">LLM</h4>
+        <p>Proposes configs,<br>hints, constraints</p>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-node" style="border-color: var(--yellow);">
+        <h4 style="color: var(--yellow);">Verifier</h4>
+        <p>Mathematically<br>checks everything</p>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-node" style="border-color: var(--green);">
+        <h4 style="color: var(--green);">Accept</h4>
+        <p>If proof holds:<br>use the config</p>
+      </div>
+    </div>
+    <div style="text-align: center; margin-top: 8px;">
+      <div class="pipe-node" style="border-color: var(--red); display: inline-block; margin-top: 10px;">
+        <h4 style="color: var(--red);">Reject</h4>
+        <p>If proof fails:<br>try another suggestion</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-grid" style="margin-top: 20px;">
+    <div class="compare-col compare-old">
+      <h4 style="color: var(--red);">LLM for Code Generation</h4>
+      <ul>
+        <li>LLM writes code</li>
+        <li>Code runs directly</li>
+        <li>LLM errors become <strong>runtime bugs</strong></li>
+        <li>No mathematical safety net</li>
+        <li>Trust depends on LLM accuracy</li>
+      </ul>
+    </div>
+    <div class="compare-col compare-new">
+      <h4 style="color: var(--green);">LLM for Verification Config</h4>
+      <ul>
+        <li>LLM suggests analysis configuration</li>
+        <li>Math engine verifies every suggestion</li>
+        <li>LLM errors are <strong>harmlessly rejected</strong></li>
+        <li>Mathematical proof is the safety net</li>
+        <li>Trust depends on the math, not the LLM</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight good">
+    <strong>The analogy:</strong> Using an LLM for code generation is like having a junior developer write code with no tests. Using an LLM for verification configuration is like having a junior developer suggest test cases that a perfect oracle automatically validates. Wrong suggestions waste a tiny amount of compute. Right suggestions save months of expert time. The outcome is <em>always</em> mathematically guaranteed regardless of LLM quality.
+  </div>
+
+  <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 16px;">This is what makes the formal verification + LLM combination so powerful: the LLM has a <strong>mathematical spellchecker</strong> that catches all its mistakes. In every other domain where LLMs are applied, their errors propagate to the output. Here, errors are caught at the boundary and only correct suggestions pass through.</p>
+</div>
+</section>
+
+<!-- ============ SECTION 7: BUSINESS MODEL SHIFT ============ -->
+<section id="business-model">
+<div class="container">
+  <h2><span class="num">07</span>The Business Model Shift</h2>
+  <p class="section-sub">Current pricing reflects implied consulting cost. AI removes that cost and opens the mid-market entirely.</p>
+
+  <h3>The transformation</h3>
+  <table>
+    <thead>
+      <tr><th>Dimension</th><th>Traditional</th><th>LLM-Assisted</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Initial setup</strong></td>
+        <td>3&ndash;12 months expert consulting<br><span class="badge badge-red">$200K &ndash; $1M</span></td>
+        <td>Days to weeks with AI-guided configuration<br><span class="badge badge-green">$20K &ndash; $50K</span></td>
+      </tr>
+      <tr>
+        <td><strong>Expertise required</strong></td>
+        <td>PhD in abstract interpretation<br><span class="badge badge-orange">Scarce globally</span></td>
+        <td>Domain engineer + AI tool<br><span class="badge badge-green">Broadly available</span></td>
+      </tr>
+      <tr>
+        <td><strong>False alarm resolution</strong></td>
+        <td>Manual, iterative, expensive<br><span class="badge badge-red">Weeks per campaign</span></td>
+        <td>Automated suggestion + verification loop<br><span class="badge badge-green">Hours per campaign</span></td>
+      </tr>
+      <tr>
+        <td><strong>New codebase onboarding</strong></td>
+        <td>Repeat the full expert process<br><span class="badge badge-orange">Months</span></td>
+        <td>LLM transfers patterns from previous deployments<br><span class="badge badge-green">Days</span></td>
+      </tr>
+      <tr>
+        <td><strong>Compliance docs</strong></td>
+        <td>Manual report writing<br><span class="badge badge-orange">Weeks per cycle</span></td>
+        <td>Auto-generated compliance mapping<br><span class="badge badge-green">Minutes</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Who this unlocks</h3>
+  <div class="card-grid">
+    <div class="card" style="border-left: 3px solid var(--green);">
+      <h4 style="color: var(--green);">Mid-Market (NEW)</h4>
+      <p>Mining companies, telcos, fintechs that would never spend $500K + 6 months on consulting. At $50K with AI-guided setup in a week, the ROI becomes obvious: "one truck collision costs more than a decade of licensing."</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--accent);">
+      <h4 style="color: var(--accent);">Enterprise (FASTER)</h4>
+      <p>Aerospace and automotive companies that already use these tools. AI doesn't replace the tool &mdash; it makes adoption 10x faster. Win on speed: "deploy in weeks, not months."</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--accent2);">
+      <h4 style="color: var(--accent2);">Startups (NEW)</h4>
+      <p>Space startups, IoT companies, medical device startups. Can't hire an abstract interpretation PhD. Can use an AI-assisted tool that configures itself. Sound analysis becomes a competitive differentiator.</p>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>The pricing insight:</strong> The $50K&ndash;$500K/year pricing of tools like Astr&eacute;e reflects not just the software but the <em>implied consulting cost</em> of making it work. The software itself is the mathematical engine. The expensive part is the human expert who configures it for your specific codebase. AI replaces that human configuration work, which means you can either offer the same capability at a fraction of the price (capturing mid-market) or offer dramatically faster time-to-value at the same price (winning enterprise deals on speed).
+  </div>
+</div>
+</section>
+
+<!-- ============ KNOWLEDGE CHECK ============ -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">08</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does "absence of all runtime errors" actually prove, and what does it <em>not</em> prove?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>It proves that no execution path can trigger <strong>C undefined behavior</strong> (overflow, null deref, out-of-bounds, etc.) &mdash; a closed, finite set defined by the C standard. It does <em>not</em> prove the software computes the right answer, that requirements are correct, or that there are no logical bugs. It guarantees the program executes as C semantics define, never entering undefined territory.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is "perfectly precise" abstract interpretation impossible?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Perfectly precise reasoning about all possible executions of an arbitrary C program is <strong>equivalent to the halting problem</strong> &mdash; it's mathematically undecidable. That's why abstract interpretation uses over-approximation: it may say "this <em>might</em> overflow" when it actually can't (false alarm), but it will never say "this is safe" when it isn't (no false negatives). The engineering challenge is minimizing false alarms while maintaining soundness.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is "widening" and why is it necessary for loops?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Widening is a technique to force the abstract analysis to converge when analyzing loops. Without it, the analyzer would need to simulate every iteration (impractical for 10,000+ iterations). Widening jumps to a safe over-approximation after a few iterations &mdash; e.g., after seeing i=0, i=1, i=2, it may widen to i&isin;[0, +&infin;). This is sound but imprecise. <strong>Widening thresholds</strong> refine this: telling the analyzer "i is bounded by 1024" so it widens to [0, 1023] instead.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is a "reduced product" of abstract domains and why does Astr&eacute;e use it?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A reduced product runs <strong>multiple abstract domains simultaneously</strong>, combining their knowledge at every program point. Intervals handle simple range checks. Octagons track pairwise variable relationships (x-y &le; 5). The filter domain understands digital signal processing stability. Each domain contributes what it's good at, and their combined precision exceeds any single domain. Astr&eacute;e needed this to achieve zero false alarms &mdash; no single domain was precise enough for all 132K lines.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is environment modeling both critical and error-prone?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The analysis needs to know what values sensors can produce. Constraints that are <strong>too wide</strong> (altitude: [-&infin;, +&infin;]) cause false alarms everywhere. Constraints that are <strong>too narrow</strong> (altitude: [0, 45000]) are <strong>unsound</strong> &mdash; if the sensor can report -1000 in a dive, the analysis misses real bugs. Getting it right requires reading hardware datasheets, understanding all flight regimes including failure modes, and collaboration with systems engineers. This manual process is expensive and is one of the best targets for LLM automation.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is using LLMs for verification configuration fundamentally safer than using LLMs for code generation?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>In code generation, LLM errors become runtime bugs &mdash; there's no safety net. In verification configuration, every LLM suggestion is <strong>checked by the mathematical verification engine</strong>. Wrong suggestions are harmlessly rejected (the proof simply fails to go through). The LLM proposes, the math disposes. The soundness guarantee depends on the verification engine, never on the LLM's accuracy. It's like having a perfect oracle that catches all the LLM's mistakes before they matter.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does current tool pricing ($50K&ndash;$500K/yr) actually reflect, and how does AI change the economics?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The price reflects not just the software (mathematical engine) but the <strong>implied consulting cost</strong> of making it work &mdash; months of expert configuration, widening hints, environment modeling, false alarm resolution. AI automates most of this configuration work, which means: offer the same capability at 10x lower price (opening mid-market for mining, telco, fintech) or offer 10x faster time-to-value at the same price (winning enterprise deals on speed). The mining company that won't spend $500K + 6 months <em>would</em> spend $50K for a self-configuring tool.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Which of the 6 hard problems has the highest impact if solved by LLM, and why?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>False alarm diagnosis &amp; resolution</strong> (Problem 6/Opportunity 3). It's the most expensive manual step: for each alarm, an expert must read the surrounding code, understand the data flow, determine if it's a real bug or precision limitation, and if precision, figure out which configuration change fixes it. This requires combining code understanding with abstract interpretation knowledge &mdash; exactly the kind of cross-domain reasoning LLMs excel at. Automating this step alone could reduce setup time from months to days.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+</div><!-- end content wrapper -->
+
+<script>
+/* Nav highlight on scroll */
+const navLinks = document.querySelectorAll('.nav-link');
+const sections = document.querySelectorAll('section[id]');
+
+function updateNav() {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 120) current = s.id;
+  });
+  navLinks.forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+  });
+}
+window.addEventListener('scroll', updateNav);
+
+/* Smooth scroll for nav links */
+navLinks.forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+/* Tabs */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabBar = container.previousElementSibling;
+  tabBar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* Collapsible stages */
+function toggleStage(el) { el.classList.toggle('active'); }
+
+/* Domain selector */
+const domainDescriptions = {
+  intervals: '<strong>Intervals</strong> track each variable independently as a range [min, max]. For example, knowing <code>x &isin; [3, 9]</code> and <code>y &isin; [5, 12]</code>. Fast (O(n) per program point) but loses all relationships between variables. If <code>y = x + 2</code>, intervals can only say <code>y &isin; [5, 11]</code> &mdash; it doesn\'t know that when x=3, y must be 5. This means <code>y - x</code> is estimated as [-6, 9] instead of the exact value 2. That lost precision can cause false alarms on expressions like <code>a[y - x]</code> where the array has size 3.',
+  octagons: '<strong>Octagons</strong> track constraints of the form <code>&plusmn;x &plusmn; y &le; c</code>. This captures relationships like "x and y differ by at most 5" or "x + y is at most 100." More expensive than intervals (O(n&sup3;) per program point) but captures the pairwise variable relationships that intervals miss. In the example above, octagons would know <code>y - x = 2</code>, so <code>a[y - x]</code> is provably safe for arrays of size 3+. Named "octagons" because the constraint shape in 2D forms an octagon.',
+  polyhedra: '<strong>Polyhedra</strong> track arbitrary linear constraints between all variables: <code>a&middot;x + b&middot;y + c&middot;z &le; d</code>. The most precise numeric domain but exponentially expensive (worst case). Used selectively for small, critical code sections where intervals and octagons aren\'t enough. Can prove properties like "this linear combination of sensor readings is bounded" that no simpler domain can express. In practice, limited to functions with fewer than ~20 variables.',
+  filters: '<strong>Digital filter domains</strong> are specialized for flight control software that implements IIR/FIR filters (e.g., low-pass filters on sensor data, PID controllers). These have a specific mathematical structure: <code>y[n] = a&middot;y[n-1] + b&middot;x[n]</code>. A generic domain sees "multiply by coefficient, add to accumulator" and the accumulator\'s abstract value grows unboundedly. The filter domain understands stability theory: if the filter coefficients satisfy the stability condition (poles inside the unit circle), the output is bounded. This was developed specifically for Airbus &mdash; flight control is full of digital filters. Without this domain, zero false alarms would be impossible.'
+};
+
+function selectDomain(id) {
+  document.querySelectorAll('.domain-box').forEach(b => b.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  document.getElementById('domain-detail').innerHTML = '<p>' + domainDescriptions[id] + '</p>';
+}
+
+/* Flashcards */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent =
+    document.querySelectorAll('#flashcard-deck .flashcard').length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+
+</body>
+</html>

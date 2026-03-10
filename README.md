@@ -239,7 +239,7 @@ app/                          Composition roots + shared lib
 generated/                    Machine-generated output (never edit, committed)
   ts-ast/                     Output grouped by grammar target
     grammar/                  Functor 1 output (node-types, schema, convert, etc.)
-    kind-checking/            Functor 2 output (evaluator.ts, attr-types.ts)
+    kind-checking/            Functor 2 output (dispatch.ts, attr-types.ts)
 
 test/                         Test suite (vitest, 262 tests)
 dashboard/                    Interactive AST visualization (React + Vite)

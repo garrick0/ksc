@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beyond C &mdash; Formal Verification for Higher-Level Languages</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --bg-card: #1a1f2b;
+    --border: #30363d;
+    --border-light: #3d444d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #6e7681;
+    --accent: #58a6ff;
+    --accent-light: #79c0ff;
+    --accent-dim: #1f6feb33;
+    --green: #3fb950;
+    --green-dim: #23863633;
+    --yellow: #d29922;
+    --yellow-dim: #9e6a0333;
+    --red: #f85149;
+    --red-dim: #da363333;
+    --purple: #bc8cff;
+    --purple-dim: #8957e533;
+    --orange: #f0883e;
+    --orange-dim: #bd561d33;
+    --cyan: #39d2c0;
+    --cyan-dim: #1b7c6e33;
+    --gold: #e3b341;
+    --gold-dim: #bb800926;
+    --pink: #f778ba;
+    --pink-dim: #db61a233;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 30%, #1a1840 60%, #0d2838 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--purple), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  .header .subtitle {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 800px;
+    margin: 0 auto 1rem;
+  }
+  .header-badges {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .header-badge {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border: 1px solid;
+  }
+
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-tab {
+    padding: 0.85rem 1.2rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    font-size: 0.84rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--bg-tertiary); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-tertiary); }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.2rem;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border-light); }
+  .card h3 { font-size: 1.05rem; margin-bottom: 0.7rem; color: var(--accent-light); }
+  .card p, .card li { color: var(--text-muted); font-size: 0.9rem; }
+  .card ul { padding-left: 1.4rem; }
+  .card li { margin-bottom: 0.3rem; }
+
+  .collapsible {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .collapsible-header {
+    padding: 1rem 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+    font-size: 1rem;
+    user-select: none;
+    transition: background 0.2s;
+  }
+  .collapsible-header:hover { background: var(--bg-tertiary); }
+  .collapsible-header .arrow { transition: transform 0.2s; color: var(--text-dim); font-size: 0.8rem; }
+  .collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+  .collapsible-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, padding 0.3s; padding: 0 1.3rem; }
+  .collapsible.open .collapsible-body { max-height: 12000px; padding: 0 1.3rem 1.3rem; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.86rem; }
+  th {
+    text-align: left;
+    padding: 0.65rem 0.9rem;
+    background: var(--bg-tertiary);
+    color: var(--text);
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  td { padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text-muted); vertical-align: top; }
+  tr:hover td { background: var(--bg-secondary); }
+
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 10px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .badge-blue { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+  .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow); }
+  .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+  .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple); }
+  .badge-orange { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--orange); }
+  .badge-cyan { background: var(--cyan-dim); color: var(--cyan); border: 1px solid var(--cyan); }
+  .badge-gold { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold); }
+  .badge-pink { background: var(--pink-dim); color: var(--pink); border: 1px solid var(--pink); }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem;
+    text-align: center;
+  }
+  .stat-card .stat-value { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.2rem; }
+  .stat-card .stat-label { font-size: 0.78rem; color: var(--text-muted); }
+
+  .insight {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .insight.warning { background: var(--yellow-dim); border-color: var(--yellow); }
+  .insight.success { background: var(--green-dim); border-color: var(--green); }
+  .insight.danger { background: var(--red-dim); border-color: var(--red); }
+  .insight strong { color: var(--text); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+  }
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.2rem;
+  }
+
+  .section-header { margin-bottom: 1.5rem; }
+  .section-header h2 { font-size: 1.45rem; margin-bottom: 0.4rem; }
+  .section-header p { color: var(--text-muted); font-size: 0.9rem; }
+  h4 { margin: 1rem 0 0.5rem; color: var(--text); font-size: 0.95rem; }
+
+  /* Gap diagram */
+  .gap-diagram {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.78rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text-muted);
+  }
+  .gap-diagram .highlight { color: var(--green); font-weight: 700; }
+  .gap-diagram .dim { color: var(--text-dim); }
+  .gap-diagram .accent { color: var(--accent); }
+  .gap-diagram .label { color: var(--yellow); }
+
+  /* Bar chart */
+  .bar-chart { margin: 1.2rem 0; }
+  .bar-row { display: flex; align-items: center; margin: 0.5rem 0; }
+  .bar-label { min-width: 160px; font-size: 0.8rem; color: var(--text-muted); text-align: right; padding-right: 0.8rem; }
+  .bar-track { flex: 1; height: 26px; background: var(--bg-tertiary); border-radius: 4px; position: relative; overflow: hidden; }
+  .bar-fill {
+    height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 0.7rem;
+    font-size: 0.76rem; font-weight: 600; color: #fff; white-space: nowrap; transition: width 0.8s ease;
+  }
+
+  /* Company entry points */
+  .entry-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    transition: border-color 0.2s;
+  }
+  .entry-card:hover { border-color: var(--accent); }
+  .entry-left { flex: 1; min-width: 250px; }
+  .entry-name { font-weight: 600; font-size: 0.95rem; }
+  .entry-pitch { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem; }
+  .entry-right { text-align: right; }
+  .entry-deal { font-size: 1.2rem; font-weight: 700; color: var(--green); }
+  .entry-type { font-size: 0.75rem; color: var(--text-dim); }
+
+  /* AI architecture */
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .arch-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 1.2rem;
+    text-align: center;
+    min-width: 140px;
+  }
+  .arch-box .arch-title { font-weight: 600; font-size: 0.85rem; }
+  .arch-box .arch-desc { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.2rem; }
+  .arch-arrow {
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    padding: 0 0.5rem;
+  }
+
+  /* Category pills */
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .cat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .cat-card:hover { border-color: var(--accent); }
+  .cat-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+  .cat-card .cat-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.3rem; }
+  .cat-card .cat-q { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
+  .cat-detail { display: none; margin: 1rem 0; }
+  .cat-detail.active { display: block; }
+
+  /* Incident timeline */
+  .incident-row {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .incident-cost {
+    min-width: 80px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--red);
+  }
+  .incident-body { flex: 1; }
+  .incident-name { font-weight: 600; font-size: 0.92rem; }
+  .incident-desc { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+  /* Pricing tiers */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .pricing-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .pricing-card.featured { border-color: var(--accent); }
+  .pricing-card .tier-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; }
+  .pricing-card .tier-price { font-size: 1.4rem; font-weight: 700; color: var(--green); margin-bottom: 0.3rem; }
+  .pricing-card .tier-target { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.8rem; }
+  .pricing-card ul { text-align: left; padding-left: 1.2rem; }
+  .pricing-card li { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+
+  /* Phase timeline */
+  .phase-timeline { margin: 1.5rem 0; }
+  .phase-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .phase-marker {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    border: 2px solid;
+  }
+  .phase-content { flex: 1; }
+  .phase-content h4 { margin: 0 0 0.3rem; font-size: 1rem; }
+  .phase-content p { font-size: 0.85rem; color: var(--text-muted); }
+
+  /* Flashcards */
+  .quiz-progress {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+  }
+  .quiz-reset-btn, .quiz-shuffle-btn {
+    padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-secondary); color: var(--text-dim); font-size: 0.8rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  .flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+
+  .flashcard { display: none; cursor: pointer; }
+  .flashcard.active { display: block; }
+
+  .flashcard-inner {
+    position: relative; width: 100%; min-height: 260px;
+    transition: transform 0.5s; transform-style: preserve-3d;
+  }
+  .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+
+  .flashcard-front, .flashcard-back {
+    position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 32px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center;
+  }
+  .flashcard-front p { font-size: 1.05rem; max-width: 600px; line-height: 1.6; }
+  .flashcard-back { transform: rotateY(180deg); }
+  .flashcard-back p { font-size: 0.92rem; max-width: 600px; line-height: 1.6; color: var(--text-muted); margin-bottom: 16px; }
+
+  .flashcard-q, .flashcard-a {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.9rem; margin-bottom: 14px;
+  }
+  .flashcard-q { background: var(--accent); color: var(--bg); }
+  .flashcard-a { background: var(--green); color: var(--bg); }
+
+  .flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+  .fc-btn {
+    padding: 8px 20px; border-radius: 6px; font-weight: 600;
+    font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg-secondary); color: var(--text-dim); transition: all 0.2s;
+  }
+  .fc-btn:hover { color: var(--text); }
+  .fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+  .fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+
+  .flashcard.marked-right { border-left: 3px solid var(--green); }
+  .flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+
+  .flashcard-nav {
+    display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+  }
+  .flashcard-nav button {
+    padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-secondary); color: var(--text-dim); font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+  #card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+  code {
+    background: var(--bg-tertiary);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--cyan);
+  }
+
+  @media (max-width: 768px) {
+    .two-col, .three-col { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .header h1 { font-size: 1.5rem; }
+    .content { padding: 1rem; }
+    .nav-tab { padding: 0.7rem 0.8rem; font-size: 0.78rem; }
+    .bar-label { min-width: 100px; font-size: 0.72rem; }
+    .entry-card { flex-direction: column; }
+    .entry-right { text-align: left; }
+    .arch-flow { flex-direction: column; }
+    .arch-arrow { transform: rotate(90deg); }
+    .cat-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Beyond C: Formal Verification for Higher-Level Languages</h1>
+  <p class="subtitle">Market analysis of the emerging opportunity to extend formal verification and advanced static analysis to Java, Python, TypeScript, Go, Rust, and C# &mdash; serving sectors currently underserved by existing tools.</p>
+  <div class="header-badges">
+    <span class="header-badge" style="background: var(--accent-dim); color: var(--accent); border-color: var(--accent);">$13.6B AppSec Market</span>
+    <span class="header-badge" style="background: var(--green-dim); color: var(--green); border-color: var(--green);">Empty Market Quadrant</span>
+    <span class="header-badge" style="background: var(--purple-dim); color: var(--purple); border-color: var(--purple);">AI-Assisted Verification</span>
+    <span class="header-badge" style="background: var(--gold-dim); color: var(--gold); border-color: var(--gold);">March 2026</span>
+  </div>
+</div>
+
+<div class="nav-tabs" id="navTabs">
+  <div class="nav-tab active" data-section="overview">Overview</div>
+  <div class="nav-tab" data-section="analysis-shift">Analysis Questions</div>
+  <div class="nav-tab" data-section="sectors">Sector Deep-Dives</div>
+  <div class="nav-tab" data-section="landscape">Market Landscape</div>
+  <div class="nav-tab" data-section="ai-verification">AI + Verification</div>
+  <div class="nav-tab" data-section="emerging">Emerging Categories</div>
+  <div class="nav-tab" data-section="targets">Target Markets</div>
+  <div class="nav-tab" data-section="gtm">Go-to-Market</div>
+  <div class="nav-tab" data-section="quiz">Quiz</div>
+</div>
+
+<div class="content">
+
+<!-- ===================== OVERVIEW ===================== -->
+<div class="section active" id="section-overview">
+  <div class="section-header">
+    <h2>Executive Summary</h2>
+    <p>The formal verification market has been dominated by C/C++ analysis for safety-critical embedded systems. Higher-level languages eliminate undefined behavior but introduce different &mdash; and more accessible &mdash; analysis questions. Combined with AI-assisted configuration, this creates a market opportunity to serve mid-market customers who cannot justify $500K&ndash;$2M+ traditional formal verification engagements.</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent);">$13.6B</div>
+      <div class="stat-label">AppSec Testing Market (2025)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--green);">~$4B</div>
+      <div class="stat-label">SAST Specifically (34.65%)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--purple);">$51.1B</div>
+      <div class="stat-label">Cloud Security Market</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--gold);">17&ndash;22%</div>
+      <div class="stat-label">AppSec CAGR</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--red);">&lt;$100M</div>
+      <div class="stat-label">Formal Verification (Higher-Level)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--cyan);">$500M&ndash;$1B</div>
+      <div class="stat-label">Projected by 2028 (50%+ CAGR)</div>
+    </div>
+  </div>
+
+  <div class="insight success">
+    <strong>Key thesis:</strong> The gap between what SAST tools find (pattern-matched vulnerabilities) and what formal verification proves (mathematical guarantees about program behavior) represents the primary opportunity. No tool provides formal verification guarantees for Java, Python, TypeScript, or Go at the level that Astr&eacute;e/Polyspace provide for C.
+  </div>
+
+  <h4>The Market Gap &mdash; Upper-Right Quadrant is Empty</h4>
+  <div class="gap-diagram"><span class="label">                    DEPTH OF ANALYSIS</span>
+                    ───────────────────────────►
+                    <span class="dim">Pattern</span>          <span class="dim">Dataflow</span>         <span class="dim">Formal</span>
+                    <span class="dim">Matching</span>         <span class="dim">Analysis</span>         <span class="dim">Verification</span>
+
+   <span class="accent">Higher-Level</span>    SonarQube       CodeQL           ┌─────────────┐
+   <span class="accent">Languages</span>       Semgrep         Coverity         │  <span class="highlight">THE GAP</span>    │
+   <span class="accent">(Java, Python,</span>  ESLint          Infer (Java)     │  <span class="highlight">= OUR</span>      │
+   <span class="accent"> TS, Go, Rust)</span>  Pylint                           │  <span class="highlight">OPPORTUNITY</span> │
+                                                    └─────────────┘
+
+   <span class="dim">C/C++</span>           cppcheck        Coverity         Astr&eacute;e
+                   Flawfinder      Klocwork         Polyspace
+                                   CodeSonar        TrustInSoft</div>
+
+  <h4>What&rsquo;s Driving This Opportunity?</h4>
+  <div class="three-col">
+    <div class="card">
+      <h3>Language Shift</h3>
+      <p>Higher-level languages now dominate in sectors that need verification. Finance, healthcare, and cloud are primarily Java/Python/TypeScript &mdash; not C.</p>
+    </div>
+    <div class="card">
+      <h3>AI Makes It Accessible</h3>
+      <p>AI-assisted specification inference and configuration can reduce the cost of formal verification by 10&ndash;100x, making it viable for mid-market companies.</p>
+    </div>
+    <div class="card">
+      <h3>Catastrophic Incidents</h3>
+      <p>CrowdStrike ($5.4B), AT&T (125M devices), Azure ($4.8&ndash;16B) &mdash; C-suite awareness of software verification has never been higher.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ANALYSIS QUESTIONS ===================== -->
+<div class="section" id="section-analysis-shift">
+  <div class="section-header">
+    <h2>The Analysis Question Shift</h2>
+    <p>Higher-level languages eliminate undefined behavior &mdash; the traditional analysis target. But they introduce a different, sector-specific set of analysis questions.</p>
+  </div>
+
+  <div class="two-col" style="margin-bottom: 1.5rem;">
+    <div class="card" style="border-color: var(--red);">
+      <h3 style="color: var(--red);">C/C++ &mdash; Traditional Questions</h3>
+      <ul>
+        <li>Can undefined behavior occur?</li>
+        <li>Are there buffer overflows?</li>
+        <li>Do dangling pointers exist?</li>
+        <li>Is memory correctly managed?</li>
+        <li>Do integer overflows cause issues?</li>
+      </ul>
+      <p style="margin-top: 0.5rem; font-size: 0.82rem;"><strong>Solved by:</strong> Astr&eacute;e, Polyspace, TrustInSoft</p>
+    </div>
+    <div class="card" style="border-color: var(--green);">
+      <h3 style="color: var(--green);">Higher-Level Languages &mdash; New Questions</h3>
+      <ul>
+        <li>Are business calculations correct?</li>
+        <li>Do all API endpoints require auth?</li>
+        <li>Can PII leak into log files?</li>
+        <li>Does software comply with IEC 62304?</li>
+        <li>Do services honor their contracts?</li>
+      </ul>
+      <p style="margin-top: 0.5rem; font-size: 0.82rem;"><strong>Solved by:</strong> Nobody (yet)</p>
+    </div>
+  </div>
+
+  <h4>Six New Analysis Categories</h4>
+  <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">Click a category to see details and examples.</p>
+
+  <div class="cat-grid">
+    <div class="cat-card selected" onclick="selectCat(this, 'cat-runtime')">
+      <div class="cat-name">Runtime Exception Prevention</div>
+      <div class="cat-q">&ldquo;Can this code throw at runtime?&rdquo;</div>
+      <span class="badge badge-green" style="margin-top: 0.5rem;">Most Tractable</span>
+    </div>
+    <div class="cat-card" onclick="selectCat(this, 'cat-business')">
+      <div class="cat-name">Business Logic Verification</div>
+      <div class="cat-q">&ldquo;Are our calculations correct?&rdquo;</div>
+      <span class="badge badge-gold" style="margin-top: 0.5rem;">Highest Value</span>
+    </div>
+    <div class="cat-card" onclick="selectCat(this, 'cat-security')">
+      <div class="cat-name">Security Property Verification</div>
+      <div class="cat-q">&ldquo;Is every endpoint authenticated?&rdquo;</div>
+      <span class="badge badge-red" style="margin-top: 0.5rem;">Post-Breach Urgency</span>
+    </div>
+    <div class="cat-card" onclick="selectCat(this, 'cat-api')">
+      <div class="cat-name">API Contract Verification</div>
+      <div class="cat-q">&ldquo;Do services honor their contracts?&rdquo;</div>
+      <span class="badge badge-blue" style="margin-top: 0.5rem;">Cloud/SaaS Focus</span>
+    </div>
+    <div class="cat-card" onclick="selectCat(this, 'cat-concurrency')">
+      <div class="cat-name">Concurrency Verification</div>
+      <div class="cat-q">&ldquo;Are there data races or deadlocks?&rdquo;</div>
+      <span class="badge badge-purple" style="margin-top: 0.5rem;">High Complexity</span>
+    </div>
+    <div class="cat-card" onclick="selectCat(this, 'cat-compliance')">
+      <div class="cat-name">Compliance &amp; Privacy Verification</div>
+      <div class="cat-q">&ldquo;Can PII leak? Do we comply?&rdquo;</div>
+      <span class="badge badge-orange" style="margin-top: 0.5rem;">Regulatory Driver</span>
+    </div>
+  </div>
+
+  <div class="cat-detail active" id="cat-runtime">
+    <div class="card">
+      <h3>Runtime Exception Prevention</h3>
+      <p><strong>The question:</strong> Can NullPointerException, TypeError, IndexOutOfBoundsException, or similar runtime exceptions occur?</p>
+      <p style="margin-top: 0.5rem;"><strong>Languages:</strong> Java (NPE is the #1 production error), Python (AttributeError, TypeError), TypeScript (despite types, runtime checks still fail)</p>
+      <p style="margin-top: 0.5rem;"><strong>Why it matters:</strong> This is the &ldquo;undefined behavior&rdquo; equivalent for managed languages. Meta Infer already proves this for Java using abstract interpretation &mdash; demonstrating feasibility. But Infer is a bug finder, not a verification tool, and produces no compliance evidence.</p>
+      <p style="margin-top: 0.5rem;"><strong>Current state:</strong> Meta Infer (free, OSS, no support), TypeScript strict mode (compile-time only), MyPy (Python type checker)</p>
+    </div>
+  </div>
+  <div class="cat-detail" id="cat-business">
+    <div class="card">
+      <h3>Business Logic Verification</h3>
+      <p><strong>The question:</strong> Are our financial calculations, pricing rules, settlement logic, and business workflows correct?</p>
+      <p style="margin-top: 0.5rem;"><strong>Why nobody does this:</strong> SAST tools check for security vulnerabilities, not business correctness. No tool can verify &ldquo;interest is calculated correctly&rdquo; or &ldquo;settlement amounts balance.&rdquo; This requires domain-specific specifications.</p>
+      <p style="margin-top: 0.5rem;"><strong>The AI angle:</strong> LLMs can read business requirements documents and extract formal properties to verify, dramatically reducing the specification burden. The verifier remains sound &mdash; wrong AI suggestions are rejected.</p>
+      <p style="margin-top: 0.5rem;"><strong>Target sectors:</strong> Fintech ($100K&ndash;$500K per system), insurance (actuarial calculations), banking (settlement engines)</p>
+    </div>
+  </div>
+  <div class="cat-detail" id="cat-security">
+    <div class="card">
+      <h3>Security Property Verification</h3>
+      <p><strong>The question:</strong> Can we <em>prove</em> that every API endpoint requires authentication? That no user can access another user&rsquo;s data?</p>
+      <p style="margin-top: 0.5rem;"><strong>The Optus problem:</strong> The 2022 breach exposed 10M records because a single API endpoint lacked authentication. Pattern-matching SAST might detect this &mdash; formal verification can <em>prove</em> it cannot happen.</p>
+      <p style="margin-top: 0.5rem;"><strong>Differentiation:</strong> Existing tools find known vulnerability patterns. We prove the <em>absence</em> of vulnerability classes. &ldquo;No endpoint can be accessed without valid authentication&rdquo; is a property that can be formally verified.</p>
+    </div>
+  </div>
+  <div class="cat-detail" id="cat-api">
+    <div class="card">
+      <h3>API Contract Verification</h3>
+      <p><strong>The question:</strong> If Service A expects field X from Service B, will Service B always provide it? Do microservices honor their contracts across versions?</p>
+      <p style="margin-top: 0.5rem;"><strong>The CrowdStrike connection:</strong> Channel File 291 defined 21 input fields but the sensor code provided 20. A field count mismatch &mdash; a classic contract violation &mdash; caused $5.4B in damages.</p>
+      <p style="margin-top: 0.5rem;"><strong>Critical gap:</strong> No tool verifies properties across microservice boundaries. OpenAPI specs exist but compliance isn&rsquo;t verified at the code level. Contract testing (Pact) exists but provides no formal guarantees.</p>
+    </div>
+  </div>
+  <div class="cat-detail" id="cat-concurrency">
+    <div class="card">
+      <h3>Concurrency Property Verification</h3>
+      <p><strong>The question:</strong> Are there data races, deadlocks, or atomicity violations in concurrent code?</p>
+      <p style="margin-top: 0.5rem;"><strong>Where it matters:</strong> Every cloud service is concurrent. The AT&T Feb 2024 outage (125M devices, 12 hours) was caused by a misconfigured network update that cascaded. AWS&rsquo;s Oct 2025 DNS outage was a race condition in internal resolvers.</p>
+      <p style="margin-top: 0.5rem;"><strong>Current state:</strong> Meta Infer can detect some race conditions in Java. Go&rsquo;s race detector works at runtime. No tool provides compile-time formal verification of concurrency properties for higher-level languages.</p>
+    </div>
+  </div>
+  <div class="cat-detail" id="cat-compliance">
+    <div class="card">
+      <h3>Compliance &amp; Privacy Verification</h3>
+      <p><strong>The question:</strong> Can PII reach a log file? Can data cross jurisdiction boundaries? Does our SaMD comply with IEC 62304?</p>
+      <p style="margin-top: 0.5rem;"><strong>The gap:</strong> Current privacy tools (BigID, OneTrust) operate at the infrastructure/data layer. No tool performs <em>code-level taint tracking</em> of personal data flows &mdash; verifying at the source code level that PII doesn&rsquo;t leak into logs, analytics, or unauthorized services.</p>
+      <p style="margin-top: 0.5rem;"><strong>Regulatory drivers:</strong> GDPR, CCPA, Australia&rsquo;s Privacy Act amendments, APRA CPS 234, PCI DSS v4.0 (3 regulations now explicitly require SAST within 12 months)</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SECTOR DEEP-DIVES ===================== -->
+<div class="section" id="section-sectors">
+  <div class="section-header">
+    <h2>Sector Deep-Dives</h2>
+    <p>Five sectors where formal verification for higher-level languages addresses real, monetizable pain points.</p>
+  </div>
+
+  <!-- Fintech -->
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Fintech &amp; Banking
+      <span class="badge badge-gold" style="margin-left: auto;">Highest Priority</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--gold);">$1B/yr</div>
+          <div class="stat-label">JPMorgan Cybersecurity Spend</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--accent);">30M+</div>
+          <div class="stat-label">Lines of OCaml (Jane Street)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--green);">$200K&ndash;$2M</div>
+          <div class="stat-label">Enterprise SAST Deals</div>
+        </div>
+      </div>
+
+      <h4>The Problem</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Financial institutions process trillions of dollars through software calculations. A bug in settlement logic, interest calculation, or fee computation can cost millions in reconciliation breaks. Yet no tool <em>verifies</em> business logic correctness &mdash; SAST tools only find security vulnerabilities.</p>
+
+      <h4>Current Landscape</h4>
+      <table>
+        <thead><tr><th>Company</th><th>Approach</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Jane Street</strong></td><td>OCaml (30M+ lines)</td><td>Chose OCaml specifically for type safety and correctness. Language choice <em>is</em> their verification strategy.</td></tr>
+          <tr><td><strong>Stripe</strong></td><td>Sorbet (Ruby type checker)</td><td>Built custom type system for Ruby codebase. Shows demand for stronger guarantees.</td></tr>
+          <tr><td><strong>Goldman Sachs</strong></td><td>Alloy specification language</td><td>Used Alloy for modeling financial systems. Research-grade, not production tooling.</td></tr>
+          <tr><td><strong>Big 4 banks (AU)</strong></td><td>Manual testing + SAST</td><td>Mostly SonarQube/Fortify. No formal verification of business logic.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Buyer Personas</h4>
+      <table>
+        <thead><tr><th>Buyer</th><th>Budget</th><th>Entry Point</th></tr></thead>
+        <tbody>
+          <tr><td>Tier-1 bank CTO / Head of Engineering</td><td>$500K&ndash;$2M/year</td><td>Settlement or pricing engine verification</td></tr>
+          <tr><td>Fintech VP Engineering</td><td>$100K&ndash;$500K</td><td>Payment flow verification, compliance automation</td></tr>
+          <tr><td>Quant fund CTO</td><td>$200K&ndash;$1M</td><td>Trading system correctness, execution logic</td></tr>
+          <tr><td>Insurance company</td><td>$100K&ndash;$300K</td><td>Actuarial calculation verification</td></tr>
+        </tbody>
+      </table>
+
+      <div class="insight success">
+        <strong>Why fintech is #1:</strong> Business logic verification is the least served category, the cost of bugs is immediately quantifiable ($M in reconciliation breaks), and AI-assisted specification generation from business requirements docs is uniquely feasible here.
+      </div>
+    </div>
+  </div>
+
+  <!-- Cloud/SaaS -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Cloud &amp; SaaS
+      <span class="badge badge-blue" style="margin-left: auto;">Largest Volume</span>
+    </div>
+    <div class="collapsible-body">
+      <h4>The Problem</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Cloud services are distributed, concurrent, and interconnected. A single bug can cascade across services. AWS&rsquo;s Oct 2025 DNS outage was a race condition in internal resolvers. Azure&rsquo;s Oct 2025 outage caused $4.8&ndash;16B in estimated impact. No tool verifies properties <em>across</em> microservice boundaries.</p>
+
+      <h4>Key Incidents</h4>
+      <div class="incident-row">
+        <div class="incident-cost">$5.4B</div>
+        <div class="incident-body">
+          <div class="incident-name">CrowdStrike (Jul 2024)</div>
+          <div class="incident-desc">Channel File 291 defined 21 fields, sensor code provided 20. Field count mismatch in unverified content update. $1.94B in healthcare losses alone.</div>
+        </div>
+      </div>
+      <div class="incident-row">
+        <div class="incident-cost">$4.8&ndash;16B</div>
+        <div class="incident-body">
+          <div class="incident-name">Azure Outage (Oct 2025)</div>
+          <div class="incident-desc">Multiple cascading failures in cloud infrastructure. Estimated impact range based on affected services and duration.</div>
+        </div>
+      </div>
+      <div class="incident-row">
+        <div class="incident-cost">125M devices</div>
+        <div class="incident-body">
+          <div class="incident-name">AT&amp;T (Feb 2024)</div>
+          <div class="incident-desc">Misconfigured network update cascaded. 12-hour outage affecting 125 million devices. Configuration verification failure.</div>
+        </div>
+      </div>
+      <div class="incident-row" style="border-bottom: none;">
+        <div class="incident-cost">DNS</div>
+        <div class="incident-body">
+          <div class="incident-name">AWS DNS (Oct 2025)</div>
+          <div class="incident-desc">Race condition in internal DNS resolvers. Concurrency property verification would have caught this.</div>
+        </div>
+      </div>
+
+      <h4>Buyer Personas</h4>
+      <table>
+        <thead><tr><th>Buyer</th><th>Budget</th><th>Entry Point</th></tr></thead>
+        <tbody>
+          <tr><td>SaaS VP Engineering</td><td>$100K&ndash;$500K</td><td>API contract verification, null safety</td></tr>
+          <tr><td>Platform team lead</td><td>$50K&ndash;$200K</td><td>Service contract + integration testing</td></tr>
+          <tr><td>Cloud security team</td><td>$200K&ndash;$1M</td><td>Access control verification, API security</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Telco -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Telecommunications
+      <span class="badge badge-orange" style="margin-left: auto;">Post-Breach Urgency</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--orange);">$35.1B</div>
+          <div class="stat-label">IT &amp; Telecom Cybersecurity (2024)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--red);">10M</div>
+          <div class="stat-label">Optus Records Exposed (2022)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--green);">14.2%</div>
+          <div class="stat-label">CAGR to $76.7B by 2030</div>
+        </div>
+      </div>
+
+      <h4>The Problem</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">The Optus breach (2022) exposed 10 million records through a single unauthenticated API endpoint. This is a <em>tractable formal verification problem</em>: proving that every endpoint requires authentication. Telcos are now under intense regulatory pressure (SOCI Act, ASD Essential Eight).</p>
+
+      <h4>The Opportunity</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">The shift from physical network infrastructure to software-defined networking (SDN/NFV) and 5G network slicing means telco reliability is now a <em>software verification</em> problem. Network functions written in Go, Java, and Python need the same guarantees that hardware-based systems historically provided.</p>
+
+      <table>
+        <thead><tr><th>Buyer</th><th>Budget</th><th>Entry Point</th></tr></thead>
+        <tbody>
+          <tr><td>Telco CISO / Head of Security</td><td>$200K&ndash;$500K</td><td>API access control verification</td></tr>
+          <tr><td>Network engineering team</td><td>$100K&ndash;$300K</td><td>VNF/5G function verification</td></tr>
+          <tr><td>Managed service provider</td><td>$50K&ndash;$200K</td><td>Customer-facing API security</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Mining -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Mining &amp; Autonomous Systems
+      <span class="badge badge-cyan" style="margin-left: auto;">Cross-Language Challenge</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--cyan);">700</div>
+          <div class="stat-label">Caterpillar Autonomous Trucks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--gold);">220+</div>
+          <div class="stat-label">Rio Tinto Fleet</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--green);">300</div>
+          <div class="stat-label">BHP Autonomous Trucks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--orange);">220+</div>
+          <div class="stat-label">Fortescue Fleet</div>
+        </div>
+      </div>
+
+      <h4>The Problem</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Autonomous mining fleets use a <strong>mixed-language stack</strong>: C/C++ for real-time control, Python for planning/ML, Java for fleet management and scheduling. The Fortescue collision at Christmas Creek (2024) &mdash; caused by a Wi-Fi dropout, not autonomy software failure &mdash; still prompted entire fleet grounding, demonstrating the enormous cost of any safety incident.</p>
+
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">No tool verifies safety properties <em>across</em> language boundaries. The C++ control layer has Polyspace/Astr&eacute;e. The Python/Java management layers have nothing.</p>
+
+      <table>
+        <thead><tr><th>Buyer</th><th>Budget</th><th>Entry Point</th></tr></thead>
+        <tbody>
+          <tr><td>Mining company autonomy team</td><td>$300K&ndash;$500K</td><td>Fleet management software verification</td></tr>
+          <tr><td>Autonomy vendor (Caterpillar, Komatsu)</td><td>$500K&ndash;$2M</td><td>Multi-language verification toolchain</td></tr>
+          <tr><td>Mine safety regulator</td><td>$50K&ndash;$100K</td><td>Verification standard consulting</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Healthcare/SaMD -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Healthcare &amp; SaMD
+      <span class="badge badge-purple" style="margin-left: auto;">Regulatory Gap</span>
+    </div>
+    <div class="collapsible-body">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--purple);">$3.83B</div>
+          <div class="stat-label">SaMD Market (2024)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--green);">38.4%</div>
+          <div class="stat-label">SaMD CAGR</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: var(--accent);">$180M+</div>
+          <div class="stat-label">Cochlear R&amp;D/yr</div>
+        </div>
+      </div>
+
+      <h4>The Problem</h4>
+      <p style="color: var(--text-muted); font-size: 0.9rem;"><strong>Software as a Medical Device (SaMD)</strong> is the fastest-growing medtech segment. These are apps and cloud platforms (Python, JavaScript, Java) that qualify as medical devices &mdash; diagnostic apps, remote monitoring, AI-powered analysis. They must comply with IEC 62304, but <strong>no verification tool exists for Python/JS/Java that produces IEC 62304 compliance evidence.</strong></p>
+
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">All existing IEC 62304 tools (Parasoft, LDRA, Polyspace) target C/C++. SaMD companies using Python and TypeScript must produce compliance evidence through <em>entirely manual processes</em>.</p>
+
+      <div class="insight warning">
+        <strong>The gap:</strong> IEC 62304 compliance for C/C++ has mature tooling (Parasoft C/C++test, LDRA, Polyspace). For Python, TypeScript, Java &mdash; the languages SaMD startups actually use &mdash; there is <em>nothing</em>. This is a clear, addressable gap with regulatory urgency.
+      </div>
+
+      <table>
+        <thead><tr><th>Buyer</th><th>Budget</th><th>Entry Point</th></tr></thead>
+        <tbody>
+          <tr><td>SaMD startup (pre-submission)</td><td>$50K&ndash;$150K/yr</td><td>IEC 62304 compliance evidence for Python/TS</td></tr>
+          <tr><td>Medical device manufacturer</td><td>$200K&ndash;$500K</td><td>Companion app verification + cloud platform</td></tr>
+          <tr><td>Hospital system / health network</td><td>$50K&ndash;$200K</td><td>Security compliance for connected devices</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MARKET LANDSCAPE ===================== -->
+<div class="section" id="section-landscape">
+  <div class="section-header">
+    <h2>Current Market Landscape</h2>
+    <p>Understanding what current tools actually do vs. what they claim, because the gap between SAST and formal verification is where the opportunity lies.</p>
+  </div>
+
+  <!-- Pattern-Matching SAST -->
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Pattern-Matching SAST (The Mainstream)
+      <span class="badge badge-yellow" style="margin-left: auto;">$4B+ Market</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">These tools find known vulnerability patterns but do <strong>NOT</strong> provide mathematical proof of properties.</p>
+
+      <table>
+        <thead><tr><th>Tool</th><th>What It Does</th><th>Revenue / Scale</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>SonarQube</strong></td>
+            <td>6,000+ rules. Pattern matching + taint flow analysis. Supports OWASP, CWE, NIST SSDF.</td>
+            <td>$98M revenue, $4.7B valuation</td>
+          </tr>
+          <tr>
+            <td><strong>Semgrep</strong></td>
+            <td>Programmable pattern matching (OSS). Pro adds cross-file dataflow + taint. Nov 2025: AI business logic detection beta.</td>
+            <td>$33.6M revenue, $204M funding</td>
+          </tr>
+          <tr>
+            <td><strong>GitHub CodeQL</strong></td>
+            <td>Relational DB from code; Datalog queries over AST/CFG/dataflow. Copilot Autofix: 90min → 28min remediation.</td>
+            <td>$30/committer/month</td>
+          </tr>
+          <tr>
+            <td><strong>Snyk Code</strong></td>
+            <td>Hybrid symbolic + generative AI (DeepCode). Symbolic detection, LLM remediation. 80% autofix accuracy.</td>
+            <td>$343M ARR, $8.5B peak valuation</td>
+          </tr>
+          <tr>
+            <td><strong>Veracode</strong></td>
+            <td>Unique: binary/bytecode analysis. Strong compliance. Acquired Phylum (Jan 2025).</td>
+            <td>$2.5B valuation, 15 customers >$1M ACV</td>
+          </tr>
+          <tr>
+            <td><strong>Checkmarx</strong></td>
+            <td>All-in-one: SAST, SCA, DAST, API, IaC. Acquired Tromzo (AI agents, Dec 2025).</td>
+            <td>$150M+ ARR, seeking $1.5&ndash;2.5B sale</td>
+          </tr>
+          <tr>
+            <td><strong>Fortify</strong></td>
+            <td>33+ languages, 1,524+ vuln categories. Gartner MQ Leader 11 consecutive years.</td>
+            <td>$50K+ enterprise</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Deeper Analysis -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Deeper Analysis Tools (Closer to Formal Verification)
+      <span class="badge badge-purple" style="margin-left: auto;">The Bridge</span>
+    </div>
+    <div class="collapsible-body">
+      <table>
+        <thead><tr><th>Tool</th><th>Languages</th><th>What It Does</th><th>Pricing</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Meta Infer</strong></td>
+            <td>Java, C/C++, ObjC</td>
+            <td>Separation logic + abstract interpretation. Compositional analysis. Null deref, leaks, races. Runs on thousands of changes/month at Meta.</td>
+            <td>Free (OSS)</td>
+          </tr>
+          <tr>
+            <td><strong>Coverity (Black Duck)</strong></td>
+            <td>22+ languages</td>
+            <td>Interprocedural, path-sensitive, abstract interpretation. Closest commercial tool to formal methods.</td>
+            <td>$500/dev (CodeSight); Enterprise custom</td>
+          </tr>
+          <tr>
+            <td><strong>Astr&eacute;e (AbsInt)</strong></td>
+            <td>C only</td>
+            <td>The gold standard. Sound abstract interpretation. Zero false alarms on Airbus.</td>
+            <td>&euro;20K&ndash;&euro;100K/license</td>
+          </tr>
+          <tr>
+            <td><strong>Polyspace</strong></td>
+            <td>C/C++, Ada</td>
+            <td>True abstract interpretation (Astr&eacute;e technology). Color-coded proofs of absence.</td>
+            <td>$5K&ndash;$20K/seat</td>
+          </tr>
+          <tr>
+            <td><strong>TrustInSoft</strong></td>
+            <td>C, C++</td>
+            <td>Formal methods via Frama-C. Mathematical guarantees.</td>
+            <td>$100K&ndash;$500K+ engagements</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="insight danger">
+        <strong>The critical gap:</strong> No tool provides formal verification guarantees for Java, Python, TypeScript, or Go at the level that Astr&eacute;e/Polyspace provide for C. Meta Infer is the closest for Java, but it&rsquo;s a bug finder, not a verification tool. It doesn&rsquo;t produce compliance evidence.
+      </div>
+    </div>
+  </div>
+
+  <!-- Market Events -->
+  <div class="collapsible">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Recent Market Events (2024&ndash;2026)
+      <span class="badge badge-red" style="margin-left: auto;">Intense M&amp;A</span>
+    </div>
+    <div class="collapsible-body">
+      <table>
+        <thead><tr><th>Event</th><th>Date</th><th>Significance</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Google acquires Wiz</strong></td><td>Mar 2025</td><td>$32B &mdash; largest cybersecurity acquisition ever. Wiz approaching $1B revenue in 5 years.</td></tr>
+          <tr><td><strong>Synopsys sells SIG</strong></td><td>Sep 2024</td><td>$2.1B. Rebranded as Black Duck. Includes Coverity. PE ownership = growth investment.</td></tr>
+          <tr><td><strong>Checkmarx for sale</strong></td><td>Sep 2024</td><td>Seeking $2.5B; reports suggest ~$1.5B. One platform >$150M ARR.</td></tr>
+          <tr><td><strong>Aikido Security</strong></td><td>2025</td><td>$1B valuation, Ghent-based. Unicorn in 3 years. All-in-one AppSec.</td></tr>
+          <tr><td><strong>CrowdStrike incident</strong></td><td>Jul 2024</td><td>$5.4B losses from unverified content update. Watershed moment for verification.</td></tr>
+          <tr><td><strong>Certora open-sources Prover</strong></td><td>2025</td><td>Smart contract formal verification goes free/community. AI Composer alpha Dec 2025.</td></tr>
+          <tr><td><strong>420+ cybersecurity M&amp;A</strong></td><td>2025</td><td>Intense consolidation. PE firms dominant acquirers.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="insight">
+        <strong>2025 Gartner MQ Leaders (AST):</strong> Checkmarx, Black Duck, OpenText/Fortify (11th consecutive year), HCL AppScan. Semgrep recognized for first time. Contrast Security named Visionary.
+      </div>
+    </div>
+  </div>
+
+  <!-- Market Size -->
+  <h4 style="margin-top: 1.5rem;">Market Size Summary</h4>
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">Cloud Security</div>
+      <div class="bar-track"><div class="bar-fill" style="width:85%; background: linear-gradient(90deg, var(--accent), var(--purple));">$51.1B (2025)</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">IT/Telecom Cyber</div>
+      <div class="bar-track"><div class="bar-fill" style="width:58%; background: linear-gradient(90deg, var(--orange), var(--yellow));">$35.1B (2024)</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">AppSec Testing</div>
+      <div class="bar-track"><div class="bar-fill" style="width:23%; background: linear-gradient(90deg, var(--green), var(--cyan));">$13.6B (2025)</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">CNAPP</div>
+      <div class="bar-track"><div class="bar-fill" style="width:18%; background: linear-gradient(90deg, var(--purple), var(--pink));">$10.9B</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">SAST Specifically</div>
+      <div class="bar-track"><div class="bar-fill" style="width:7%; background: linear-gradient(90deg, var(--cyan), var(--green));">~$4B</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">SaMD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:6.5%; background: linear-gradient(90deg, var(--purple), var(--accent));">$3.83B</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Smart Contract Audit</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1.5%; background: linear-gradient(90deg, var(--gold), var(--orange));">$890M</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="color: var(--green); font-weight: 600;">FV (Higher-Level)</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.5%; background: linear-gradient(90deg, var(--green), var(--accent)); min-width: 80px;">&lt;$100M</div></div>
+    </div>
+  </div>
+  <p style="color: var(--text-dim); font-size: 0.78rem;">Sources: Mordor Intelligence, Grand View Research, Fortune Business Insights, Gartner, MarketIntelo. Budget context: 8&ndash;12% of IT spend goes to security; 3/4 of organizations expect budget growth.</p>
+</div>
+
+<!-- ===================== AI + VERIFICATION ===================== -->
+<div class="section" id="section-ai-verification">
+  <div class="section-header">
+    <h2>AI + Formal Verification</h2>
+    <p>AI assistance is architecturally safe in formal verification because soundness never depends on the AI. The verifier is the arbiter &mdash; wrong AI suggestions are rejected, they don&rsquo;t compromise guarantees.</p>
+  </div>
+
+  <h4>The Architecture That Works</h4>
+  <div class="two-col" style="margin-bottom: 1.5rem;">
+    <div class="card" style="border-color: var(--red);">
+      <h3 style="color: var(--red);">Traditional AI in Code</h3>
+      <div class="arch-flow" style="margin: 0.5rem 0; justify-content: flex-start; flex-wrap: nowrap;">
+        <div class="arch-box" style="min-width: 90px;"><div class="arch-title">AI</div><div class="arch-desc">suggests code</div></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="min-width: 90px;"><div class="arch-title">Human</div><div class="arch-desc">reviews</div></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="min-width: 90px;"><div class="arch-title">Maybe</div><div class="arch-desc">correct?</div></div>
+      </div>
+    </div>
+    <div class="card" style="border-color: var(--green);">
+      <h3 style="color: var(--green);">AI in Formal Verification</h3>
+      <div class="arch-flow" style="margin: 0.5rem 0; justify-content: flex-start; flex-wrap: nowrap;">
+        <div class="arch-box" style="min-width: 90px;"><div class="arch-title">AI</div><div class="arch-desc">suggests specs</div></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="min-width: 90px;"><div class="arch-title">Verifier</div><div class="arch-desc">proves</div></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="min-width: 90px; border-color: var(--green);"><div class="arch-title" style="color: var(--green);">Math</div><div class="arch-desc">certain</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h4>What&rsquo;s Genuinely Novel (Not Marketing)</h4>
+  <div class="collapsible open">
+    <div class="collapsible-header">
+      <span class="arrow">&#9654;</span>
+      Shipping Products with Measurable Results
+    </div>
+    <div class="collapsible-body">
+      <table>
+        <thead><tr><th>Product</th><th>Innovation</th><th>Results</th></tr></thead>
+        <tbody>
+          <tr><td><strong>GitHub Copilot Autofix</strong></td><td>CodeQL detection + LLM multi-file fix generation in PR workflow</td><td>Median: 90min → 28min. XSS: 3hr → 22min. SQLi: 4hr → 18min.</td></tr>
+          <tr><td><strong>Snyk DeepCode AI</strong></td><td>Symbolic AI detection + LLM remediation. No hallucination in detection phase.</td><td>80% autofix accuracy. 84% MTTR reduction. 25M+ data flow cases.</td></tr>
+          <tr><td><strong>Semgrep Business Logic</strong></td><td>LLMs for semantic bugs (broken auth, IDORs) that rule-based SAST cannot detect.</td><td>Nov 2025 private beta. Genuine category expansion.</td></tr>
+          <tr><td><strong>Google OSS-Fuzz + AI</strong></td><td>LLM-generated fuzz targets for 160 C/C++ projects.</td><td>29% line coverage increase. 26 vulnerabilities including decades-old OpenSSL flaw.</td></tr>
+          <tr><td><strong>Meta ACH</strong></td><td>Mutation-guided, LLM-based test generation. Generates mutants then tests.</td><td>Novel feedback loop with measurable results.</td></tr>
+          <tr><td><strong>Certora AI Composer</strong></td><td>Formal verification embedded in AI code generation. Every snippet verified.</td><td>Alpha Dec 2025. Supports EVM, Solana, Stellar.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="insight">
+        <strong>The pattern:</strong> Most production-ready &ldquo;AI SAST&rdquo; in 2025&ndash;2026 uses a hybrid architecture: <em>deterministic analysis for detection</em>, LLMs for explanation/remediation/triage. The differentiation comes from integration depth and agentic orchestration.
+      </div>
+    </div>
+  </div>
+
+  <h4>Four AI Opportunities for Higher-Level Language Analysis</h4>
+  <div class="two-col">
+    <div class="card" style="border-left: 3px solid var(--gold);">
+      <h3 style="color: var(--gold);">1. Specification Inference <span class="badge badge-gold">Highest Value</span></h3>
+      <p>LLM reads code + docs + tests and infers function contracts, null-safety annotations, API contracts. <strong>The #1 barrier to formal verification adoption is writing specifications.</strong> If AI generates 80%+ automatically, cost drops dramatically.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--green);">
+      <h3 style="color: var(--green);">2. Business Rule Extraction</h3>
+      <p>LLM reads business requirements documents and extracts formal properties to verify. Compares requirements to implementation. Enables business logic verification &mdash; the most underserved category.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--accent);">
+      <h3 style="color: var(--accent);">3. False Alarm Classification</h3>
+      <p>SAST tools produce 30&ndash;70% false positive rates. LLM classifies findings as true/false positives. Reducing to 5&ndash;10% makes the tool dramatically more useful. Immediate revenue driver.</p>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--purple);">
+      <h3 style="color: var(--purple);">4. Compliance Mapping</h3>
+      <p>Automatically map analysis results to regulatory requirements (PCI DSS, IEC 62304, SOX). Generate compliance evidence documents. Most tedious part of regulated development.</p>
+    </div>
+  </div>
+
+  <div class="insight success">
+    <strong>Kleppmann (Dec 2025):</strong> &ldquo;LLMs will make formal verification mainstream.&rdquo; Writing proofs is ideal for LLMs because proof checkers reject invalid proofs &mdash; no hallucination risk. Harmonic AI: $1.45B valuation for Lean4-based AI proofs. The Lean4 ecosystem has 30,000+ VS Code installs and 50+ university courses.
+  </div>
+</div>
+
+<!-- ===================== EMERGING CATEGORIES ===================== -->
+<div class="section" id="section-emerging">
+  <div class="section-header">
+    <h2>Emerging Analysis Categories</h2>
+    <p>Four new verification domains that are growing from near-zero markets, each with strong structural drivers.</p>
+  </div>
+
+  <div class="two-col">
+    <!-- Smart Contracts -->
+    <div class="card" style="border-top: 3px solid var(--gold);">
+      <h3 style="color: var(--gold);">Smart Contract Verification</h3>
+      <p><strong>Market:</strong> $890M audit market (2024), $6.1B projected by 2033 (22.8% CAGR)</p>
+      <p style="margin-top: 0.3rem;"><strong>Scale of problem:</strong> $2.9B in DeFi hacks (2024). $2.17B stolen by mid-July 2025 alone. 2025 on pace for $3.1B+.</p>
+      <p style="margin-top: 0.3rem;"><strong>Key players:</strong> Certora (verified 2M+ lines, protects $100B+ TVL), Trail of Bits (Slither, Echidna), Runtime Verification (K Framework), Halborn ($90M raised).</p>
+      <p style="margin-top: 0.3rem;"><strong>Pricing:</strong> $25K&ndash;$100K per audit; $100K&ndash;$500K for formal verification.</p>
+      <div class="insight" style="margin-top: 0.5rem;">
+        <strong>Key trend:</strong> On-chain exploits are just 14% of crypto losses (2024) &mdash; the bigger problems are off-chain (compromised keys: 56.5% of attacks). On-chain verification tools are <em>working</em> but the perimeter needs expansion.
+      </div>
+    </div>
+
+    <!-- Privacy -->
+    <div class="card" style="border-top: 3px solid var(--orange);">
+      <h3 style="color: var(--orange);">Privacy &amp; Data Flow Verification</h3>
+      <p><strong>Market:</strong> ~$3&ndash;4B data privacy software. Code-level subset: $50&ndash;100M (nascent).</p>
+      <p style="margin-top: 0.3rem;"><strong>The gap:</strong> Current tools (BigID, OneTrust, Purview, Macie) operate at infrastructure/data layer. <strong>No tool performs code-level taint tracking of PII</strong> &mdash; proving that PII doesn&rsquo;t leak into logs, analytics, or unauthorized services.</p>
+      <p style="margin-top: 0.3rem;"><strong>Why now:</strong> GDPR, CCPA, Australia&rsquo;s Privacy Act amendments, data sovereignty requirements.</p>
+      <p style="margin-top: 0.3rem;"><strong>Opportunity:</strong> Proving &ldquo;PII never reaches this logging service&rdquo; or &ldquo;AU-resident data never flows to US processing&rdquo; maps directly to attribute grammar / data flow analysis.</p>
+    </div>
+
+    <!-- Supply Chain -->
+    <div class="card" style="border-top: 3px solid var(--cyan);">
+      <h3 style="color: var(--cyan);">Supply Chain Verification</h3>
+      <p><strong>Market:</strong> SCA is ~$2&ndash;3B, growing 20%+/year.</p>
+      <p style="margin-top: 0.3rem;"><strong>Current state:</strong> SCA tools (Snyk, Dependabot, FOSSA) identify known CVEs. SBOM generators (Syft, CycloneDX). Build provenance (Sigstore, SLSA).</p>
+      <p style="margin-top: 0.3rem;"><strong>The gap:</strong> No tool verifies that a dependency <em>behaves</em> as expected. A tool that formally verifies interface contracts &mdash; &ldquo;this library never makes a network call,&rdquo; &ldquo;this function is pure&rdquo; &mdash; would be highly differentiated.</p>
+      <p style="margin-top: 0.3rem;"><strong>Drivers:</strong> SolarWinds, Log4Shell, CrowdStrike. Executive Order 14028 requires SBOMs.</p>
+    </div>
+
+    <!-- AI Model -->
+    <div class="card" style="border-top: 3px solid var(--purple);">
+      <h3 style="color: var(--purple);">AI Model Behavior Verification</h3>
+      <p><strong>Market:</strong> AI governance/risk ~$500M&ndash;$1B, growing rapidly.</p>
+      <p style="margin-top: 0.3rem;"><strong>Current state:</strong> Very early. Academic research on robustness/fairness verification exists. Practical tools are limited.</p>
+      <p style="margin-top: 0.3rem;"><strong>Drivers:</strong> EU AI Act, FDA guidance on AI/ML medical devices, AI in lending/hiring/diagnosis.</p>
+      <p style="margin-top: 0.3rem;"><strong>Timeline:</strong> 24&ndash;36 months. First movers will define the tooling landscape.</p>
+      <span class="badge badge-purple">Long-Term Opportunity</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TARGET MARKETS ===================== -->
+<div class="section" id="section-targets">
+  <div class="section-header">
+    <h2>Target Market Assessment</h2>
+    <p>Ranking potential segments by addressability, willingness to pay, and differentiation.</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Rank</th><th>Segment</th><th>Addressability</th><th>Willingness to Pay</th><th>Differentiation</th><th>Score</th><th>Timeline</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>1</strong></td>
+        <td>Fintech &mdash; Business Logic</td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-green">Very High</span></td>
+        <td style="color: var(--green); font-weight: 700;">A+</td>
+        <td>6&ndash;12 months</td>
+      </tr>
+      <tr>
+        <td><strong>2</strong></td>
+        <td>SaMD &mdash; Compliance Evidence</td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-green">Very High</span></td>
+        <td style="color: var(--green); font-weight: 700;">A</td>
+        <td>6&ndash;12 months</td>
+      </tr>
+      <tr>
+        <td><strong>3</strong></td>
+        <td>Cloud/SaaS &mdash; API Contracts</td>
+        <td><span class="badge badge-green">Med-High</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td style="color: var(--green); font-weight: 700;">A</td>
+        <td>6&ndash;12 months</td>
+      </tr>
+      <tr>
+        <td><strong>4</strong></td>
+        <td>Telco &mdash; API Security</td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td><span class="badge badge-yellow">Med-High</span></td>
+        <td style="color: var(--accent); font-weight: 700;">A-</td>
+        <td>3&ndash;6 months</td>
+      </tr>
+      <tr>
+        <td><strong>5</strong></td>
+        <td>Smart Contract Verification</td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td><span class="badge badge-green">Very High</span></td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td style="color: var(--accent); font-weight: 700;">B+</td>
+        <td>Established</td>
+      </tr>
+      <tr>
+        <td><strong>6</strong></td>
+        <td>Mining &mdash; Fleet Software</td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td><span class="badge badge-yellow">Med-High</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td style="color: var(--accent); font-weight: 700;">B+</td>
+        <td>12&ndash;18 months</td>
+      </tr>
+      <tr>
+        <td><strong>7</strong></td>
+        <td>Cloud &mdash; Distributed Systems</td>
+        <td><span class="badge badge-orange">Low-Med</span></td>
+        <td><span class="badge badge-green">Very High</span></td>
+        <td><span class="badge badge-green">Very High</span></td>
+        <td style="color: var(--yellow); font-weight: 700;">B</td>
+        <td>18&ndash;24 months</td>
+      </tr>
+      <tr>
+        <td><strong>8</strong></td>
+        <td>Privacy &mdash; Data Flow</td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td><span class="badge badge-yellow">Growing</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td style="color: var(--yellow); font-weight: 700;">B</td>
+        <td>12&ndash;18 months</td>
+      </tr>
+      <tr>
+        <td><strong>9</strong></td>
+        <td>Healthcare &mdash; Traditional MedDev</td>
+        <td><span class="badge badge-red">Low</span></td>
+        <td><span class="badge badge-yellow">Medium</span></td>
+        <td><span class="badge badge-red">Low</span></td>
+        <td style="color: var(--orange); font-weight: 700;">C+</td>
+        <td>Avoid</td>
+      </tr>
+      <tr>
+        <td><strong>10</strong></td>
+        <td>AI Model Verification</td>
+        <td><span class="badge badge-red">Low</span></td>
+        <td><span class="badge badge-yellow">Growing</span></td>
+        <td><span class="badge badge-green">High</span></td>
+        <td style="color: var(--orange); font-weight: 700;">C</td>
+        <td>24&ndash;36 months</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4 style="margin-top: 2rem;">Australian Entry Points</h4>
+  <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">Specific companies, pitches, and estimated deal sizes for the Australian beachhead market ($50&ndash;100M).</p>
+
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Commonwealth Bank <span class="badge badge-gold">Fintech</span></div>
+      <div class="entry-pitch">Largest AU bank, $5B+ tech investment. Settlement/calculation verification.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$300K&ndash;$1M</div>
+      <div class="entry-type">Settlement engine engagement</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Cochlear <span class="badge badge-purple">SaMD</span></div>
+      <div class="entry-pitch">IEC 62304 evidence for companion apps. $180M+ R&amp;D budget.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$150K&ndash;$300K</div>
+      <div class="entry-type">Per-product compliance license</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Optus <span class="badge badge-orange">Telco</span></div>
+      <div class="entry-pitch">Post-breach regulatory pressure. API access control verification.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$200K&ndash;$500K</div>
+      <div class="entry-type">API security engagement</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Telstra <span class="badge badge-orange">Telco</span></div>
+      <div class="entry-pitch">Critical infrastructure, 5G/VNF reliability. Network function verification.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$300K&ndash;$1M</div>
+      <div class="entry-type">Network function verification</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Afterpay/Block <span class="badge badge-gold">Fintech</span></div>
+      <div class="entry-pitch">Payment processing correctness. Payment flow verification.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$100K&ndash;$300K</div>
+      <div class="entry-type">Payment flow engagement</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Canva <span class="badge badge-blue">Cloud/SaaS</span></div>
+      <div class="entry-pitch">Large TS/Python codebase, reliability at scale. API contract + null safety.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$100K&ndash;$200K</div>
+      <div class="entry-type">Developer tool subscription</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">ResMed <span class="badge badge-purple">SaMD</span></div>
+      <div class="entry-pitch">Cloud platform for respiratory devices. FDA/TGA requirements.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$200K&ndash;$500K</div>
+      <div class="entry-type">SaMD compliance platform</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Rio Tinto <span class="badge badge-cyan">Mining</span></div>
+      <div class="entry-pitch">220+ autonomous trucks. Fleet management software verification.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$300K&ndash;$500K</div>
+      <div class="entry-type">Fleet software engagement</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">SafetyCulture <span class="badge badge-blue">Cloud/SaaS</span></div>
+      <div class="entry-pitch">Workplace safety platform. Data sensitivity / privacy verification.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$50K&ndash;$150K</div>
+      <div class="entry-type">Privacy data flow analysis</div>
+    </div>
+  </div>
+  <div class="entry-card">
+    <div class="entry-left">
+      <div class="entry-name">Airwallex <span class="badge badge-gold">Fintech</span></div>
+      <div class="entry-pitch">Cross-border payments, regulatory compliance. Calculation verification.</div>
+    </div>
+    <div class="entry-right">
+      <div class="entry-deal">$100K&ndash;$300K</div>
+      <div class="entry-type">Payment + compliance engagement</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== GO-TO-MARKET ===================== -->
+<div class="section" id="section-gtm">
+  <div class="section-header">
+    <h2>Go-to-Market Strategy</h2>
+    <p>Competitive positioning, pricing, and a phased execution plan.</p>
+  </div>
+
+  <h4>Why AI Is the Key Differentiator</h4>
+  <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">The upper-right quadrant is empty not because of technical impossibility &mdash; abstract interpretation generalizes to higher-level languages. It&rsquo;s empty because of <strong>cost of adoption</strong>. AI solves all four cost barriers.</p>
+
+  <div class="two-col" style="margin-bottom: 1.5rem;">
+    <div class="card">
+      <h3>Specification Cost → AI Inference</h3>
+      <p>Traditional: months of expert work writing specs. AI: automatically infer from code + docs + tests. Human reviews, doesn&rsquo;t write from scratch.</p>
+    </div>
+    <div class="card">
+      <h3>Configuration Cost → Auto-Configure</h3>
+      <p>Traditional: formal methods experts tune widening thresholds, domains. AI: auto-configures based on language, framework, codebase. Verifier validates (soundness preserved).</p>
+    </div>
+    <div class="card">
+      <h3>Interpretation Cost → Plain English</h3>
+      <p>Traditional: abstract states, counterexample traces. AI: &ldquo;This function can throw NPE when the customer has no default payment method.&rdquo;</p>
+    </div>
+    <div class="card">
+      <h3>Compliance Cost → Auto-Generate</h3>
+      <p>Traditional: tedious manual mapping to IEC 62304, PCI DSS. AI: automatically map results to regulatory requirements and generate evidence documents.</p>
+    </div>
+  </div>
+
+  <h4>Pricing Strategy</h4>
+  <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">Positioned between cheap SAST ($20&ndash;50/dev/month) and expensive formal verification ($500K&ndash;$2M engagements).</p>
+
+  <div class="pricing-grid">
+    <div class="pricing-card">
+      <div class="tier-name">Developer</div>
+      <div class="tier-price">$100&ndash;200/dev/mo</div>
+      <div class="tier-target">Individual / small team</div>
+      <ul>
+        <li>Core analysis engine</li>
+        <li>AI-assisted spec generation</li>
+        <li>Basic property checking</li>
+      </ul>
+    </div>
+    <div class="pricing-card featured">
+      <div class="tier-name">Team</div>
+      <div class="tier-price">$300&ndash;500/dev/mo</div>
+      <div class="tier-target">Mid-market company</div>
+      <ul>
+        <li>Everything in Developer</li>
+        <li>Compliance evidence generation</li>
+        <li>Custom property library</li>
+        <li>API contract verification</li>
+      </ul>
+    </div>
+    <div class="pricing-card">
+      <div class="tier-name">Enterprise</div>
+      <div class="tier-price">$200K&ndash;$1M/yr</div>
+      <div class="tier-target">Large company / regulated</div>
+      <ul>
+        <li>Everything in Team</li>
+        <li>Dedicated support</li>
+        <li>Custom domain analysis</li>
+        <li>Formal verification certificates</li>
+      </ul>
+    </div>
+    <div class="pricing-card">
+      <div class="tier-name">Engagement</div>
+      <div class="tier-price">$100K&ndash;500K</div>
+      <div class="tier-target">Specific project</div>
+      <ul>
+        <li>Full formal verification</li>
+        <li>Expert support</li>
+        <li>Custom analysis domains</li>
+        <li>Compliance deliverables</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Execution Phases</h4>
+  <div class="phase-timeline">
+    <div class="phase-item">
+      <div class="phase-marker" style="background: var(--accent-dim); color: var(--accent); border-color: var(--accent);">1</div>
+      <div class="phase-content">
+        <h4 style="color: var(--accent);">Prove the Technology (0&ndash;6 months)</h4>
+        <p>Build core engine for TypeScript or Java. Target property: null safety / exception absence. AI integration: spec inference from types + docs + tests. Deliverable: open-source core + blog showing results on real codebases.</p>
+      </div>
+    </div>
+    <div class="phase-item">
+      <div class="phase-marker" style="background: var(--green-dim); color: var(--green); border-color: var(--green);">2</div>
+      <div class="phase-content">
+        <h4 style="color: var(--green);">First Revenue (6&ndash;12 months)</h4>
+        <p>Land 2&ndash;3 lighthouse customers: one AU bank (business logic), one medtech (compliance), one telco (API security). Engagement model: $100K&ndash;$300K per project. Add business logic verification and compliance evidence.</p>
+      </div>
+    </div>
+    <div class="phase-item">
+      <div class="phase-marker" style="background: var(--purple-dim); color: var(--purple); border-color: var(--purple);">3</div>
+      <div class="phase-content">
+        <h4 style="color: var(--purple);">Scale (12&ndash;24 months)</h4>
+        <p>Launch SaaS with per-developer pricing. Add Python, Go support. Features: API contract verification, privacy data flow analysis. Open-source analysis engine; monetize AI configuration, compliance, enterprise features.</p>
+      </div>
+    </div>
+  </div>
+
+  <h4>Risks &amp; Mitigation</h4>
+  <div class="two-col">
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <h3 style="color: var(--red);">Key Risks</h3>
+      <ul>
+        <li><strong>Scalability:</strong> Abstract interpretation of large codebases in dynamic languages is unproven at scale</li>
+        <li><strong>Incumbents adding AI:</strong> Snyk ($343M ARR), Checkmarx, GitHub/Microsoft all adding AI aggressively. 420+ M&amp;A deals in 2025</li>
+        <li><strong>&ldquo;Good enough&rdquo; barrier:</strong> Most companies satisfied with SAST + testing</li>
+        <li><strong>Long sales cycles:</strong> Enterprise security procurement 6&ndash;18 months</li>
+        <li><strong>Talent scarcity:</strong> Formal methods expertise is rare</li>
+      </ul>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--green);">
+      <h3 style="color: var(--green);">Mitigations</h3>
+      <ul>
+        <li><strong>Start tractable:</strong> Null safety, exception absence, access control &mdash; all achievable now</li>
+        <li><strong>Hybrid approach:</strong> Formal verification (differentiator) + AI-enhanced SAST (useful day one)</li>
+        <li><strong>Compliance wedge:</strong> Compliance evidence has clear ROI. Get in the door, then expand</li>
+        <li><strong>Australian beachhead:</strong> Smaller market with strong regulatory drivers. Build references, then expand</li>
+        <li><strong>Lean4 ecosystem:</strong> 30K+ VS Code installs, 50+ uni courses. AI reduces expertise barrier</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight success">
+    <strong>Timing:</strong> Certora open-sourced its prover and launched AI Composer. Semgrep entered business logic detection. Lean4 is growing explosively. Amazon is retreating (CodeGuru discontinued). The window for formal verification for higher-level languages &mdash; differentiated from both SAST (no formal guarantees) and traditional FV (C-only, expensive) &mdash; is open now.
+  </div>
+</div>
+
+<!-- ===================== QUIZ ===================== -->
+<div class="section" id="section-quiz">
+  <div class="section-header">
+    <h2>Knowledge Check</h2>
+    <p>Test your understanding of the higher-level language analysis market opportunity. Click a card to reveal the answer.</p>
+  </div>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard active" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the &ldquo;empty quadrant&rdquo; in the market, and why is it empty?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Formal verification for higher-level languages (Java, Python, TypeScript, Go). It&rsquo;s empty not because of technical impossibility &mdash; abstract interpretation generalizes to managed languages and is actually <em>simpler</em> due to managed memory &mdash; but because of <strong>cost of adoption</strong>: writing specifications, configuring analyzers, interpreting results, and producing compliance evidence are all prohibitively expensive without AI assistance.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does the CrowdStrike incident ($5.4B) relate to API contract verification?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Channel File 291 defined 21 input fields but the sensor code provided 20 &mdash; a classic <strong>contract violation</strong> (field count mismatch). A tool that formally verifies interface contracts between components would have caught this at build time. This single incident caused $5.4B in losses, with $1.94B in healthcare alone.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is AI architecturally safe in formal verification but risky in code generation?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>In formal verification, <strong>soundness never depends on the AI</strong>. The verifier is the arbiter &mdash; it mathematically proves or rejects suggestions. Wrong AI-generated specifications are simply rejected, never compromising guarantees. In code generation, there is no equivalent &ldquo;checker&rdquo; &mdash; an AI hallucination becomes production code. This is why Kleppmann predicted LLMs will make formal verification mainstream: proof checkers force retry on failure.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the #1 barrier to formal verification adoption, and how does AI address it?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>Writing specifications</strong> (contracts, properties to check). In C safety-critical, domain experts spend months writing these. AI addresses this through <strong>specification inference</strong>: an LLM reads code + documentation + tests and automatically infers function contracts, null-safety annotations, and API contracts. If AI generates 80%+ of specs automatically, the cost of verification drops by an order of magnitude.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why is fintech ranked as the #1 target segment (A+ score)?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Three reasons: (1) <strong>Business logic verification</strong> is the <em>least served</em> category &mdash; no tool verifies calculations, settlements, or pricing rules. (2) The cost of bugs is <strong>immediately quantifiable</strong> ($M in reconciliation breaks). (3) <strong>AI-assisted specification generation</strong> from business requirements documents is uniquely feasible in finance, where requirements are formal and well-documented. This combination of unmet need, quantifiable value, and technical feasibility is unmatched.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What gap exists in the SaMD (Software as a Medical Device) market, and how big is that market?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The SaMD market is <strong>$3.83B (2024)</strong> growing at <strong>38.4% CAGR</strong> &mdash; the fastest-growing medtech segment. The gap: SaMD products are built in Python, JavaScript, and Java, but <strong>all IEC 62304 compliance tools (Parasoft, LDRA, Polyspace) target only C/C++</strong>. SaMD companies must produce compliance evidence through entirely manual processes. A tool producing IEC 62304 evidence for Python/TS would have zero competition.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the &ldquo;hybrid architecture&rdquo; pattern that successful AI SAST tools use, and why?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Successful tools use <strong>deterministic analysis for detection</strong> and <strong>LLMs for explanation/remediation/triage</strong>. Examples: Snyk uses symbolic AI for detection + LLM for fixes (80% accuracy); GitHub uses CodeQL for detection + Copilot for fix generation (3x speedup). The reason: LLMs are unreliable for detection (&ldquo;functionally equivalent code can receive different security assessments depending on syntax&rdquo;) but excellent for natural language tasks like explanations and fix suggestions.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why does the Australian market make a good beachhead, and what&rsquo;s the estimated size?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Estimated at <strong>$50&ndash;100M</strong> (banking + medtech + telco + mining). Advantages: (1) Strong regulatory drivers (APRA CPS 234, SOCI Act, Optus aftermath). (2) Concentrated market &mdash; major buyers in each sector are identifiable by name. (3) The seL4 &ldquo;homegrown innovation&rdquo; narrative resonates with sovereign capability priorities. (4) Smaller market allows building references before tackling US/EU. 10 specific targets identified with deal sizes from $50K to $1M.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// Tab navigation
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('section-' + tab.dataset.section).classList.add('active');
+  });
+});
+
+// Collapsibles
+document.querySelectorAll('.collapsible-header').forEach(header => {
+  header.addEventListener('click', () => {
+    header.parentElement.classList.toggle('open');
+  });
+});
+
+// Category cards
+function selectCat(el, detailId) {
+  document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.cat-detail').forEach(d => d.classList.remove('active'));
+  el.classList.add('selected');
+  document.getElementById(detailId).classList.add('active');
+}
+
+// Flashcards
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+
+</body>
+</html>

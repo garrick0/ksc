@@ -15,11 +15,11 @@ KSC uses **attribute grammars** (AGs) to compute properties over the AST. Each n
 | **inh** (inherited) | top-down | Flows down from the parent node |
 | **collection** | bottom-up | Each node contributes a value; contributions are combined up the tree |
 
-All attributes are declared in the **analysis spec** (`analysis/spec.ts`). A compilation functor (`compileAnalysis`) reads this spec and generates:
-- `generated/evaluator.ts` — the compiled evaluator with typed cache, switch dispatch
-- `generated/attr-types.ts` — the `KSCAttrMap` interface
+All attributes are declared in the **analysis spec** (`specs/ts-ast/kind-checking/spec.ts`). A compilation functor (`compileAnalysis`) reads this spec and generates:
+- `generated/ts-ast/kind-checking/dispatch.ts` — per-attribute dispatch functions (switch/case over kinds)
+- `generated/ts-ast/kind-checking/attr-types.ts` — the `KSCAttrMap` interface
 
-No manual wiring needed — everything flows from the spec.
+The evaluator itself is hand-written in `evaluator/engine.ts` — it consumes the generated dispatch functions via `createEvaluator()`. No manual wiring needed — everything flows from the spec.
 
 ## Example 1: Adding a Property (the common case)
 

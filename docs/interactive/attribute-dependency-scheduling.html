@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attribute Dependency Scheduling — KSC vs JastAdd vs Silver vs Infer</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; overflow-x: hidden;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, #0f1117 0%, #161930 50%, #1a1040 100%);
+  padding: 70px 40px 55px; text-align: center;
+  border-bottom: 2px solid var(--border); position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(circle at 30% 50%, rgba(108,140,255,0.08) 0%, transparent 50%),
+              radial-gradient(circle at 70% 50%, rgba(167,139,250,0.08) 0%, transparent 50%);
+  animation: heroGlow 15s ease-in-out infinite alternate;
+}
+@keyframes heroGlow { 0% { transform: translateX(-5%); } 100% { transform: translateX(5%); } }
+.hero h1 {
+  font-size: 3rem; font-weight: 800; position: relative;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--pink));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin-bottom: 14px;
+}
+.hero .subtitle { font-size: 1.15em; color: var(--text-dim); max-width: 750px; margin: 0 auto 20px; position: relative; }
+.badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; position: relative; }
+.badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.78em;
+  font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.badge-ksc { background: rgba(108,140,255,0.2); color: var(--accent); border: 1px solid rgba(108,140,255,0.3); }
+.badge-jastadd { background: rgba(74,222,128,0.2); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+.badge-silver { background: rgba(167,139,250,0.2); color: var(--accent2); border: 1px solid rgba(167,139,250,0.3); }
+.badge-infer { background: rgba(251,191,36,0.2); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+
+/* Layout */
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 20px; }
+h2 .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%; background: var(--accent);
+  color: var(--bg); font-size: 0.75em; font-weight: 800; margin-right: 12px; vertical-align: middle;
+}
+h3 { font-size: 1.15rem; color: var(--accent2); margin: 24px 0 10px; }
+p { margin-bottom: 14px; color: var(--text-dim); }
+p strong { color: var(--text); }
+
+/* Nav */
+.toc {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 12px 0; position: sticky; top: 0; z-index: 100;
+}
+.toc-inner {
+  max-width: 960px; margin: 0 auto; padding: 0 24px;
+  display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap;
+}
+.toc a {
+  padding: 6px 14px; border-radius: 6px; font-size: 0.82em; font-weight: 600;
+  white-space: nowrap; color: var(--text-dim); transition: all 0.2s;
+}
+.toc a:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
+
+/* Code */
+pre {
+  background: #0d1220; border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px 20px; overflow-x: auto; font-size: 0.85em; line-height: 1.6;
+  margin: 12px 0 18px; color: var(--text);
+}
+code { font-family: var(--mono); font-size: 0.88em; }
+:not(pre) > code {
+  background: #0d1220; border: 1px solid var(--border);
+  padding: 2px 6px; border-radius: 4px; color: var(--cyan);
+}
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.fn-name { color: var(--yellow); }
+
+/* Tabs */
+.tabs { display: flex; gap: 2px; margin-bottom: 0; flex-wrap: wrap; }
+.tab {
+  padding: 10px 20px; border: 1px solid var(--border); border-bottom: none;
+  border-radius: 8px 8px 0 0; background: var(--surface); color: var(--text-dim);
+  font-size: 0.88em; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { box-shadow: inset 0 2px 0 var(--accent); color: var(--text); background: var(--surface2); }
+.tab-content { display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 24px; }
+.tab-content.active { display: block; }
+
+/* Insight */
+.insight {
+  border-left: 3px solid var(--accent); background: rgba(108,140,255,0.06);
+  padding: 14px 20px; border-radius: 0 8px 8px 0; margin: 18px 0;
+}
+.insight strong { color: var(--accent); }
+.insight.warn { border-left-color: var(--orange); background: rgba(251,146,60,0.06); }
+.insight.warn strong { color: var(--orange); }
+.insight.success { border-left-color: var(--green); background: rgba(74,222,128,0.06); }
+.insight.success strong { color: var(--green); }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin: 12px 0; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin: 16px 0; }
+.card h4 { color: var(--accent2); margin-bottom: 8px; font-size: 1.02em; }
+.card .card-label { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px; font-weight: 600; }
+
+/* Collapsible */
+.data-flow { margin: 20px 0; }
+.df-stage {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  margin: 8px 0; overflow: hidden; transition: all 0.2s;
+}
+.df-stage-header {
+  padding: 14px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+  font-weight: 600; user-select: none; transition: background 0.2s;
+}
+.df-stage-header:hover { background: var(--surface2); }
+.df-stage-title { display: flex; align-items: center; gap: 12px; }
+.df-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
+  color: var(--bg); font-size: 0.8em; font-weight: 800; flex-shrink: 0;
+}
+.df-expand { transition: transform 0.3s; font-size: 0.8em; color: var(--text-dim); }
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; padding: 0 20px; }
+.df-stage.active .df-detail { max-height: 800px; padding: 0 20px 16px; }
+.df-connector { width: 2px; height: 16px; background: var(--border); margin: 0 auto; }
+
+/* Dep graph visual */
+.dep-chain { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 20px 0; padding: 20px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
+.dep-node {
+  padding: 8px 14px; border-radius: 8px; font-size: 0.82em; font-weight: 600;
+  font-family: var(--mono); cursor: default; transition: all 0.2s; border: 1px solid;
+}
+.dep-node.syn { background: rgba(108,140,255,0.15); color: var(--accent); border-color: rgba(108,140,255,0.3); }
+.dep-node.inh { background: rgba(74,222,128,0.15); color: var(--green); border-color: rgba(74,222,128,0.3); }
+.dep-node.collection { background: rgba(251,191,36,0.15); color: var(--yellow); border-color: rgba(251,191,36,0.3); }
+.dep-node.param { border-style: dashed; }
+.dep-arrow { color: var(--text-dim); font-size: 1.2em; margin: 0 2px; }
+.dep-independent { margin-left: 20px; opacity: 0.6; }
+
+/* Comparison table */
+.comparison-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88em; }
+.comparison-table th, .comparison-table td { padding: 10px 14px; border: 1px solid var(--border); text-align: left; }
+.comparison-table th { background: var(--surface2); color: var(--text); font-weight: 700; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; }
+.comparison-table td { background: var(--surface); color: var(--text-dim); }
+.comparison-table tr:hover td { background: var(--surface2); }
+.comparison-table .sys-col { font-weight: 600; color: var(--text); }
+
+/* Pipeline stepper */
+.pipeline-stepper { display: flex; gap: 2px; margin-bottom: 0; flex-wrap: wrap; }
+.step-btn {
+  flex: 1; padding: 12px 16px; border: 1px solid var(--border); border-bottom: none;
+  border-radius: 8px 8px 0 0; background: var(--surface); color: var(--text-dim);
+  font-size: 0.82em; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  text-transform: uppercase; letter-spacing: 0.5px; min-width: 100px; text-align: center;
+}
+.step-btn:hover { color: var(--text); }
+.step-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border-color: transparent; }
+.step-content { display: none; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 0 8px 8px; padding: 24px; }
+.step-content.active { display: block; }
+
+/* Opportunity cards */
+.opp-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin: 12px 0; cursor: pointer; transition: all 0.2s;
+}
+.opp-card:hover { border-color: var(--accent); }
+.opp-card.expanded .opp-detail { display: block; }
+.opp-header { display: flex; align-items: center; justify-content: space-between; }
+.opp-title { font-weight: 700; font-size: 1.02em; }
+.opp-source { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.opp-source.from-jastadd { background: rgba(74,222,128,0.15); color: var(--green); }
+.opp-source.from-silver { background: rgba(167,139,250,0.15); color: var(--accent2); }
+.opp-source.from-infer { background: rgba(251,191,36,0.15); color: var(--yellow); }
+.opp-source.from-all { background: rgba(108,140,255,0.15); color: var(--accent); }
+.opp-brief { color: var(--text-dim); font-size: 0.92em; margin-top: 6px; }
+.opp-detail { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.opp-expand { color: var(--text-dim); font-size: 0.8em; transition: transform 0.3s; }
+.opp-card.expanded .opp-expand { transform: rotate(180deg); }
+
+/* Quiz */
+.quiz-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim); }
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 32px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;
+  cursor: pointer; border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* Responsive */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .card-grid { grid-template-columns: 1fr; }
+  .dep-chain { flex-direction: column; align-items: flex-start; }
+  .dep-arrow { transform: rotate(90deg); }
+  .dep-independent { margin-left: 0; margin-top: 10px; }
+  .comparison-table { font-size: 0.78em; }
+  .comparison-table th, .comparison-table td { padding: 6px 8px; }
+  .pipeline-stepper { flex-direction: column; }
+  .step-btn { border-radius: 8px; border-bottom: 1px solid var(--border); }
+  .toc-inner { gap: 2px; }
+  .toc a { padding: 6px 10px; font-size: 0.75em; }
+}
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>Attribute Dependency Scheduling</h1>
+  <p class="subtitle">How KSC handles inter-attribute dependencies, and how JastAdd, Silver, and Facebook Infer solve the same problem differently</p>
+  <div class="badges">
+    <span class="badge badge-ksc">KSC</span>
+    <span class="badge badge-jastadd">JastAdd</span>
+    <span class="badge badge-silver">Silver</span>
+    <span class="badge badge-infer">Infer</span>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#ksc-current">KSC Current</a>
+    <a href="#jastadd">JastAdd</a>
+    <a href="#silver">Silver</a>
+    <a href="#infer">Infer</a>
+    <a href="#comparison">Comparison</a>
+    <a href="#evaluation-models">Eval Models</a>
+    <a href="#opportunities">Opportunities</a>
+    <a href="#knowledge-check">Quiz</a>
+  </div>
+</nav>
+
+<!-- Section 1: KSC Current System -->
+<section id="ksc-current">
+<div class="container">
+  <h2><span class="num">01</span>KSC &mdash; Current System</h2>
+  <p>KSC uses <strong>explicit dependency declaration</strong> via <code>withDeps()</code> on equation functions, combined with <strong>lazy on-demand evaluation</strong> in generated code. Dependencies are declared statically, validated at codegen time, but resolved dynamically at runtime through the attribute call chain.</p>
+
+  <h3>The Kind-Checking Dependency Chain</h3>
+  <p>The 8 attributes form a linear dependency chain (plus one independent attribute):</p>
+  <div class="dep-chain">
+    <span class="dep-node syn">kindDefs</span>
+    <span class="dep-arrow">&rarr;</span>
+    <span class="dep-node inh">defEnv</span>
+    <span class="dep-arrow">&rarr;</span>
+    <span class="dep-node syn">defLookup</span>
+    <span class="dep-arrow">&rarr;</span>
+    <span class="dep-node syn">kindAnnotations</span>
+    <span class="dep-arrow">&rarr;</span>
+    <span class="dep-node inh param">contextFor(p)</span>
+    <span class="dep-arrow">&rarr;</span>
+    <span class="dep-node syn param">violationFor(p)</span>
+    <span class="dep-arrow">&rarr;</span>
+    <span class="dep-node syn">allViolations</span>
+    <span class="dep-independent">
+      <span class="dep-node collection">nodeCount</span>
+      <span style="color:var(--text-dim); font-size:0.8em; margin-left:6px;">(independent)</span>
+    </span>
+  </div>
+  <p style="font-size:0.82em; color:var(--text-dim);">Legend: <span style="color:var(--accent)">syn</span> = synthesized &bull; <span style="color:var(--green)">inh</span> = inherited &bull; <span style="color:var(--yellow)">collection</span> = fold &bull; dashed = parameterized</p>
+
+  <h3>How It Works: Four Stages</h3>
+  <div class="data-flow">
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> Declare Dependencies</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>Equation functions attach dependency metadata via <code>withDeps(deps, fn)</code>. This mutates the function to add a <code>.deps: string[]</code> property naming the attributes it reads.</p>
+<pre><code><span class="keyword">export const</span> <span class="fn-name">eq_defEnv_root</span> = <span class="fn-name">withDeps</span>([<span class="string-lit">'kindDefs'</span>],
+  <span class="keyword">function</span> <span class="fn-name">eq_defEnv_root</span>(ctx: <span class="type-name">Ctx</span>): <span class="type-name">Map</span>&lt;<span class="type-name">string</span>, <span class="type-name">KindDefinition</span>&gt; {
+    <span class="keyword">for</span> (<span class="keyword">const</span> cuCtx <span class="keyword">of</span> ctx.children) {
+      <span class="keyword">for</span> (<span class="keyword">const</span> def <span class="keyword">of</span> cuCtx.<span class="fn-name">attr</span>(<span class="string-lit">'kindDefs'</span>)) {
+        map.<span class="fn-name">set</span>(def.name, def);
+      }
+    }
+    <span class="keyword">return</span> map;
+  }
+);</code></pre>
+        <p>Every equation function across the spec uses this pattern. The <code>deps</code> array names attribute-level dependencies, not node-level or function-level ones.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Collect &amp; Validate</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><code>collectDepsForAttr(attr)</code> walks all function-typed values in an <code>AttrDecl</code>, reads <code>.deps</code> from each, and returns the union. Then <code>validateSpec()</code> checks every dep name corresponds to an actual attribute in the spec.</p>
+<pre><code><span class="comment">// collectDepsForAttr walks direction-specific fields:</span>
+<span class="keyword">switch</span> (attr.direction) {
+  <span class="keyword">case</span> <span class="string-lit">'syn'</span>:  addFromValue(attr.default); addFromRecord(attr.equations);
+  <span class="keyword">case</span> <span class="string-lit">'inh'</span>:  addFromValue(attr.rootValue); addFromRecord(attr.parentEquations);
+  <span class="keyword">case</span> <span class="string-lit">'collection'</span>: addFromValue(attr.init);
+}</code></pre>
+        <p>Validation catches typos like <code>withDeps(['kinDefs'], ...)</code> at codegen time &mdash; before any user code runs.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> Build Dep Graph &amp; Topo Sort</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><code>buildDepGraphFromAttrs()</code> in <code>analysis/compile.ts</code> collects all edges as <code>[dependent, dependency]</code> pairs, then runs DFS post-order topological sort. Cycles are detected when a node is revisited while still on the DFS stack.</p>
+<pre><code><span class="comment">// Generated static dep graph (published for tooling):</span>
+<span class="keyword">const</span> KSC_STATIC_DEP_GRAPH = {
+  attributes: [<span class="string-lit">'kindDefs'</span>, <span class="string-lit">'defEnv'</span>, <span class="string-lit">'defLookup'</span>, ...],
+  edges: [
+    [<span class="string-lit">'defEnv'</span>, <span class="string-lit">'kindDefs'</span>],
+    [<span class="string-lit">'defLookup'</span>, <span class="string-lit">'defEnv'</span>],
+    [<span class="string-lit">'kindAnnotations'</span>, <span class="string-lit">'defLookup'</span>],
+    <span class="comment">// ...</span>
+  ],
+  order: [<span class="string-lit">'kindDefs'</span>, <span class="string-lit">'defEnv'</span>, <span class="string-lit">'defLookup'</span>, ...],
+};</code></pre>
+        <p>The topological order is <strong>published in the generated evaluator</strong> for visualization/tooling, but <strong>not used at runtime</strong> &mdash; lazy evaluation determines the actual order.</p>
+      </div>
+    </div>
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> Lazy Evaluation with Caching</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p>The generated evaluator produces one method per attribute on <code>KSCDNode</code>. Each method follows the same pattern:</p>
+<pre><code><span class="fn-name">violationFor</span>(property: <span class="type-name">string</span>): <span class="type-name">Diagnostic</span> | <span class="type-name">null</span> {
+  <span class="keyword">if</span> (<span class="keyword">this</span>._pc_violationFor.<span class="fn-name">has</span>(property)) <span class="keyword">return</span> ...;  <span class="comment">// 1. cache hit</span>
+  <span class="keyword">if</span> (<span class="keyword">this</span>._cyc.<span class="fn-name">has</span>(<span class="string-lit">'violationFor:'</span> + property))       <span class="comment">// 2. circular guard</span>
+    <span class="keyword">throw new</span> <span class="type-name">Error</span>(<span class="string-lit">`Circular attribute access`</span>);
+  <span class="keyword">this</span>._cyc.<span class="fn-name">add</span>(<span class="string-lit">'violationFor:'</span> + property);
+  <span class="keyword">try</span> {
+    <span class="comment">// 3. evaluate (triggers contextFor → kindAnnotations → ...)</span>
+    <span class="keyword">const</span> _r = <span class="fn-name">eq_violationFor_Identifier</span>(<span class="keyword">this</span>, property);
+    <span class="keyword">this</span>._pc_violationFor.<span class="fn-name">set</span>(property, _r);             <span class="comment">// 4. cache result</span>
+    <span class="keyword">return</span> _r;
+  } <span class="keyword">finally</span> { <span class="keyword">this</span>._cyc.<span class="fn-name">delete</span>(<span class="string-lit">'violationFor:'</span> + property); }
+}</code></pre>
+        <p>When <code>allViolations</code> is accessed on the root, the entire chain evaluates on demand: <code>allViolations &rarr; violationFor &rarr; contextFor &rarr; kindAnnotations &rarr; defLookup &rarr; defEnv &rarr; kindDefs</code>. Each result is cached per-node so subsequent accesses are O(1).</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="insight">
+    <strong>Key insight:</strong> KSC's approach is "explicit deps, implicit scheduling." The <code>withDeps()</code> calls declare <em>what</em> each equation needs, but lazy evaluation determines <em>when</em> things are computed. The static dep graph exists for validation and tooling, not for scheduling.
+  </div>
+
+</div>
+</section>
+
+<!-- Section 2: JastAdd -->
+<section id="jastadd">
+<div class="container">
+  <h2><span class="num">02</span>JastAdd &mdash; Reference Attribute Grammars</h2>
+  <p>JastAdd is the most mature AG system in active use. It takes a <strong>fully dynamic, demand-driven</strong> approach &mdash; dependencies are implicit in equations, discovered at runtime, and there is no static scheduling at all.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('jastadd-tabs','jt-core')">Core Model</button>
+    <button class="tab" onclick="switchTab('jastadd-tabs','jt-ref')">Reference Attrs</button>
+    <button class="tab" onclick="switchTab('jastadd-tabs','jt-circular')">Circular Attrs</button>
+    <button class="tab" onclick="switchTab('jastadd-tabs','jt-collection')">Collection Attrs</button>
+  </div>
+  <div id="jastadd-tabs">
+
+    <div class="tab-content active" id="jt-core">
+      <h3>Demand-Driven Evaluation</h3>
+      <p>JastAdd compiles AG specs to Java classes. Attributes become Java methods with <strong>automatic memoization</strong>. When you call an attribute method:</p>
+      <ol style="color:var(--text-dim); margin: 10px 0 10px 20px;">
+        <li>Check cache &rarr; return if hit</li>
+        <li>Evaluate equation &rarr; may trigger other attribute evaluations</li>
+        <li>Cache result &rarr; return</li>
+      </ol>
+      <p>No dependency declaration needed. No evaluation scheduling. Dependencies are discovered dynamically as equations call other attribute methods. This is essentially the same lazy model as KSC, but with <strong>zero explicit dep metadata</strong>.</p>
+      <div class="insight">
+        <strong>Key insight:</strong> JastAdd proves that explicit dep declarations (like <code>withDeps()</code>) are <em>not required</em> for correct lazy evaluation. KSC's <code>withDeps()</code> exists for <strong>validation and tooling</strong>, not for scheduling.
+      </div>
+    </div>
+
+    <div class="tab-content" id="jt-ref">
+      <h3>Reference Attributes &mdash; The Key Innovation</h3>
+      <p>In JastAdd, attribute values can be <strong>references to other AST nodes</strong>. This turns the AST into a semantic graph:</p>
+      <div class="card-grid">
+        <div class="card">
+          <h4>Name Resolution</h4>
+          <p>A parameterized inherited attribute <code>lookup("x")</code> traverses scope chains via parent references. Use nodes link directly to declaration nodes.</p>
+        </div>
+        <div class="card">
+          <h4>Type Checking</h4>
+          <p>An expression's <code>type()</code> attribute returns a reference to a type declaration node. Subtype checks follow the reference graph.</p>
+        </div>
+        <div class="card">
+          <h4>Non-Local Access</h4>
+          <p>Once you have a reference to a distant node, you can access any of its synthesized attributes &mdash; no need to thread values through the whole tree.</p>
+        </div>
+      </div>
+      <p><strong>KSC comparison:</strong> KSC handles non-local data via inherited attributes with copy-down (e.g., <code>defEnv</code> propagated from root to all nodes). Reference attributes would eliminate the need to copy-down large environments &mdash; nodes would follow a reference to look up what they need.</p>
+    </div>
+
+    <div class="tab-content" id="jt-circular">
+      <h3>Circular Attributes &mdash; Fixed-Point Iteration</h3>
+      <p>JastAdd uniquely supports <strong>circular attribute equations</strong> that reference themselves. The system iterates until a fixed point:</p>
+<pre><code><span class="comment">// Circular attribute with lattice-based iteration</span>
+<span class="keyword">syn</span> Set&lt;Variable&gt; Block.<span class="fn-name">liveVars</span> <span class="keyword">circular</span> [<span class="keyword">new</span> HashSet&lt;&gt;()];  <span class="comment">// bottom value</span>
+<span class="keyword">eq</span> Block.<span class="fn-name">liveVars</span>() = <span class="fn-name">use</span>().<span class="fn-name">union</span>(
+  <span class="fn-name">succ</span>().<span class="fn-name">liveVars</span>().<span class="fn-name">minus</span>(<span class="fn-name">def</span>())  <span class="comment">// self-referential!</span>
+);</code></pre>
+      <p>Termination guaranteed when:</p>
+      <ul style="color:var(--text-dim); margin: 10px 0 10px 20px;">
+        <li>Values form a <strong>lattice of finite height</strong></li>
+        <li>Equations are <strong>monotonic</strong> (values only go up)</li>
+      </ul>
+      <p>This enables <strong>data-flow analyses</strong> (reaching definitions, liveness, available expressions) to be expressed as attribute equations &mdash; no separate worklist algorithm needed.</p>
+      <div class="insight warn">
+        <strong>KSC gap:</strong> KSC throws on circularity (both at codegen via topo sort and at runtime via <code>_cyc</code> guards). There is no fixed-point iteration support.
+      </div>
+    </div>
+
+    <div class="tab-content" id="jt-collection">
+      <h3>Collection Attributes &mdash; Survey + Collect</h3>
+      <p>JastAdd collection attributes gather contributions from <strong>arbitrary nodes anywhere in the tree</strong>, not just direct children. Evaluation uses two phases:</p>
+      <ol style="color:var(--text-dim); margin: 10px 0 10px 20px;">
+        <li><strong>Survey phase:</strong> traverse the tree to find all contributing nodes</li>
+        <li><strong>Collection phase:</strong> evaluate and combine contributions</li>
+      </ol>
+      <p><strong>KSC comparison:</strong> KSC collection attributes only fold over <strong>direct children</strong> (<code>for (const child of this.children) { result = combine(result, child.nodeCount()) }</code>). JastAdd's model is more powerful &mdash; any node can contribute to a collection attribute on any other node.</p>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- Section 3: Silver -->
+<section id="silver">
+<div class="container">
+  <h2><span class="num">03</span>Silver &mdash; Static Well-Definedness</h2>
+  <p>Silver (from the MELT group at U of Minnesota) adds <strong>compile-time static analysis</strong> on top of demand-driven evaluation. It can statically prove properties that JastAdd and KSC only check at runtime.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('silver-tabs','st-mwd')">Modular Well-Definedness</button>
+    <button class="tab" onclick="switchTab('silver-tabs','st-flow')">Flow Types</button>
+    <button class="tab" onclick="switchTab('silver-tabs','st-fwd')">Forwarding</button>
+    <button class="tab" onclick="switchTab('silver-tabs','st-hoa')">Higher-Order Attrs</button>
+  </div>
+  <div id="silver-tabs">
+
+    <div class="tab-content active" id="st-mwd">
+      <h3>The Key Innovation: Modular Well-Definedness Analysis</h3>
+      <p>Silver statically verifies two critical properties <strong>per module</strong>:</p>
+      <div class="card-grid">
+        <div class="card">
+          <h4 style="color:var(--green)">Completeness</h4>
+          <p>Every attribute has a defining equation in every context where it's needed. No "missing equation" runtime errors.</p>
+        </div>
+        <div class="card">
+          <h4 style="color:var(--green)">Non-Circularity</h4>
+          <p>No circular dependencies exist among non-circular attributes. Guaranteed at compile time, not just detected at runtime.</p>
+        </div>
+      </div>
+      <p>These checks are <strong>modular</strong> &mdash; each grammar module is verified using only its declared dependencies. Independently developed language extensions can be composed safely without rechecking the whole grammar.</p>
+      <div class="insight">
+        <strong>Key insight:</strong> Silver trades expressiveness for safety. By disallowing circular attributes entirely, it can provide <strong>static guarantees</strong> that JastAdd and KSC cannot. KSC sits between them: it does static topo-sort cycle checking (like Silver) but doesn't verify completeness.
+      </div>
+    </div>
+
+    <div class="tab-content" id="st-flow">
+      <h3>Flow Types</h3>
+      <p>Silver's static analysis is powered by <strong>flow types</strong>: a mapping from each nonterminal showing which inherited attributes each synthesized attribute may depend on.</p>
+<pre><code><span class="comment">-- Silver builds a flow graph per production:</span>
+<span class="comment">-- "For production P, synthesized attr S depends on inherited attrs {I1, I2}"</span>
+<span class="comment">-- These are stitched into a complete dependency graph</span>
+<span class="comment">-- and checked for circularity + completeness</span></code></pre>
+      <p><strong>KSC comparison:</strong> KSC's <code>withDeps()</code> serves a similar purpose to flow types &mdash; both declare what an attribute depends on. But Silver's flow types are automatically inferred from equations, while KSC's deps are manually declared. Silver verifies them exhaustively; KSC only checks that dep names exist.</p>
+    </div>
+
+    <div class="tab-content" id="st-fwd">
+      <h3>Forwarding &mdash; Safe Modular Extension</h3>
+      <p>Forwarding lets a production specify a "semantically equivalent" tree that provides default attribute values for any attributes not explicitly defined:</p>
+<pre><code><span class="keyword">abstract production</span> <span class="fn-name">forEach</span>
+top::<span class="type-name">Stmt</span> ::= iter::<span class="type-name">Name</span> coll::<span class="type-name">Expr</span> body::<span class="type-name">Stmt</span>
+{
+  <span class="keyword">forwards to</span> <span class="fn-name">whileLoop</span>(...);  <span class="comment">-- desugar to while loop</span>
+  <span class="comment">-- Any attribute not defined here is computed on the while loop</span>
+  <span class="comment">-- Inherited attrs automatically copied to forwarded tree</span>
+}</code></pre>
+      <p>This enables independently developed extensions to compose: one extension adds new attributes, another adds new productions with forwarding. Neither needs to know about the other.</p>
+      <p><strong>KSC comparison:</strong> KSC has no forwarding mechanism. New node kinds must have equations defined for every attribute, or rely on the <code>default</code> clause.</p>
+    </div>
+
+    <div class="tab-content" id="st-hoa">
+      <h3>Higher-Order Attributes</h3>
+      <p>In Silver, attributes can have <strong>nonterminal types</strong> &mdash; their values are entire trees:</p>
+      <div class="card-grid">
+        <div class="card">
+          <h4>Undecorated (Higher-Order)</h4>
+          <p>A bare tree without inherited attrs supplied. Used for transformations: concrete-to-abstract syntax, desugaring.</p>
+        </div>
+        <div class="card">
+          <h4>Decorated (Reference)</h4>
+          <p>A tree with inherited attrs already supplied. Functions like JastAdd's reference attributes &mdash; provides a semantic link to another node.</p>
+        </div>
+      </div>
+      <p>Higher-order attributes enable multi-level compilation within the AG framework: parse tree &rarr; desugared tree &rarr; IR, all as attribute equations.</p>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- Section 4: Infer -->
+<section id="infer">
+<div class="container">
+  <h2><span class="num">04</span>Facebook Infer &mdash; Compositional Analysis</h2>
+  <p>Infer takes a fundamentally different approach. Instead of tree-based attribute evaluation, it uses <strong>procedure-level compositional analysis</strong> with summaries. The unit of analysis is a <em>function/method</em>, not an AST node.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('infer-tabs','it-model')">Analysis Model</button>
+    <button class="tab" onclick="switchTab('infer-tabs','it-sched')">Scheduling</button>
+    <button class="tab" onclick="switchTab('infer-tabs','it-compose')">Composition</button>
+  </div>
+  <div id="infer-tabs">
+
+    <div class="tab-content active" id="it-model">
+      <h3>Bottom-Up Procedure Summaries</h3>
+      <p>Infer's analysis pipeline:</p>
+      <ol style="color:var(--text-dim); margin: 10px 0 10px 20px;">
+        <li><strong>Capture:</strong> Translate source to Infer's IR (SIL)</li>
+        <li><strong>Analysis:</strong> Build call graph &rarr; analyze bottom-up (callees before callers)</li>
+        <li><strong>Report:</strong> Emit diagnostics</li>
+      </ol>
+      <p>Each procedure produces a <strong>summary</strong> (pre/post specification via bi-abduction). Callers read callee summaries &mdash; never re-analyze callees. This is the key to scaling to 100M+ LOC at Meta.</p>
+      <div class="insight">
+        <strong>Key difference from AG systems:</strong> AG attributes are computed per-node on a single AST. Infer summaries are computed per-procedure across the whole program's call graph. The "tree" is the call graph, and "attributes" are procedure summaries.
+      </div>
+    </div>
+
+    <div class="tab-content" id="it-sched">
+      <h3>Scheduling Strategies</h3>
+      <div class="card-grid">
+        <div class="card">
+          <h4>Callgraph (default)</h4>
+          <p>One job per procedure, following syntactic call graph bottom-up. Usually fastest.</p>
+        </div>
+        <div class="card">
+          <h4>File-level</h4>
+          <p>One job per file. Coarser granularity, simpler scheduling.</p>
+        </div>
+        <div class="card">
+          <h4>Restart</h4>
+          <p>One job per procedure with locking to avoid duplicate work across parallel workers.</p>
+        </div>
+      </div>
+      <p>For <strong>mutually recursive functions</strong>, Infer iterates analysis until summaries stabilize &mdash; essentially fixed-point iteration on the call graph, analogous to JastAdd's circular attributes.</p>
+    </div>
+
+    <div class="tab-content" id="it-compose">
+      <h3>Multi-Checker Dependencies</h3>
+      <p>Infer runs multiple checkers (analyses) simultaneously. Checkers declare dependencies through:</p>
+      <ul style="color:var(--text-dim); margin: 10px 0 10px 20px;">
+        <li><strong>Payload fields:</strong> <code>Payloads.Fields.&lt;checker_name&gt;</code> to read another checker's summaries</li>
+        <li><strong>Registration order:</strong> list order in <code>registerCheckers.ml</code> determines execution sequence</li>
+        <li><strong>Interprocedural callbacks:</strong> configure which payload fields a checker reads</li>
+      </ul>
+      <p>This is somewhat manual and fragile compared to AG dep tracking, but it works at massive scale.</p>
+      <div class="insight warn">
+        <strong>Trade-off:</strong> Infer's ordering-based dependency system in <code>registerCheckers.ml</code> is analogous to KSC's composition roots &mdash; both are manual composition points where the developer wires analyses together. Neither system automatically discovers inter-analysis dependencies.
+      </div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- Section 5: Comparison -->
+<section id="comparison">
+<div class="container">
+  <h2><span class="num">05</span>Head-to-Head Comparison</h2>
+
+  <div style="overflow-x:auto;">
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th class="sys-col" style="color:var(--accent)">KSC</th>
+        <th class="sys-col" style="color:var(--green)">JastAdd</th>
+        <th class="sys-col" style="color:var(--accent2)">Silver</th>
+        <th class="sys-col" style="color:var(--yellow)">Infer</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="sys-col">Dep Declaration</td>
+        <td>Explicit (<code>withDeps</code>)</td>
+        <td>Implicit in equations</td>
+        <td>Implicit + static flow types</td>
+        <td>Payload fields + registration order</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Evaluation</td>
+        <td>Lazy on-demand</td>
+        <td>Lazy on-demand</td>
+        <td>Lazy + static checks</td>
+        <td>Bottom-up call graph</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Circular Deps</td>
+        <td style="color:var(--red)">Disallowed (throws)</td>
+        <td style="color:var(--green)">Fixed-point iteration</td>
+        <td style="color:var(--red)">Disallowed (static)</td>
+        <td style="color:var(--green)">Fixed-point for recursion</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Non-Local Deps</td>
+        <td>Inherited + copy-down</td>
+        <td style="color:var(--green)">Reference attributes</td>
+        <td style="color:var(--green)">Reference + forwarding</td>
+        <td>Procedure summaries</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Collection Attrs</td>
+        <td>Fold over children</td>
+        <td style="color:var(--green)">Contributions from anywhere</td>
+        <td style="color:var(--green)">Contributions from anywhere</td>
+        <td>N/A</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Error Detection</td>
+        <td>Codegen-time + runtime</td>
+        <td style="color:var(--orange)">Runtime only</td>
+        <td style="color:var(--green)">Compile-time static</td>
+        <td>Runtime</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Composability</td>
+        <td>Separate specs + roots</td>
+        <td>Aspect-oriented</td>
+        <td style="color:var(--green)">Modular well-definedness</td>
+        <td>Compositional summaries</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Static Dep Graph</td>
+        <td style="color:var(--green)">Yes (published)</td>
+        <td style="color:var(--red)">No</td>
+        <td style="color:var(--green)">Yes (flow types)</td>
+        <td style="color:var(--green)">Yes (call graph)</td>
+      </tr>
+      <tr>
+        <td class="sys-col">Parameterized</td>
+        <td style="color:var(--green)">Yes (Map cache)</td>
+        <td style="color:var(--green)">Yes (memoized)</td>
+        <td>Limited</td>
+        <td>N/A</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="insight success">
+    <strong>Where KSC is unique:</strong> KSC is the only system that combines <strong>explicit dep declaration</strong> (for tooling/validation) with <strong>lazy evaluation</strong> (for scheduling). JastAdd has lazy without explicit deps. Silver has explicit flow types but they're auto-inferred, not manually declared. This gives KSC a dep graph that's both human-readable and machine-usable.
+  </div>
+
+</div>
+</section>
+
+<!-- Section 6: Evaluation Models -->
+<section id="evaluation-models">
+<div class="container">
+  <h2><span class="num">06</span>Evaluation Models Compared</h2>
+  <p>The fundamental question: <strong>how do you decide which attribute to compute next?</strong></p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('em-lazy')">Lazy (KSC/JastAdd)</button>
+    <button class="step-btn" onclick="showStep('em-static')">Static (Silver)</button>
+    <button class="step-btn" onclick="showStep('em-bottom')">Bottom-Up (Infer)</button>
+    <button class="step-btn" onclick="showStep('em-fixpoint')">Fixed-Point</button>
+  </div>
+
+  <div class="step-content active" id="em-lazy">
+    <h3>Lazy / Demand-Driven</h3>
+    <p><strong>Used by:</strong> KSC, JastAdd, Silver (at runtime)</p>
+    <p>No scheduling at all. The caller drives evaluation: when you access an attribute, it evaluates its equation, which may trigger other attribute evaluations. Caching ensures each attribute per node is computed at most once.</p>
+<pre><code><span class="comment">// Pseudocode for lazy evaluation</span>
+<span class="fn-name">attr</span>(name) {
+  <span class="keyword">if</span> (cache[name]) <span class="keyword">return</span> cache[name];     <span class="comment">// already computed</span>
+  <span class="keyword">if</span> (computing[name]) <span class="keyword">throw</span> <span class="string-lit">"circular"</span>; <span class="comment">// cycle detection</span>
+  computing[name] = <span class="keyword">true</span>;
+  cache[name] = equation[name]();              <span class="comment">// evaluate — may trigger other attrs</span>
+  computing[name] = <span class="keyword">false</span>;
+  <span class="keyword">return</span> cache[name];
+}</code></pre>
+    <p><strong>Pros:</strong> Only computes what's needed. No scheduling complexity. Natural for tree-structured data.<br>
+    <strong>Cons:</strong> Stack depth proportional to dep chain length. No parallelism within a single tree. Hard to predict evaluation order.</p>
+  </div>
+
+  <div class="step-content" id="em-static">
+    <h3>Static Schedule</h3>
+    <p><strong>Used by:</strong> Classical AG systems (Knuth's original), Silver (for verification)</p>
+    <p>Analyze the dependency graph at compile time, compute a fixed evaluation order (e.g., topological sort), then execute passes in that order. Each pass computes one "level" of attributes across all nodes.</p>
+<pre><code><span class="comment">// Pseudocode for static multi-pass</span>
+<span class="keyword">for</span> (<span class="keyword">const</span> pass <span class="keyword">of</span> scheduledOrder) {
+  <span class="keyword">for</span> (<span class="keyword">const</span> node <span class="keyword">of</span> <span class="fn-name">traversal</span>(tree, pass.direction)) {
+    node.attrs[pass.attr] = pass.<span class="fn-name">equation</span>(node);
+  }
+}</code></pre>
+    <p><strong>Pros:</strong> Predictable. Enables parallelism (all nodes in a pass are independent). Static error checking.<br>
+    <strong>Cons:</strong> May compute unnecessary attributes. Requires global analysis. Less flexible for incremental updates.</p>
+    <div class="insight">
+      <strong>Key insight:</strong> KSC publishes a topological order (<code>KSC_STATIC_DEP_GRAPH.order</code>) but doesn't use it for scheduling. This is the bridge point &mdash; KSC <em>could</em> switch to pass-based evaluation using the graph it already computes.
+    </div>
+  </div>
+
+  <div class="step-content" id="em-bottom">
+    <h3>Bottom-Up Composition</h3>
+    <p><strong>Used by:</strong> Facebook Infer</p>
+    <p>Build a dependency graph (call graph), topologically sort it, analyze each node (procedure) bottom-up. Results are <strong>summaries</strong> that abstract away implementation details.</p>
+<pre><code><span class="comment">// Pseudocode for bottom-up analysis</span>
+<span class="keyword">for</span> (<span class="keyword">const</span> proc <span class="keyword">of</span> <span class="fn-name">topoSort</span>(callGraph)) {
+  <span class="keyword">const</span> calleeSummaries = proc.callees.<span class="fn-name">map</span>(c => summaries[c]);
+  summaries[proc] = <span class="fn-name">analyze</span>(proc, calleeSummaries);
+}</code></pre>
+    <p><strong>Pros:</strong> Scales massively (parallel workers). Natural incrementality (re-analyze only changed procedures). Clear abstraction boundaries.<br>
+    <strong>Cons:</strong> Summary precision limits. Not natural for tree-structured data. Information loss at abstraction boundaries.</p>
+  </div>
+
+  <div class="step-content" id="em-fixpoint">
+    <h3>Fixed-Point Iteration</h3>
+    <p><strong>Used by:</strong> JastAdd (circular attrs), Infer (mutual recursion), data-flow frameworks</p>
+    <p>When dependencies are circular, iterate until values stabilize. Requires a lattice (finite height + monotonic equations) to guarantee termination.</p>
+<pre><code><span class="comment">// Pseudocode for fixed-point iteration</span>
+<span class="keyword">for</span> (<span class="keyword">const</span> attr <span class="keyword">of</span> circularAttrs) {
+  node.attrs[attr] = bottom;  <span class="comment">// start at bottom of lattice</span>
+}
+<span class="keyword">do</span> {
+  changed = <span class="keyword">false</span>;
+  <span class="keyword">for</span> (<span class="keyword">const</span> attr <span class="keyword">of</span> circularAttrs) {
+    <span class="keyword">const</span> newVal = attr.<span class="fn-name">equation</span>(node);
+    <span class="keyword">if</span> (newVal !== node.attrs[attr]) {
+      node.attrs[attr] = newVal;
+      changed = <span class="keyword">true</span>;
+    }
+  }
+} <span class="keyword">while</span> (changed);</code></pre>
+    <p><strong>Pros:</strong> Handles mutual dependencies. Enables data-flow analyses. Mathematically well-founded.<br>
+    <strong>Cons:</strong> Convergence speed depends on lattice height. Hard to debug. Requires careful lattice design.</p>
+  </div>
+
+</div>
+</section>
+
+<!-- Section 7: Opportunities -->
+<section id="opportunities">
+<div class="container">
+  <h2><span class="num">07</span>Improvement &amp; Alignment Opportunities</h2>
+  <p>Based on the comparison, here are concrete opportunities for KSC, ordered from most practical to most ambitious.</p>
+
+  <div class="opp-card" onclick="toggleOpp(this)">
+    <div class="opp-header">
+      <div>
+        <span class="opp-title">1. Completeness Checking</span>
+        <span class="opp-source from-silver">from Silver</span>
+      </div>
+      <span class="opp-expand">&#9660;</span>
+    </div>
+    <div class="opp-brief">Verify that every attribute has an equation (or default) for every node kind at codegen time.</div>
+    <div class="opp-detail">
+      <p><strong>Current state:</strong> If a node kind triggers a syn attribute with no matching equation and no default, the generated switch statement falls through to the default case. If the default returns <code>null</code> or an empty value, this may silently produce wrong results.</p>
+      <p><strong>What Silver does:</strong> Statically proves completeness per module &mdash; every attribute has a defining equation in every context.</p>
+      <p><strong>Implementation for KSC:</strong> Cross-reference <code>attr.equations</code> keys against the grammar's node kinds at codegen time. Warn (or error) when a syn attr has no equation for a node kind and the default seems insufficient. The grammar is already available in the composition root.</p>
+      <p><strong>Effort:</strong> Low. KSC already has the grammar node list and attr equations in scope during compilation.</p>
+    </div>
+  </div>
+
+  <div class="opp-card" onclick="toggleOpp(this)">
+    <div class="opp-header">
+      <div>
+        <span class="opp-title">2. Dep Accuracy Verification</span>
+        <span class="opp-source from-silver">from Silver</span>
+      </div>
+      <span class="opp-expand">&#9660;</span>
+    </div>
+    <div class="opp-brief">Verify that <code>withDeps()</code> declarations are accurate &mdash; not under- or over-declared.</div>
+    <div class="opp-detail">
+      <p><strong>Current state:</strong> <code>withDeps()</code> is trusted. If an equation calls <code>ctx.attr('defEnv')</code> but doesn't declare <code>'defEnv'</code> in its deps, the dep graph is incomplete. If it declares deps it doesn't use, the graph is over-constrained.</p>
+      <p><strong>What Silver does:</strong> Auto-infers flow types from equations &mdash; no manual declaration needed.</p>
+      <p><strong>Implementation for KSC:</strong> A <strong>runtime verification mode</strong> that intercepts <code>ctx.attr()</code> calls during evaluation and compares actual accesses against declared deps. Run during tests to catch mismatches. Alternatively, static analysis of equation function bodies (harder in TS due to dynamic <code>ctx.attr(name)</code>).</p>
+      <p><strong>Effort:</strong> Medium. Runtime mode is straightforward; static analysis is harder.</p>
+    </div>
+  </div>
+
+  <div class="opp-card" onclick="toggleOpp(this)">
+    <div class="opp-header">
+      <div>
+        <span class="opp-title">3. Richer Collection Attributes</span>
+        <span class="opp-source from-jastadd">from JastAdd</span>
+      </div>
+      <span class="opp-expand">&#9660;</span>
+    </div>
+    <div class="opp-brief">Allow contributions from arbitrary nodes, not just direct children.</div>
+    <div class="opp-detail">
+      <p><strong>Current state:</strong> KSC collection attrs fold over direct children only: <code>for (const child of this.children) { result = combine(result, child.attr()) }</code>.</p>
+      <p><strong>What JastAdd does:</strong> Any node can contribute to a collection attr on any other node. Uses a survey phase to find all contributors.</p>
+      <p><strong>Implementation for KSC:</strong> Add a <code>contributions</code> field to <code>CollectionAttr</code> &mdash; equation functions that select which nodes contribute and what they contribute. The generated evaluator would add a survey traversal before the collection fold.</p>
+      <p><strong>Effort:</strong> Medium. Requires extending AttrDecl, compile.ts codegen, and generated evaluator pattern.</p>
+    </div>
+  </div>
+
+  <div class="opp-card" onclick="toggleOpp(this)">
+    <div class="opp-header">
+      <div>
+        <span class="opp-title">4. Reference Attributes</span>
+        <span class="opp-source from-jastadd">from JastAdd</span>
+      </div>
+      <span class="opp-expand">&#9660;</span>
+    </div>
+    <div class="opp-brief">Allow attribute values to be references to other AST nodes, enabling direct non-local access.</div>
+    <div class="opp-detail">
+      <p><strong>Current state:</strong> Non-local data flows via inherited attributes with copy-down. <code>defEnv</code> is a <code>Map</code> copied from root to every node. Nodes look up definitions from the map, not from a reference to the definition site.</p>
+      <p><strong>What JastAdd does:</strong> <code>lookup("x")</code> returns a <strong>reference to the declaration node</strong>. The use node then directly accesses the declaration's synthesized attributes.</p>
+      <p><strong>Implementation for KSC:</strong> Not a new attr direction &mdash; synthesized attrs can already return <code>KSCDNode</code> values. The change is <strong>in the equations</strong>: instead of returning data, return a node reference. May need generated type support for <code>KSCDNode</code> references in attr type signatures.</p>
+      <p><strong>Effort:</strong> Low-Medium. Conceptually simple (just return node references), but may need type system support in the generated evaluator.</p>
+    </div>
+  </div>
+
+  <div class="opp-card" onclick="toggleOpp(this)">
+    <div class="opp-header">
+      <div>
+        <span class="opp-title">5. Circular / Fixed-Point Attributes</span>
+        <span class="opp-source from-jastadd">from JastAdd</span>
+      </div>
+      <span class="opp-expand">&#9660;</span>
+    </div>
+    <div class="opp-brief">Support lattice-based fixed-point iteration for self-referential attribute equations.</div>
+    <div class="opp-detail">
+      <p><strong>Current state:</strong> Circularity throws at both codegen time (topo sort) and runtime (<code>_cyc</code> guard).</p>
+      <p><strong>What JastAdd does:</strong> Circular attrs have a <code>bottom</code> value and iterate their equation until convergence.</p>
+      <p><strong>Implementation for KSC:</strong> New attr direction <code>'circular'</code> with <code>bottom: AttrExpr</code> and <code>equation: Function</code>. Generated method: set to bottom, evaluate, compare, repeat until stable. Topo sort must allow circular attrs in SCCs. The spec must guarantee monotonicity and finite lattice height.</p>
+      <p><strong>Effort:</strong> High. New direction, new codegen pattern, SCC handling in dep graph, and the spec author must ensure lattice properties.</p>
+    </div>
+  </div>
+
+  <div class="opp-card" onclick="toggleOpp(this)">
+    <div class="opp-header">
+      <div>
+        <span class="opp-title">6. Multi-Analysis Composition</span>
+        <span class="opp-source from-infer">from Infer</span>
+      </div>
+      <span class="opp-expand">&#9660;</span>
+    </div>
+    <div class="opp-brief">Allow one analysis to depend on another analysis's results (e.g., type-checking depends on kind-checking).</div>
+    <div class="opp-detail">
+      <p><strong>Current state:</strong> Each analysis is independent. Separate composition roots, no inter-analysis dependencies. If a type-checking analysis needs kind-checking results, the user must manually wire them together.</p>
+      <p><strong>What Infer does:</strong> Checkers read other checkers' payload fields. Registration order determines execution sequence.</p>
+      <p><strong>Implementation for KSC:</strong> An <code>AnalysisSpec</code> could declare dependencies on other analyses' projections. The composition root would evaluate analyses in dep order, passing projection results forward. The generated evaluator for analysis B would receive analysis A's results as an inherited attribute or constructor parameter.</p>
+      <p><strong>Effort:</strong> High. Requires new composition patterns, cross-analysis type sharing, and careful API design.</p>
+    </div>
+  </div>
+
+  <div class="opp-card" onclick="toggleOpp(this)">
+    <div class="opp-header">
+      <div>
+        <span class="opp-title">7. Incremental Evaluation</span>
+        <span class="opp-source from-all">from all systems</span>
+      </div>
+      <span class="opp-expand">&#9660;</span>
+    </div>
+    <div class="opp-brief">Cache results across evaluations, only recompute attributes on changed subtrees.</div>
+    <div class="opp-detail">
+      <p><strong>Current state:</strong> Full re-evaluation on each <code>evaluate()</code> call. <code>resetCounter()</code> + <code>buildKSCTree()</code> rebuilds everything from scratch.</p>
+      <p><strong>What the research says:</strong> JastAdd has published work on incremental RAGs with dynamic dependency tracking. Infer's incremental mode re-analyzes only changed procedures. Silver's static analysis enables determining which attributes are affected by a change.</p>
+      <p><strong>Implementation for KSC:</strong> KSC's explicit dep graph (<code>KSC_STATIC_DEP_GRAPH</code>) is the foundation. Track which AST nodes changed, use the dep graph to determine which cached attributes to invalidate, re-evaluate only those. Requires stable node identity across edits.</p>
+      <p><strong>Effort:</strong> Very high. Requires stable node identity, change tracking, cache invalidation, and careful handling of inherited attributes (a change to root kindDefs invalidates defEnv everywhere).</p>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- Section 8: Knowledge Check -->
+<section id="knowledge-check">
+<div class="container">
+  <h2><span class="num">08</span>Knowledge Check</h2>
+  <p style="margin-bottom:20px;">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <div class="flashcard active" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does KSC declare attribute dependencies, and what are they used for?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>withDeps(deps, fn)</code> attaches a <code>.deps: string[]</code> array to equation functions. These deps are used for (1) validation at codegen time (<code>validateSpec</code> checks names exist), (2) building the static dep graph (<code>buildDepGraphFromAttrs</code>), and (3) cycle detection via topological sort. They are <strong>not</strong> used for scheduling &mdash; lazy evaluation handles that.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does JastAdd determine attribute evaluation order without explicit dependency declarations?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Purely demand-driven: when you access an attribute, its equation executes, which may call other attributes. Dependencies are discovered dynamically at runtime. Caching ensures each attribute per node is computed at most once. There is no static schedule &mdash; the call stack <em>is</em> the schedule.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is Silver's "modular well-definedness analysis" and what two properties does it verify?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>A compile-time static analysis that verifies (1) <strong>completeness</strong> &mdash; every attribute has a defining equation in every required context, and (2) <strong>non-circularity</strong> &mdash; no circular dependencies among non-circular attributes. It's checked <em>modularly</em>, so independently developed extensions compose safely.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What can JastAdd do with circular attributes that KSC cannot, and why does it matter?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>JastAdd supports <strong>fixed-point iteration</strong> on circular attribute equations: starting from a bottom value, it iterates until convergence on a finite-height lattice with monotonic equations. This enables <strong>data-flow analyses</strong> (liveness, reaching definitions) to be expressed directly as attribute equations &mdash; no separate worklist algorithm needed. KSC throws on circularity.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How does Facebook Infer achieve scalability to 100M+ lines of code?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>Compositional analysis</strong>: each procedure is analyzed independently, producing a summary (pre/post spec via bi-abduction). Callers read callee summaries, never re-analyze callees. This enables (1) parallel workers analyzing different procedures, (2) incremental re-analysis of only changed procedures, and (3) clear abstraction boundaries that prevent analysis blowup.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What are reference attributes, and how do they differ from KSC's approach to non-local data?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>Reference attributes (JastAdd/Silver) are attributes whose values are <strong>references to other AST nodes</strong>. A use node's <code>lookup("x")</code> returns a reference to the declaration node, enabling direct access to its attrs. KSC instead uses <strong>inherited attrs with copy-down</strong>: <code>defEnv</code> copies a full <code>Map</code> from root to every node. Reference attrs avoid copying large environments but make the dep graph harder to analyze statically.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>KSC publishes <code>KSC_STATIC_DEP_GRAPH</code> with a topological order, but doesn't use it for scheduling. Why not, and what would change if it did?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>KSC uses <strong>lazy on-demand evaluation</strong>, which naturally respects the dependency order through the call chain. The published order exists for <strong>tooling and visualization</strong>. Switching to pass-based scheduling would enable (1) predictable traversal order, (2) potential parallelism within a pass, but would lose (1) laziness (computing only what's needed) and (2) simplicity of the current generated code.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the most practical improvement KSC could adopt from Silver, and why?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>Completeness checking</strong>: verify at codegen time that every synthesized attribute has an equation (or adequate default) for every node kind in the grammar. KSC already has both the grammar's node list and the attr equations available during compilation. This catches "missing equation" bugs statically, before any user code runs &mdash; with low implementation effort.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+
+</div>
+</section>
+
+<div style="text-align:center; padding:40px; color:var(--text-dim); font-size:0.82em;">
+  KSC &mdash; Attribute Dependency Scheduling &mdash; Generated Reference
+</div>
+
+<script>
+/* Tabs */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabs = container.previousElementSibling;
+  if (tabs) tabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+}
+
+/* Collapsible stages */
+function toggleStage(el) { el.classList.toggle('active'); }
+
+/* Pipeline stepper */
+function showStep(id) {
+  document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (event && event.target) event.target.classList.add('active');
+}
+
+/* Opportunity cards */
+function toggleOpp(el) { el.classList.toggle('expanded'); }
+
+/* Flashcards */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  const total = document.querySelectorAll('#flashcard-deck .flashcard').length;
+  document.getElementById('quiz-total').textContent = total;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  showCard(0);
+  recalcScore();
+});
+</script>
+</body>
+</html>
