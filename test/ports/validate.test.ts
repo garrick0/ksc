@@ -2,15 +2,13 @@
  * Tests for spec validation (attribute dep consistency).
  */
 import { describe, it, expect } from 'vitest';
-import { validateSpec } from '../analysis/validate.js';
-import type { AnalysisSpec, AttrDecl } from '../analysis/types.js';
-import { code, withDeps } from '../analysis/types.js';
+import { validateSpec, code, withDeps } from '../../analysis/index.js';
+import type { AnalysisSpec, AttrDecl } from '../../analysis/index.js';
 
 function makeSpec(attrs: AttrDecl[]): AnalysisSpec {
   return {
     attrs,
     projections: { definitions: () => [], diagnostics: () => [] },
-    grammarConfig: { rootKind: 'Root', fileNameField: 'fileName' },
   };
 }
 

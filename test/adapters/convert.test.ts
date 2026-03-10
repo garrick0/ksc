@@ -4,17 +4,30 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
-import { buildTree, KSCDNode } from '../generated/ts-ast/kind-checking/evaluator.js';
+import { frontend } from '../../specs/ts-ast/frontend/convert.js';
+import { wireEvaluator } from '../../evaluator/engine.js';
+import type { TypedAGNode } from '../../evaluator/types.js';
+import { dispatchConfig } from '../../generated/ts-ast/kind-checking/dispatch.js';
+import { analysisSpec } from '../../specs/ts-ast/kind-checking/spec.js';
+import { grammar } from '../../specs/ts-ast/grammar/index.js';
+import type { KSCAttrMap } from '../../generated/ts-ast/kind-checking/attr-types.js';
 import type {
   KSNode, KSCompilationUnit, KSTypeAliasDeclaration, KSTypeReference,
   KSTypeLiteral, KSIdentifier, KSFunctionDeclaration,
   KSVariableStatement, KSVariableDeclarationList, KSVariableDeclaration,
   KSImportDeclaration, KSStringLiteral, KSPropertySignature,
   KSArrowFunction,
-} from '../generated/ts-ast/grammar/index.js';
+} from '../../specs/ts-ast/grammar/index.js';
 
-const FIXTURES = path.resolve(__dirname, 'fixtures');
+type Node = TypedAGNode<KSCAttrMap>;
+
+const evaluator = wireEvaluator<string, KSCAttrMap>({
+  grammar,
+  spec: analysisSpec,
+  dispatch: dispatchConfig,
+});
+
+const FIXTURES = path.resolve(__dirname, '../fixtures');
 
 function createTSProgram(fixtureDir: string): ts.Program {
   const configPath = path.join(fixtureDir, 'tsconfig.json');
@@ -36,10 +49,10 @@ function createTSProgram(fixtureDir: string): ts.Program {
   return ts.createProgram(rootNames, options);
 }
 
-describe('buildKSTree', () => {
+describe('frontend.convert (buildKSTree)', () => {
   describe('kind-basic fixture', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-basic'));
-    const { root } = buildKSTree(tsProgram);
+    const { root } = frontend.convert(tsProgram);
 
     it('creates a Program root with CompilationUnits', () => {
       expect(root.kind).toBe('Program');
@@ -53,11 +66,11 @@ describe('buildKSTree', () => {
       expect(fileNames).toContain('math.ts');
     });
 
-    it('KSCDNode navigation works across the hierarchy', () => {
-      const dnodeRoot = buildTree(root);
+    it('Node navigation works across the hierarchy', () => {
+      const dnodeRoot = evaluator.buildTree(root);
 
       // Find the DNode for the kinds file
-      const kindsDNode = (dnodeRoot.children as KSCDNode[]).find(
+      const kindsDNode = (dnodeRoot.children as Node[]).find(
         c => (c.node as any).fileName?.endsWith('kinds.ts'),
       )!;
       expect(kindsDNode).toBeDefined();
@@ -115,7 +128,7 @@ describe('buildKSTree', () => {
 
   describe('kind-module fixture', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-module'));
-    const { root } = buildKSTree(tsProgram);
+    const { root } = frontend.convert(tsProgram);
 
     it('converts ImportDeclaration', () => {
       const handler = root.compilationUnits.find(cu => cu.fileName.endsWith('handler.ts'))!;
@@ -134,7 +147,7 @@ describe('buildKSTree', () => {
       // Parse a variety of fixtures to exercise many SyntaxKinds
       for (const fixture of ['kind-basic', 'kind-module', 'kind-violations']) {
         const prog = createTSProgram(path.join(FIXTURES, fixture));
-        const { root } = buildKSTree(prog);
+        const { root } = frontend.convert(prog);
 
         const stack: KSNode[] = [root];
         const kindsFound = new Set<string>();
@@ -158,7 +171,7 @@ describe('buildKSTree', () => {
       // We can't easily trigger it with real TS AST, but we verify the behavior
       // by checking that all nodes in our fixtures have recognized kinds.
       const prog = createTSProgram(path.join(FIXTURES, 'kind-basic'));
-      const { root } = buildKSTree(prog);
+      const { root } = frontend.convert(prog);
 
       const allKinds = new Set<string>();
       const stack: KSNode[] = [root];
@@ -178,7 +191,7 @@ describe('buildKSTree', () => {
 
   describe('full AST depth', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-basic'));
-    const { root } = buildKSTree(tsProgram);
+    const { root } = frontend.convert(tsProgram);
 
     it('tree goes beyond statements — into function bodies and expressions', () => {
       const mathFile = root.compilationUnits.find(cu => cu.fileName.endsWith('math.ts'))!;
@@ -219,20 +232,20 @@ describe('buildKSTree', () => {
       }
     });
 
-    it('KSCDNode parent works deep in the tree', () => {
-      const dnodeRoot = buildTree(root);
-      const cuDNode = dnodeRoot.children[0] as KSCDNode;
+    it('Node parent works deep in the tree', () => {
+      const dnodeRoot = evaluator.buildTree(root);
+      const cuDNode = dnodeRoot.children[0] as Node;
       // Walk to find a deeply nested node
-      let deepNode: KSCDNode = cuDNode.children[0] as KSCDNode;
+      let deepNode: Node = cuDNode.children[0] as Node;
       let depth = 0;
       while (deepNode && deepNode.children.length > 0) {
-        deepNode = deepNode.children[0] as KSCDNode;
+        deepNode = deepNode.children[0] as Node;
         depth++;
       }
 
       if (depth > 1) {
         // Walk back up via parent and verify we reach the root
-        let current: KSCDNode | undefined = deepNode;
+        let current: Node | undefined = deepNode;
         while (current && !current.isRoot) {
           const parent = current.parent;
           expect(parent).toBeDefined();

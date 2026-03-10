@@ -4,36 +4,18 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../app/lib/program.js';
-import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
+import { createProgram } from '../../app/user-api/lib/program.js';
 import {
   nodeToJSON,
   nodeFromJSON,
   treeToJSON,
   treeFromJSON,
-} from '../generated/ts-ast/grammar/serialize.js';
-import type { JSONNode } from '../generated/ts-ast/grammar/serialize.js';
-import {
-  createIdentifier,
-  createIfStatement,
-  createBlock,
-  createReturnStatement,
-  createBinaryExpression,
-  createPlusToken,
-  createNumericLiteral,
-  createStringLiteral,
-  createExpressionStatement,
-  createFunctionDeclaration,
-  createParameter,
-  createVariableStatement,
-  createVariableDeclarationList,
-  createVariableDeclaration,
-  createProgram as createProgramNode,
-  createCompilationUnit,
-} from '../generated/ts-ast/grammar/builders.js';
-import type { KSNode, KSIdentifier, KSIfStatement } from '../generated/ts-ast/grammar/node-types.js';
+  createNode,
+} from '../../specs/ts-ast/grammar/index.js';
+import type { JSONNode } from '../../specs/ts-ast/grammar/index.js';
+import type { KSNode, KSIdentifier, KSIfStatement } from '../../specs/ts-ast/grammar/index.js';
 
-const FIXTURES = path.resolve(__dirname, 'fixtures');
+const FIXTURES = path.resolve(__dirname, '../fixtures');
 
 function getRootFiles(fixtureDir: string): string[] {
   return ts.sys.readDirectory(
@@ -46,7 +28,7 @@ function getRootFiles(fixtureDir: string): string[] {
 
 describe('nodeToJSON', () => {
   it('serializes a leaf node', () => {
-    const id = createIdentifier({ escapedText: 'foo' });
+    const id = createNode('Identifier', { escapedText: 'foo' });
     const json = nodeToJSON(id);
     expect(json.kind).toBe('Identifier');
     expect(json.escapedText).toBe('foo');
@@ -57,9 +39,9 @@ describe('nodeToJSON', () => {
   });
 
   it('serializes a complex node with children', () => {
-    const cond = createIdentifier({ escapedText: 'x' });
-    const then = createBlock();
-    const ifStmt = createIfStatement({ expression: cond, thenStatement: then });
+    const cond = createNode('Identifier', { escapedText: 'x' });
+    const then = createNode('Block');
+    const ifStmt = createNode('IfStatement', { expression: cond, thenStatement: then });
 
     const json = nodeToJSON(ifStmt);
     expect(json.kind).toBe('IfStatement');
@@ -70,11 +52,11 @@ describe('nodeToJSON', () => {
   });
 
   it('serializes list fields', () => {
-    const stmt1 = createReturnStatement();
-    const stmt2 = createExpressionStatement({
-      expression: createIdentifier({ escapedText: 'y' }),
+    const stmt1 = createNode('ReturnStatement');
+    const stmt2 = createNode('ExpressionStatement', {
+      expression: createNode('Identifier', { escapedText: 'y' }),
     });
-    const block = createBlock({ statements: [stmt1, stmt2] });
+    const block = createNode('Block', { statements: [stmt1, stmt2] });
 
     const json = nodeToJSON(block);
     expect(json.kind).toBe('Block');
@@ -86,26 +68,26 @@ describe('nodeToJSON', () => {
   });
 
   it('omits empty lists', () => {
-    const block = createBlock();
+    const block = createNode('Block');
     const json = nodeToJSON(block);
     expect(json.statements).toBeUndefined();
   });
 
   it('preserves prop fields', () => {
-    const lit = createStringLiteral({ value: 'hello' });
+    const lit = createNode('StringLiteral', { value: 'hello' });
     const json = nodeToJSON(lit);
     expect(json.value).toBe('hello');
   });
 
   it('omits default-valued prop fields (false, empty string)', () => {
-    const id = createIdentifier(); // escapedText defaults to ''
+    const id = createNode('Identifier'); // escapedText defaults to ''
     const json = nodeToJSON(id);
     expect(json.escapedText).toBeUndefined(); // '' is omitted
   });
 
   it('produces JSON-safe output (no circular refs)', () => {
-    const tree = createProgramNode({
-      compilationUnits: [createCompilationUnit({
+    const tree = createNode('Program', {
+      compilationUnits: [createNode('CompilationUnit', {
         fileName: 'test.ts',
         sourceText: 'const x = 1;',
       })],
@@ -187,7 +169,7 @@ describe('nodeFromJSON', () => {
 
 describe('round-trip: nodeToJSON → nodeFromJSON', () => {
   it('round-trips a simple node', () => {
-    const original = createIdentifier({ escapedText: 'myVar' });
+    const original = createNode('Identifier', { escapedText: 'myVar' });
     const json = nodeToJSON(original);
     const restored = nodeFromJSON(json) as KSIdentifier;
     expect(restored.kind).toBe(original.kind);
@@ -195,18 +177,18 @@ describe('round-trip: nodeToJSON → nodeFromJSON', () => {
   });
 
   it('round-trips a complex nested structure', () => {
-    const fn = createFunctionDeclaration({
-      name: createIdentifier({ escapedText: 'add' }),
+    const fn = createNode('FunctionDeclaration', {
+      name: createNode('Identifier', { escapedText: 'add' }),
       parameters: [
-        createParameter({ name: createIdentifier({ escapedText: 'a' }) }),
-        createParameter({ name: createIdentifier({ escapedText: 'b' }) }),
+        createNode('Parameter', { name: createNode('Identifier', { escapedText: 'a' }) }),
+        createNode('Parameter', { name: createNode('Identifier', { escapedText: 'b' }) }),
       ],
-      body: createBlock({
-        statements: [createReturnStatement({
-          expression: createBinaryExpression({
-            left: createIdentifier({ escapedText: 'a' }),
-            operatorToken: createPlusToken(),
-            right: createIdentifier({ escapedText: 'b' }),
+      body: createNode('Block', {
+        statements: [createNode('ReturnStatement', {
+          expression: createNode('BinaryExpression', {
+            left: createNode('Identifier', { escapedText: 'a' }),
+            operatorToken: createNode('PlusToken'),
+            right: createNode('Identifier', { escapedText: 'b' }),
           }),
         })],
       }),
@@ -233,13 +215,13 @@ describe('round-trip: nodeToJSON → nodeFromJSON', () => {
   });
 
   it('round-trips through JSON.stringify/parse', () => {
-    const block = createBlock({
+    const block = createNode('Block', {
       statements: [
-        createExpressionStatement({
-          expression: createBinaryExpression({
-            left: createNumericLiteral({ value: '1' }),
-            operatorToken: createPlusToken(),
-            right: createNumericLiteral({ value: '2' }),
+        createNode('ExpressionStatement', {
+          expression: createNode('BinaryExpression', {
+            left: createNode('NumericLiteral', { value: '1' }),
+            operatorToken: createNode('PlusToken'),
+            right: createNode('NumericLiteral', { value: '2' }),
           }),
         }),
       ],
@@ -253,11 +235,11 @@ describe('round-trip: nodeToJSON → nodeFromJSON', () => {
   });
 
   it('round-trips a VariableStatement with declarationKind', () => {
-    const stmt = createVariableStatement({
-      declarationList: createVariableDeclarationList({
-        declarations: [createVariableDeclaration({
-          name: createIdentifier({ escapedText: 'x' }),
-          initializer: createNumericLiteral({ value: '1' }),
+    const stmt = createNode('VariableStatement', {
+      declarationList: createNode('VariableDeclarationList', {
+        declarations: [createNode('VariableDeclaration', {
+          name: createNode('Identifier', { escapedText: 'x' }),
+          initializer: createNode('NumericLiteral', { value: '1' }),
         })],
         declarationKind: 'const',
       }),
@@ -276,8 +258,8 @@ describe('round-trip: nodeToJSON → nodeFromJSON', () => {
 describe('treeToJSON / treeFromJSON', () => {
   it('round-trips a synthetic tree', () => {
     const tree = {
-      root: createProgramNode({
-        compilationUnits: [createCompilationUnit({
+      root: createNode('Program', {
+        compilationUnits: [createNode('CompilationUnit', {
           fileName: 'test.ts',
           sourceText: 'const x = 1;',
         })],
@@ -400,13 +382,13 @@ describe('real AST round-trip', () => {
     const json = treeToJSON(ksTree);
 
     // Most nodes use typed fields (expression, statements, name, etc.)
-    // Only props-only nodes (like CompilationUnit) fall back to children
+    // CompilationUnit now uses 'statements' as its named child field
     const cu = (json.root as any).compilationUnits[0];
-    expect(cu.children).toBeDefined(); // CompilationUnit has no typed child fields
-    expect(cu.fileName).toBeTruthy();  // but props are still present
+    expect(cu.statements).toBeDefined(); // CompilationUnit uses statements field
+    expect(cu.fileName).toBeTruthy();  // props are still present
 
     // A TypeAliasDeclaration uses typed fields, no children key
-    const typeAlias = cu.children.find((c: any) => c.kind === 'TypeAliasDeclaration');
+    const typeAlias = cu.statements.find((c: any) => c.kind === 'TypeAliasDeclaration');
     if (typeAlias) {
       expect(typeAlias.name).toBeDefined();
       expect(typeAlias.name.kind).toBe('Identifier');

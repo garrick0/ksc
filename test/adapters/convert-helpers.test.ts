@@ -23,7 +23,7 @@ import {
   typeOperatorMap,
   heritageTokenMap,
   metaPropertyKeywordMap,
-} from '../specs/ts-ast/grammar/convert-helpers.js';
+} from '../../specs/ts-ast/frontend/helpers.js';
 
 // ── Test infrastructure ──────────────────────────────────────────────
 

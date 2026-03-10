@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../app/lib/program.js';
+import { createProgram } from '../../app/user-api/lib/program.js';
 import {
   treeToJSON, treeFromJSON, nodeToJSON, type JSONNode,
-} from '../generated/ts-ast/grammar/index.js';
+} from '../../specs/ts-ast/grammar/index.js';
 
-const FIXTURES = path.resolve(__dirname, 'fixtures');
+const FIXTURES = path.resolve(__dirname, '../fixtures');
 
 function getRootFiles(fixtureDir: string): string[] {
   return ts.sys.readDirectory(
@@ -136,7 +136,7 @@ describe('nodeToJSON (replaces serializeKSNode)', () => {
 
     expect(serialized.kind).toBe('CompilationUnit');
     expect(serialized.fileName).toBeTruthy();
-    expect(serialized.children!.length).toBeGreaterThan(0);
+    expect((serialized as any).statements!.length).toBeGreaterThan(0);
 
     // JSON-safe
     expect(() => JSON.stringify(serialized)).not.toThrow();

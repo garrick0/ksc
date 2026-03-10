@@ -15,9 +15,9 @@ import {
   EXIT_SUCCESS,
   EXIT_VIOLATIONS,
   EXIT_ERROR,
-} from '../app/cli.js';
+} from '../../app/cli/cli.js';
 
-const FIXTURES = path.resolve(__dirname, 'fixtures');
+const FIXTURES = path.resolve(__dirname, '../fixtures');
 
 // ── parseArgv ─────────────────────────────────────────────────────────
 

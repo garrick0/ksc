@@ -2,29 +2,12 @@
  * Tests for grammar/export.ts — AST dashboard data extraction.
  */
 import { describe, it, expect } from 'vitest';
-import * as path from 'node:path';
-import ts from 'typescript';
-import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
-import { extractASTData, type ASTNode, type ASTDashboardData } from '../grammar/export.js';
-
-const FIXTURES = path.resolve(__dirname, 'fixtures');
-
-const _treeCache = new Map();
-function buildTree(fixtureDir: string) {
-  if (_treeCache.has(fixtureDir)) return _treeCache.get(fixtureDir);
-  const rootFiles = ts.sys.readDirectory(
-    path.join(FIXTURES, fixtureDir, 'src'),
-    ['.ts'],
-  );
-  const program = ts.createProgram(rootFiles, { strict: true, noEmit: true });
-  const result = buildKSTree(program, 'check');
-  _treeCache.set(fixtureDir, result);
-  return result;
-}
+import { extractASTData, type ASTNode, type ASTDashboardData } from '../../app/user-api/lib/export.js';
+import { buildKSTree } from '../helpers/fixtures.js';
 
 describe('extractASTData', () => {
   it('returns version 2 data', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
     expect(data.version).toBe(2);
@@ -32,13 +15,13 @@ describe('extractASTData', () => {
   });
 
   it('respects analysisDepth parameter', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree, 'check');
     expect(data.analysisDepth).toBe('check');
   });
 
   it('produces files with expected structure', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
     expect(data.files.length).toBeGreaterThan(0);
@@ -52,7 +35,7 @@ describe('extractASTData', () => {
   });
 
   it('excludes declaration files', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
     for (const file of data.files) {
@@ -61,7 +44,7 @@ describe('extractASTData', () => {
   });
 
   it('AST nodes have required fields', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
     const ast = data.files[0].ast;
 
@@ -79,7 +62,7 @@ describe('extractASTData', () => {
   });
 
   it('truncates long text to 80 chars', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
     function checkTextLength(node: ASTNode) {
@@ -92,7 +75,7 @@ describe('extractASTData', () => {
   });
 
   it('includes schema info', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
     expect(data.schema).toBeDefined();
@@ -103,7 +86,7 @@ describe('extractASTData', () => {
   });
 
   it('field entries map to valid child indices', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
     function checkFields(node: ASTNode) {
@@ -124,7 +107,7 @@ describe('extractASTData', () => {
   });
 
   it('props are scalar values (string, number, boolean)', () => {
-    const tree = buildTree('kind-basic');
+    const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
     function checkProps(node: ASTNode) {

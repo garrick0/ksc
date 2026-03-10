@@ -1,15 +1,15 @@
 /**
- * Tests for the generated schema (getChildren, allKinds, getChildFields).
+ * Tests for the generated schema (getChildren, allKinds, fieldDefs).
  *
  * Verifies that the generated schema.ts correctly produces:
  * - 364 node kinds
  * - Schema-derived getChildren matching the original
- * - Child field introspection
+ * - Field introspection via fieldDefs
  */
 
 import { describe, it, expect } from 'vitest';
-import { getChildren, allKinds, getChildFields } from '../generated/ts-ast/grammar/index.js';
-import { buildKSTree } from '../generated/ts-ast/grammar/convert.js';
+import { getChildren, allKinds, fieldDefs } from '../../specs/ts-ast/grammar/index.js';
+import { frontend } from '../../specs/ts-ast/frontend/convert.js';
 import ts from 'typescript';
 
 describe('generated schema', () => {
@@ -26,18 +26,21 @@ describe('generated schema', () => {
   });
 
   it('should report correct child fields for TypeAliasDeclaration', () => {
-    const fields = getChildFields('TypeAliasDeclaration');
-    expect(fields).toEqual(['name', 'typeParameters', 'type', 'modifiers']);
+    const defs = fieldDefs['TypeAliasDeclaration'];
+    const childFields = defs.filter(f => f.tag !== 'prop').map(f => f.name);
+    expect(childFields).toEqual(['name', 'typeParameters', 'type', 'modifiers']);
   });
 
   it('should report correct child fields for Program', () => {
-    const fields = getChildFields('Program');
-    expect(fields).toEqual(['compilationUnits']);
+    const defs = fieldDefs['Program'];
+    const childFields = defs.filter(f => f.tag !== 'prop').map(f => f.name);
+    expect(childFields).toEqual(['compilationUnits']);
   });
 
-  it('should report no child fields for leaf nodes', () => {
-    const fields = getChildFields('Identifier');
-    expect(fields).toEqual([]);
+  it('should have no fieldDefs entry for leaf nodes', () => {
+    expect(fieldDefs['Identifier']).toBeDefined(); // Identifier has props, just no child fields
+    const childFields = fieldDefs['Identifier'].filter(f => f.tag !== 'prop');
+    expect(childFields).toEqual([]);
   });
 
   it('should detect missing kinds via allKinds (inline completeness check)', () => {
@@ -74,7 +77,7 @@ describe('generated schema', () => {
     };
 
     const tsProgram = ts.createProgram([tmpFile], {}, host);
-    const ksTree = buildKSTree(tsProgram);
+    const ksTree = frontend.convert(tsProgram);
 
     function walkTree(node: any, fn: (n: any) => void): void {
       fn(node);

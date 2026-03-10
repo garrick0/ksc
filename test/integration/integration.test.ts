@@ -21,11 +21,11 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { buildKSTree, type AnalysisDepth } from '../generated/ts-ast/grammar/convert.js';
-import type { KSNode, KSCompilationUnit } from '../generated/ts-ast/grammar/node-types.js';
-import { fieldDefs, allKinds } from '../generated/ts-ast/grammar/schema.js';
+import { frontend, type AnalysisDepth } from '../../specs/ts-ast/frontend/convert.js';
+import type { KSNode, KSCompilationUnit } from '../../specs/ts-ast/grammar/index.js';
+import { fieldDefs, allKinds } from '../../specs/ts-ast/grammar/index.js';
 
-const FIXTURES = path.resolve(__dirname, 'fixtures');
+const FIXTURES = path.resolve(__dirname, '../fixtures');
 
 // ────────────────────────────────────────────────────────────────────────
 // SyntaxKind → KSC kind name mapping (resolves TS enum aliases)
@@ -152,16 +152,16 @@ const META_PROPERTY_MAP: Record<number, string> = {
 };
 
 // ────────────────────────────────────────────────────────────────────────
-// Expected JS types for prop fields based on typeRef
+// Expected JS types for prop fields based on propType
 // ────────────────────────────────────────────────────────────────────────
 
-function expectedJSType(typeRef: string | undefined): string | null {
-  if (!typeRef) return null;
-  if (typeRef === 'boolean') return 'boolean';
-  if (typeRef === 'number') return 'number';
-  if (typeRef === 'string') return 'string';
-  if (typeRef === 'readonly number[]') return 'object'; // arrays
-  if (typeRef.startsWith("'") || typeRef.includes("' | '")) return 'string'; // union of string literals
+function expectedJSType(propType: string | undefined): string | null {
+  if (!propType) return null;
+  if (propType === 'boolean') return 'boolean';
+  if (propType === 'number') return 'number';
+  if (propType === 'string') return 'string';
+  if (propType === 'readonly number[]') return 'object'; // arrays
+  if (propType.startsWith("'") || propType.includes("' | '")) return 'string'; // union of string literals
   return null; // can't determine
 }
 
@@ -379,12 +379,12 @@ function verifyFieldPresence(
     // Check field exists
     if (!(def.name in ks)) {
       addError(result, 'fieldPresence', nodePath,
-        `missing prop '${def.name}' (expected type: ${def.typeRef})`);
+        `missing prop '${def.name}' (expected type: ${def.propType})`);
       continue;
     }
 
     // Check JS type
-    const jsType = expectedJSType(def.typeRef);
+    const jsType = expectedJSType(def.propType);
     if (jsType && typeof ks[def.name] !== jsType) {
       addError(result, 'fieldPresence', nodePath,
         `prop '${def.name}': expected typeof '${jsType}', got '${typeof ks[def.name]}'`);
@@ -748,7 +748,7 @@ function verifyCompilationUnit(sf: ts.SourceFile, cu: KSCompilationUnit, result:
 
 function walkFixture(depth: AnalysisDepth): VerificationResult {
   const tsProgram = createTSProgram('integration');
-  const ksTree = buildKSTree(tsProgram, depth);
+  const ksTree = frontend.convert(tsProgram, depth);
   const checker = depth !== 'parse' ? tsProgram.getTypeChecker() : null;
 
   const result: VerificationResult = {
@@ -860,7 +860,7 @@ describe('integration — depth degradation', () => {
 
   it('parse depth: checker-dependent fields have defaults', () => {
     const tsProgram = createTSProgram('integration');
-    const ksTree = buildKSTree(tsProgram, 'parse');
+    const ksTree = frontend.convert(tsProgram, 'parse');
     let identCount = 0;
     let typeStringCount = 0;
 
@@ -901,7 +901,7 @@ describe('integration — depth degradation', () => {
 
   it('bind depth: typeString is empty, sym* flags populated', () => {
     const tsProgram = createTSProgram('integration');
-    const ksTree = buildKSTree(tsProgram, 'bind');
+    const ksTree = frontend.convert(tsProgram, 'bind');
     let symPopulated = false;
 
     function walk(node: KSNode) {

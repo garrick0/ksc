@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { defineConfig } from '../app/lib/config.js';
-import { createProgram } from '../app/lib/program.js';
+import { defineConfig } from '../../app/user-api/lib/config.js';
+import { createProgram } from '../../app/user-api/lib/program.js';
 
-const FIXTURES = path.resolve(__dirname, 'fixtures');
+const FIXTURES = path.resolve(__dirname, '../fixtures');
 
 function getRootFiles(fixtureDir: string): string[] {
   return ts.sys.readDirectory(

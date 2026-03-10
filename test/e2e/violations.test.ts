@@ -3,31 +3,14 @@
  * Tests multi-property kinds and clean (no-violation) cases.
  */
 import { describe, it, expect } from 'vitest';
-import * as path from 'node:path';
-import ts from 'typescript';
-import { createProgram } from '../app/lib/program.js';
+import { buildProgram } from '../helpers/fixtures.js';
 
-const FIXTURES = path.resolve(__dirname, 'fixtures');
-
-function getRootFiles(fixtureDir: string): string[] {
-  return ts.sys.readDirectory(
-    path.join(FIXTURES, fixtureDir, 'src'),
-    ['.ts'],
-  );
-}
-
-const _fixtureCache = new Map();
 function getDiagnosticsForFixture(fixtureDir: string) {
-  if (_fixtureCache.has(fixtureDir)) return _fixtureCache.get(fixtureDir);
-  const program = createProgram(getRootFiles(fixtureDir), undefined, {
-    strict: true, noEmit: true,
-  });
-  const result = {
+  const program = buildProgram(fixtureDir);
+  return {
     diagnostics: program.getDiagnostics(),
     definitions: program.getKindDefinitions(),
   };
-  _fixtureCache.set(fixtureDir, result);
-  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────────
