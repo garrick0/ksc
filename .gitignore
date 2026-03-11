@@ -26,8 +26,8 @@ Thumbs.db
 # Showcase temp folder
 .showcase-tmp/
 
-# Mock codegen output (test artifact)
-generated-mock/
+# Mock codegen output (test artifact — generated inside mock adapter)
+src/adapters/analysis/spec/mock/generated/
 
 # Environment
 .env

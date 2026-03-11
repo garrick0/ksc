@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getChildren, allKinds, fieldDefs } from '../../specs/ts-ast/grammar/index.js';
-import { frontend } from '../../specs/ts-ast/frontend/convert.js';
+import { getChildren, allKinds, fieldDefs } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
+import { tsToAstTranslatorAdapter } from '../../src/adapters/grammar/ast-translator/ts-ast/convert.js';
 import ts from 'typescript';
 
 describe('generated schema', () => {
@@ -77,7 +77,7 @@ describe('generated schema', () => {
     };
 
     const tsProgram = ts.createProgram([tmpFile], {}, host);
-    const ksTree = frontend.convert(tsProgram);
+    const ksTree = tsToAstTranslatorAdapter.convert(tsProgram);
 
     function walkTree(node: any, fn: (n: any) => void): void {
       fn(node);

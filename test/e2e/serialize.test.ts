@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../../app/user-api/lib/program.js';
+import { createProgram } from '../../src/application/index.js';
 import {
   treeToJSON, treeFromJSON, nodeToJSON, type JSONNode,
-} from '../../specs/ts-ast/grammar/index.js';
+} from '../../src/adapters/grammar/grammar/ts-ast/index.js';
 
 const FIXTURES = path.resolve(__dirname, '../fixtures');
 

@@ -2,7 +2,7 @@
  * Tests for the generic createNode builder function.
  */
 import { describe, it, expect } from 'vitest';
-import { createNode, getChildren } from '../../specs/ts-ast/grammar/index.js';
+import { createNode, getChildren } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
 
 describe('createNode', () => {
   describe('leaf nodes', () => {

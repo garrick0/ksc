@@ -1,17 +1,13 @@
 /**
  * Mock evaluator wiring — verifies the evaluator engine works with
  * the mock spec (a second grammar+analysis beyond ts-ast).
+ *
+ * Uses the shared mockEvalTarget + mockEvaluator from the evaluation
+ * wiring module (symmetric with mockTarget in codegen-targets.ts).
  */
 import { describe, it, expect } from 'vitest';
-import { wireEvaluator } from '../../evaluator/engine.js';
-import { dispatchConfig } from '../../generated-mock/mock/mock-analysis/dispatch.js';
-import { analysisSpec } from '../../specs/mock/mock-analysis/spec.js';
-import { grammar, createNode } from '../../specs/mock/grammar/index.js';
-const evaluator = wireEvaluator({
-  grammar,
-  spec: analysisSpec,
-  dispatch: dispatchConfig,
-});
+import { mockEvaluator as evaluator } from '../../src/application/evaluation/mock.js';
+import { createNode } from '../../src/adapters/grammar/grammar/mock/index.js';
 
 // ── Build a mock AST ─────────────────────────────────────────────────
 

@@ -4,28 +4,18 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { frontend } from '../../specs/ts-ast/frontend/convert.js';
-import { wireEvaluator } from '../../evaluator/engine.js';
-import type { TypedAGNode } from '../../evaluator/types.js';
-import { dispatchConfig } from '../../generated/ts-ast/kind-checking/dispatch.js';
-import { analysisSpec } from '../../specs/ts-ast/kind-checking/spec.js';
-import { grammar } from '../../specs/ts-ast/grammar/index.js';
-import type { KSCAttrMap } from '../../generated/ts-ast/kind-checking/attr-types.js';
+import { tsToAstTranslatorAdapter, evaluator } from '../../src/application/evaluation/ts-kind-checking.js';
+import type { TypedAGNode } from '@kindscript/core-evaluator';
+import type { KSCAttrMap } from '../../src/adapters/analysis/spec/ts-kind-checking/index.js';
 import type {
   KSNode, KSCompilationUnit, KSTypeAliasDeclaration, KSTypeReference,
   KSTypeLiteral, KSIdentifier, KSFunctionDeclaration,
   KSVariableStatement, KSVariableDeclarationList, KSVariableDeclaration,
   KSImportDeclaration, KSStringLiteral, KSPropertySignature,
   KSArrowFunction,
-} from '../../specs/ts-ast/grammar/index.js';
+} from '../../src/adapters/grammar/grammar/ts-ast/index.js';
 
 type Node = TypedAGNode<KSCAttrMap>;
-
-const evaluator = wireEvaluator<string, KSCAttrMap>({
-  grammar,
-  spec: analysisSpec,
-  dispatch: dispatchConfig,
-});
 
 const FIXTURES = path.resolve(__dirname, '../fixtures');
 
@@ -49,10 +39,10 @@ function createTSProgram(fixtureDir: string): ts.Program {
   return ts.createProgram(rootNames, options);
 }
 
-describe('frontend.convert (buildKSTree)', () => {
+describe('tsToAstTranslatorAdapter.convert (buildKSTree)', () => {
   describe('kind-basic fixture', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-basic'));
-    const { root } = frontend.convert(tsProgram);
+    const { root } = tsToAstTranslatorAdapter.convert(tsProgram);
 
     it('creates a Program root with CompilationUnits', () => {
       expect(root.kind).toBe('Program');
@@ -128,7 +118,7 @@ describe('frontend.convert (buildKSTree)', () => {
 
   describe('kind-module fixture', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-module'));
-    const { root } = frontend.convert(tsProgram);
+    const { root } = tsToAstTranslatorAdapter.convert(tsProgram);
 
     it('converts ImportDeclaration', () => {
       const handler = root.compilationUnits.find(cu => cu.fileName.endsWith('handler.ts'))!;
@@ -147,7 +137,7 @@ describe('frontend.convert (buildKSTree)', () => {
       // Parse a variety of fixtures to exercise many SyntaxKinds
       for (const fixture of ['kind-basic', 'kind-module', 'kind-violations']) {
         const prog = createTSProgram(path.join(FIXTURES, fixture));
-        const { root } = frontend.convert(prog);
+        const { root } = tsToAstTranslatorAdapter.convert(prog);
 
         const stack: KSNode[] = [root];
         const kindsFound = new Set<string>();
@@ -171,7 +161,7 @@ describe('frontend.convert (buildKSTree)', () => {
       // We can't easily trigger it with real TS AST, but we verify the behavior
       // by checking that all nodes in our fixtures have recognized kinds.
       const prog = createTSProgram(path.join(FIXTURES, 'kind-basic'));
-      const { root } = frontend.convert(prog);
+      const { root } = tsToAstTranslatorAdapter.convert(prog);
 
       const allKinds = new Set<string>();
       const stack: KSNode[] = [root];
@@ -191,7 +181,7 @@ describe('frontend.convert (buildKSTree)', () => {
 
   describe('full AST depth', () => {
     const tsProgram = createTSProgram(path.join(FIXTURES, 'kind-basic'));
-    const { root } = frontend.convert(tsProgram);
+    const { root } = tsToAstTranslatorAdapter.convert(tsProgram);
 
     it('tree goes beyond statements — into function bodies and expressions', () => {
       const mathFile = root.compilationUnits.find(cu => cu.fileName.endsWith('math.ts'))!;

@@ -14,22 +14,22 @@
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { compileAnalysis } from '../../analysis/index.js';
-import { grammar } from '../../specs/ts-ast/grammar/index.js';
-import { analysisSpec } from '../../specs/ts-ast/kind-checking/spec.js';
+import { compileAnalysis } from '@kindscript/core-codegen';
+import { grammar } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
+import { analysisDecl } from '../../src/adapters/analysis/spec/ts-kind-checking/spec.js';
 
 const ROOT = path.resolve(import.meta.dirname!, '../..');
-const GENERATED_DIR = path.join(ROOT, 'generated', 'ts-ast', 'kind-checking');
+const GENERATED_DIR = path.join(ROOT, 'src', 'adapters', 'analysis', 'spec', 'ts-kind-checking', 'generated');
 
 /**
- * The same import paths used by app/analysis-codegen/ts-kind-checking.ts.
+ * The same import paths used by application/codegen/codegen-targets.ts.
  * If those change, this test must be updated in sync.
  */
 const generatedImports = {
-  specImportPath: '../../../specs/ts-ast/kind-checking/spec.js',
-  grammarImportPath: '../../../specs/ts-ast/grammar/index.js',
-  analysisImportPath: '../../../analysis',
-  evaluatorImportPath: '../../../evaluator',
+  specImportPath: '../spec.js',
+  grammarImportPath: '../../../../grammar/grammar/ts-ast/index.js',
+  analysisImportPath: '@kindscript/core-codegen',
+  evaluatorImportPath: '@kindscript/core-evaluator',
 };
 
 /**
@@ -43,7 +43,7 @@ function normalizeBundlerNames(content: string): string {
 }
 
 describe('codegen roundtrip — committed files match fresh compilation', () => {
-  const result = compileAnalysis(grammar, analysisSpec, generatedImports);
+  const result = compileAnalysis(grammar, analysisDecl, generatedImports);
 
   it('dispatch.ts matches committed file', () => {
     const committedDispatch = fs.readFileSync(
@@ -72,6 +72,14 @@ describe('codegen roundtrip — committed files match fresh compilation', () => 
       (content.match(/^\s+\w+:\s*\{\s*direction:/gm) || []).length;
     expect(countEntries(result.dispatchFile.content))
       .toBe(countEntries(committedDispatch));
+  });
+
+  it('dep-graph.ts matches committed file', () => {
+    const committedDepGraph = fs.readFileSync(
+      path.join(GENERATED_DIR, 'dep-graph.ts'),
+      'utf-8',
+    );
+    expect(result.depGraphFile.content).toBe(committedDepGraph);
   });
 
   it('dispatch.ts references same equation function names', () => {

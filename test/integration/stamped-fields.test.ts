@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import type {
   KSNode, KSIdentifier, KSFunctionDeclaration, KSClassDeclaration,
   KSBlock, KSArrowFunction, KSVariableDeclaration,
-} from '../../specs/ts-ast/grammar/index.js';
+} from '../../src/adapters/grammar/grammar/ts-ast/index.js';
 import { buildKSTree, findKSNodeCU, findNodes } from '../helpers/fixtures.js';
 
 // ────────────────────────────────────────────────────────────────────────

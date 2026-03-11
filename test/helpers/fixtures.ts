@@ -3,34 +3,27 @@
  *
  * Provides cached builders for the three common fixture patterns:
  *   1. buildProgram()     — createProgram() → KSProgramInterface (for API / e2e tests)
- *   2. buildKSTree()      — frontend.convert() → { root } (for converter / export tests)
+ *   2. buildKSTree()      — tsToAstTranslatorAdapter.convert() → { root } (for converter / export tests)
  *   3. buildAndEvaluate() — convert + evaluator.evaluate + buildTree (for kind-checking tests)
  *
  * Plus DFS helpers: findCU(), findDNodeByKind(), findNodes().
  */
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../../app/user-api/lib/program.js';
-import { frontend } from '../../specs/ts-ast/frontend/convert.js';
-import { wireEvaluator } from '../../evaluator/engine.js';
-import { dispatchConfig } from '../../generated/ts-ast/kind-checking/dispatch.js';
-import { analysisSpec } from '../../specs/ts-ast/kind-checking/spec.js';
-import { grammar } from '../../specs/ts-ast/grammar/index.js';
-import type { KSCAttrMap } from '../../generated/ts-ast/kind-checking/attr-types.js';
-import type { TypedAGNode } from '../../evaluator/types.js';
-import type { KSNode } from '../../specs/ts-ast/grammar/index.js';
+
+// Application-layer API + wiring
+import { createProgram } from '../../src/application/index.js';
+import { evaluator, tsToAstTranslatorAdapter } from '../../src/application/evaluation/ts-kind-checking.js';
+
+// Types
+import type { KSCAttrMap, KindDefinition, Diagnostic } from '../../src/adapters/analysis/spec/ts-kind-checking/index.js';
+import type { TypedAGNode } from '@kindscript/core-evaluator';
+import type { KSNode, KSCompilationUnit, KSProgram } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
+import type { AnalysisDepth } from '../../src/api.js';
 
 // ── Constants ─────────────────────────────────────────────────────────
 
 export const FIXTURES = path.resolve(__dirname, '../fixtures');
-
-// ── Shared evaluator instance ─────────────────────────────────────────
-
-const evaluator = wireEvaluator<string, KSCAttrMap>({
-  grammar,
-  spec: analysisSpec,
-  dispatch: dispatchConfig,
-});
 
 // ── Low-level helpers ─────────────────────────────────────────────────
 
@@ -84,16 +77,16 @@ export function buildProgramBare(fixtureDir: string) {
 }
 
 /**
- * Cached frontend.convert(). Returns the KS tree { root }.
+ * Cached tsToAstTranslatorAdapter.convert(). Returns the KS tree { root }.
  *
  * @param fixtureDir  Subdirectory under test/fixtures/
  * @param depth       Conversion depth: 'parse' | 'bind' | 'check' (default: 'check')
  */
-const _treeCache = new Map<string, ReturnType<typeof frontend.convert>>();
+const _treeCache = new Map<string, ReturnType<typeof tsToAstTranslatorAdapter.convert>>();
 
 export function buildKSTree(
   fixtureDir: string,
-  depth: 'parse' | 'bind' | 'check' = 'check',
+  depth: AnalysisDepth = 'check',
 ) {
   const key = `${fixtureDir}:${depth}`;
   if (_treeCache.has(key)) return _treeCache.get(key)!;
@@ -104,7 +97,7 @@ export function buildKSTree(
     noEmit: true,
     rootDir: path.join(FIXTURES, fixtureDir),
   });
-  const result = frontend.convert(tsProgram, depth);
+  const result = tsToAstTranslatorAdapter.convert(tsProgram, depth);
   _treeCache.set(key, result);
   return result;
 }
@@ -115,10 +108,10 @@ export function buildKSTree(
  * @param fixtureDir  Subdirectory under test/fixtures/
  */
 export type EvaluateResult = {
-  ksTree: ReturnType<typeof frontend.convert>;
+  ksTree: ReturnType<typeof tsToAstTranslatorAdapter.convert>;
   dnodeRoot: TypedAGNode<KSCAttrMap>;
-  allDefs: ReturnType<ReturnType<typeof evaluator.evaluate>['definitions']>;
-  diagnostics: ReturnType<ReturnType<typeof evaluator.evaluate>['diagnostics']>;
+  allDefs: KindDefinition[];
+  diagnostics: Diagnostic[];
 };
 
 const _evaluateCache = new Map<string, EvaluateResult>();
@@ -132,11 +125,13 @@ export function buildAndEvaluate(fixtureDir: string): EvaluateResult {
     noEmit: true,
     rootDir: path.join(FIXTURES, fixtureDir),
   });
-  const ksTree = frontend.convert(tsProgram);
-  const evalResult = evaluator.evaluate(ksTree.root);
-  const allDefs = evalResult.definitions;
-  const diagnostics = evalResult.diagnostics;
+  const ksTree = tsToAstTranslatorAdapter.convert(tsProgram);
+
+  // Use evaluate() to exercise the full code path (projections + setup)
+  const { definitions: allDefs, diagnostics } = evaluator.evaluate(ksTree.root);
+  // Build typed tree separately for test attribute inspection
   const dnodeRoot = evaluator.buildTree(ksTree.root);
+
   const result = { ksTree, dnodeRoot, allDefs, diagnostics };
   _evaluateCache.set(fixtureDir, result);
   return result;
@@ -149,7 +144,7 @@ export type Node = TypedAGNode<KSCAttrMap>;
 /** Find a CompilationUnit DNode by filename substring. */
 export function findCU(dnodeRoot: Node, fileSubstr: string): Node | undefined {
   return dnodeRoot.children.find(
-    cu => (cu.node as any).fileName?.includes(fileSubstr),
+    cu => (cu.node as KSCompilationUnit).fileName?.includes(fileSubstr),
   );
 }
 
@@ -166,9 +161,9 @@ export function findDNodeByKind(root: Node, kind: string): Node | undefined {
 
 /** Find a CompilationUnit KSNode by filename substring. */
 export function findKSNodeCU(root: KSNode, fileSubstr: string): KSNode | undefined {
-  return (root as any).compilationUnits?.find(
-    (cu: any) => cu.fileName?.includes(fileSubstr),
-  );
+  return (root as KSProgram).compilationUnits?.find(
+    (cu) => cu.fileName?.includes(fileSubstr),
+  ) as KSNode | undefined;
 }
 
 /** DFS find all KSNodes matching a predicate. */

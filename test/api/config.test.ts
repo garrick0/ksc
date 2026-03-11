@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { defineConfig } from '../../app/user-api/lib/config.js';
-import { createProgram } from '../../app/user-api/lib/program.js';
+import { defineConfig } from '../../src/api.js';
+import { createProgram } from '../../src/application/index.js';
 
 const FIXTURES = path.resolve(__dirname, '../fixtures');
 

@@ -1,8 +1,7 @@
 /**
- * Tests for the KindScript CLI (app/cli.ts).
+ * Tests for the KindScript CLI (apps/cli/cli.ts).
  *
  * Tests argument parsing, config discovery, file discovery, and init command.
- * Watch mode is not tested (requires filesystem events).
  */
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
@@ -10,12 +9,13 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import {
   parseArgv,
-  findConfig,
-  findRootFiles,
+  CLIError,
   EXIT_SUCCESS,
   EXIT_VIOLATIONS,
   EXIT_ERROR,
-} from '../../app/cli/cli.js';
+} from '../../apps/cli/cli.js';
+import { findConfig } from '../../src/application/config.js';
+import { findRootFiles } from '../../src/application/find-files.js';
 
 const FIXTURES = path.resolve(__dirname, '../fixtures');
 
@@ -26,8 +26,9 @@ describe('parseArgv', () => {
     const opts = parseArgv(['node', 'ksc']);
     expect(opts.command).toBe('check');
     expect(opts.json).toBe(false);
-    expect(opts.watch).toBe(false);
-    expect(opts.depth).toBe('check');
+    expect(opts.depth).toBeUndefined();
+    expect(opts.help).toBe(false);
+    expect(opts.version).toBe(false);
   });
 
   it('parses check command', () => {
@@ -43,16 +44,6 @@ describe('parseArgv', () => {
   it('parses --json flag', () => {
     const opts = parseArgv(['node', 'ksc', 'check', '--json']);
     expect(opts.json).toBe(true);
-  });
-
-  it('parses --watch flag', () => {
-    const opts = parseArgv(['node', 'ksc', 'check', '--watch']);
-    expect(opts.watch).toBe(true);
-  });
-
-  it('parses -w shorthand', () => {
-    const opts = parseArgv(['node', 'ksc', 'check', '-w']);
-    expect(opts.watch).toBe(true);
   });
 
   it('parses --config with separate value', () => {
@@ -78,28 +69,57 @@ describe('parseArgv', () => {
   it('parses multiple flags together', () => {
     const opts = parseArgv([
       'node', 'ksc', 'check',
-      '--json', '--watch', '--depth', 'parse', '--config', 'foo.ts',
+      '--json', '--depth', 'parse', '--config', 'foo.ts',
     ]);
     expect(opts.json).toBe(true);
-    expect(opts.watch).toBe(true);
     expect(opts.depth).toBe('parse');
     expect(opts.configPath).toBe('foo.ts');
   });
 
-  it('parses help variants', () => {
-    expect(parseArgv(['node', 'ksc', '--help']).command).toBe('--help');
-    expect(parseArgv(['node', 'ksc', '-h']).command).toBe('-h');
-    expect(parseArgv(['node', 'ksc', 'help']).command).toBe('help');
+  it('parses --help flag', () => {
+    const opts = parseArgv(['node', 'ksc', '--help']);
+    expect(opts.help).toBe(true);
   });
 
-  it('parses version variants', () => {
-    expect(parseArgv(['node', 'ksc', '--version']).command).toBe('--version');
-    expect(parseArgv(['node', 'ksc', '-v']).command).toBe('-v');
+  it('parses -h shorthand', () => {
+    const opts = parseArgv(['node', 'ksc', '-h']);
+    expect(opts.help).toBe(true);
+  });
+
+  it('parses help as positional command', () => {
+    const opts = parseArgv(['node', 'ksc', 'help']);
+    expect(opts.command).toBe('help');
+  });
+
+  it('parses --version flag', () => {
+    const opts = parseArgv(['node', 'ksc', '--version']);
+    expect(opts.version).toBe(true);
+  });
+
+  it('parses -v shorthand', () => {
+    const opts = parseArgv(['node', 'ksc', '-v']);
+    expect(opts.version).toBe(true);
   });
 
   it('unknown command is passed through', () => {
     const opts = parseArgv(['node', 'ksc', 'foobar']);
     expect(opts.command).toBe('foobar');
+  });
+
+  it('rejects unknown flags', () => {
+    expect(() => parseArgv(['node', 'ksc', 'check', '--bogus'])).toThrow(TypeError);
+  });
+
+  it('throws CLIError for invalid depth value', () => {
+    expect(() => parseArgv(['node', 'ksc', 'check', '--depth', 'invalid']))
+      .toThrow(CLIError);
+    expect(() => parseArgv(['node', 'ksc', 'check', '--depth', 'invalid']))
+      .toThrow("Invalid --depth value 'invalid'");
+  });
+
+  it('throws CLIError for invalid --depth= value', () => {
+    expect(() => parseArgv(['node', 'ksc', 'check', '--depth=banana']))
+      .toThrow(CLIError);
   });
 });
 

@@ -1,0 +1,23 @@
+{
+  "name": "@kindscript/core-evaluator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@kindscript/core-grammar": "*"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./ports": {
+      "types": "./src/ports.ts",
+      "default": "./src/ports.ts"
+    },
+    "./ctx": {
+      "types": "./src/ctx.ts",
+      "default": "./src/ctx.ts"
+    }
+  }
+}

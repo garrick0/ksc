@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import ts from 'typescript';
-import { NODES } from '../../specs/ts-ast/grammar/nodes.js';
+import { NODES } from '../../src/adapters/grammar/grammar/ts-ast/nodes.js';
 
 describe('grammar coverage vs TypeScript SyntaxKind', () => {
   const ourKinds = new Set(Object.keys(NODES));

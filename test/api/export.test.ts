@@ -2,7 +2,8 @@
  * Tests for grammar/export.ts — AST dashboard data extraction.
  */
 import { describe, it, expect } from 'vitest';
-import { extractASTData, type ASTNode, type ASTDashboardData } from '../../app/user-api/lib/export.js';
+import { extractASTData } from '../../apps/dashboard/extract.js';
+import type { ASTNode } from '../../apps/dashboard/app/types.js';
 import { buildKSTree } from '../helpers/fixtures.js';
 
 describe('extractASTData', () => {

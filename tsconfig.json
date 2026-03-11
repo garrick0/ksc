@@ -16,7 +16,7 @@
   },
   // Production source directories.
   // Tests are excluded (vitest has its own TS handling).
-  // Dashboard has its own build via vite (see dashboard/vite.config.ts).
-  "include": ["app", "generated", "analysis", "grammar", "specs"],
-  "exclude": ["node_modules", "dist", "test", "dashboard/app"]
+  // Dashboard has its own build via vite (see apps/dashboard/vite.config.ts).
+  "include": ["apps", "src", "packages"],
+  "exclude": ["node_modules", "dist", "test", "apps/dashboard/app"]
 }

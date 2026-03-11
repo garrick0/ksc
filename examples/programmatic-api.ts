@@ -12,7 +12,9 @@
 
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram, defineConfig, extractASTData } from '../app/user-api/index.js';
+import { createProgram } from '../src/application/index.js';
+import { defineConfig } from '../src/api.js';
+import { extractASTData } from '../apps/dashboard/extract.js';
 
 const FIXTURE_DIR = path.resolve(__dirname, '..', 'test', 'fixtures', 'kind-basic', 'src');
 

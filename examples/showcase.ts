@@ -24,8 +24,8 @@ import {
   discoverRootFiles,
   serveDashboard,
 } from './showcase-utils.js';
-import { frontend } from '../specs/ts-ast/frontend/convert.js';
-import { extractASTData } from '../app/user-api/lib/export.js';
+import { parseOnly } from '../src/application/index.js';
+import { extractASTData } from '../apps/dashboard/extract.js';
 
 const { values } = parseArgs({
   options: {
@@ -65,7 +65,7 @@ async function main() {
 
   // Full analysis: parse + type checker for all stamped fields
   console.log('  Analyzing (check depth)...');
-  const tsProgram = ts.createProgram(rootFiles, {
+  const ksTree = parseOnly(rootFiles, {
     strict: true,
     noEmit: true,
     rootDir,
@@ -73,8 +73,7 @@ async function main() {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ES2022,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
-  });
-  const ksTree = frontend.convert(tsProgram, 'check');
+  }, 'check');
 
   // Extract AST data for dashboard
   const data = extractASTData(ksTree, 'check');

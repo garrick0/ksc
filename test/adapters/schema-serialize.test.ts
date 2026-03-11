@@ -4,16 +4,16 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram } from '../../app/user-api/lib/program.js';
+import { createProgram } from '../../src/application/index.js';
 import {
   nodeToJSON,
   nodeFromJSON,
   treeToJSON,
   treeFromJSON,
   createNode,
-} from '../../specs/ts-ast/grammar/index.js';
-import type { JSONNode } from '../../specs/ts-ast/grammar/index.js';
-import type { KSNode, KSIdentifier, KSIfStatement } from '../../specs/ts-ast/grammar/index.js';
+} from '../../src/adapters/grammar/grammar/ts-ast/index.js';
+import type { JSONNode } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
+import type { KSNode, KSIdentifier, KSIfStatement } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
 
 const FIXTURES = path.resolve(__dirname, '../fixtures');
 

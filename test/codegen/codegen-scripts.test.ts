@@ -5,20 +5,20 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { compileAnalysis, validateSpec } from '../../analysis/index.js';
-import { analysisSpec } from '../../specs/ts-ast/kind-checking/spec.js';
-import { grammar } from '../../specs/ts-ast/grammar/index.js';
+import { compileAnalysis, validateSpec } from '@kindscript/core-codegen';
+import { analysisDecl } from '../../src/adapters/analysis/spec/ts-kind-checking/spec.js';
+import { grammar } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
 
 describe('codegen pipeline', () => {
   it('spec validation passes with real specs', () => {
-    const diags = validateSpec(analysisSpec);
+    const diags = validateSpec(analysisDecl);
 
     const errors = diags.filter(d => d.level === 'error');
     expect(errors).toEqual([]);
   });
 
   it('compileAnalysis produces dispatch and attr-types', () => {
-    const result = compileAnalysis(grammar, analysisSpec);
+    const result = compileAnalysis(grammar, analysisDecl);
 
     expect(result.dispatchFile.path).toBe('dispatch.ts');
     expect(result.attrTypesFile.path).toBe('attr-types.ts');
@@ -30,7 +30,7 @@ describe('codegen pipeline', () => {
   });
 
   it('compileAnalysis uses custom specImportPath', () => {
-    const result = compileAnalysis(grammar, analysisSpec, {
+    const result = compileAnalysis(grammar, analysisDecl, {
       specImportPath: '../specs/ts-ast/kind-checking/spec.js',
     });
     expect(result.dispatchFile.content).toContain(

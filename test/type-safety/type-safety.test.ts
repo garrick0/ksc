@@ -32,9 +32,9 @@ function cleanup() {
   try { rmSync(TMP_DIR, { recursive: true, force: true }); } catch {}
 }
 
-// Paths relative from .type-test-tmp/ to project modules
-const TYPES_PATH = '../analysis/index.js';
-const EQUATION_UTILS_PATH = '../analysis/equation-utils.js';
+// Package imports for workspace packages
+const TYPES_PATH = '@kindscript/core-codegen';
+const EQUATION_UTILS_PATH = '@kindscript/core-codegen';
 
 describe('type-level kind safety (Layer 1)', () => {
   afterAll(cleanup);

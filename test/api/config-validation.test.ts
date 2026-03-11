@@ -4,11 +4,12 @@
  * Tests the CLI argument parsing for depth validation and
  * config discovery edge cases.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import { parseArgv, findConfig } from '../../app/cli/cli.js';
+import { parseArgv, CLIError } from '../../apps/cli/cli.js';
+import { findConfig } from '../../src/application/config.js';
 
 // ── parseArgv depth validation ────────────────────────────────────────
 
@@ -28,44 +29,21 @@ describe('parseArgv — depth validation', () => {
     expect(opts.depth).toBe('check');
   });
 
-  it('defaults depth to check when not specified', () => {
+  it('defaults depth to undefined when not specified', () => {
     const opts = parseArgv(['node', 'ksc', 'check']);
-    expect(opts.depth).toBe('check');
+    expect(opts.depth).toBeUndefined();
   });
 
-  it('calls process.exit for invalid depth value', () => {
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
-    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    try {
-      expect(() => parseArgv(['node', 'ksc', 'check', '--depth', 'invalid']))
-        .toThrow('process.exit called');
-      expect(exitSpy).toHaveBeenCalledWith(2);
-      expect(stderrSpy).toHaveBeenCalledWith(
-        expect.stringContaining("invalid --depth value 'invalid'"),
-      );
-    } finally {
-      exitSpy.mockRestore();
-      stderrSpy.mockRestore();
-    }
+  it('throws CLIError for invalid depth value', () => {
+    expect(() => parseArgv(['node', 'ksc', 'check', '--depth', 'invalid']))
+      .toThrow(CLIError);
+    expect(() => parseArgv(['node', 'ksc', 'check', '--depth', 'invalid']))
+      .toThrow("Invalid --depth value 'invalid'");
   });
 
-  it('calls process.exit for invalid --depth= value', () => {
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
-    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    try {
-      expect(() => parseArgv(['node', 'ksc', 'check', '--depth=banana']))
-        .toThrow('process.exit called');
-      expect(exitSpy).toHaveBeenCalledWith(2);
-    } finally {
-      exitSpy.mockRestore();
-      stderrSpy.mockRestore();
-    }
+  it('throws CLIError for invalid --depth= value', () => {
+    expect(() => parseArgv(['node', 'ksc', 'check', '--depth=banana']))
+      .toThrow(CLIError);
   });
 });
 

@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { execSync } from 'node:child_process';
-import type { ASTDashboardData } from '../app/user-api/lib/export.js';
+import type { ASTDashboardData } from '../apps/dashboard/app/types.js';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const TEMP_DIR = path.join(PROJECT_ROOT, '.showcase-tmp');
@@ -108,7 +108,7 @@ export function discoverRootFiles(rootDir: string): string[] {
 
 export async function serveDashboard(data: ASTDashboardData): Promise<{ close: () => void }> {
   const { createServer } = await import('vite');
-  const configPath = path.join(PROJECT_ROOT, 'dashboard', 'vite.config.ts');
+  const configPath = path.join(PROJECT_ROOT, 'apps', 'dashboard', 'vite.config.ts');
 
   const server = await createServer({
     configFile: configPath,

@@ -5,23 +5,11 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { frontend } from '../../specs/ts-ast/frontend/convert.js';
-import { wireEvaluator } from '../../evaluator/engine.js';
-import type { TypedAGNode } from '../../evaluator/types.js';
-import { dispatchConfig } from '../../generated/ts-ast/kind-checking/dispatch.js';
-import { analysisSpec } from '../../specs/ts-ast/kind-checking/spec.js';
-import { grammar } from '../../specs/ts-ast/grammar/index.js';
-import type { KSCAttrMap } from '../../generated/ts-ast/kind-checking/attr-types.js';
+import { tsToAstTranslatorAdapter, evaluator } from '../../src/application/evaluation/ts-kind-checking.js';
 import {
   FIXTURES, buildAndEvaluate, findCU, findDNodeByKind,
   type Node,
 } from '../helpers/fixtures.js';
-
-const evaluator = wireEvaluator<string, KSCAttrMap>({
-  grammar,
-  spec: analysisSpec,
-  dispatch: dispatchConfig,
-});
 
 // ────────────────────────────────────────────────────────────────────────
 
@@ -241,7 +229,7 @@ describe('binder attributes — empty input', () => {
   it('returns empty results for files with no kinds', () => {
     const file = path.join(FIXTURES, 'checker-clean', 'src', 'pure', 'math.ts');
     const tsProgram = ts.createProgram([file], { strict: true, noEmit: true });
-    const ksTree = frontend.convert(tsProgram);
+    const ksTree = tsToAstTranslatorAdapter.convert(tsProgram);
     const dnodeRoot = evaluator.buildTree(ksTree.root);
     const allDefs = dnodeRoot.children.flatMap(cu => cu.attr('kindDefs'));
     expect(allDefs.length).toBe(0);

@@ -1,0 +1,517 @@
+/**
+ * Analysis Compilation — Generic AG Dispatch Generator.
+ *
+ * compileAnalysis(Grammar, AnalysisDecl) → CompiledAnalyzer
+ *
+ * Takes a declarative analysis specification and produces:
+ *   - dispatch.ts  — per-attribute dispatch functions + config + dep graph
+ *   - attr-types.ts — KSCAttrMap interface
+ *   - dep graph     — static attribute dependency graph
+ *
+ * The evaluator itself is hand-written (core-evaluator/engine.ts). This module
+ * generates only the per-spec dispatch functions that route attribute
+ * evaluation to the correct equation function based on node kind.
+ *
+ * Equation functions are referenced directly (not as strings). compile.ts
+ * reads fn.name to generate imports and call expressions. Dependencies are
+ * inferred from withDeps() metadata on the function references.
+ */
+
+import type { Grammar } from '@kindscript/core-grammar';
+import type {
+  AnalysisDecl,
+  AttrDecl,
+  SynAttr,
+  InhAttr,
+  CollectionAttr,
+  AttrExpr,
+  ParamDef,
+} from './ports.js';
+import type { AttributeDepGraph } from '@kindscript/core-grammar';
+import { isCodeLiteral } from './ports.js';
+import type {
+  CompiledAnalyzer,
+  GeneratedImports,
+} from './codegen-types.js';
+import { collectDepsForAttr } from './equation-utils.js';
+
+// ── AttrExpr → generated code ───────────────────────────────────────
+
+/**
+ * Convert an AttrExpr value to the code string emitted in generated files.
+ *
+ * - Function → fn.name(ctx) or fn.name(ctx, param)
+ *   When `kind` is provided, emits `fn.name(ctx as KindCtx<KindToNode['Kind']>, ...)`
+ *   to provide type-narrowed context to per-kind equation functions.
+ * - null → 'null'
+ * - number → the number as string
+ * - boolean → 'true' / 'false'
+ * - CodeLiteral → the raw code string
+ */
+function emitExpr(value: AttrExpr, param?: ParamDef, kind?: string): string {
+  if (value === null) return 'null';
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (isCodeLiteral(value)) return value.code;
+  // Function — per-kind equations get a KindCtx cast
+  const ctx = kind ? `ctx as unknown as KindCtx<KindToNode['${kind}']>` : 'ctx';
+  if (param) return `${value.name}(${ctx}, ${param.name})`;
+  return `${value.name}(${ctx})`;
+}
+
+// ── Collect equation function names for auto-import ─────────────────
+
+function collectEquationFunctions(attrs: AttrDecl[]): Set<string> {
+  const names = new Set<string>();
+
+  function addIfFn(v: AttrExpr | undefined) {
+    if (typeof v === 'function' && v.name) names.add(v.name);
+  }
+
+  for (const attr of attrs) {
+    switch (attr.direction) {
+      case 'syn':
+        addIfFn(attr.default);
+        if (attr.equations) {
+          for (const fn of Object.values(attr.equations)) {
+            if (fn && fn.name) names.add(fn.name);
+          }
+        }
+        break;
+      case 'inh':
+        addIfFn(attr.rootValue);
+        if (attr.parentEquations) {
+          for (const fn of Object.values(attr.parentEquations)) {
+            if (fn && fn.name) names.add(fn.name);
+          }
+        }
+        break;
+      case 'collection':
+        addIfFn(attr.init);
+        break;
+    }
+  }
+
+  return names;
+}
+
+// ── Build dep graph ──────────────────────────────────────────────────
+
+/**
+ * Build an attribute dependency graph from attr declarations.
+ *
+ * Public API — used by composition roots to compute the dep graph at runtime
+ * (instead of relying on generated code).
+ */
+export function buildDepGraph(attrs: AttrDecl[]): AttributeDepGraph {
+  const { edges, order } = buildDepGraphFromAttrs(attrs);
+  return {
+    attributes: attrs.map(a => a.name),
+    edges,
+    order,
+    declarations: Object.fromEntries(attrs.map(a => [a.name, { direction: a.direction }])),
+  };
+}
+
+function buildDepGraphFromAttrs(attrs: AttrDecl[]): {
+  edges: [string, string][];
+  order: string[];
+} {
+  const depMap = new Map<string, Set<string>>();
+  const edges: [string, string][] = [];
+
+  for (const attr of attrs) {
+    const deps = new Set(collectDepsForAttr(attr));
+    depMap.set(attr.name, deps);
+    for (const dep of deps) {
+      edges.push([attr.name, dep]);
+    }
+  }
+
+  // Topological sort
+  const order: string[] = [];
+  const visited = new Set<string>();
+  const inStack = new Set<string>();
+
+  function visit(name: string) {
+    if (visited.has(name)) return;
+    if (inStack.has(name)) throw new Error(`Cycle in dep graph: ${name}`);
+    inStack.add(name);
+    const neighbors = depMap.get(name);
+    if (neighbors) for (const dep of neighbors) visit(dep);
+    inStack.delete(name);
+    visited.add(name);
+    order.push(name);
+  }
+
+  for (const name of depMap.keys()) visit(name);
+
+  return { edges, order };
+}
+
+// ── Generate attr-types.ts ───────────────────────────────────────────
+
+function generateAttrTypes(
+  attrs: AttrDecl[],
+  decl: AnalysisDecl,
+  importPaths: { specImportPath: string },
+): string {
+  const nonParam = attrs.filter(a => !a.parameter);
+  const L: string[] = [];
+  L.push(`/**`);
+  L.push(` * AUTO-GENERATED by compileAnalysis — do not edit.`);
+  L.push(` *`);
+  L.push(` * Type map for AG attributes (${nonParam.length} non-parameterized of ${attrs.length} total).`);
+  L.push(` */`);
+  L.push(``);
+  // Spec-provided domain type imports (if any)
+  if (decl.typeImports) {
+    const importLines = decl.typeImports(importPaths);
+    for (const line of importLines) L.push(line);
+    L.push(``);
+  }
+  L.push(`export interface KSCAttrMap {`);
+  for (const a of nonParam) {
+    const t = a.type.includes('=>') ? `(${a.type})` : a.type;
+    L.push(`  ${a.name}: ${t};`);
+  }
+  L.push(`}`);
+  L.push(``);
+  return L.join('\n');
+}
+
+// ── Generate dep-graph.ts ────────────────────────────────────────────
+
+function generateDepGraph(
+  depGraph: AttributeDepGraph,
+): string {
+  const L: string[] = [];
+  L.push(`/**`);
+  L.push(` * AUTO-GENERATED by compileAnalysis — do not edit.`);
+  L.push(` *`);
+  L.push(` * Static attribute dependency graph for visualization and inspection.`);
+  L.push(` * Computed at codegen time from the analysis spec.`);
+  L.push(` */`);
+  L.push(``);
+  L.push(`import type { AttributeDepGraph } from '@kindscript/core-grammar';`);
+  L.push(``);
+  L.push(`export const depGraph: AttributeDepGraph = ${JSON.stringify(depGraph, null, 2)};`);
+  L.push(``);
+  return L.join('\n');
+}
+
+// ── Per-attribute dispatch function generation ───────────────────────
+
+function generateSynDispatch(L: string[], a: SynAttr, allKinds?: ReadonlySet<string>): void {
+  const p = a.parameter;
+  const equations = a.equations as Record<string, Function> | undefined;
+  const hasDefault = a.default !== undefined;
+  const hasEquations = equations && Object.keys(equations).length > 0;
+
+  const params = p ? `ctx: Ctx, ${p.name}: ${p.type}` : 'ctx: Ctx';
+  L.push(`function dispatch_${a.name}(${params}): ${a.type} {`);
+
+  if (hasEquations) {
+    const equationKinds = new Set(Object.keys(equations!));
+    const exhaustive = allKinds && allKinds.size > 0;
+    const remainingKinds = exhaustive
+      ? [...allKinds].filter(k => !equationKinds.has(k)).sort()
+      : [];
+
+    if (exhaustive) {
+      L.push(`  const _kind = (ctx.node as KSNode).kind;`);
+    }
+    L.push(`  switch (${exhaustive ? '_kind' : '(ctx.node as KSNode).kind'}) {`);
+
+    for (const [kind, fn] of Object.entries(equations!)) {
+      L.push(`    case '${kind}': return ${emitExpr(fn, p, kind)};`);
+    }
+
+    if (exhaustive) {
+      if (hasDefault && remainingKinds.length > 0) {
+        for (const kind of remainingKinds) {
+          L.push(`    case '${kind}':`);
+        }
+        L.push(`      return ${emitExpr(a.default!, p)};`);
+      }
+      L.push(`    default: { const _exhaustive: never = _kind; throw new Error(\`Unhandled kind: \${_exhaustive}\`); }`);
+    } else {
+      L.push(`    default: return ${emitExpr(a.default!, p)};`);
+    }
+    L.push(`  }`);
+  } else {
+    // No equations — just default
+    L.push(`  return ${emitExpr(a.default!, p)};`);
+  }
+
+  L.push(`}`);
+  L.push(``);
+}
+
+function generateInhRootDispatch(L: string[], a: InhAttr): void {
+  const p = a.parameter;
+  const params = p ? `ctx: Ctx, ${p.name}: ${p.type}` : 'ctx: Ctx';
+
+  L.push(`function dispatch_${a.name}_root(${params}): ${a.type} {`);
+  L.push(`  return ${emitExpr(a.rootValue, p)};`);
+  L.push(`}`);
+  L.push(``);
+}
+
+function generateInhParentDispatch(L: string[], a: InhAttr, allKinds?: ReadonlySet<string>): void {
+  const parentEquations = a.parentEquations as Record<string, Function> | undefined;
+  if (!parentEquations || Object.keys(parentEquations).length === 0) return;
+
+  const p = a.parameter;
+  const params = p ? `ctx: Ctx, ${p.name}: ${p.type}` : 'ctx: Ctx';
+
+  L.push(`function dispatch_${a.name}_parent(${params}): ${a.type} | undefined {`);
+
+  const equationKinds = new Set(Object.keys(parentEquations));
+  const exhaustive = allKinds && allKinds.size > 0;
+  const remainingKinds = exhaustive
+    ? [...allKinds].filter(k => !equationKinds.has(k)).sort()
+    : [];
+
+  L.push(`  const _pKind = (ctx.parent!.node as KSNode).kind;`);
+  L.push(`  switch (_pKind) {`);
+
+  for (const [kind, fn] of Object.entries(parentEquations)) {
+    L.push(`    case '${kind}': return ${emitExpr(fn, p)};`);
+  }
+
+  if (exhaustive) {
+    for (const kind of remainingKinds) {
+      L.push(`    case '${kind}':`);
+    }
+    L.push(`      return undefined;`);
+    L.push(`    default: { const _exhaustive: never = _pKind; throw new Error(\`Unhandled parent kind: \${_exhaustive}\`); }`);
+  } else {
+    L.push(`    default: return undefined;`);
+  }
+
+  L.push(`  }`);
+  L.push(`}`);
+  L.push(``);
+}
+
+// ── Generate dispatch.ts ─────────────────────────────────────────────
+
+function generateDispatch(
+  attrs: AttrDecl[],
+  allKinds: ReadonlySet<string>,
+  decl: AnalysisDecl,
+  specImportPath: string,
+  grammarImportPath: string,
+  analysisImportPath: string,
+  evaluatorImportPath: string,
+  equationsImportPath: string,
+): string {
+  const L: string[] = [];
+
+  // ── Header ──
+  L.push(`/**`);
+  L.push(` * AUTO-GENERATED by compileAnalysis — do not edit.`);
+  L.push(` *`);
+  L.push(` * Dispatch functions and configuration for the AG evaluator.`);
+  L.push(` * Per-attribute dispatch: switch/case over grammar kinds with`);
+  L.push(` * exhaustive checking and KindCtx type narrowing.`);
+  L.push(` */`);
+  L.push(``);
+
+  // ── Imports ──
+  const hasDispatchFunctions = attrs.some(a => a.direction !== 'collection');
+  if (hasDispatchFunctions) {
+    L.push(`import type { KSNode, KindToNode } from '${grammarImportPath}';`);
+    L.push(`import type { Ctx, KindCtx, DispatchConfig } from '${evaluatorImportPath}';`);
+  } else {
+    L.push(`import type { DispatchConfig } from '${evaluatorImportPath}';`);
+  }
+  L.push(``);
+
+  // ── Auto-generated equation imports ──
+  const eqFnNames = collectEquationFunctions(attrs);
+  if (eqFnNames.size > 0) {
+    L.push(`// Equation imports (auto-generated from function references)`);
+    L.push(`import {`);
+    for (const name of eqFnNames) {
+      L.push(`  ${name},`);
+    }
+    L.push(`} from '${equationsImportPath}';`);
+    L.push(``);
+  }
+
+  // ── Domain type imports ──
+  if (decl.typeImports) {
+    const importLines = decl.typeImports({ specImportPath });
+    for (const line of importLines) L.push(line);
+    L.push(``);
+  }
+
+  // ── Per-attribute dispatch functions ──
+  L.push(`// ── Dispatch functions ──`);
+  L.push(``);
+
+  const kindsForExhaustive = allKinds.size > 0 ? allKinds : undefined;
+
+  for (const a of attrs) {
+    switch (a.direction) {
+      case 'syn':
+        generateSynDispatch(L, a as SynAttr, kindsForExhaustive);
+        break;
+      case 'inh':
+        generateInhRootDispatch(L, a as InhAttr);
+        generateInhParentDispatch(L, a as InhAttr, kindsForExhaustive);
+        break;
+      case 'collection':
+        // No dispatch function — init + combine go directly in config
+        break;
+    }
+  }
+
+  // ── Dispatch config export ──
+  L.push(`// ── Dispatch configuration ──`);
+  L.push(``);
+  L.push(`export const dispatchConfig: DispatchConfig = {`);
+  for (const a of attrs) {
+    switch (a.direction) {
+      case 'syn':
+        L.push(`  ${a.name}: { direction: 'syn', compute: dispatch_${a.name} },`);
+        break;
+      case 'inh': {
+        const inhAttr = a as InhAttr;
+        const hasParentEqs = inhAttr.parentEquations && Object.keys(inhAttr.parentEquations).length > 0;
+        if (hasParentEqs) {
+          L.push(`  ${a.name}: { direction: 'inh', computeRoot: dispatch_${a.name}_root, computeParent: dispatch_${a.name}_parent },`);
+        } else {
+          L.push(`  ${a.name}: { direction: 'inh', computeRoot: dispatch_${a.name}_root },`);
+        }
+        break;
+      }
+      case 'collection': {
+        const ca = a as CollectionAttr;
+        const initCode = emitExpr(ca.init);
+        const combineCode = ca.combine.code;
+        L.push(`  ${a.name}: { direction: 'collection', init: ${initCode}, combine: ${combineCode} },`);
+        break;
+      }
+    }
+  }
+  L.push(`};`);
+  L.push(``);
+
+  return L.join('\n');
+}
+
+// ── Codegen-time spec validation ─────────────────────────────────────
+
+/**
+ * Validate spec consistency before code generation.
+ *
+ * Checks:
+ * 1. fileContainerKind exists in allKinds (if allKinds non-empty)
+ * 2. All equation kind references exist in allKinds
+ * 3. All equation functions have names (for auto-import generation)
+ */
+export function validateSpecConsistency(grammar: Grammar, attrs: AttrDecl[]): void {
+  const { allKinds, fileContainerKind } = grammar;
+  const hasKinds = allKinds.size > 0;
+  const errors: string[] = [];
+
+  // 1. Validate fileContainerKind
+  if (hasKinds && !allKinds.has(fileContainerKind)) {
+    errors.push(`fileContainerKind '${fileContainerKind}' is not a valid kind`);
+  }
+
+  // 2-3. Validate equation kind references and function names
+  for (const attr of attrs) {
+    const eqs: Record<string, Function> | undefined =
+      attr.direction === 'syn' ? (attr.equations as Record<string, Function> | undefined) :
+      attr.direction === 'inh' ? (attr.parentEquations as Record<string, Function> | undefined) :
+      undefined;
+
+    if (eqs) {
+      for (const [kind, fn] of Object.entries(eqs)) {
+        if (hasKinds && !allKinds.has(kind)) {
+          errors.push(`Attr '${attr.name}': equation references unknown kind '${kind}'`);
+        }
+        if (!fn.name) {
+          errors.push(`Attr '${attr.name}', kind '${kind}': equation function has no name (anonymous)`);
+        }
+      }
+    }
+
+    // 4. Exhaustiveness: syn attrs without default must have equations for every kind
+    if (attr.direction === 'syn' && attr.default === undefined) {
+      if (!eqs || Object.keys(eqs).length === 0) {
+        errors.push(`Attr '${attr.name}': no default and no equations — attribute has no value`);
+      } else if (!hasKinds) {
+        errors.push(`Attr '${attr.name}': no default requires allKinds in grammar for exhaustiveness check`);
+      } else {
+        const eqKinds = new Set(Object.keys(eqs));
+        const missing = [...allKinds].filter(k => !eqKinds.has(k));
+        if (missing.length > 0) {
+          errors.push(`Attr '${attr.name}': no default — missing equations for ${missing.length} kinds (first 5: ${missing.slice(0, 5).join(', ')})`);
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Analysis spec validation failed:\n  - ${errors.join('\n  - ')}`);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// Public API
+// ═════════════════════════════════════════════════════════════════════
+
+export function compileAnalysis(
+  grammar: Grammar,
+  decl: AnalysisDecl,
+  opts?: GeneratedImports,
+): CompiledAnalyzer {
+  const specImportPath = opts?.specImportPath ?? './spec.js';
+  const grammarImportPath = opts?.grammarImportPath ?? '../grammar/index.js';
+  const analysisImportPath = opts?.analysisImportPath ?? '@kindscript/core-codegen';
+  const evaluatorImportPath = opts?.evaluatorImportPath ?? '@kindscript/core-evaluator';
+  const equationsImportPath = opts?.equationsImportPath ?? specImportPath.replace(/\/spec\.js$/, '/equations/index.js');
+
+  // 1. Read attrs directly from decl (no automatic derivation)
+  const allAttrs = decl.attrs;
+
+  // 1b. Validate spec consistency (catches equation key typos, anonymous fns)
+  validateSpecConsistency(grammar, allAttrs);
+
+  // 2. Build dep graph and topo sort (computed once, reused for result)
+  const { edges, order } = buildDepGraphFromAttrs(allAttrs);
+  const depGraph: AttributeDepGraph = {
+    attributes: allAttrs.map(a => a.name),
+    edges,
+    order,
+    declarations: Object.fromEntries(allAttrs.map(a => [a.name, { direction: a.direction }])),
+  };
+
+  // 3. Generate dispatch
+  const dispatchContent = generateDispatch(allAttrs, grammar.allKinds, decl, specImportPath, grammarImportPath, analysisImportPath, evaluatorImportPath, equationsImportPath);
+
+  // 4. Generate attr-types
+  const attrTypesContent = generateAttrTypes(allAttrs, decl, {
+    specImportPath,
+  });
+
+  // 5. Generate dep-graph (static data)
+  const depGraphContent = generateDepGraph(depGraph);
+
+  return {
+    dispatchFile: { path: 'dispatch.ts', content: dispatchContent },
+    attrTypesFile: { path: 'attr-types.ts', content: attrTypesContent },
+    depGraphFile: { path: 'dep-graph.ts', content: depGraphContent },
+    attrs: allAttrs.map(a => ({
+      name: a.name,
+      direction: a.direction,
+      type: a.type,
+    })),
+    depGraph,
+  };
+}

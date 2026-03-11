@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { createProgram, createProgramFromTSProgram } from '../../app/user-api/lib/program.js';
+import { createProgram, createProgramFromTSProgram } from '../../src/application/index.js';
 import { FIXTURES, buildProgram, buildProgramBare, getRootFiles } from '../helpers/fixtures.js';
 
 // ────────────────────────────────────────────────────────────────────────

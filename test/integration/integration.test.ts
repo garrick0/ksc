@@ -21,9 +21,9 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as path from 'node:path';
 import ts from 'typescript';
-import { frontend, type AnalysisDepth } from '../../specs/ts-ast/frontend/convert.js';
-import type { KSNode, KSCompilationUnit } from '../../specs/ts-ast/grammar/index.js';
-import { fieldDefs, allKinds } from '../../specs/ts-ast/grammar/index.js';
+import { tsToAstTranslatorAdapter, type AnalysisDepth } from '../../src/adapters/grammar/ast-translator/ts-ast/convert.js';
+import type { KSNode, KSCompilationUnit } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
+import { fieldDefs, allKinds } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
 
 const FIXTURES = path.resolve(__dirname, '../fixtures');
 
@@ -748,7 +748,7 @@ function verifyCompilationUnit(sf: ts.SourceFile, cu: KSCompilationUnit, result:
 
 function walkFixture(depth: AnalysisDepth): VerificationResult {
   const tsProgram = createTSProgram('integration');
-  const ksTree = frontend.convert(tsProgram, depth);
+  const ksTree = tsToAstTranslatorAdapter.convert(tsProgram, depth);
   const checker = depth !== 'parse' ? tsProgram.getTypeChecker() : null;
 
   const result: VerificationResult = {
@@ -860,7 +860,7 @@ describe('integration — depth degradation', () => {
 
   it('parse depth: checker-dependent fields have defaults', () => {
     const tsProgram = createTSProgram('integration');
-    const ksTree = frontend.convert(tsProgram, 'parse');
+    const ksTree = tsToAstTranslatorAdapter.convert(tsProgram, 'parse');
     let identCount = 0;
     let typeStringCount = 0;
 
@@ -901,7 +901,7 @@ describe('integration — depth degradation', () => {
 
   it('bind depth: typeString is empty, sym* flags populated', () => {
     const tsProgram = createTSProgram('integration');
-    const ksTree = frontend.convert(tsProgram, 'bind');
+    const ksTree = tsToAstTranslatorAdapter.convert(tsProgram, 'bind');
     let symPopulated = false;
 
     function walk(node: KSNode) {
