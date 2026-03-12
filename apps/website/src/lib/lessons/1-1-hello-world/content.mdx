@@ -1,0 +1,51 @@
+# Hello KindScript
+
+KindScript lets you enforce code properties at compile time. You define **kinds** as TypeScript types, annotate your values with them, and KindScript checks that your code respects the constraints.
+
+## What's a Kind?
+
+A kind is a phantom type that declares properties about a value. Open `src/kinds.ts` in the editor:
+
+```ts
+type NoImports = Kind<{ noImports: true }>;
+```
+
+This says: "any value annotated with `NoImports` must not use imported bindings."
+
+## Annotating a value
+
+Now look at `src/math.ts`:
+
+```ts
+export const add: NoImports & ((a: number, b: number) => number) = (a, b) => a + b;
+```
+
+The `NoImports &` intersection tells KindScript that `add` should have the `noImports` property. Since `add` only uses its parameters — no imports — this is valid.
+
+## Run the check
+
+Click **▶ Run Check** in the toolbar, or type in the terminal:
+
+```
+npm run check
+```
+
+You should see **0 violations** — this code follows the rules.
+
+## Break something
+
+Open `src/math.ts` and change it to use an imported helper:
+
+```ts
+import { helper } from './helpers';
+
+export const add: NoImports & ((a: number, b: number) => number) = (a, b) => helper(a) + b;
+```
+
+Run the check again. You'll see a violation — `helper` is an imported binding, which violates the `noImports` property.
+
+Remove the import and fix the function to only use its parameters. Run the check once more to confirm 0 violations.
+
+:::tip
+KindScript supports 8 properties: `noImports`, `noConsole`, `immutable`, `static`, `noSideEffects`, `noMutation`, `noIO`, and `pure`. You can combine them on a single kind.
+:::

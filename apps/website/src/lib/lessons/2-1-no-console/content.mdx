@@ -1,0 +1,45 @@
+# No Console
+
+Like ESLint's `no-console` rule, KindScript can detect `console.log`, `console.error`, and `console.warn` calls in code that shouldn't have them.
+
+## The problem
+
+Open `src/logger.ts`. These formatting functions are annotated with `NoConsole` — they should produce structured strings, not print to the console. But each one contains a stray `console.*` call.
+
+## Detect the issues
+
+Run the check in the terminal:
+
+```
+npm run check
+```
+
+You should see **3 violations** — one for each `console.*` call. Each message tells you which function and which kind is violated.
+
+## Understand the rule
+
+In `src/kinds.ts`, `NoConsole` is defined as:
+
+```ts
+type NoConsole = Kind<{ noConsole: true }>;
+```
+
+Any value annotated with `NoConsole` must not contain `console.log`, `console.error`, `console.warn`, or any other `console.*` access. This is enforced by checking for `PropertyAccessExpression` nodes where the expression is `console`.
+
+## Fix it
+
+Edit `src/logger.ts` and remove the `console.*` calls. The functions should only build and return their string — no side effects.
+
+For example, `formatMessage` should be:
+
+```ts
+export const formatMessage: NoConsole & ((level: string, msg: string) => string) = (level, msg) => {
+  return `[${level.toUpperCase()}] ${msg}`;
+};
+```
+
+Fix all three functions, then run `npm run check` again to confirm **0 violations**.
+
+:::tip
+`noConsole` is useful for functions that should be pure formatters or data transformers — code where logging is a sign of leftover debugging.
+:::

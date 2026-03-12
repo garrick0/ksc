@@ -1,0 +1,200 @@
+/**
+ * Tutorial Lesson Content Styles
+ * Centralized styling for improved readability and consistency
+ */
+
+/* Code blocks - custom syntax highlighting with better contrast */
+.lesson-content pre {
+  background: #0d1117 !important;
+  padding: 1rem !important;
+  border-radius: 8px !important;
+  overflow-x: auto !important;
+  font-size: 0.9rem !important;
+  line-height: 1.6 !important;
+  border: 1px solid #30363d !important;
+}
+
+.lesson-content pre code {
+  background: transparent !important;
+  color: #e6edf3 !important;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace !important;
+}
+
+/* Syntax highlighting - high contrast colors */
+.lesson-content .hljs-keyword {
+  color: #ff7b72 !important; /* Red for keywords */
+  font-weight: 600 !important;
+}
+
+.lesson-content .hljs-string {
+  color: #a5d6ff !important; /* Light blue for strings */
+}
+
+.lesson-content .hljs-comment {
+  color: #8b949e !important; /* Gray for comments */
+  font-style: italic !important;
+}
+
+.lesson-content .hljs-function,
+.lesson-content .hljs-title {
+  color: #d2a8ff !important; /* Purple for functions */
+  font-weight: 600 !important;
+}
+
+.lesson-content .hljs-variable,
+.lesson-content .hljs-attr {
+  color: #79c0ff !important; /* Cyan for variables */
+}
+
+.lesson-content .hljs-type,
+.lesson-content .hljs-class {
+  color: #ffa657 !important; /* Orange for types */
+  font-weight: 600 !important;
+}
+
+.lesson-content .hljs-number,
+.lesson-content .hljs-literal {
+  color: #79c0ff !important; /* Cyan for numbers */
+}
+
+.lesson-content .hljs-operator,
+.lesson-content .hljs-punctuation {
+  color: #e6edf3 !important; /* White for operators */
+}
+
+.lesson-content .hljs-built_in {
+  color: #ffa657 !important; /* Orange for built-ins */
+}
+
+.lesson-content .hljs-meta {
+  color: #8b949e !important; /* Gray for meta */
+}
+
+/* Inline code - high contrast */
+.lesson-content code:not(pre code) {
+  background: #1f2937 !important;
+  color: #f97316 !important;
+  padding: 0.2em 0.5em !important;
+  border-radius: 4px !important;
+  font-size: 0.9em !important;
+  font-weight: 600 !important;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace !important;
+  border: 1px solid #374151 !important;
+}
+
+/* Headings - better hierarchy */
+.lesson-content h1 {
+  color: #0f172a !important;
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.2 !important;
+}
+
+.lesson-content h2 {
+  color: #1e293b !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin-top: 2.5rem !important;
+  margin-bottom: 1rem !important;
+  padding-bottom: 0.5rem !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+}
+
+.lesson-content h3 {
+  color: #334155 !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+/* Paragraphs - improved readability */
+.lesson-content p {
+  color: #1e293b !important;
+  font-size: 1.05rem !important;
+  line-height: 1.8 !important;
+  margin-bottom: 1.25rem !important;
+}
+
+/* Lists - better spacing */
+.lesson-content ul,
+.lesson-content ol {
+  color: #1e293b !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.lesson-content li {
+  color: #1e293b !important;
+  font-size: 1.05rem !important;
+  line-height: 1.7 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Links - more visible */
+.lesson-content a {
+  color: #2563eb !important;
+  text-decoration: underline !important;
+  font-weight: 500 !important;
+  transition: color 0.2s !important;
+}
+
+.lesson-content a:hover {
+  color: #1d4ed8 !important;
+}
+
+/* Blockquotes (callouts) - improved contrast */
+.lesson-content blockquote {
+  border-left: 4px solid #10b981 !important;
+  background: #d1fae5 !important;
+  padding: 1rem 1.25rem !important;
+  margin: 1.5rem 0 !important;
+  border-radius: 6px !important;
+  color: #065f46 !important;
+  font-size: 1rem !important;
+}
+
+.lesson-content blockquote p {
+  color: #065f46 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.lesson-content blockquote strong {
+  color: #047857 !important;
+  font-weight: 700 !important;
+}
+
+/* Tables - if used */
+.lesson-content table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1.5rem 0 !important;
+}
+
+.lesson-content th {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  padding: 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  text-align: left !important;
+}
+
+.lesson-content td {
+  padding: 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+/* Strong/bold text */
+.lesson-content strong {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+/* Emphasis/italic */
+.lesson-content em {
+  color: #475569 !important;
+  font-style: italic !important;
+}

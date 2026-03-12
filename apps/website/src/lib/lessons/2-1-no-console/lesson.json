@@ -1,0 +1,8 @@
+{
+  "slug": "2-1-no-console",
+  "title": "No Console",
+  "partTitle": "Detecting Code Issues",
+  "partNumber": 2,
+  "lessonNumber": 1,
+  "focus": "src/logger.ts"
+}

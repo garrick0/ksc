@@ -1,0 +1,64 @@
+# No Mutation
+
+Like ESLint's `no-param-reassign` rule (but broader), KindScript's `noMutation` property detects **all** mutation: assignment operators (`=`, `+=`, `-=`), increment/decrement (`++`, `--`), and `delete`.
+
+## The problem
+
+Open `src/transform.ts`. These array-processing functions are annotated with `NoMutation`, but they use imperative mutation patterns — `+=` to accumulate, direct array assignment, and `--` to decrement.
+
+## Detect the issues
+
+Run the check:
+
+```
+npm run check
+```
+
+You should see **multiple violations** across the three functions:
+- `sum` uses `+=` to accumulate a total
+- `incrementAll` uses `=` to reassign array elements
+- `countdown` uses `--` to decrement a counter
+
+## Understand the rule
+
+In `src/kinds.ts`:
+
+```ts
+type NoMutation = Kind<{ noMutation: true }>;
+```
+
+The `noMutation` property checks three node types:
+- **BinaryExpression** — catches `=`, `+=`, `-=`, `*=`, and all assignment operators
+- **PrefixUnaryExpression** / **PostfixUnaryExpression** — catches `++` and `--`
+- **DeleteExpression** — catches `delete obj.prop`
+
+## Fix it
+
+Replace the imperative patterns with functional alternatives:
+
+**`sum`** — use `reduce` instead of a mutable accumulator:
+```ts
+export const sum: NoMutation & ((nums: number[]) => number) = (nums) => {
+  return nums.reduce((acc, n) => acc + n, 0);
+};
+```
+
+**`incrementAll`** — use `map` instead of mutating the array in place:
+```ts
+export const incrementAll: NoMutation & ((nums: number[]) => number[]) = (nums) => {
+  return nums.map((n) => n + 1);
+};
+```
+
+**`countdown`** — use `Array.from` instead of a while loop with mutation:
+```ts
+export const countdown: NoMutation & ((start: number) => number[]) = (start) => {
+  return Array.from({ length: start }, (_, i) => start - i);
+};
+```
+
+Run `npm run check` to confirm **0 violations**.
+
+:::tip
+`noMutation` pushes you toward functional patterns: `map`, `filter`, `reduce`, and `Array.from` instead of loops with mutable state. The resulting code is often shorter and easier to reason about.
+:::
