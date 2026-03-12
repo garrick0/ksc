@@ -21,3 +21,15 @@ export { analysisProjections } from './projections.js';
 export { dispatchConfig } from './generated/dispatch.js';
 export { depGraph } from './generated/dep-graph.js';
 export type { KSCAttrMap } from './generated/attr-types.js';
+
+// Grammar dependency — explicit coupling to TS AST grammar (see ADR-001)
+export { grammar } from '../../../grammar/grammar/ts-ast/index.js';
+export type {
+  TSNodeKind,
+  KSNode,
+  KindToNode,
+  KSProgram,
+  KSCompilationUnit,
+  KSIdentifier,
+  KSTypeAliasDeclaration,
+} from '../../../grammar/grammar/ts-ast/index.js';

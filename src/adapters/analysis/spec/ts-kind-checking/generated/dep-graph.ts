@@ -16,7 +16,11 @@ export const depGraph: AttributeDepGraph = {
     "contextFor",
     "violationFor",
     "allViolations",
-    "nodeCount"
+    "nodeCount",
+    "protobufTypes",
+    "protobufTypeEnv",
+    "protobufViolation",
+    "allProtobufViolations"
   ],
   "edges": [
     [
@@ -42,6 +46,18 @@ export const depGraph: AttributeDepGraph = {
     [
       "allViolations",
       "violationFor"
+    ],
+    [
+      "protobufTypeEnv",
+      "protobufTypes"
+    ],
+    [
+      "protobufViolation",
+      "protobufTypeEnv"
+    ],
+    [
+      "allProtobufViolations",
+      "protobufViolation"
     ]
   ],
   "order": [
@@ -52,7 +68,11 @@ export const depGraph: AttributeDepGraph = {
     "contextFor",
     "violationFor",
     "allViolations",
-    "nodeCount"
+    "nodeCount",
+    "protobufTypes",
+    "protobufTypeEnv",
+    "protobufViolation",
+    "allProtobufViolations"
   ],
   "declarations": {
     "kindDefs": {
@@ -78,6 +98,18 @@ export const depGraph: AttributeDepGraph = {
     },
     "nodeCount": {
       "direction": "collection"
+    },
+    "protobufTypes": {
+      "direction": "syn"
+    },
+    "protobufTypeEnv": {
+      "direction": "inh"
+    },
+    "protobufViolation": {
+      "direction": "syn"
+    },
+    "allProtobufViolations": {
+      "direction": "syn"
     }
   }
 };

@@ -37,6 +37,15 @@ import type {
 } from '../../../../grammar/grammar/ts-ast/index.js';
 import type { Ctx, KindCtx } from '@kindscript/core-evaluator';
 import { withDeps } from '@kindscript/core-codegen';
+import type { TSNodeKind, KindToNode } from '../../../../grammar/grammar/ts-ast/index.js';
+
+/**
+ * Per-kind equation record: all equations in this record must accept
+ * KindCtx narrowed to the given kind. Functions typed with plain Ctx
+ * are also accepted (Ctx is wider than KindCtx<N>).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type KindEquations<K extends TSNodeKind> = Record<string, ((ctx: KindCtx<KindToNode[K]>, ...args: any[]) => any) & { deps?: string[] }>;
 
 import { getKindCtx, diag, ASSIGNMENT_OPS, IO_MODULES, SIDE_EFFECT_EXPR_KINDS } from './predicates.js';
 import { tryExtractKindDef, getCounter } from './definitions.js';
@@ -290,46 +299,46 @@ export const eq_allViolations = withDeps(['violationFor'],
 
 export const CompilationUnitEquations = {
   kindDefs: eq_kindDefs_CompilationUnit,
-};
+} satisfies KindEquations<'CompilationUnit'>;
 
 export const VariableDeclarationEquations = {
   kindAnnotations: eq_kindAnnotations_VariableDeclaration,
   contextFor: eq_contextOverride,
-};
+} satisfies KindEquations<'VariableDeclaration'>;
 
 export const IdentifierEquations = {
   violationFor: eq_violationFor_Identifier,
-};
+} satisfies KindEquations<'Identifier'>;
 
 export const PropertyAccessExpressionEquations = {
   violationFor: eq_violationFor_PropertyAccessExpression,
-};
+} satisfies KindEquations<'PropertyAccessExpression'>;
 
 export const VariableDeclarationListEquations = {
   violationFor: eq_violationFor_VariableDeclarationList,
-};
+} satisfies KindEquations<'VariableDeclarationList'>;
 
 export const CallExpressionEquations = {
   violationFor: eq_violationFor_CallExpression,
-};
+} satisfies KindEquations<'CallExpression'>;
 
 export const ExpressionStatementEquations = {
   violationFor: eq_violationFor_ExpressionStatement,
-};
+} satisfies KindEquations<'ExpressionStatement'>;
 
 export const BinaryExpressionEquations = {
   violationFor: eq_violationFor_BinaryExpression,
-};
+} satisfies KindEquations<'BinaryExpression'>;
 
 export const PrefixUnaryExpressionEquations = {
   violationFor: eq_violationFor_PrefixUnaryExpression,
-};
+} satisfies KindEquations<'PrefixUnaryExpression'>;
 
 export const PostfixUnaryExpressionEquations = {
   violationFor: eq_violationFor_PostfixUnaryExpression,
-};
+} satisfies KindEquations<'PostfixUnaryExpression'>;
 
 export const DeleteExpressionEquations = {
   violationFor: eq_violationFor_DeleteExpression,
-};
+} satisfies KindEquations<'DeleteExpression'>;
 

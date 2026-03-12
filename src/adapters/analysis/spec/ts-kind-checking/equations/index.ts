@@ -37,3 +37,16 @@ export {
   PostfixUnaryExpressionEquations,
   DeleteExpressionEquations,
 } from './attributes.js';
+export {
+  PROTOBUF_CHECKING_ENABLED,
+  setProtobufCheckingEnabled,
+  isProtobufModule,
+  eq_protobufTypes_CompilationUnit,
+  eq_protobufTypes_default,
+  eq_protobufTypeEnv_root,
+  eq_protobufViolation_PropertyAccessExpression,
+  eq_protobufViolation_ElementAccessExpression,
+  eq_protobufViolation_default,
+  eq_allProtobufViolations,
+} from './protobuf.js';
+export type { ProtobufBinding } from './protobuf.js';

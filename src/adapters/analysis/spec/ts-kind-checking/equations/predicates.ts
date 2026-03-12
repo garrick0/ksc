@@ -10,20 +10,16 @@
  */
 
 import type { KindDefinition, Diagnostic } from '../types.js';
-import type { Ctx } from '@kindscript/core-evaluator';
+import type { Ctx, KindCtx } from '@kindscript/core-evaluator';
+import type { TSNodeKind, KSNode } from '../../../../grammar/grammar/ts-ast/index.js';
+import { grammar } from '../../../../grammar/grammar/ts-ast/index.js';
 
 // ── Violation predicate constants ────────────────────────────────────
+// Derived from grammar sum types — auto-update when grammar changes.
 
-export const ASSIGNMENT_OPS = new Set([
-  'EqualsToken', 'PlusEqualsToken', 'MinusEqualsToken',
-  'AsteriskEqualsToken', 'SlashEqualsToken', 'PercentEqualsToken',
-  'AmpersandEqualsToken', 'BarEqualsToken', 'CaretEqualsToken',
-  'LessThanLessThanEqualsToken', 'GreaterThanGreaterThanEqualsToken',
-  'GreaterThanGreaterThanGreaterThanEqualsToken',
-  'AsteriskAsteriskEqualsToken',
-  'BarBarEqualsToken', 'AmpersandAmpersandEqualsToken',
-  'QuestionQuestionEqualsToken',
-]);
+export const ASSIGNMENT_OPS: ReadonlySet<TSNodeKind> = new Set<TSNodeKind>(
+  grammar.sumTypeMembers['AssignmentOperator'] as TSNodeKind[],
+);
 
 export const IO_MODULES = new Set([
   'fs', 'fs/promises', 'path', 'net', 'http', 'https',
@@ -35,9 +31,9 @@ export const IO_MODULES = new Set([
   'node:stream', 'node:readline', 'node:worker_threads',
 ]);
 
-export const SIDE_EFFECT_EXPR_KINDS = new Set([
-  'CallExpression', 'AwaitExpression', 'YieldExpression',
-]);
+export const SIDE_EFFECT_EXPR_KINDS: ReadonlySet<TSNodeKind> = new Set<TSNodeKind>(
+  grammar.sumTypeMembers['SideEffectExpression'] as TSNodeKind[],
+);
 
 // ── Violation helpers ────────────────────────────────────────────────
 
@@ -45,7 +41,7 @@ export function getKindCtx(ctx: Ctx, property: string): KindDefinition | null {
   return ctx.attr('contextFor', property) as KindDefinition | null;
 }
 
-export function diag(ctx: Ctx, def: KindDefinition, property: string, message: string): Diagnostic {
+export function diag(ctx: KindCtx<KSNode>, def: KindDefinition, property: string, message: string): Diagnostic {
   return {
     node: ctx.node,
     message,

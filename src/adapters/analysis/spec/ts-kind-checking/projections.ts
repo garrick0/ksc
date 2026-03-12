@@ -9,17 +9,22 @@
  * Codegen-time declarations (attrs, typeImports) live in spec.ts.
  */
 
-import type { AnalysisProjections, Ctx } from '@kindscript/core-evaluator';
+import type { AnalysisProjections, TypedAGNode } from '@kindscript/core-evaluator';
 import type { KindDefinition, Diagnostic, KSCProjections } from './types.js';
+import type { KSCAttrMap } from './generated/attr-types.js';
 import { resetCounter } from './equations/definitions.js';
+import { PROTOBUF_CHECKING_ENABLED } from './equations/protobuf.js';
 
 export type { KSCProjections } from './types.js';
 
-export const analysisProjections: AnalysisProjections<KSCProjections> = {
+export const analysisProjections: AnalysisProjections<KSCAttrMap, KSCProjections> = {
   projections: {
-    definitions: (root: Ctx): KindDefinition[] =>
+    definitions: (root: TypedAGNode<KSCAttrMap>): KindDefinition[] =>
       root.children.flatMap(cu => cu.attr('kindDefs')),
-    diagnostics: (root: Ctx): Diagnostic[] => root.attr('allViolations'),
+    diagnostics: (root: TypedAGNode<KSCAttrMap>): Diagnostic[] => [
+      ...root.attr('allViolations'),
+      ...(PROTOBUF_CHECKING_ENABLED ? root.attr('allProtobufViolations') : []),
+    ],
   },
   setup: resetCounter,
 };

@@ -13,6 +13,9 @@
 import type { PropertySet } from '../../../../api.js';
 export type { Kind, PropertySet } from '../../../../api.js';
 
+// Grammar dependency — concrete node types (see ADR-001)
+import type { KSTypeAliasDeclaration, KSNode } from '../../../grammar/grammar/ts-ast/index.js';
+
 // ── Kind Definitions ──
 
 /**
@@ -26,8 +29,8 @@ export interface KindDefinition {
   name: string;
   /** The properties extracted from the Kind<...> type argument. */
   properties: Record<string, boolean | undefined>;
-  /** The AST node for this definition. */
-  node: unknown;
+  /** The AST node for this definition (always a TypeAliasDeclaration). */
+  node: KSTypeAliasDeclaration;
 }
 
 // ── Checker Diagnostics ──
@@ -37,7 +40,7 @@ export interface KindDefinition {
  */
 export interface Diagnostic {
   /** The AST node where the violation occurs. */
-  node: unknown;
+  node: KSNode;
   /** Human-readable description. */
   message: string;
   /** Name of the kind that was violated. */
