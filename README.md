@@ -88,27 +88,30 @@ See [`examples/programmatic-api.ts`](examples/programmatic-api.ts) for a complet
 KindScript uses a **ports-and-adapters** architecture with a declarative **attribute grammar** engine.
 
 ```
-libs/                     Generic machinery (ports — no adapter imports)
-  grammar/                Grammar type system + runtime utilities
-  analysis/               Analysis compilation + equation framework
-  evaluator/              Hand-written AG evaluator engine
+packages/                 Workspace packages (core machinery — ports live here)
+  core-grammar/           Grammar type system, runtime utilities, generic tree serialization
+  core-codegen/           Analysis compilation + equation framework
+  core-evaluator/         Hand-written AG evaluator engine
 
-adapters/                 Pluggable implementations (organized by lib/port/target)
+src/adapters/             Pluggable implementations (organized by lib/port/target)
   grammar/
     grammar/ts-ast/       Grammar<TSNodeKind> — 364 node kinds
     grammar/mock/         Grammar<MockKind> — 5 node kinds (testing)
     ast-translator/ts-ast/  AstTranslatorPort<ts.Program, KSProgram>
+    extraction/ts-ast/    extractASTData — TS-specific tree serialization (uses serializeNode)
   analysis/
     spec/ts-kind-checking/  AnalysisDecl<TSNodeKind> + AnalysisProjections<KSCProjections>
     spec/mock/            AnalysisDecl<MockKind> + AnalysisProjections<MockProjections>
 
-packages/                 npm library entry points
-  kindscript/             Lightweight: phantom types + config
-  core/                   Heavyweight: full programmatic API
+src/application/          Use cases + npm entry points
+  evaluation/             Evaluation wiring (EvaluationTarget composition)
+  codegen/                Codegen pipeline + target definitions
 
 apps/                     Runnable applications
-  cli/                    ksc CLI (check, codegen, init, watch)
+  cli/                    ksc CLI — per-command composition roots (lazy-loaded)
+    compose/              Wires adapters → pure command handlers per command
   dashboard/              AST visualization (Vite + React + D3 SPA)
+    compose.ts            Extraction composition root (parseOnly + extractASTData)
 ```
 
 The `K` type parameter links grammar and analysis at composition boundaries — TypeScript prevents mismatched grammar/spec pairs.
@@ -125,6 +128,14 @@ The only codegen in the system compiles `AnalysisDecl` definitions into dispatch
 ksc codegen  →  ts-kind-checking → adapters/analysis/spec/ts-kind-checking/generated/
              →  mock             → adapters/analysis/spec/mock/generated/
 ```
+
+### Architecture Decisions
+
+Key design decisions are recorded in [`docs/adr/`](docs/adr/):
+
+- **ADR-001**: Analysis adapters are explicitly coupled to their grammar — domain types use concrete node types, not generics
+- **ADR-002**: Typed equation records (`EquationFn<T>`, `EquationMap<K,T>`) replace raw `Function` in attribute declarations
+- **ADR-003**: Typed projection functions receive `TypedAGNode<M>` for type-safe attribute access
 
 ## CI/CD Integration
 

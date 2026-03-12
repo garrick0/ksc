@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Explicit Coupling: How Analysis Adapters Should Depend on Grammar Adapters</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181b24;
+  --surface2: #1e2230;
+  --border: #2a2e3d;
+  --text: #e0e0e8;
+  --text-dim: #8888a0;
+  --accent: #6c8cff;
+  --accent2: #a78bfa;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, #0f1117 0%, #151828 50%, #12101f 100%);
+  padding: 64px 24px 52px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle at 30% 50%, rgba(108,140,255,0.06) 0%, transparent 50%),
+              radial-gradient(circle at 70% 50%, rgba(167,139,250,0.06) 0%, transparent 50%);
+}
+.hero h1 {
+  font-size: 2.8rem;
+  font-weight: 800;
+  position: relative;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 14px;
+}
+.hero .subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  max-width: 760px;
+  margin: 0 auto 20px;
+  position: relative;
+}
+.badge-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: relative;
+}
+.badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+.badge-blue { background: rgba(108,140,255,0.15); color: var(--accent); border: 1px solid rgba(108,140,255,0.3); }
+.badge-purple { background: rgba(167,139,250,0.15); color: var(--accent2); border: 1px solid rgba(167,139,250,0.3); }
+.badge-green { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+.badge-cyan { background: rgba(34,211,238,0.15); color: var(--cyan); border: 1px solid rgba(34,211,238,0.3); }
+.badge-pink { background: rgba(244,114,182,0.15); color: var(--pink); border: 1px solid rgba(244,114,182,0.3); }
+.badge-orange { background: rgba(251,146,60,0.15); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+
+/* ── Nav / TOC ── */
+.toc {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.toc-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toc-inner::-webkit-scrollbar { display: none; }
+.toc a {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.toc a:hover { color: var(--text); background: var(--surface2); }
+
+/* ── Container / Sections ── */
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+h2 .num {
+  display: inline-block;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  text-align: center;
+  line-height: 36px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin-right: 12px;
+  vertical-align: middle;
+}
+h3 { font-size: 1.15rem; color: var(--accent2); margin: 24px 0 10px; }
+p { margin-bottom: 14px; color: var(--text-dim); line-height: 1.7; }
+p strong { color: var(--text); }
+.section-sub { font-size: 0.95rem; color: var(--text-dim); margin-bottom: 24px; }
+
+/* ── Code ── */
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  margin: 14px 0 18px;
+  color: var(--text);
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+}
+:not(pre) > code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: var(--cyan);
+}
+.keyword { color: var(--accent2); }
+.type-name { color: var(--cyan); }
+.string-lit { color: var(--green); }
+.comment { color: var(--text-dim); font-style: italic; }
+.fn-name { color: var(--accent); }
+.param-name { color: var(--orange); }
+
+/* ── Insight ── */
+.insight {
+  border-left: 3px solid var(--accent);
+  background: rgba(108,140,255,0.06);
+  padding: 14px 20px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 18px 0;
+  font-size: 0.92rem;
+  color: var(--text-dim);
+}
+.insight strong { color: var(--text); }
+.insight.warn {
+  border-left-color: var(--orange);
+  background: rgba(251,146,60,0.06);
+}
+.insight.good {
+  border-left-color: var(--green);
+  background: rgba(74,222,128,0.06);
+}
+.insight.danger {
+  border-left-color: var(--red);
+  background: rgba(248,113,113,0.06);
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: rgba(108,140,255,0.06);
+}
+.tab-content { display: none; padding: 20px 0; }
+.tab-content.active { display: block; }
+
+/* ── Collapsible Stages ── */
+.data-flow { margin: 16px 0; }
+.df-stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.df-stage:hover { border-color: var(--accent); }
+.df-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+}
+.df-stage-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.df-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.df-expand {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  transition: transform 0.3s;
+}
+.df-stage.active .df-expand { transform: rotate(180deg); }
+.df-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+  padding: 0 18px;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.df-stage.active .df-detail {
+  max-height: 1200px;
+  padding: 0 18px 16px;
+}
+.df-connector {
+  width: 2px; height: 12px;
+  background: var(--border);
+  margin: 0 auto;
+}
+
+/* ── Constraint Grid / Cards ── */
+.constraint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.constraint-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.constraint-card:hover { border-color: var(--accent); }
+.constraint-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cc-name {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--cyan);
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+.cc-scope {
+  font-size: 0.75rem;
+  color: var(--accent2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.cc-desc {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.constraint-detail {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.constraint-detail.active { display: block; }
+
+/* ── Comparison Table ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.88rem;
+}
+th {
+  background: var(--surface);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+tr:hover td { background: var(--surface); }
+
+/* ── Pipeline Stepper ── */
+.pipeline-stepper {
+  display: flex;
+  gap: 2px;
+  margin: 16px 0 20px;
+}
+.step-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.step-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.step-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.step-btn.active {
+  background: linear-gradient(135deg, rgba(108,140,255,0.15), rgba(167,139,250,0.15));
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.step-content { display: none; }
+.step-content.active { display: block; }
+
+/* ── Verdict Comparison ── */
+.verdict-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0;
+}
+.verdict-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.verdict-box h4 {
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+.verdict-box.recommended {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px rgba(74,222,128,0.2);
+}
+.verdict-box.recommended h4 { color: var(--green); }
+.verdict-box.not-recommended h4 { color: var(--red); }
+.verdict-box ul {
+  list-style: none;
+  padding: 0;
+}
+.verdict-box li {
+  padding: 4px 0;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+.verdict-box li::before {
+  margin-right: 8px;
+  font-weight: bold;
+}
+.verdict-box.recommended li::before { content: '+'; color: var(--green); }
+.verdict-box.not-recommended li::before { content: '-'; color: var(--red); }
+
+/* ── Decision Matrix ── */
+.decision-matrix {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 16px 0;
+}
+.dm-header {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dm-option {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.dm-option:last-child { border-bottom: none; }
+.dm-option-name {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+.dm-option-name.pick { color: var(--green); }
+.dm-option-name.alt { color: var(--text-dim); }
+.dm-rationale {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.dm-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.dm-tag.recommended { background: rgba(74,222,128,0.15); color: var(--green); }
+.dm-tag.alternative { background: rgba(136,136,160,0.15); color: var(--text-dim); }
+.dm-tag.rejected { background: rgba(248,113,113,0.15); color: var(--red); }
+
+/* ── Dependency Diagram ── */
+.dep-diagram {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 16px 0;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  overflow-x: auto;
+}
+.dep-arrow { color: var(--accent); }
+.dep-pkg { color: var(--cyan); }
+.dep-adapter { color: var(--accent2); }
+.dep-port { color: var(--green); }
+.dep-concrete { color: var(--orange); }
+.dep-comment { color: var(--text-dim); font-style: italic; }
+
+/* ── Flashcard styles ── */
+.quiz-progress {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px; font-size: 0.9rem; color: var(--text-dim);
+}
+.quiz-reset-btn, .quiz-shuffle-btn {
+  padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-reset-btn:hover, .quiz-shuffle-btn:hover { border-color: var(--accent); color: var(--text); }
+.flashcard-deck { position: relative; min-height: 280px; perspective: 1000px; }
+.flashcard { display: none; cursor: pointer; }
+.flashcard.active { display: block; }
+.flashcard-inner {
+  position: relative; width: 100%; min-height: 260px;
+  transition: transform 0.5s; transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back {
+  position: absolute; top: 0; left: 0; width: 100%; min-height: 260px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.flashcard-front p { font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+.flashcard-back { transform: rotateY(180deg); }
+.flashcard-back p { font-size: 0.95rem; max-width: 600px; line-height: 1.6; color: var(--text-dim); margin-bottom: 20px; }
+.flashcard-q, .flashcard-a {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; margin-bottom: 16px;
+}
+.flashcard-q { background: var(--accent); color: var(--bg); }
+.flashcard-a { background: var(--green); color: var(--bg); }
+.flashcard-actions { display: flex; gap: 12px; margin-top: 8px; }
+.fc-btn {
+  padding: 8px 20px; border-radius: 6px; font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text-dim); transition: all 0.2s;
+}
+.fc-btn:hover { color: var(--text); }
+.fc-btn.fc-right:hover { border-color: var(--green); color: var(--green); }
+.fc-btn.fc-wrong:hover { border-color: var(--orange); color: var(--orange); }
+.flashcard.marked-right { border-left: 3px solid var(--green); }
+.flashcard.marked-wrong { border-left: 3px solid var(--orange); }
+.flashcard-nav {
+  display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 20px;
+}
+.flashcard-nav button {
+  padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-dim); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.flashcard-nav button:hover { border-color: var(--accent); color: var(--text); }
+#card-counter { font-size: 0.85rem; color: var(--text-dim); font-weight: 600; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .hero h1 { font-size: 2rem; }
+  .constraint-grid { grid-template-columns: 1fr; }
+  .verdict-grid { grid-template-columns: 1fr; }
+  .pipeline-stepper { flex-direction: column; }
+  .step-btn { border-radius: var(--radius) !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HERO ═══════════════════ -->
+<div class="hero">
+  <h1>Explicit Grammar Coupling</h1>
+  <p class="subtitle">A comprehensive analysis of why analysis adapters should directly depend on their grammar adapter, how to encode this in TypeScript, and the concrete benefits of doing so.</p>
+  <div class="badge-row">
+    <span class="badge badge-blue">Expression Problem</span>
+    <span class="badge badge-purple">Type-Level Coupling</span>
+    <span class="badge badge-green">Discriminated Unions</span>
+    <span class="badge badge-cyan">ADR-001</span>
+    <span class="badge badge-orange">Refactoring Safety</span>
+    <span class="badge badge-pink">TypeScript</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ TOC ═══════════════════ -->
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#s1">The Question</a>
+    <a href="#s2">Expression Problem</a>
+    <a href="#s3">Prior Art</a>
+    <a href="#s4">Options Analysis</a>
+    <a href="#s5">TypeScript Benefits</a>
+    <a href="#s6">Current State</a>
+    <a href="#s7">Coupling Surfaces</a>
+    <a href="#s8">Refactoring Plan</a>
+    <a href="#s9">Design Decisions</a>
+    <a href="#s10">Knowledge Check</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════ SECTION 1: THE QUESTION ═══════════════════ -->
+<section id="s1">
+<div class="container">
+  <h2><span class="num">01</span>The Core Question</h2>
+  <p class="section-sub">When analysis rules are always for one grammar, should they depend on it directly?</p>
+
+  <p>Consider a system where <strong>analysis rules run over an AST</strong>. The system allows plugins for new AST grammars (node type definitions) and new analysis rules. But each analysis plugin <strong>is always for exactly one grammar</strong>. Multiple analyses can target the same grammar, but each analysis is bound to one grammar specifically.</p>
+
+  <p>This constraint &mdash; <strong>the data dimension is fixed per-plugin</strong> &mdash; fundamentally changes the design calculus. The question becomes: should the analysis directly import and depend on the grammar's concrete types? Or should there be an abstraction layer (a shared interface, a generic base) mediating between them?</p>
+
+  <div class="insight">
+    <strong>The key constraint:</strong> An analysis plugin is <em>never</em> reused across multiple grammars. A "kind-checking" analysis for a TypeScript AST will never be repurposed for a Python AST. This eliminates the primary justification for abstraction layers between them.
+  </div>
+
+  <h3>Two Architectural Options</h3>
+  <div class="verdict-grid">
+    <div class="verdict-box recommended">
+      <h4>Option A: Direct Dependency</h4>
+      <ul>
+        <li>Analysis imports concrete grammar types</li>
+        <li>Domain types reference specific node interfaces</li>
+        <li>Predicates typed with grammar's kind union</li>
+        <li>Full discriminated union narrowing in equations</li>
+        <li>Grammar re-exported from analysis barrel</li>
+      </ul>
+    </div>
+    <div class="verdict-box not-recommended">
+      <h4>Option B: Shared Abstraction</h4>
+      <ul>
+        <li>Both depend on generic interface (ASTNode)</li>
+        <li>Domain types use <code>node: unknown</code></li>
+        <li>Predicates use <code>Set&lt;string&gt;</code></li>
+        <li>String-based dispatch, no type narrowing</li>
+        <li>Runtime type assertions throughout</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>The thesis of this document: <strong>Option A is correct</strong>, and the benefits are amplified in TypeScript due to its structural type system, discriminated unions, and mapped types.</p>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 2: EXPRESSION PROBLEM ═══════════════════ -->
+<section id="s2">
+<div class="container">
+  <h2><span class="num">02</span>The Expression Problem Frame</h2>
+  <p class="section-sub">Why fixing the data dimension changes everything.</p>
+
+  <p>Philip Wadler's <strong>Expression Problem</strong> (1998) describes the tension between two orthogonal extensibility axes: adding new data types vs. adding new operations. Any given approach makes one easy at the cost of the other.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('ep-tabs','ep-standard')">Standard Expression Problem</button>
+    <button class="tab" onclick="switchTab('ep-tabs','ep-fixed')">With Fixed Data Dimension</button>
+    <button class="tab" onclick="switchTab('ep-tabs','ep-ksc')">KSC's Position</button>
+  </div>
+  <div id="ep-tabs">
+    <div class="tab-content active" id="ep-standard">
+      <p>In the standard Expression Problem, you have a 2D matrix:</p>
+      <table>
+        <tr><th></th><th>Existing Operations</th><th>New Operations</th></tr>
+        <tr><td><strong>Existing Data Types</strong></td><td style="color:var(--green)">Works</td><td style="color:var(--orange)">Hard (OOP) / Easy (FP)</td></tr>
+        <tr><td><strong>New Data Types</strong></td><td style="color:var(--orange)">Easy (OOP) / Hard (FP)</td><td style="color:var(--red)">Both need it</td></tr>
+      </table>
+      <p>When both axes need to be extensible, you need sophisticated solutions like the Visitor pattern, type classes, or multi-dispatch. <strong>Abstraction layers exist specifically to mediate this 2D extensibility.</strong></p>
+    </div>
+    <div class="tab-content" id="ep-fixed">
+      <p>When the data dimension is <strong>fixed per-plugin</strong>, the problem collapses to 1D:</p>
+      <table>
+        <tr><th></th><th>Existing Operations</th><th>New Operations</th></tr>
+        <tr><td><strong>Fixed Data Types</strong></td><td style="color:var(--green)">Works</td><td style="color:var(--green)">Easy &mdash; just add operations</td></tr>
+      </table>
+      <p>You only need to extend along one axis (new analysis rules over a fixed grammar). The abstraction layer that mediates 2D extensibility <strong>has no payoff</strong>, but still carries its full cost: lost type safety, no narrowing, runtime casts.</p>
+      <div class="insight good">
+        <strong>Key insight:</strong> The abstraction layer between grammar and analysis exists to support cross-grammar portability. When that portability is architecturally impossible (each analysis is for exactly one grammar), the abstraction is pure overhead.
+      </div>
+    </div>
+    <div class="tab-content" id="ep-ksc">
+      <p>KSC has exactly this structure:</p>
+      <ul style="padding-left: 20px; margin: 12px 0;">
+        <li style="padding: 4px 0; color: var(--text-dim);"><strong style="color:var(--text)">Grammar plugins</strong> &mdash; define AST node kinds (e.g., <code>Grammar&lt;TSNodeKind&gt;</code> with 364 kinds)</li>
+        <li style="padding: 4px 0; color: var(--text-dim);"><strong style="color:var(--text)">Analysis plugins</strong> &mdash; define attribute grammars over a specific grammar (e.g., <code>AnalysisDecl&lt;TSNodeKind&gt;</code>)</li>
+        <li style="padding: 4px 0; color: var(--text-dim);"><strong style="color:var(--text)">The K type parameter</strong> &mdash; links them at the type level (<code>K = TSNodeKind</code>)</li>
+      </ul>
+      <p>Multiple analyses can target <code>Grammar&lt;TSNodeKind&gt;</code> (e.g., kind-checking, complexity, dead-code detection), but each is <strong>explicitly and permanently bound</strong> to that grammar. A kind-checking analysis for TS nodes will never work on Python nodes.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 3: PRIOR ART ═══════════════════ -->
+<section id="s3">
+<div class="container">
+  <h2><span class="num">03</span>Prior Art: How Real Systems Handle This</h2>
+  <p class="section-sub">Lessons from ESLint, Roslyn, rust-analyzer, GHC, and JastAdd.</p>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">1</span> ESLint / typescript-eslint</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Architecture:</strong> ESLint chose a generic AST interface (ESTree) to decouple rules from any specific language. Rules use string-keyed visitor dispatch: <code>{ "Identifier": (node) =&gt; ... }</code>.</p>
+        <p><strong>The cost:</strong> typescript-eslint had to build an entirely separate layer. ESTree has no knowledge of TypeScript-specific syntax. The maintainers describe the cost candidly: <em>"we must dedicate time for every TypeScript AST change to update node conversion logic. For lint rule authors, having to convert TSESTree nodes to their TS counterparts before passing to TypeScript APIs is an annoyance."</em> (Josh Goldberg, typescript-eslint maintainer)</p>
+        <p><strong>The lesson:</strong> The abstraction was justified when ESLint aimed to support multiple languages (Flow, TypeScript, vanilla JS). Now that TypeScript is the only popular type-oriented language in web code, <em>"there's no longer a strong need to keep lint rules extensible for other languages."</em> The abstraction layer became technical debt when the cross-language portability assumption proved unnecessary.</p>
+        <div class="insight warn">
+          <strong>ESLint's cautionary tale:</strong> The abstraction was the right call for the wrong assumption. When your rules are scoped to one grammar, the entire justification for the abstraction collapses.
+        </div>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">2</span> Roslyn Analyzers (.NET)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Architecture:</strong> Roslyn analyzers directly reference language-specific syntax node types. A C# analyzer imports <code>Microsoft.CodeAnalysis.CSharp.Syntax</code> and operates on <code>MethodDeclarationSyntax</code>, <code>InvocationExpressionSyntax</code>, etc.</p>
+        <p><strong>Direct coupling by design:</strong> Analyzers register for specific <code>SyntaxKind</code> enum values and receive strongly-typed nodes. There is no generic "any-language" syntax abstraction &mdash; C# analyzers are C# analyzers, VB analyzers are VB analyzers.</p>
+        <p><strong>The benefit:</strong> Full IntelliSense, compile-time safety on node properties, exhaustive pattern matching on syntax kinds. The C# compiler team considered and rejected a cross-language analyzer abstraction because the type safety loss was unacceptable.</p>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">3</span> rust-analyzer</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Architecture:</strong> Analyses (name resolution, type inference, diagnostics) operate directly on the <code>ra_syntax</code> crate's typed node types. Each analysis function takes specific node types: <code>fn resolve_name(name: &ast::Name) -&gt; Option&lt;Binding&gt;</code>.</p>
+        <p><strong>No abstraction layer:</strong> There is no generic "language-agnostic AST" mediating between analyses and the Rust syntax tree. The typed coupling enables Rust's match exhaustiveness to catch missing node handling at compile time.</p>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">4</span> GHC (Trees That Grow)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Architecture:</strong> GHC uses the "Trees That Grow" (TTG) pattern where AST nodes have type family extensions parameterized by a compiler phase. <code>HsExpr GhcPs</code> (parsed), <code>HsExpr GhcRn</code> (renamed), <code>HsExpr GhcTc</code> (typechecked) share the same tree structure but gain phase-specific fields.</p>
+        <p><strong>Relevant insight:</strong> TTG is <em>not</em> about decoupling analyses from the grammar. The grammar is always Haskell's AST. TTG parameterizes the <em>phase</em> (what annotations are available), not the <em>language</em>. Each analysis pass operates on phase-specific concrete types &mdash; there's no abstraction layer hiding the Haskell AST from its analyses.</p>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">5</span> JastAdd &amp; Silver (Attribute Grammars)</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Architecture:</strong> Both JastAdd and Silver define attribute equations <em>directly on grammar productions</em>. An equation like <code>eq Program.numStatements = count(this.statements);</code> names the grammar nonterminal explicitly. There is zero abstraction between the AG specification and the grammar.</p>
+        <p><strong>Why this matters for KSC:</strong> KSC is an attribute grammar system. In every major AG system, equations are explicitly coupled to grammar productions. This is the fundamental nature of attribute grammars &mdash; attributes are defined <em>on</em> productions, not independently of them.</p>
+        <div class="insight">
+          <strong>AG lineage:</strong> In JastAdd, <code>syn int Program.nodeCount() = 1 + sum(getChild().nodeCount());</code> names <code>Program</code> directly. The equation <em>is</em> for Program. KSC's equation maps (<code>equations: { CompilationUnit: eq_kindDefs }</code>) follow the same pattern.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p><strong>Pattern across all systems:</strong> When an analysis is for one language/grammar, it directly depends on that grammar's concrete types. The only systems that introduce abstraction layers are those aiming for cross-language portability (ESLint) &mdash; and even those regret it when the assumption proves wrong.</p>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 4: OPTIONS ANALYSIS ═══════════════════ -->
+<section id="s4">
+<div class="container">
+  <h2><span class="num">04</span>Options Analysis</h2>
+  <p class="section-sub">Three coupling strategies, evaluated against the constraint that each analysis is for one grammar.</p>
+
+  <div class="pipeline-stepper">
+    <button class="step-btn active" onclick="showStep('opt-direct')">Direct Import</button>
+    <button class="step-btn" onclick="showStep('opt-shared')">Shared Interface</button>
+    <button class="step-btn" onclick="showStep('opt-generic')">Full Generic</button>
+  </div>
+
+  <div class="step-content active" id="opt-direct">
+    <h3>Option 1: Direct Import (Recommended)</h3>
+    <p>Analysis adapter directly imports from its grammar adapter barrel. All coupling is explicit, visible, and type-safe.</p>
+    <pre><span class="comment">// Analysis adapter directly imports grammar types</span>
+<span class="keyword">import type</span> { <span class="type-name">TSNodeKind</span>, <span class="type-name">KSNode</span>, <span class="type-name">KindToNode</span>,
+  <span class="type-name">KSTypeAliasDeclaration</span>, <span class="type-name">KSIdentifier</span>
+} <span class="keyword">from</span> <span class="string-lit">'../grammar/grammar/ts-ast/index.js'</span>;
+<span class="keyword">import</span> { <span class="fn-name">grammar</span> } <span class="keyword">from</span> <span class="string-lit">'../grammar/grammar/ts-ast/index.js'</span>;
+
+<span class="comment">// Domain types reference concrete node types</span>
+<span class="keyword">interface</span> <span class="type-name">KindDefinition</span> {
+  <span class="param-name">node</span>: <span class="type-name">KSTypeAliasDeclaration</span>;  <span class="comment">// not unknown, not ASTNode</span>
+}
+
+<span class="comment">// Predicates typed with grammar's kind union</span>
+<span class="keyword">const</span> <span class="fn-name">ASSIGNMENT_OPS</span>: <span class="type-name">ReadonlySet&lt;TSNodeKind&gt;</span> =
+  <span class="keyword">new</span> Set(grammar.sumTypeMembers[<span class="string-lit">'AssignmentOperator'</span>]);</pre>
+
+    <div class="decision-matrix">
+      <div class="dm-header">Evaluation</div>
+      <div class="dm-option">
+        <div class="dm-option-name pick">Type Safety <span class="dm-tag recommended">FULL</span></div>
+        <div class="dm-rationale">Discriminated union narrowing, exhaustiveness checking, property access without casts, refactoring safety when grammar changes.</div>
+      </div>
+      <div class="dm-option">
+        <div class="dm-option-name pick">Portability <span class="dm-tag rejected">NONE</span></div>
+        <div class="dm-rationale">Analysis cannot be used with a different grammar. This is acceptable because the architecture guarantees each analysis is for one grammar.</div>
+      </div>
+      <div class="dm-option">
+        <div class="dm-option-name pick">Discoverability <span class="dm-tag recommended">HIGH</span></div>
+        <div class="dm-rationale">The analysis barrel re-exports grammar types &mdash; consumers see the binding. Import paths make the dependency explicit.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-content" id="opt-shared">
+    <h3>Option 2: Shared Interface (Not Recommended)</h3>
+    <p>Both grammar and analysis depend on a generic <code>ASTNode</code> interface from a shared package. Analysis never sees concrete grammar types.</p>
+    <pre><span class="comment">// Analysis only sees generic ASTNode</span>
+<span class="keyword">import type</span> { <span class="type-name">ASTNode</span> } <span class="keyword">from</span> <span class="string-lit">'@kindscript/core-grammar'</span>;
+
+<span class="comment">// Domain types lose concreteness</span>
+<span class="keyword">interface</span> <span class="type-name">KindDefinition</span> {
+  <span class="param-name">node</span>: <span class="type-name">ASTNode</span>;  <span class="comment">// which kind? what fields? unknown at compile time</span>
+}
+
+<span class="comment">// Predicates become untyped string sets</span>
+<span class="keyword">const</span> <span class="fn-name">ASSIGNMENT_OPS</span>: <span class="type-name">Set&lt;string&gt;</span> = <span class="keyword">new</span> Set([
+  <span class="string-lit">'EqualsToken'</span>, <span class="string-lit">'PlusEqualsToken'</span>, ...  <span class="comment">// typos not caught</span>
+]);</pre>
+
+    <div class="decision-matrix">
+      <div class="dm-header">Evaluation</div>
+      <div class="dm-option">
+        <div class="dm-option-name alt">Type Safety <span class="dm-tag rejected">MINIMAL</span></div>
+        <div class="dm-rationale">No narrowing, no exhaustiveness, no field access without casts. Every property access requires <code>as KSIdentifier</code> or worse, <code>as any</code>.</div>
+      </div>
+      <div class="dm-option">
+        <div class="dm-option-name alt">Portability <span class="dm-tag alternative">THEORETICAL</span></div>
+        <div class="dm-rationale">Could theoretically port analysis across grammars &mdash; but the architecture prohibits this. The portability is never exercised.</div>
+      </div>
+      <div class="dm-option">
+        <div class="dm-option-name alt">Discoverability <span class="dm-tag rejected">LOW</span></div>
+        <div class="dm-rationale">The grammar binding is implicit (string constants, runtime checks). Nothing in the type system reveals which grammar the analysis targets.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-content" id="opt-generic">
+    <h3>Option 3: Full Generic Parameterization (Overkill)</h3>
+    <p>Analysis types are generic over a grammar parameter <code>G</code>. Every type carries the grammar as a type parameter.</p>
+    <pre><span class="comment">// Every analysis type parameterized on grammar</span>
+<span class="keyword">interface</span> <span class="type-name">KindDefinition&lt;G extends Grammar&gt;</span> {
+  <span class="param-name">node</span>: <span class="type-name">NodeOf&lt;G, 'TypeAliasDeclaration'&gt;</span>;
+}
+
+<span class="comment">// Equation functions generic too</span>
+<span class="keyword">function</span> <span class="fn-name">eq_kindDefs</span>&lt;<span class="type-name">G extends Grammar</span>&gt;(
+  <span class="param-name">ctx</span>: <span class="type-name">KindCtx&lt;NodeOf&lt;G, 'CompilationUnit'&gt;&gt;</span>
+): <span class="type-name">KindDefinition&lt;G&gt;</span>[] { ... }</pre>
+
+    <div class="decision-matrix">
+      <div class="dm-header">Evaluation</div>
+      <div class="dm-option">
+        <div class="dm-option-name alt">Type Safety <span class="dm-tag alternative">FULL (complex)</span></div>
+        <div class="dm-rationale">Same type safety as direct import, but achieved through generic indirection. The generics carry no runtime meaning &mdash; <code>G</code> is always instantiated to one grammar.</div>
+      </div>
+      <div class="dm-option">
+        <div class="dm-option-name alt">Portability <span class="dm-tag alternative">THEORETICAL</span></div>
+        <div class="dm-rationale">The generic parameter <em>implies</em> portability, but it's never exercised. It misleads readers into thinking the analysis is grammar-agnostic.</div>
+      </div>
+      <div class="dm-option">
+        <div class="dm-option-name alt">Complexity <span class="dm-tag rejected">HIGH</span></div>
+        <div class="dm-rationale">Every domain type, equation, predicate, and projection gains a generic parameter that is always the same type. Higher-kinded type tricks needed for <code>NodeOf&lt;G, K&gt;</code>. TypeScript error messages become unreadable.</div>
+      </div>
+    </div>
+
+    <div class="insight warn">
+      <strong>Watch out:</strong> This approach is technically correct but violates YAGNI. The generic parameter communicates "this analysis works with any grammar" &mdash; which is a lie. Direct imports are simpler, equally type-safe, and honestly communicate the dependency.
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 5: TYPESCRIPT BENEFITS ═══════════════════ -->
+<section id="s5">
+<div class="container">
+  <h2><span class="num">05</span>TypeScript-Specific Benefits of Direct Coupling</h2>
+  <p class="section-sub">How TypeScript's type system makes direct dependency strictly more powerful than abstraction.</p>
+
+  <h3>Benefit 1: Discriminated Union Exhaustiveness</h3>
+  <p>When the analysis directly imports the grammar's kind union (<code>TSNodeKind</code>), TypeScript's control flow analysis provides compile-time exhaustiveness checking:</p>
+  <pre><span class="keyword">function</span> <span class="fn-name">handleNode</span>(<span class="param-name">kind</span>: <span class="type-name">TSNodeKind</span>) {
+  <span class="keyword">switch</span> (kind) {
+    <span class="keyword">case</span> <span class="string-lit">'Identifier'</span>: <span class="keyword">return</span> <span class="fn-name">handleIdentifier</span>();
+    <span class="keyword">case</span> <span class="string-lit">'VariableDeclaration'</span>: <span class="keyword">return</span> <span class="fn-name">handleVarDecl</span>();
+    <span class="comment">// TypeScript error: not all members of TSNodeKind handled</span>
+    <span class="keyword">default</span>: <span class="fn-name">assertNever</span>(kind); <span class="comment">// compile-time guarantee</span>
+  }
+}</pre>
+  <p>Through <code>Set&lt;string&gt;</code>? <strong>No exhaustiveness.</strong> The compiler cannot verify completeness.</p>
+
+  <h3>Benefit 2: Automatic Type Narrowing</h3>
+  <p>After a kind check, TypeScript automatically narrows the node to its specific interface:</p>
+  <pre><span class="keyword">function</span> <span class="fn-name">extractName</span>(<span class="param-name">ctx</span>: <span class="type-name">KindCtx&lt;KSVariableDeclaration&gt;</span>): <span class="type-name">string</span> {
+  <span class="comment">// ctx.node is narrowed to KSVariableDeclaration</span>
+  <span class="keyword">return</span> ctx.node.name;           <span class="comment">// string (type-safe)</span>
+  <span class="comment">// ctx.node.escapedText;        // ERROR: not on KSVariableDeclaration</span>
+}
+
+<span class="comment">// Without direct coupling:</span>
+<span class="keyword">function</span> <span class="fn-name">extractNameUntyped</span>(<span class="param-name">ctx</span>: <span class="type-name">Ctx</span>): <span class="type-name">string</span> {
+  <span class="keyword">const</span> node = ctx.node <span class="keyword">as any</span>;  <span class="comment">// cast required</span>
+  <span class="keyword">return</span> node.name;               <span class="comment">// no compile-time check</span>
+}</pre>
+
+  <h3>Benefit 3: Refactoring Safety</h3>
+  <p>When the grammar changes (rename a field, add a node kind, change a type), TypeScript <strong>immediately surfaces every affected analysis file</strong>. With string-based dispatch, those breakages are silent until runtime.</p>
+
+  <h3>Benefit 4: KindToNode Mapped Type</h3>
+  <p>The <code>KindToNode</code> mapped type converts a kind string to its concrete interface at the type level:</p>
+  <pre><span class="keyword">type</span> <span class="type-name">KindToNode</span> = {
+  [<span class="type-name">K</span> <span class="keyword">in</span> <span class="type-name">TSNodeKind</span>]: <span class="type-name">K</span> <span class="keyword">extends keyof</span> <span class="type-name">SpecificNodes</span>
+    ? <span class="type-name">SpecificNodes[K]</span>
+    : <span class="type-name">KSNode</span> & { <span class="param-name">kind</span>: <span class="type-name">K</span> };
+};
+
+<span class="comment">// In generated dispatch:</span>
+ctx <span class="keyword">as unknown as</span> <span class="type-name">KindCtx&lt;KindToNode['Identifier']&gt;</span>
+<span class="comment">// Resolves to: KindCtx&lt;KSIdentifier&gt;</span></pre>
+  <p>This enables <strong>per-kind type narrowing without runtime cost</strong>. The generated dispatch code uses <code>KindToNode</code> to give each equation function its correctly-typed context.</p>
+
+  <h3>Benefit 5: TypedEquationMap per-kind Context Narrowing</h3>
+  <pre><span class="keyword">type</span> <span class="type-name">TypedEquationMap</span>&lt;<span class="type-name">K</span>, <span class="type-name">CtxMap</span>, <span class="type-name">T</span>&gt; = {
+  [<span class="type-name">Kind</span> <span class="keyword">in</span> <span class="type-name">K</span>]?: ((<span class="param-name">ctx</span>: <span class="type-name">Kind</span> <span class="keyword">extends keyof</span> <span class="type-name">CtxMap</span>
+    ? <span class="type-name">CtxMap[Kind]</span> : <span class="type-name">unknown</span>, ...) =&gt; <span class="type-name">T</span>)
+    & { <span class="param-name">deps</span>?: <span class="type-name">string</span>[] };
+};</pre>
+  <p>With direct coupling, the adapter can instantiate <code>CtxMap</code> with concrete grammar types, giving each equation function the exact context type for its node kind.</p>
+
+  <div class="insight good">
+    <strong>The TypeScript advantage:</strong> Direct coupling unlocks discriminated union narrowing, <code>KindToNode</code> mapped types, exhaustiveness checking, and refactoring safety. These are <em>not</em> available through a generic abstraction layer &mdash; they require the compiler to see the concrete types.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 6: CURRENT STATE ═══════════════════ -->
+<section id="s6">
+<div class="container">
+  <h2><span class="num">06</span>Current State of Grammar-Analysis Coupling in KSC</h2>
+  <p class="section-sub">Mapping every dependency between the ts-kind-checking analysis and its grammar adapter.</p>
+
+  <h3>The Import Graph</h3>
+  <div class="dep-diagram">
+<span class="dep-adapter">analysis/spec/ts-kind-checking/</span>
+  <span class="dep-arrow">&rarr;</span> <span class="dep-adapter">grammar/grammar/ts-ast/</span>
+  <br>
+  <br>
+  <span class="dep-comment">Type-level imports (compile-time only):</span>
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">spec.ts</span>        <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">TSNodeKind</span> <span class="dep-comment">(type param for AnalysisDecl&lt;K&gt;)</span>
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">types.ts</span>       <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">KSTypeAliasDeclaration</span>, <span class="dep-concrete">KSNode</span> <span class="dep-comment">(domain type fields)</span>
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">attributes.ts</span>  <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">TSNodeKind</span>, <span class="dep-concrete">KindToNode</span>, <span class="dep-concrete">KSIdentifier</span>, <span class="dep-concrete">KSCompilationUnit</span>, ...
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">definitions.ts</span> <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">KSTypeAliasDeclaration</span>, <span class="dep-concrete">KSIdentifier</span>, <span class="dep-concrete">KSNode</span>, ...
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">predicates.ts</span>  <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">TSNodeKind</span>, <span class="dep-concrete">KSNode</span>
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">dispatch.ts</span> <span class="dep-comment">(generated)</span> <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">KSNode</span>, <span class="dep-concrete">KindToNode</span>
+  <br>
+  <br>
+  <span class="dep-comment">Runtime imports (value-level):</span>
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">predicates.ts</span>  <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">grammar</span> <span class="dep-comment">(grammar.sumTypeMembers at module load)</span>
+  <br>
+  <br>
+  <span class="dep-comment">Re-exports (barrel makes binding discoverable):</span>
+  <br>
+  &nbsp;&nbsp;<span class="dep-adapter">index.ts</span>       <span class="dep-arrow">&rarr;</span> <span class="dep-concrete">grammar</span>, <span class="dep-concrete">TSNodeKind</span>, <span class="dep-concrete">KSNode</span>, <span class="dep-concrete">KindToNode</span>, <span class="dep-concrete">KSProgram</span>, ...
+  </div>
+
+  <h3>Coupling Layers</h3>
+  <table>
+    <tr><th>Layer</th><th>Coupling Type</th><th>What</th><th>Status</th></tr>
+    <tr>
+      <td><strong>K Type Param</strong></td>
+      <td>Compile-time</td>
+      <td><code>AnalysisDecl&lt;TSNodeKind&gt;</code> links spec to grammar</td>
+      <td style="color:var(--green)">Done</td>
+    </tr>
+    <tr>
+      <td><strong>Domain Types</strong></td>
+      <td>Compile-time</td>
+      <td><code>KindDefinition.node: KSTypeAliasDeclaration</code></td>
+      <td style="color:var(--green)">Done</td>
+    </tr>
+    <tr>
+      <td><strong>Equation Functions</strong></td>
+      <td>Compile-time</td>
+      <td><code>KindCtx&lt;KSIdentifier&gt;</code> in equation signatures</td>
+      <td style="color:var(--green)">Done</td>
+    </tr>
+    <tr>
+      <td><strong>KindEquations&lt;K&gt;</strong></td>
+      <td>Compile-time</td>
+      <td><code>satisfies KindEquations&lt;'CompilationUnit'&gt;</code></td>
+      <td style="color:var(--green)">Done</td>
+    </tr>
+    <tr>
+      <td><strong>Predicates</strong></td>
+      <td>Runtime + type</td>
+      <td><code>ReadonlySet&lt;TSNodeKind&gt;</code> from <code>grammar.sumTypeMembers</code></td>
+      <td style="color:var(--green)">Done</td>
+    </tr>
+    <tr>
+      <td><strong>Generated Dispatch</strong></td>
+      <td>Compile-time</td>
+      <td><code>KindToNode['Identifier']</code> for ctx narrowing</td>
+      <td style="color:var(--green)">Done</td>
+    </tr>
+    <tr>
+      <td><strong>Barrel Re-exports</strong></td>
+      <td>API surface</td>
+      <td>Analysis barrel re-exports grammar types</td>
+      <td style="color:var(--green)">Done</td>
+    </tr>
+  </table>
+
+  <div class="insight good">
+    <strong>Current state:</strong> The explicit coupling is already well-established across all layers. ADR-001 has been implemented: domain types use concrete node types, predicates derive from grammar instance data, equations use <code>KindCtx&lt;N&gt;</code> narrowing, and the barrel re-exports grammar types.
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 7: COUPLING SURFACES ═══════════════════ -->
+<section id="s7">
+<div class="container">
+  <h2><span class="num">07</span>Coupling Surfaces: Where Analysis Meets Grammar</h2>
+  <p class="section-sub">A complete catalog of every point where the analysis adapter touches grammar types, with the role each plays.</p>
+
+  <div class="constraint-grid" id="surfaces-grid">
+    <div class="constraint-card" onclick="selectCard(this, 'surf-k-param')">
+      <div class="cc-name">K Type Parameter</div>
+      <div class="cc-scope">Composition Boundary</div>
+      <div class="cc-desc">Links grammar and analysis at the type level via AnalysisDecl&lt;K&gt;. Prevents mismatched pairings.</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'surf-domain')">
+      <div class="cc-name">Domain Type Fields</div>
+      <div class="cc-scope">Type-Level</div>
+      <div class="cc-desc">KindDefinition.node references KSTypeAliasDeclaration. Diagnostic.node references KSNode.</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'surf-kindctx')">
+      <div class="cc-name">KindCtx&lt;N&gt; Narrowing</div>
+      <div class="cc-scope">Equation Functions</div>
+      <div class="cc-desc">Each equation function narrows ctx to the specific node type it handles.</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'surf-predicates')">
+      <div class="cc-name">Predicate Constants</div>
+      <div class="cc-scope">Runtime + Type</div>
+      <div class="cc-desc">Derived from grammar.sumTypeMembers at module load. Typed as ReadonlySet&lt;TSNodeKind&gt;.</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'surf-kindtonode')">
+      <div class="cc-name">KindToNode Mapped Type</div>
+      <div class="cc-scope">Generated Code</div>
+      <div class="cc-desc">Generated dispatch uses KindToNode to narrow ctx per-kind in switch cases.</div>
+    </div>
+    <div class="constraint-card" onclick="selectCard(this, 'surf-barrel')">
+      <div class="cc-name">Barrel Re-exports</div>
+      <div class="cc-scope">API Surface</div>
+      <div class="cc-desc">Analysis barrel re-exports grammar, TSNodeKind, KSNode, KindToNode for consumer discoverability.</div>
+    </div>
+  </div>
+
+  <div class="constraint-detail" id="surf-k-param">
+    <h3>The K Type Parameter</h3>
+    <p>The <code>K</code> type parameter is the <strong>primary coupling mechanism</strong>. It flows through <code>AnalysisDecl&lt;K&gt;</code> &rarr; <code>AttrDecl&lt;K&gt;</code> &rarr; <code>EquationMap&lt;K&gt;</code>, ensuring that equation map keys are valid kind strings from the grammar. At composition boundaries (<code>CodegenTarget&lt;K&gt;</code>, <code>EvaluationTarget&lt;K, M, P&gt;</code>), TypeScript verifies that grammar and analysis share the same K.</p>
+    <p><strong>Critically, K is erased at runtime.</strong> The evaluator engine operates on <code>string</code> kind names. K's sole purpose is compile-time verification &mdash; making it a pure type-safety mechanism with zero runtime cost.</p>
+    <pre><span class="comment">// Composition boundary: K links grammar and analysis</span>
+<span class="keyword">const</span> target: <span class="type-name">CodegenTarget&lt;TSNodeKind&gt;</span> = {
+  grammar,          <span class="comment">// Grammar&lt;TSNodeKind&gt;</span>
+  decl: analysisDecl, <span class="comment">// AnalysisDecl&lt;TSNodeKind&gt;</span>
+  <span class="comment">// If you accidentally passed Grammar&lt;MockKind&gt; here,</span>
+  <span class="comment">// TypeScript would reject it: TSNodeKind ≠ MockKind</span>
+};</pre>
+  </div>
+
+  <div class="constraint-detail" id="surf-domain">
+    <h3>Domain Type Fields</h3>
+    <p>Domain types express their grammar dependency through <strong>concrete node type annotations on fields</strong>:</p>
+    <pre><span class="keyword">interface</span> <span class="type-name">KindDefinition</span> {
+  <span class="param-name">node</span>: <span class="type-name">KSTypeAliasDeclaration</span>;  <span class="comment">// not ASTNode, not unknown</span>
+  <span class="param-name">name</span>: <span class="type-name">string</span>;
+  <span class="param-name">properties</span>: <span class="type-name">PropertySet</span>;
+}
+
+<span class="keyword">interface</span> <span class="type-name">Diagnostic</span> {
+  <span class="param-name">node</span>: <span class="type-name">KSNode</span>;  <span class="comment">// union of all 364 grammar node types</span>
+  <span class="param-name">message</span>: <span class="type-name">string</span>;
+  <span class="param-name">rule</span>: <span class="type-name">ViolationRule</span>;
+}</pre>
+    <p>This gives downstream consumers (projections, application layer, CLI) type-safe access to node fields. When projections extract <code>definition.node.name</code>, TypeScript knows <code>.name</code> is a <code>KSTypeAliasDeclaration</code> field &mdash; no cast needed.</p>
+  </div>
+
+  <div class="constraint-detail" id="surf-kindctx">
+    <h3>KindCtx&lt;N&gt; Narrowing</h3>
+    <p>Each equation function declares which node type it operates on via <code>KindCtx&lt;KSSpecificNode&gt;</code>:</p>
+    <pre><span class="keyword">function</span> <span class="fn-name">eq_kindDefs_CompilationUnit</span>(
+  <span class="param-name">ctx</span>: <span class="type-name">KindCtx&lt;KSCompilationUnit&gt;</span>
+): <span class="type-name">KindDefinition</span>[] {
+  <span class="comment">// ctx.node is KSCompilationUnit &mdash; full type-safe access</span>
+  <span class="keyword">for</span> (<span class="keyword">const</span> stmt <span class="keyword">of</span> ctx.node.statements) {
+    <span class="comment">// TypeScript knows statements exists on KSCompilationUnit</span>
+  }
+}</pre>
+    <p>The <code>KindEquations&lt;K&gt;</code> type enforces that all equations in a per-kind record accept the correct <code>KindCtx</code>:</p>
+    <pre><span class="keyword">type</span> <span class="type-name">KindEquations&lt;K extends TSNodeKind&gt;</span> = <span class="type-name">Record</span>&lt;<span class="type-name">string</span>,
+  ((<span class="param-name">ctx</span>: <span class="type-name">KindCtx&lt;KindToNode[K]&gt;</span>, ...args: <span class="type-name">any</span>[]) =&gt; <span class="type-name">any</span>)
+  & { <span class="param-name">deps</span>?: <span class="type-name">string</span>[] }
+&gt;;
+
+<span class="keyword">const</span> <span class="fn-name">CompilationUnitEquations</span> = {
+  kindDefs: eq_kindDefs_CompilationUnit,
+} <span class="keyword">satisfies</span> <span class="type-name">KindEquations&lt;'CompilationUnit'&gt;</span>;</pre>
+  </div>
+
+  <div class="constraint-detail" id="surf-predicates">
+    <h3>Predicate Constants</h3>
+    <p>Predicate constants are <strong>derived from the grammar instance at module load</strong>:</p>
+    <pre><span class="keyword">import</span> { <span class="fn-name">grammar</span> } <span class="keyword">from</span> <span class="string-lit">'../grammar/grammar/ts-ast/index.js'</span>;
+
+<span class="keyword">export const</span> <span class="fn-name">ASSIGNMENT_OPS</span>: <span class="type-name">ReadonlySet&lt;TSNodeKind&gt;</span> =
+  <span class="keyword">new</span> Set(grammar.sumTypeMembers[<span class="string-lit">'AssignmentOperator'</span>] <span class="keyword">as</span> <span class="type-name">TSNodeKind</span>[]);
+
+<span class="keyword">export const</span> <span class="fn-name">SIDE_EFFECT_EXPR_KINDS</span>: <span class="type-name">ReadonlySet&lt;TSNodeKind&gt;</span> =
+  <span class="keyword">new</span> Set(grammar.sumTypeMembers[<span class="string-lit">'SideEffectExpression'</span>] <span class="keyword">as</span> <span class="type-name">TSNodeKind</span>[]);</pre>
+    <p>This is a <strong>runtime dependency</strong> on the grammar instance &mdash; the only place analysis imports a grammar value (not just types). The sum type membership data is grammar metadata that would be inaccessible through a generic interface.</p>
+  </div>
+
+  <div class="constraint-detail" id="surf-kindtonode">
+    <h3>KindToNode in Generated Dispatch</h3>
+    <p>The generated dispatch functions use <code>KindToNode</code> for per-kind context narrowing:</p>
+    <pre><span class="comment">// AUTO-GENERATED by compileAnalysis()</span>
+<span class="keyword">function</span> <span class="fn-name">dispatch_kindDefs</span>(<span class="param-name">ctx</span>: <span class="type-name">Ctx</span>): <span class="type-name">KindDefinition</span>[] {
+  <span class="keyword">const</span> _kind = (ctx.node <span class="keyword">as</span> <span class="type-name">KSNode</span>).kind;
+  <span class="keyword">switch</span> (_kind) {
+    <span class="keyword">case</span> <span class="string-lit">'CompilationUnit'</span>:
+      <span class="keyword">return</span> <span class="fn-name">eq_kindDefs_CompilationUnit</span>(
+        ctx <span class="keyword">as unknown as</span> <span class="type-name">KindCtx&lt;KindToNode['CompilationUnit']&gt;</span>
+      );
+    <span class="comment">// ... 363 more cases ...</span>
+  }
+}</pre>
+    <p>The <strong>double cast</strong> (<code>as unknown as</code>) is necessary because <code>Ctx</code> (with generic <code>ASTNode</code>) and <code>KindCtx&lt;KSCompilationUnit&gt;</code> share no structural relationship that TypeScript can prove. The evaluator engine ensures the cast is safe at runtime by dispatching on <code>node.kind</code>.</p>
+  </div>
+
+  <div class="constraint-detail" id="surf-barrel">
+    <h3>Barrel Re-exports</h3>
+    <p>The analysis adapter barrel explicitly re-exports grammar types, making the binding <strong>discoverable to consumers</strong>:</p>
+    <pre><span class="comment">// src/adapters/analysis/spec/ts-kind-checking/index.ts</span>
+<span class="keyword">export</span> { <span class="fn-name">grammar</span> } <span class="keyword">from</span> <span class="string-lit">'../../../grammar/grammar/ts-ast/index.js'</span>;
+<span class="keyword">export type</span> { <span class="type-name">TSNodeKind</span>, <span class="type-name">KSNode</span>, <span class="type-name">KindToNode</span>,
+  <span class="type-name">KSProgram</span>, <span class="type-name">KSCompilationUnit</span>, <span class="type-name">KSIdentifier</span>,
+  <span class="type-name">KSTypeAliasDeclaration</span>
+} <span class="keyword">from</span> <span class="string-lit">'../../../grammar/grammar/ts-ast/index.js'</span>;</pre>
+    <p>Consumers can import grammar types from either the grammar adapter or the analysis adapter barrel. The analysis barrel bundles everything needed: domain types, projections, and the grammar they operate on.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 8: HOW K FLOWS VS HOW CONCRETE TYPES FLOW ═══════════════════ -->
+<section id="s8">
+<div class="container">
+  <h2><span class="num">08</span>Two Coupling Mechanisms: K vs. Concrete Types</h2>
+  <p class="section-sub">Understanding the difference between the generic K parameter (core packages) and concrete type imports (adapters).</p>
+
+  <p>The system has <strong>two distinct coupling mechanisms</strong> that serve different purposes:</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('mech-tabs','mech-k')">K Type Parameter</button>
+    <button class="tab" onclick="switchTab('mech-tabs','mech-concrete')">Concrete Type Imports</button>
+    <button class="tab" onclick="switchTab('mech-tabs','mech-where')">Where Each Lives</button>
+  </div>
+  <div id="mech-tabs">
+    <div class="tab-content active" id="mech-k">
+      <h3>The K Type Parameter (Core Packages)</h3>
+      <p><code>K extends string</code> flows through the core package interfaces. It never resolves to a concrete type within the packages &mdash; it's a <strong>phantom type parameter</strong> that exists solely to prevent mismatched pairings at composition boundaries.</p>
+      <pre><span class="comment">// In @kindscript/core-codegen &mdash; K is generic</span>
+<span class="keyword">interface</span> <span class="type-name">AnalysisDecl&lt;K extends string&gt;</span> {
+  attrs: <span class="type-name">AttrDecl&lt;K&gt;</span>[];
+}
+
+<span class="comment">// In @kindscript/core-evaluator &mdash; K is generic</span>
+<span class="keyword">interface</span> <span class="type-name">EvaluationTarget&lt;K extends string, M, P&gt;</span> {
+  grammar: <span class="type-name">Grammar&lt;K&gt;</span>;
+  dispatch: <span class="type-name">DispatchConfig</span>;  <span class="comment">// K not used here</span>
+}</pre>
+      <p><strong>K is never instantiated inside core packages.</strong> The packages don't know whether K is <code>TSNodeKind</code>, <code>MockKind</code>, or any other string union. K is instantiated only at <strong>adapter composition sites</strong>.</p>
+      <div class="insight">
+        <strong>K's role:</strong> It's a compile-time guard rail. It prevents <code>grammar: Grammar&lt;MockKind&gt;</code> from being bundled with <code>decl: AnalysisDecl&lt;TSNodeKind&gt;</code>. At runtime, K is erased &mdash; the evaluator operates on plain strings.
+      </div>
+    </div>
+    <div class="tab-content" id="mech-concrete">
+      <h3>Concrete Type Imports (Adapter Layer)</h3>
+      <p>Inside the analysis adapter, code imports <strong>concrete grammar types</strong> &mdash; specific node interfaces, the kind union, and the <code>KindToNode</code> mapped type. These are <em>not</em> mediated by K.</p>
+      <pre><span class="comment">// In analysis adapter &mdash; concrete types, not K</span>
+<span class="keyword">import type</span> { <span class="type-name">KSIdentifier</span> } <span class="keyword">from</span> <span class="string-lit">'../grammar/ts-ast/index.js'</span>;
+
+<span class="keyword">function</span> <span class="fn-name">eq_defLookup</span>(<span class="param-name">ctx</span>: <span class="type-name">KindCtx&lt;KSIdentifier&gt;</span>) {
+  <span class="comment">// KSIdentifier is a concrete interface, not a generic type</span>
+  <span class="keyword">return</span> ctx.node.escapedText;  <span class="comment">// string (known at compile time)</span>
+}</pre>
+      <p>This is the <strong>direct coupling</strong> that ADR-001 mandates. It's where the real type safety comes from &mdash; not from K, but from importing <code>KSIdentifier</code>, <code>KSTypeAliasDeclaration</code>, <code>KSVariableDeclaration</code>, etc. directly.</p>
+    </div>
+    <div class="tab-content" id="mech-where">
+      <h3>Where Each Mechanism Lives</h3>
+      <table>
+        <tr><th>Mechanism</th><th>Lives In</th><th>Purpose</th></tr>
+        <tr>
+          <td><code>K extends string</code></td>
+          <td>Core packages (<code>@kindscript/core-*</code>)</td>
+          <td>Prevent grammar/analysis mismatch at composition boundaries</td>
+        </tr>
+        <tr>
+          <td>Concrete type imports</td>
+          <td>Adapter code (<code>src/adapters/</code>)</td>
+          <td>Per-kind narrowing, domain types, refactoring safety</td>
+        </tr>
+        <tr>
+          <td>Grammar instance imports</td>
+          <td>Adapter code (predicates)</td>
+          <td>Derive predicate sets from grammar metadata</td>
+        </tr>
+        <tr>
+          <td>Barrel re-exports</td>
+          <td>Adapter barrel (<code>index.ts</code>)</td>
+          <td>Make grammar binding discoverable to consumers</td>
+        </tr>
+      </table>
+      <div class="insight">
+        <strong>The layering:</strong> Core packages provide generic K-parameterized contracts. Adapters instantiate K to a concrete kind union and add direct type imports. The direct imports are where the Expression Problem analysis applies &mdash; they are the <em>explicit coupling</em> that makes the analysis non-portable (intentionally) and type-safe (beneficially).
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 9: DESIGN DECISIONS ═══════════════════ -->
+<section id="s9">
+<div class="container">
+  <h2><span class="num">09</span>Design Decision Reference</h2>
+  <p class="section-sub">Per-surface decisions, options considered, and recommendations.</p>
+
+  <div class="data-flow">
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">A</span> Domain Type Node Fields</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Decision:</strong> Should <code>KindDefinition.node</code> be typed as <code>KSTypeAliasDeclaration</code>, <code>KSNode</code>, <code>ASTNode</code>, or <code>unknown</code>?</p>
+        <div class="decision-matrix">
+          <div class="dm-option">
+            <div class="dm-option-name pick">KSTypeAliasDeclaration <span class="dm-tag recommended">CHOSEN</span></div>
+            <div class="dm-rationale">Maximum precision. Consumers know exactly which node kind this is. They can access <code>.name</code>, <code>.typeParameters</code>, etc. without casts. Grammar rename in <code>nodes.ts</code> cascades to all consumers &mdash; full refactoring safety.</div>
+          </div>
+          <div class="dm-option">
+            <div class="dm-option-name alt">KSNode <span class="dm-tag alternative">CONSIDERED</span></div>
+            <div class="dm-rationale">Valid for fields that can hold any node kind (like <code>Diagnostic.node</code>). But for fields that always hold one specific kind, this loses precision unnecessarily.</div>
+          </div>
+          <div class="dm-option">
+            <div class="dm-option-name alt">ASTNode <span class="dm-tag rejected">REJECTED</span></div>
+            <div class="dm-rationale">The generic base type from core-grammar. No grammar-specific fields accessible. Requires casts to do anything useful.</div>
+          </div>
+        </div>
+        <p><strong>Guideline:</strong> Use the most specific type that is correct. <code>KindDefinition</code> always holds a <code>TypeAliasDeclaration</code>, so type it as such. <code>Diagnostic</code> can hold any node, so <code>KSNode</code> is correct.</p>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">B</span> Predicate Constant Types</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Decision:</strong> Should predicate sets be typed as <code>ReadonlySet&lt;TSNodeKind&gt;</code> or <code>Set&lt;string&gt;</code>? Should they be hardcoded or derived from grammar metadata?</p>
+        <div class="decision-matrix">
+          <div class="dm-option">
+            <div class="dm-option-name pick">ReadonlySet&lt;TSNodeKind&gt; from grammar.sumTypeMembers <span class="dm-tag recommended">CHOSEN</span></div>
+            <div class="dm-rationale">Derived from grammar sum types at module load. Type-safe: <code>set.has(kind)</code> narrows <code>kind</code>. Single source of truth: adding a new AssignmentOperator in grammar automatically updates the predicate.</div>
+          </div>
+          <div class="dm-option">
+            <div class="dm-option-name alt">Set&lt;string&gt; with hardcoded members <span class="dm-tag rejected">REJECTED</span></div>
+            <div class="dm-rationale">Duplicates grammar information. Typos not caught at compile time. Grammar changes don't cascade &mdash; predicates silently become stale.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">C</span> Equation Function Signatures</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Decision:</strong> Should equation functions use <code>KindCtx&lt;KSSpecificNode&gt;</code> or generic <code>Ctx</code>?</p>
+        <div class="decision-matrix">
+          <div class="dm-option">
+            <div class="dm-option-name pick">KindCtx&lt;KSIdentifier&gt; etc. <span class="dm-tag recommended">CHOSEN</span></div>
+            <div class="dm-rationale">Full type narrowing inside the function body. Author gets IntelliSense for node-specific fields. Wrong-kind assignments caught by <code>satisfies KindEquations&lt;K&gt;</code>.</div>
+          </div>
+          <div class="dm-option">
+            <div class="dm-option-name alt">Ctx (generic) <span class="dm-tag rejected">REJECTED</span></div>
+            <div class="dm-rationale">Every property access requires <code>ctx.node as KSIdentifier</code>. No compile-time verification that the equation is assigned to the correct kind.</div>
+          </div>
+        </div>
+        <p><strong>Enforcement:</strong> The <code>KindEquations&lt;K&gt;</code> type uses TypeScript's function contravariance to verify assignments. A function typed <code>(ctx: KindCtx&lt;KSIdentifier&gt;) =&gt; T</code> is assignable to <code>KindEquations&lt;'Identifier'&gt;</code> but <em>not</em> to <code>KindEquations&lt;'CompilationUnit'&gt;</code> &mdash; TypeScript catches the mismatch.</p>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">D</span> Barrel Re-export Strategy</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Decision:</strong> Should the analysis barrel re-export grammar types?</p>
+        <div class="decision-matrix">
+          <div class="dm-option">
+            <div class="dm-option-name pick">Re-export grammar + key types <span class="dm-tag recommended">CHOSEN</span></div>
+            <div class="dm-rationale">Makes the grammar binding discoverable. Consumers can import everything from one barrel. The re-export documents "this analysis is for this grammar" in the API surface.</div>
+          </div>
+          <div class="dm-option">
+            <div class="dm-option-name alt">Don't re-export <span class="dm-tag rejected">REJECTED</span></div>
+            <div class="dm-rationale">Consumers must import from two separate adapters. The grammar dependency is hidden in internal imports rather than visible in the API.</div>
+          </div>
+        </div>
+        <p><strong>What to re-export:</strong> <code>grammar</code> (instance), <code>TSNodeKind</code> (kind union), <code>KSNode</code> (node union), <code>KindToNode</code> (mapped type), and specific node interfaces referenced by domain types (<code>KSProgram</code>, <code>KSCompilationUnit</code>, <code>KSIdentifier</code>, <code>KSTypeAliasDeclaration</code>).</p>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">E</span> Generated Code Grammar Imports</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Decision:</strong> Should generated dispatch code import grammar types directly or receive them through parameters?</p>
+        <div class="decision-matrix">
+          <div class="dm-option">
+            <div class="dm-option-name pick">Direct import from grammar adapter <span class="dm-tag recommended">CHOSEN</span></div>
+            <div class="dm-rationale">Generated dispatch.ts imports <code>KSNode</code> and <code>KindToNode</code> directly. This enables the <code>as unknown as KindCtx&lt;KindToNode['Kind']&gt;</code> narrowing pattern, which gives type-safe ctx to each equation function.</div>
+          </div>
+          <div class="dm-option">
+            <div class="dm-option-name alt">Untyped dispatch (string only) <span class="dm-tag rejected">REJECTED</span></div>
+            <div class="dm-rationale">Without KindToNode, the dispatch would pass unnarrowerd <code>Ctx</code> to equations. Every equation would need internal casts. The type safety moves from one centralized location (dispatch) to N distributed locations (every equation).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="df-connector"></div>
+
+    <div class="df-stage" onclick="toggleStage(this)">
+      <div class="df-stage-header">
+        <span class="df-stage-title"><span class="df-num">F</span> Helper Function Typing</span>
+        <span class="df-expand">&#9660;</span>
+      </div>
+      <div class="df-detail">
+        <p><strong>Decision:</strong> Should analysis helpers (like <code>diag()</code>) use grammar-specific types or generic <code>ASTNode</code>?</p>
+        <div class="decision-matrix">
+          <div class="dm-option">
+            <div class="dm-option-name pick">Mixed: generic where possible, concrete where needed <span class="dm-tag recommended">CHOSEN</span></div>
+            <div class="dm-rationale">A <code>diag()</code> function that only reads <code>node.pos</code>, <code>node.end</code>, <code>node.text</code> can use <code>ASTNode</code> &mdash; those fields exist on the base type. But a function that reads <code>node.escapedText</code> needs <code>KSIdentifier</code>.</div>
+          </div>
+        </div>
+        <p><strong>Guideline:</strong> Use grammar-typed parameters where the function accesses node-specific fields. Use generic types where only base <code>ASTNode</code> fields are used. Don't add grammar coupling where it's not needed, but don't avoid it where it improves safety.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════ SECTION 10: KNOWLEDGE CHECK ═══════════════════ -->
+<section id="s10">
+<div class="container">
+  <h2><span class="num">10</span>Knowledge Check</h2>
+  <p class="section-sub">Test your understanding. Click a card to reveal the answer.</p>
+
+  <div class="quiz-progress">
+    <span id="quiz-score">0</span> / <span id="quiz-total">8</span> self-marked correct
+    <button class="quiz-reset-btn" onclick="resetQuiz()">Reset</button>
+    <button class="quiz-shuffle-btn" onclick="shuffleCards()">Shuffle</button>
+  </div>
+
+  <div class="flashcard-deck" id="flashcard-deck">
+
+    <!-- Card 1 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the Expression Problem, and why does fixing the data dimension per-plugin change the analysis?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>The Expression Problem (Wadler, 1998) is the tension between extending data types vs. extending operations. Abstraction layers exist to mediate <em>both</em> axes. When each analysis plugin is for one grammar, the data dimension is fixed &mdash; the problem collapses to 1D (new operations only). The abstraction layer has cost but no payoff.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What lesson does ESLint/typescript-eslint teach about grammar abstraction layers?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>ESLint chose a generic AST (ESTree) for cross-language portability. typescript-eslint had to build a separate conversion layer at significant maintenance cost. The maintainers now acknowledge the abstraction was "the right call for the wrong assumption" &mdash; TypeScript is the only target. When cross-grammar portability isn't needed, the abstraction is pure overhead.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What are the three options for coupling analysis to grammar, and which is recommended when analyses are grammar-bound?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><strong>Direct Import</strong> (recommended): analysis imports concrete grammar types. <strong>Shared Interface</strong> (rejected): both depend on generic <code>ASTNode</code>. <strong>Full Generic</strong> (overkill): every type carries a grammar parameter <code>G</code>. Direct import is simplest, equally type-safe, and honestly communicates the one-grammar dependency.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What is the difference between the <code>K</code> type parameter (in core packages) and concrete type imports (in adapters)?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>K extends string</code> is a generic type parameter in core packages that prevents grammar/analysis mismatch at composition boundaries &mdash; it's erased at runtime. Concrete type imports (like <code>KSIdentifier</code>) are adapter-layer direct dependencies that enable discriminated union narrowing, field access, and refactoring safety. K guards the boundary; concrete types power the internals.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Name three TypeScript-specific benefits you get from direct grammar coupling that you lose with a shared abstraction layer.</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>1) <strong>Discriminated union exhaustiveness</strong>: <code>switch (kind)</code> with <code>assertNever</code> catches missing cases. 2) <strong>Automatic type narrowing</strong>: after a kind check, node properties are available without casts. 3) <strong>Refactoring safety</strong>: renaming a grammar field/node cascades errors to every affected equation. Also: <code>KindToNode</code> mapped type for per-kind context, <code>TypedEquationMap</code> per-kind narrowing.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 6 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>Why does the generated dispatch code use a double cast (<code>as unknown as KindCtx&lt;KindToNode[K]&gt;</code>)?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>Ctx</code> (with generic <code>ASTNode</code>) and <code>KindCtx&lt;KSIdentifier&gt;</code> share no structural subtype relationship that TypeScript can verify statically. The double cast (<code>as unknown as</code>) bridges this gap. The cast is safe because the evaluator engine dispatches on <code>node.kind</code> at runtime, ensuring the cast target matches the actual node type.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 7 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>How do KSC's predicate constants (<code>ASSIGNMENT_OPS</code>, <code>SIDE_EFFECT_EXPR_KINDS</code>) derive from the grammar, and why is this better than hardcoding?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p>They are constructed at module load from <code>grammar.sumTypeMembers['AssignmentOperator']</code> and typed as <code>ReadonlySet&lt;TSNodeKind&gt;</code>. This is better than hardcoding because: (1) single source of truth &mdash; adding a new member to the sum type in <code>nodes.ts</code> automatically includes it; (2) no string typos possible; (3) <code>.has(kind)</code> provides type narrowing.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 8 -->
+    <div class="flashcard" onclick="flipCard(this)">
+      <div class="flashcard-inner">
+        <div class="flashcard-front">
+          <div class="flashcard-q">Q</div>
+          <p>What does <code>KindEquations&lt;K extends TSNodeKind&gt;</code> enforce, and how does TypeScript's function contravariance make it work?</p>
+        </div>
+        <div class="flashcard-back">
+          <div class="flashcard-a">A</div>
+          <p><code>KindEquations&lt;K&gt;</code> requires all equations in a record to accept <code>KindCtx&lt;KindToNode[K]&gt;</code>. TypeScript's function contravariance means a function <code>(ctx: KindCtx&lt;KSIdentifier&gt;) =&gt; T</code> is assignable to <code>KindEquations&lt;'Identifier'&gt;</code> but <em>not</em> to <code>KindEquations&lt;'CompilationUnit'&gt;</code> &mdash; because <code>KSCompilationUnit</code> is not assignable to <code>KSIdentifier</code> in the contravariant position.</p>
+          <div class="flashcard-actions">
+            <button class="fc-btn fc-wrong" onclick="event.stopPropagation(); markCard(this, false)">Review again</button>
+            <button class="fc-btn fc-right" onclick="event.stopPropagation(); markCard(this, true)">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="flashcard-nav">
+    <button onclick="prevCard()">&#9664; Prev</button>
+    <span id="card-counter">1 / 8</span>
+    <button onclick="nextCard()">Next &#9654;</button>
+  </div>
+</div>
+</section>
+
+<script>
+/* ── Tab switching ── */
+function switchTab(containerId, tabId) {
+  const container = document.getElementById(containerId);
+  container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabsBar = container.previousElementSibling;
+  tabsBar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+/* ── Collapsible stages ── */
+function toggleStage(el) {
+  el.classList.toggle('active');
+}
+
+/* ── Card selection ── */
+function selectCard(cardEl, detailId) {
+  const grid = cardEl.closest('.constraint-grid');
+  grid.querySelectorAll('.constraint-card').forEach(c => c.classList.remove('selected'));
+  cardEl.classList.add('selected');
+  const section = cardEl.closest('section');
+  section.querySelectorAll('.constraint-detail').forEach(d => d.classList.remove('active'));
+  const detail = document.getElementById(detailId);
+  if (detail) detail.classList.add('active');
+}
+
+/* ── Pipeline stepper ── */
+function showStep(stepId) {
+  document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+  event.target.classList.add('active');
+}
+
+/* ── Flashcards ── */
+let currentCard = 0;
+let quizScore = 0;
+
+function flipCard(el) { el.classList.toggle('flipped'); }
+
+function markCard(btn, correct) {
+  const card = btn.closest('.flashcard');
+  card.classList.remove('marked-right', 'marked-wrong');
+  card.classList.add(correct ? 'marked-right' : 'marked-wrong');
+  recalcScore();
+}
+
+function recalcScore() {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  quizScore = document.querySelectorAll('#flashcard-deck .flashcard.marked-right').length;
+  document.getElementById('quiz-score').textContent = quizScore;
+  document.getElementById('quiz-total').textContent = cards.length;
+}
+
+function showCard(idx) {
+  const cards = document.querySelectorAll('#flashcard-deck .flashcard');
+  cards.forEach(c => c.classList.remove('active'));
+  currentCard = ((idx % cards.length) + cards.length) % cards.length;
+  cards[currentCard].classList.add('active');
+  document.getElementById('card-counter').textContent = (currentCard + 1) + ' / ' + cards.length;
+}
+
+function nextCard() { showCard(currentCard + 1); }
+function prevCard() { showCard(currentCard - 1); }
+
+function shuffleCards() {
+  const deck = document.getElementById('flashcard-deck');
+  const cards = [...deck.querySelectorAll('.flashcard')];
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    deck.appendChild(cards[j]);
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  showCard(0);
+}
+
+function resetQuiz() {
+  document.querySelectorAll('#flashcard-deck .flashcard').forEach(c => {
+    c.classList.remove('flipped', 'marked-right', 'marked-wrong');
+  });
+  quizScore = 0;
+  document.getElementById('quiz-score').textContent = '0';
+  showCard(0);
+}
+
+document.addEventListener('DOMContentLoaded', () => showCard(0));
+</script>
+
+</body>
+</html>

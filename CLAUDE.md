@@ -25,8 +25,8 @@ npm `package.json` exports point directly at `src/` — no shim layer.
 and vice versa. Enforcement is physical via npm workspace package resolution.
 
 - **Grammar ports** (`@kindscript/core-grammar`): `Grammar<K>`, `ASTNode`, `FieldDef`, `AstTranslatorPort<I,R,O>`
-- **Codegen ports** (`@kindscript/core-codegen`): `AnalysisDecl<K>`, `AttrDecl<K>`, `CodegenTarget<K>`
-- **Evaluator ports** (`@kindscript/core-evaluator`): `DispatchConfig`, `EvaluationTarget<K,P>`, `EvaluatorConfig<K,P>`, `Evaluator<M,P>`, `TypedAGNode<M>`, `Ctx`, `KindCtx<N>`, `AnalysisProjections<P>`
+- **Codegen ports** (`@kindscript/core-codegen`): `AnalysisDecl<K>`, `AttrDecl<K>`, `EquationFn<T>`, `EquationMap<K,T>`, `TypedEquationMap<K,CtxMap,T>`, `CodegenTarget<K>`
+- **Evaluator ports** (`@kindscript/core-evaluator`): `DispatchConfig`, `EvaluationTarget<K,M,P>`, `EvaluatorConfig<K,M,P>`, `Evaluator<M,P>`, `TypedAGNode<M>`, `Ctx`, `KindCtx<N>`, `AnalysisProjections<M,P>`
 
 There is **no grammar codegen** — grammar types are derived at the type level, runtime
 metadata is computed by pure utility functions, and converters are hand-written.
@@ -41,9 +41,9 @@ PORTS (contracts — in workspace packages, imported directly via @kindscript/co
 ├── CodegenTarget<K>       @kindscript/core-codegen      — what a codegen root provides
 ├── DispatchConfig         @kindscript/core-evaluator    — what generated dispatch provides
 ├── Ctx / KindCtx<N>       @kindscript/core-evaluator    — how equations access the tree
-├── AnalysisProjections<P> @kindscript/core-evaluator    — what an analysis provides at runtime
-├── EvaluationTarget<K, P> @kindscript/core-evaluator    — what a fully-assembled analysis provides at runtime
-├── EvaluatorConfig<K, P>  @kindscript/core-evaluator    — how the evaluator is assembled (low-level)
+├── AnalysisProjections<M, P> @kindscript/core-evaluator  — what an analysis provides at runtime
+├── EvaluationTarget<K, M, P> @kindscript/core-evaluator — what a fully-assembled analysis provides at runtime
+├── EvaluatorConfig<K, M, P>  @kindscript/core-evaluator — how the evaluator is assembled (low-level)
 ├── Evaluator<M, P>       @kindscript/core-evaluator    — evaluator interface (evaluate + buildTree)
 └── TypedAGNode<M>         @kindscript/core-evaluator    — type-safe attribute access
 
@@ -51,6 +51,7 @@ ADAPTERS (implementations — organized by lib, then port, then target)
 ├── src/adapters/grammar/grammar/ts-ast/          → Grammar<TSNodeKind>
 ├── src/adapters/grammar/grammar/mock/            → Grammar<MockKind>
 ├── src/adapters/grammar/ast-translator/ts-ast/   → AstTranslatorPort<ts.Program, KSProgram, AnalysisDepth>
+├── src/adapters/grammar/extraction/ts-ast/       → extractASTData (TS-specific tree serialization)
 ├── src/adapters/analysis/spec/ts-kind-checking/  → AnalysisDecl (spec.ts) + AnalysisProjections (projections.ts)
 └── src/adapters/analysis/spec/mock/              → AnalysisDecl + AnalysisProjections (both from spec.ts)
 
@@ -66,9 +67,15 @@ NPM API (direct exports from src/ — no shim layer)
 ├── src/api.ts                     npm root: Kind, PropertySet, defineConfig, KindScriptConfig
 └── src/application/index.ts       npm /ts-kind-checking: createProgram, parseOnly, domain types
 
-APPS (apps/ — thin runnable shells)
-├── apps/cli/cli.ts                CLI: arg parsing, config, output formatting
-└── apps/dashboard/                Vite + React AST visualization SPA
+APPS (apps/ — thin runnable shells with per-command composition roots)
+├── apps/cli/cli.ts                CLI top-level: lazy-loads per-command composition roots
+├── apps/cli/compose/              Per-command composition roots (wire adapters → command handlers)
+│   ├── compose-check.ts           Evaluation path: checkProject → checkCommand
+│   ├── compose-codegen.ts         Codegen path: allTargets + runAllCodegen → codegenCommand
+│   └── compose-init.ts            Lightweight: initCommand (no adapters)
+├── apps/cli/commands/             Pure command handlers (receive deps, no adapter imports)
+├── apps/dashboard/                Vite + React AST visualization SPA
+│   └── compose.ts                 Extraction path: parseOnly + extractASTData → ASTDashboardData
 ```
 
 The K type parameter links grammar and spec at composition boundaries —
@@ -84,7 +91,8 @@ packages/                         Workspace packages (source of truth for core m
       base-types.ts               KSNodeBase, KSCommentRange
       schema-shapes.ts            NodeDefShape, SumTypeDefShape, FieldDescShape
       metadata.ts                 createGrammarMetadata(), computeFieldDefs(), etc.
-      tree-ops.ts                 getChildren(), createNode(), serialization
+      tree-ops.ts                 getChildren(), createNode(), serialization (lossless round-trip)
+      serialize-tree.ts           serializeNode() — generic presentation-friendly serialization
       dep-graph-types.ts          AttributeDepGraph (shared data interface)
       index.ts                    Barrel
   core-codegen/                   Codegen machinery (depends on core-grammar only)
@@ -119,6 +127,11 @@ src/                              Application source code
         ts-ast/                   Adapter: AstTranslatorPort<ts.Program, KSProgram, AnalysisDepth>
           convert.ts              Hand-written schema-driven converter + tsToAstTranslatorAdapter
           helpers.ts              TS-specific extractor helpers (pure — ConvertContext passed in)
+      extraction/
+        ts-ast/                   Adapter: TS-specific tree serialization
+          extract.ts              extractASTData() — uses serializeNode() + TS-specific logic
+          types.ts                ASTDashboardData, ASTSchemaInfo
+          index.ts                Barrel
     analysis/
       spec/
         ts-kind-checking/         Adapter: AnalysisDecl<TSNodeKind> + AnalysisProjections<KSCProjections>
@@ -147,10 +160,19 @@ src/                              Application source code
       codegen-targets.ts          CodegenTarget definitions (grammar + decl pairings)
 
 apps/                             Runnable application shells
-  cli/                            CLI application (check, codegen, init, watch)
-    cli.ts                        CLI shell — arg parsing, config, output; delegates to src/application/
+  cli/                            CLI application (check, codegen, init)
+    cli.ts                        Top-level composition root — lazy-loads per-command roots
+    dispatch.ts                   Generic dispatch — parses args, loads command via CommandLoader
+    compose/                      Per-command composition roots (loaded on demand)
+      compose-check.ts            Wires evaluation path → checkCommand
+      compose-codegen.ts          Wires codegen path → codegenCommand
+      compose-init.ts             Wraps initCommand (lightweight, no adapters)
+    commands/                     Pure command handlers (receive deps as parameters)
+      check.ts                    Check handler — accepts CheckCommandDeps
+      codegen.ts                  Codegen handler — accepts CodegenCommandDeps
+      init.ts                     Init handler — writes config scaffold (no deps)
   dashboard/                      AST visualization (Vite + React + D3 SPA)
-    extract.ts                    KSTree → ASTDashboardData extraction (bridge to pipeline)
+    compose.ts                    Extraction composition root (parseOnly + extractASTData)
     app/                          React application source (components, state, hooks, types)
     vite.config.ts                Vite dev server + build config
 ```
@@ -204,7 +226,7 @@ ksc codegen  →  ts-kind-checking → src/adapters/analysis/spec/ts-kind-checki
 
 1. Run codegen to generate `dispatch.ts`, `attr-types.ts`, `dep-graph.ts`
 2. Create `src/application/evaluation/<target>.ts` — the composition root
-3. Construct an `EvaluationTarget<K, P>` from: grammar, dispatchConfig, analysisProjections, depGraph
+3. Construct an `EvaluationTarget<K, M, P>` from: grammar, dispatchConfig, analysisProjections, depGraph
 4. Call `createEvaluatorFromTarget(target)` to get the evaluator singleton
 5. Re-export `evaluator`, `translator`, `depGraph` for use case modules
 
@@ -240,11 +262,11 @@ interface AnalysisDecl<K extends string = string> {
 }
 ```
 
-### AnalysisProjections<P> — what an analysis provides at runtime
+### AnalysisProjections<M, P> — what an analysis provides at runtime
 
 ```typescript
-interface AnalysisProjections<P extends Record<string, unknown> = Record<string, unknown>> {
-  projections: { [Key in keyof P]: (root: Ctx) => P[Key] };
+interface AnalysisProjections<M = Record<string, unknown>, P extends Record<string, unknown> = Record<string, unknown>> {
+  projections: { [Key in keyof P]: (root: TypedAGNode<M>) => P[Key] };
   setup?: () => void;
 }
 ```
@@ -264,13 +286,13 @@ interface CodegenTarget<K extends string = string> {
 }
 ```
 
-### EvaluationTarget<K, P> — what a fully-assembled analysis provides at runtime
+### EvaluationTarget<K, M, P> — what a fully-assembled analysis provides at runtime
 
 ```typescript
-interface EvaluationTarget<K extends string = string, P extends Record<string, unknown> = Record<string, unknown>> {
+interface EvaluationTarget<K extends string = string, M = Record<string, unknown>, P extends Record<string, unknown> = Record<string, unknown>> {
   grammar: Grammar<K>;
   dispatch: DispatchConfig;
-  projections: AnalysisProjections<P>;
+  projections: AnalysisProjections<M, P>;
   depGraph: AttributeDepGraph;
 }
 ```
@@ -295,6 +317,7 @@ type DispatchConfig = Record<string, DispatchEntry>;
 |---|---|---|
 | TS AST grammar | `Grammar<TSNodeKind>` | `src/adapters/grammar/grammar/ts-ast/index.ts` |
 | TS AST translator | `AstTranslatorPort<ts.Program, KSProgram, AnalysisDepth>` | `src/adapters/grammar/ast-translator/ts-ast/convert.ts` |
+| TS AST extraction | `extractASTData` (uses `serializeNode` from core-grammar) | `src/adapters/grammar/extraction/ts-ast/extract.ts` |
 | Kind-checking decl | `AnalysisDecl<TSNodeKind>` | `src/adapters/analysis/spec/ts-kind-checking/spec.ts` |
 | Kind-checking projections | `AnalysisProjections<KSCProjections>` | `src/adapters/analysis/spec/ts-kind-checking/projections.ts` |
 | Mock grammar | `Grammar<MockKind>` | `src/adapters/grammar/grammar/mock/index.ts` |
@@ -310,11 +333,12 @@ type DispatchConfig = Record<string, DispatchEntry>;
 
 **New analysis** (e.g., complexity analysis over TS AST):
 1. Create `src/adapters/analysis/spec/complexity/spec.ts` with `analysisDecl: AnalysisDecl<TSNodeKind>` (codegen-time attrs)
-2. Create `src/adapters/analysis/spec/complexity/projections.ts` with `analysisProjections: AnalysisProjections<ComplexityProjections>` (runtime)
-3. Create `src/adapters/analysis/spec/complexity/types.ts` for analysis-specific vocabulary
+2. Create `src/adapters/analysis/spec/complexity/projections.ts` with `analysisProjections: AnalysisProjections<ComplexityAttrMap, ComplexityProjections>` (runtime)
+3. Create `src/adapters/analysis/spec/complexity/types.ts` for analysis-specific vocabulary — use concrete grammar node types (see ADR-001)
 4. Create `src/adapters/analysis/spec/complexity/equations/` — equation functions with `withDeps()`
-5. Add `CodegenTarget<TSNodeKind>` to `src/application/codegen/codegen-targets.ts`
-6. The `@kindscript/core-codegen` machinery is reused — it's fully generic
+5. Create `src/adapters/analysis/spec/complexity/index.ts` barrel — re-export grammar, `TSNodeKind`, `KSNode`, `KindToNode`
+6. Add `CodegenTarget<TSNodeKind>` to `src/application/codegen/codegen-targets.ts`
+7. The `@kindscript/core-codegen` machinery is reused — it's fully generic
 
 ## Codegen Commands
 
@@ -338,6 +362,7 @@ npx vitest run test/e2e/e2e.test.ts # single file
 - AG attribute directions: `syn` (synthesized), `inh` (inherited), `collection`
 - AttrDecl is a discriminated union: SynAttr (default + equations), InhAttr (rootValue + parentEquations), CollectionAttr (init + combine)
 - AttrDecl fields use `AttrExpr` (Function | null | number | boolean | CodeLiteral) — not strings
+- Equation records use `EquationMap<K>` (= `Partial<Record<K, EquationFn>>`) — typed replacement for `Partial<Record<K, Function>>` (see ADR-002)
 - `withDeps(deps, fn)` attaches dep metadata to equation functions; `collectDepsForAttr(attr)` reads it
 - `code(expr)` wraps raw code strings as CodeLiteral; equation functions are direct Function references
 - Equation functions use standardized signatures: `(ctx: Ctx)` or `(ctx: Ctx, param: ParamType)`
@@ -360,14 +385,38 @@ npx vitest run test/e2e/e2e.test.ts # single file
 - Adapters use explicit type annotations (e.g., `grammar: Grammar<TSNodeKind>`) for conformance
 - **Application layer** (`src/application/`) holds shared use cases, evaluation wiring, and codegen use cases
 - **Use cases** (`src/application/*.ts`) orchestrate ports into domain operations
+- **CLI has per-command composition roots** — `apps/cli/cli.ts` lazy-loads `compose/compose-*.ts` via dynamic `import()`, so `ksc check` never loads codegen adapters and `ksc codegen` never creates the evaluator. Command handlers in `commands/` are pure functions that receive deps as parameters.
 - **Entry points are thin shells** — `apps/cli` delegates to application-layer use cases
 - **`src/api.ts`** is the lightweight npm root — `Kind`, `PropertySet`, `defineConfig` (zero heavyweight deps)
 - **`src/application/index.ts`** is the heavyweight npm entry (`kindscript/ts-kind-checking`)
 - **`apps/dashboard/`** is a standalone Vite + React SPA consuming serialized `ASTDashboardData`
 - **Codegen pipeline** — `src/application/codegen/run-codegen.ts` provides `runCodegenPipeline(target)`, CLI orchestrates via `ksc codegen`
 - **Codegen targets** — `src/application/codegen/codegen-targets.ts` defines `CodegenTarget<K>` objects pairing grammar + analysis decl
-- **Evaluation targets** — `src/application/evaluation/ts-kind-checking.ts` constructs `EvaluationTarget<K, P>` and calls `createEvaluatorFromTarget()` — symmetric with `CodegenTarget`
+- **Evaluation targets** — `src/application/evaluation/ts-kind-checking.ts` constructs `EvaluationTarget<K, M, P>` and calls `createEvaluatorFromTarget()` — symmetric with `CodegenTarget`
 - **Application layer split** — evaluation use cases at `src/application/` root, codegen use cases in `src/application/codegen/`
-- **AnalysisDecl vs AnalysisProjections** — `AnalysisDecl` (codegen-time: attrs + typeImports, in `core-codegen`) vs `AnalysisProjections` (runtime: projections + setup, in `core-evaluator`) — fully independent interfaces in separate packages
+- **AnalysisDecl vs AnalysisProjections** — `AnalysisDecl` (codegen-time: attrs + typeImports, in `core-codegen`) vs `AnalysisProjections<M, P>` (runtime: projections via `TypedAGNode<M>` + setup, in `core-evaluator`) — fully independent interfaces in separate packages (see ADR-003)
 - **Adapter spec/projections split** — heavy adapters (ts-kind-checking) export `analysisDecl` from `spec.ts` and `analysisProjections` from `projections.ts`; composition roots import only `projections.ts` at runtime
 - `buildKSTree` is internal to the AST translator adapter — consumers use `tsToAstTranslatorAdapter.convert()`
+
+## Explicit Grammar Coupling
+
+Analysis adapters are **explicitly coupled** to their grammar adapter.
+This is an intentional architectural choice (see ADR-001), not an accident:
+
+- Analysis adapter barrels re-export their grammar (`grammar`, `TSNodeKind`, `KSNode`, `KindToNode`)
+- Domain types use concrete node types (`KindDefinition.node: KSTypeAliasDeclaration`, `Diagnostic.node: KSNode`)
+- Predicate constants are typed with the grammar's kind union (`ReadonlySet<TSNodeKind>`)
+- Equation functions use `KindCtx<KSIdentifier>` etc. for type-safe node access
+- **New analysis adapters should follow the same pattern**: import concrete grammar types directly, don't abstract through generics
+
+Each analysis adapter is for **exactly one grammar**. Multiple analyses
+can target the same grammar, but each is explicitly bound to one.
+The `K` type parameter on `AnalysisDecl<K>` links them at the type level.
+The grammar re-export from the adapter barrel makes the binding discoverable.
+
+New analysis adapters MUST:
+1. Import grammar types directly from the grammar adapter barrel
+2. Re-export grammar, grammar kind type, and KindToNode from their own barrel
+3. Use concrete node types in domain types (not `unknown`)
+4. Type predicate sets with the grammar's kind union
+5. See ADR-001 for rationale
