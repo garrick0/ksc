@@ -74,6 +74,13 @@ export interface KindScriptConfig {
   readonly include?: readonly string[];
   /** Glob patterns for files to exclude. */
   readonly exclude?: readonly string[];
+  /** Protobuf getter enforcement. When enabled, flags direct field access on protobuf messages. */
+  readonly protobuf?: {
+    /** Enable protobuf getter checking. Default: false. */
+    readonly enabled?: boolean;
+    /** Glob patterns for protobuf module specifiers. Default: ['*_pb', '*_grpc_web_pb']. */
+    readonly modules?: readonly string[];
+  };
 }
 
 /**

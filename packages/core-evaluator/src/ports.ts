@@ -57,13 +57,13 @@ export type DispatchConfig = Record<string, DispatchEntry>;
 
 // ── Evaluator config (assembled at the composition root) ──
 
-export interface EvaluatorConfig<K extends string = string, P extends Record<string, unknown> = Record<string, unknown>> {
+export interface EvaluatorConfig<K extends string = string, M = Record<string, unknown>, P extends Record<string, unknown> = Record<string, unknown>> {
   /** Per-attribute dispatch (from generated dispatch.ts). */
   dispatch: DispatchConfig;
   /** Grammar — provides fieldDefs for tree building and fileContainerKind/fileNameField for structural queries. */
   grammar: Grammar<K>;
-  /** Projection functions: extract final results from evaluated root. Typed by P. */
-  projections: { [Key in keyof P]: (root: Ctx) => P[Key] };
+  /** Projection functions: extract final results from evaluated root. Typed by M for attr access and P for return types. */
+  projections: { [Key in keyof P]: (root: TypedAGNode<M>) => P[Key] };
   /** Optional setup function called before each evaluation (e.g., resetCounter). */
   setup?: () => void;
 }
@@ -86,7 +86,7 @@ export interface EvaluationTarget<K extends string = string, M = Record<string, 
   /** Per-attribute dispatch (from generated dispatch.ts). */
   dispatch: DispatchConfig;
   /** Analysis projections — projection functions + optional setup. */
-  projections: AnalysisProjections<P>;
+  projections: AnalysisProjections<M, P>;
   /** Static attribute dependency graph (from generated dep-graph.ts). */
   depGraph: AttributeDepGraph;
 }

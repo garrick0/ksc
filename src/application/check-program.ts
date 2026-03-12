@@ -7,6 +7,12 @@
 
 import ts from 'typescript';
 import type { KSProgramInterface, CheckDeps, CheckProjections, KindScriptConfig } from './types.js';
+import { setProtobufCheckingEnabled } from '../adapters/analysis/spec/ts-kind-checking/equations/protobuf.js';
+
+/** Apply config-driven toggles before evaluation. */
+function applyConfig(config?: KindScriptConfig): void {
+  setProtobufCheckingEnabled(config?.protobuf?.enabled ?? false);
+}
 
 /** Create a KindScript program from file paths. */
 export function createProgram<M = Record<string, unknown>, P extends CheckProjections = CheckProjections>(
@@ -25,6 +31,7 @@ export function createProgramFromTSProgram<M = Record<string, unknown>, P extend
   tsProgram: ts.Program,
   config?: KindScriptConfig,
 ): KSProgramInterface {
+  applyConfig(config);
   const depth = config?.analysisDepth ?? 'check';
   const ksTree = deps.translator.convert(tsProgram, depth);
   const { definitions, diagnostics } = deps.evaluator.evaluate(ksTree.root);

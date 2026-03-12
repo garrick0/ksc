@@ -9,8 +9,6 @@
  */
 
 import type { ASTNode, FieldDef, Grammar } from '@kindscript/core-grammar';
-import type { Ctx } from './ctx.js';
-
 /** ASTNode with index signature for dynamic field access by FieldDef name. */
 type IndexedNode = ASTNode & { readonly [key: string]: unknown };
 import type {
@@ -154,7 +152,8 @@ class AGNode implements AGNodeInterface {
 
   findFileName(): string {
     if (this._fileName !== undefined) return this._fileName;
-    let current: AGNode | undefined = this.parent;
+    // Check this node first (handles case where equation runs ON the file container)
+    let current: AGNode | undefined = this as AGNode;
     while (current && current.node.kind !== this._config.fileContainerKind) {
       current = current.parent;
     }
@@ -230,7 +229,7 @@ export interface Evaluator<M = Record<string, unknown>, P extends Record<string,
  *
  * Returns evaluate() and buildTree() functions parameterized by the config.
  */
-export function createEvaluator<K extends string = string, M = Record<string, unknown>, P extends Record<string, unknown> = Record<string, unknown>>(config: EvaluatorConfig<K, P>): Evaluator<M, P> {
+export function createEvaluator<K extends string = string, M = Record<string, unknown>, P extends Record<string, unknown> = Record<string, unknown>>(config: EvaluatorConfig<K, M, P>): Evaluator<M, P> {
   const { dispatch, grammar, projections, setup } = config;
   const { fieldDefs, fileContainerKind, fileNameField } = grammar;
 
@@ -245,7 +244,7 @@ export function createEvaluator<K extends string = string, M = Record<string, un
     const tree = buildTreeImpl(root);
     const results: Record<string, unknown> = {};
     for (const [key, projection] of Object.entries(projections)) {
-      results[key] = (projection as (root: Ctx) => unknown)(tree);
+      results[key] = (projection as (root: TypedAGNode<M>) => unknown)(tree as unknown as TypedAGNode<M>);
     }
     return results as P;
   }
@@ -266,7 +265,7 @@ export function createEvaluatorFromTarget<K extends string = string, M = Record<
   return createEvaluator<K, M, P>({
     dispatch: target.dispatch,
     grammar: target.grammar,
-    projections: target.projections.projections,
+    projections: target.projections.projections as { [Key in keyof P]: (root: TypedAGNode<M>) => P[Key] },
     setup: target.projections.setup,
   });
 }

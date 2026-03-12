@@ -29,7 +29,7 @@ export type { ValidationDiagnostic } from './validate.js';
 
 // Equation utilities
 export { withDeps, collectDepsForAttr } from './equation-utils.js';
-export type { EquationFn } from './equation-utils.js';
+export type { EquationFn, EquationMap, TypedEquationMap } from './ports.js';
 
 // Machinery
 export { compileAnalysis, buildDepGraph, validateSpecConsistency } from './compile.js';

@@ -26,6 +26,7 @@ import type {
   CollectionAttr,
   AttrExpr,
   ParamDef,
+  EquationFn,
 } from './ports.js';
 import type { AttributeDepGraph } from '@kindscript/core-grammar';
 import { isCodeLiteral } from './ports.js';
@@ -53,7 +54,10 @@ function emitExpr(value: AttrExpr, param?: ParamDef, kind?: string): string {
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return String(value);
   if (isCodeLiteral(value)) return value.code;
-  // Function — per-kind equations get a KindCtx cast
+  // Function — per-kind equations get a KindCtx cast.
+  // Double cast (as unknown as) is necessary because Ctx and KindCtx<N> share no
+  // structural subtype relationship that TypeScript can verify statically — the
+  // evaluator engine ensures the cast is safe at runtime by dispatching on node.kind.
   const ctx = kind ? `ctx as unknown as KindCtx<KindToNode['${kind}']>` : 'ctx';
   if (param) return `${value.name}(${ctx}, ${param.name})`;
   return `${value.name}(${ctx})`;
@@ -204,7 +208,7 @@ function generateDepGraph(
 
 function generateSynDispatch(L: string[], a: SynAttr, allKinds?: ReadonlySet<string>): void {
   const p = a.parameter;
-  const equations = a.equations as Record<string, Function> | undefined;
+  const equations = a.equations as Record<string, EquationFn> | undefined;
   const hasDefault = a.default !== undefined;
   const hasEquations = equations && Object.keys(equations).length > 0;
 
@@ -259,7 +263,7 @@ function generateInhRootDispatch(L: string[], a: InhAttr): void {
 }
 
 function generateInhParentDispatch(L: string[], a: InhAttr, allKinds?: ReadonlySet<string>): void {
-  const parentEquations = a.parentEquations as Record<string, Function> | undefined;
+  const parentEquations = a.parentEquations as Record<string, EquationFn> | undefined;
   if (!parentEquations || Object.keys(parentEquations).length === 0) return;
 
   const p = a.parameter;
@@ -425,9 +429,9 @@ export function validateSpecConsistency(grammar: Grammar, attrs: AttrDecl[]): vo
 
   // 2-3. Validate equation kind references and function names
   for (const attr of attrs) {
-    const eqs: Record<string, Function> | undefined =
-      attr.direction === 'syn' ? (attr.equations as Record<string, Function> | undefined) :
-      attr.direction === 'inh' ? (attr.parentEquations as Record<string, Function> | undefined) :
+    const eqs: Record<string, EquationFn> | undefined =
+      attr.direction === 'syn' ? (attr.equations as Record<string, EquationFn> | undefined) :
+      attr.direction === 'inh' ? (attr.parentEquations as Record<string, EquationFn> | undefined) :
       undefined;
 
     if (eqs) {

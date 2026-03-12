@@ -11,6 +11,8 @@
  * (.deps, .name) is preserved through the reshape.
  */
 
+import type { EquationFn } from './ports.js';
+
 /**
  * Reshape production-centric overrides into attr-centric equation records.
  *
@@ -18,14 +20,14 @@
  * @returns Per-attr equation records: { attrName: { kind: eqFn } }
  */
 export function pivotToAttrCentric<K extends string>(
-  overrides: Partial<Record<K, Record<string, Function>>>,
-): Record<string, Partial<Record<K, Function>>> {
-  const result: Record<string, Partial<Record<K, Function>>> = {};
+  overrides: Partial<Record<K, Record<string, EquationFn>>>,
+): Record<string, Partial<Record<K, EquationFn>>> {
+  const result: Record<string, Partial<Record<K, EquationFn>>> = {};
 
-  for (const [kind, attrMap] of Object.entries(overrides) as [K, Record<string, Function>][]) {
-    for (const [attr, fn] of Object.entries(attrMap as Record<string, Function>)) {
+  for (const [kind, attrMap] of Object.entries(overrides) as [K, Record<string, EquationFn>][]) {
+    for (const [attr, fn] of Object.entries(attrMap as Record<string, EquationFn>)) {
       if (!result[attr]) result[attr] = {};
-      (result[attr] as Record<string, Function>)[kind] = fn;
+      (result[attr] as Record<string, EquationFn>)[kind] = fn;
     }
   }
 

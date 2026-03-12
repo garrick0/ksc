@@ -19,6 +19,9 @@ import { analysisDecl } from '../../adapters/analysis/spec/ts-kind-checking/spec
 import { grammar as mockGrammar } from '../../adapters/grammar/grammar/mock/index.js';
 import { analysisDecl as mockAnalysisDecl } from '../../adapters/analysis/spec/mock/spec.js';
 
+// ESLint-equiv adapters
+import { analysisDecl as eslintEquivDecl } from '../../adapters/analysis/spec/eslint-equiv/spec.js';
+
 // Port types
 import type { CodegenTarget } from '@kindscript/core-codegen';
 import type { TSNodeKind } from '../../adapters/grammar/grammar/ts-ast/nodes.js';
@@ -52,8 +55,22 @@ export const mockTarget: CodegenTarget<MockKind> = {
   },
 };
 
+/** ESLint-equiv codegen target. */
+export const eslintEquivTarget: CodegenTarget<TSNodeKind> = {
+  grammar,
+  decl: eslintEquivDecl,
+  outputDir: path.join(ROOT, 'src', 'adapters', 'analysis', 'spec', 'eslint-equiv', 'generated'),
+  generatedImports: {
+    specImportPath: '../spec.js',
+    grammarImportPath: '../../../../grammar/grammar/ts-ast/index.js',
+    analysisImportPath: '@kindscript/core-codegen',
+    evaluatorImportPath: '@kindscript/core-evaluator',
+  },
+};
+
 /** All codegen targets, in execution order. */
 export const allTargets = [
   { name: 'ts-kind-checking', target: tsKindCheckingTarget },
   { name: 'mock', target: mockTarget },
+  { name: 'eslint-equiv', target: eslintEquivTarget },
 ];

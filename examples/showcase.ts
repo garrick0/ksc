@@ -24,8 +24,7 @@ import {
   discoverRootFiles,
   serveDashboard,
 } from './showcase-utils.js';
-import { parseOnly } from '../src/application/index.js';
-import { extractASTData } from '../apps/dashboard/extract.js';
+import { extractForDashboard } from '../apps/dashboard/compose.js';
 
 const { values } = parseArgs({
   options: {
@@ -65,7 +64,7 @@ async function main() {
 
   // Full analysis: parse + type checker for all stamped fields
   console.log('  Analyzing (check depth)...');
-  const ksTree = parseOnly(rootFiles, {
+  const data = extractForDashboard(rootFiles, {
     strict: true,
     noEmit: true,
     rootDir,
@@ -74,9 +73,6 @@ async function main() {
     module: ts.ModuleKind.ES2022,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
   }, 'check');
-
-  // Extract AST data for dashboard
-  const data = extractASTData(ksTree, 'check');
   console.log(`  Analyzed ${data.files.length} source files\n`);
 
   // Serve

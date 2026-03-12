@@ -1,14 +1,29 @@
 /**
  * CLI command: ksc check — run kind-checking analysis on a TypeScript project.
+ *
+ * Pure command handler — receives all dependencies via the deps parameter.
+ * Composition (adapter wiring) happens in compose/compose-check.ts.
  */
 
 import type { ParsedArgs } from '../args.js';
+import type { AnalysisDepth } from '../args.js';
 import { EXIT_SUCCESS, EXIT_VIOLATIONS, EXIT_ERROR } from '../errors.js';
-import { checkProject } from '../../../src/application/index.js';
 import { formatCheckJSON, formatCheckText } from '../format.js';
+import type { ProjectCheckResult } from '../../../src/application/check-project.js';
 
-export async function checkCommand(opts: ParsedArgs): Promise<number> {
-  const result = await checkProject(opts.rootDir, {
+// ── Dependency interface ─────────────────────────────────────────────
+
+export interface CheckCommandDeps {
+  checkProject: (
+    rootDir: string,
+    options?: { configPath?: string; depth?: AnalysisDepth },
+  ) => Promise<ProjectCheckResult>;
+}
+
+// ── Command handler ──────────────────────────────────────────────────
+
+export async function checkCommand(opts: ParsedArgs, deps: CheckCommandDeps): Promise<number> {
+  const result = await deps.checkProject(opts.rootDir, {
     configPath: opts.configPath,
     depth: opts.depth,
   });

@@ -12,3 +12,7 @@ export type { MockProjections } from './spec.js';
 export { dispatchConfig } from './generated/dispatch.js';
 export { depGraph } from './generated/dep-graph.js';
 export type { KSCAttrMap as MockAttrMap } from './generated/attr-types.js';
+
+// Grammar dependency — explicit coupling to mock grammar (see ADR-001)
+export { grammar } from '../../../grammar/grammar/mock/index.js';
+export type { MockKind, KSNode, KindToNode } from '../../../grammar/grammar/mock/index.js';

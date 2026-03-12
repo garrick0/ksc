@@ -80,6 +80,11 @@ export type { CodegenPipelineResult, CodegenResult, CodegenFailure, WrittenFile 
 export { findRootFiles } from './find-files.js';
 export { findConfig, loadConfig, resolveConfig } from './config.js';
 
+// ── Extraction (AST serialization) ───────────────────────────────────
+
+export { extractASTData } from '../adapters/grammar/extraction/ts-ast/index.js';
+export type { ASTDashboardData, ASTSchemaInfo } from '../adapters/grammar/extraction/ts-ast/index.js';
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export type { CheckDeps, CheckProjections, KSProgramInterface } from './types.js';

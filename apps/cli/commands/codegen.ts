@@ -1,12 +1,22 @@
 /**
  * CLI command: ksc codegen — run analysis codegen for all targets.
+ *
+ * Pure command handler — receives all dependencies via the deps parameter.
+ * Composition (target wiring) happens in compose/compose-codegen.ts.
  */
 
 import type { ParsedArgs } from '../args.js';
 import { EXIT_SUCCESS, EXIT_ERROR } from '../errors.js';
-import { runAllCodegen } from '../../../src/application/codegen/run-all-codegen.js';
-import type { AllCodegenResult } from '../../../src/application/codegen/run-all-codegen.js';
-import { allTargets } from '../../../src/application/codegen/codegen-targets.js';
+import type { AllCodegenResult, NamedCodegenTarget } from '../../../src/application/codegen/run-all-codegen.js';
+
+// ── Dependency interface ─────────────────────────────────────────────
+
+export interface CodegenCommandDeps {
+  runAllCodegen: (targets: NamedCodegenTarget[]) => AllCodegenResult;
+  allTargets: NamedCodegenTarget[];
+}
+
+// ── Formatting ───────────────────────────────────────────────────────
 
 function formatCodegenResults(results: AllCodegenResult): void {
   for (const { name, result } of results.targets) {
@@ -55,8 +65,10 @@ function formatCodegenResults(results: AllCodegenResult): void {
   }
 }
 
-export async function codegenCommand(_opts: ParsedArgs): Promise<number> {
-  const results = runAllCodegen(allTargets);
+// ── Command handler ──────────────────────────────────────────────────
+
+export async function codegenCommand(_opts: ParsedArgs, deps: CodegenCommandDeps): Promise<number> {
+  const results = deps.runAllCodegen(deps.allTargets);
   formatCodegenResults(results);
   return results.allOk ? EXIT_SUCCESS : EXIT_ERROR;
 }

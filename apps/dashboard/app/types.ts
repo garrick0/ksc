@@ -1,36 +1,14 @@
-/** Dashboard data types — self-contained, no pipeline imports. */
+/**
+ * Dashboard data types — re-exports from core-grammar and extraction adapter.
+ *
+ * Internal dashboard components import from this file (preserving short paths).
+ * The canonical definitions live in @kindscript/core-grammar (SerializedNode)
+ * and the extraction adapter (ASTDashboardData, ASTSchemaInfo).
+ */
 
-export interface ASTFieldEntry {
-  name: string;
-  indices: number[];
-}
-
-export interface ASTNode {
-  kind: string;
-  name?: string;
-  pos: number;
-  end: number;
-  text: string;
-  children: ASTNode[];
-  fields?: ASTFieldEntry[];
-  props?: Record<string, string | number | boolean>;
-}
-
-export interface ASTSchemaInfo {
-  fieldDefs: Record<string, readonly ({ name: string; tag: 'child' | 'optChild' | 'list'; typeRef?: string } | { name: string; tag: 'prop'; propType: string; default?: unknown })[]>;
-  sumTypes: Record<string, readonly string[]>;
-}
-
-export interface ASTDashboardData {
-  version: number;
-  analysisDepth?: 'parse' | 'bind' | 'check';
-  schema?: ASTSchemaInfo;
-  files: Array<{
-    fileName: string;
-    lineCount: number;
-    source: string;
-    ast: ASTNode;
-  }>;
-}
+// SerializedNode/SerializedFieldEntry re-exported as ASTNode/ASTFieldEntry
+// to avoid churn inside the dashboard SPA.
+export type { SerializedNode as ASTNode, SerializedFieldEntry as ASTFieldEntry } from '@kindscript/core-grammar';
+export type { ASTDashboardData, ASTSchemaInfo } from '../../../src/adapters/grammar/extraction/ts-ast/index.js';
 
 export type FileViewerTab = 'source' | 'ast' | 'graph';

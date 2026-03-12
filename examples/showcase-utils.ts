@@ -7,9 +7,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
+import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
-import type { ASTDashboardData } from '../apps/dashboard/app/types.js';
+import type { ASTDashboardData } from '../src/adapters/grammar/extraction/ts-ast/index.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const TEMP_DIR = path.join(PROJECT_ROOT, '.showcase-tmp');
 const TEMP_PROJECT = path.join(TEMP_DIR, 'project');

@@ -11,11 +11,13 @@
  */
 
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { createProgram } from '../src/application/index.js';
 import { defineConfig } from '../src/api.js';
-import { extractASTData } from '../apps/dashboard/extract.js';
+import { extractASTData } from '../src/application/index.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = path.resolve(__dirname, '..', 'test', 'fixtures', 'kind-basic', 'src');
 
 // ── 1. Basic usage ──────────────────────────────────────────────────

@@ -39,7 +39,10 @@ export type MockProjections = {
   diagnostics: never[];
 };
 
-export const analysisProjections: AnalysisProjections<MockProjections> = {
+/** Attr map type for mock analysis (mirrors generated attr-types.ts). */
+type MockAttrMapInternal = { nodeCount: number };
+
+export const analysisProjections: AnalysisProjections<MockAttrMapInternal, MockProjections> = {
   projections: {
     definitions: () => [],
     diagnostics: () => [],

@@ -1,8 +1,11 @@
 /**
  * Generic CLI dispatch — parses args, handles global flags, routes to commands.
  *
- * This module has no knowledge of specific commands. It receives a command
- * registry from the composition root (cli.ts) and dispatches accordingly.
+ * This module has no knowledge of specific commands or their dependencies.
+ * It receives a command registry from the composition root (cli.ts) where
+ * each command is a lazy loader — a function that dynamically imports the
+ * command's composition root and returns the handler. This ensures that
+ * only the adapter tree for the invoked command is loaded.
  */
 
 import * as path from 'node:path';
@@ -14,9 +17,10 @@ import { CLIError, EXIT_SUCCESS, EXIT_ERROR } from './errors.js';
 // ── Types ────────────────────────────────────────────────────────────
 
 export type CommandHandler = (opts: ParsedArgs) => Promise<number> | number;
+export type CommandLoader = () => Promise<CommandHandler>;
 
 export interface CommandRegistry {
-  handlers: Record<string, CommandHandler>;
+  loaders: Record<string, CommandLoader>;
   helpText: string;
 }
 
@@ -54,12 +58,13 @@ export async function dispatch(argv: string[], registry: CommandRegistry): Promi
     return EXIT_SUCCESS;
   }
 
-  // Command dispatch
-  const handler = registry.handlers[opts.command];
-  if (!handler) {
+  // Command dispatch — lazy-load the command's composition root
+  const loader = registry.loaders[opts.command];
+  if (!loader) {
     console.error(`Unknown command: ${opts.command}. Run "ksc --help" for usage.`);
     return EXIT_ERROR;
   }
 
+  const handler = await loader();
   return handler(opts);
 }

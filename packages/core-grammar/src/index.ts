@@ -56,5 +56,9 @@ export {
 } from './tree-ops.js';
 export type { JSONNode, JSONTree } from './tree-ops.js';
 
+// Tree serialization (presentation-friendly format)
+export { serializeNode } from './serialize-tree.js';
+export type { SerializedNode, SerializedFieldEntry, SerializeNodeOptions } from './serialize-tree.js';
+
 // Shared data types
 export type { AttributeDepGraph } from './dep-graph-types.js';

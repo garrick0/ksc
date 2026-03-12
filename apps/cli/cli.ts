@@ -1,14 +1,19 @@
 /**
- * KindScript CLI — composition root.
+ * KindScript CLI — top-level composition root.
  *
- * Wires command handlers into the dispatch registry and provides main().
- * This is the only file that knows which commands exist.
+ * Registers lazy command loaders and delegates to the generic dispatch.
+ * Each command has its own composition root in compose/ that is only
+ * loaded when that command is invoked. This means `ksc check` never
+ * loads codegen adapters, and `ksc codegen` never creates the evaluator.
+ *
+ * Composition root tree:
+ *   cli.ts (this file)
+ *     ├── compose/compose-check.ts   → evaluation path
+ *     ├── compose/compose-codegen.ts → codegen path
+ *     └── compose/compose-init.ts    → lightweight (no adapters)
  */
 
 import { dispatch } from './dispatch.js';
-import { checkCommand } from './commands/check.js';
-import { codegenCommand } from './commands/codegen.js';
-import { initCommand } from './commands/init.js';
 
 // Re-export for tests and consumers
 export { parseArgv } from './args.js';
@@ -45,10 +50,10 @@ Config files (optional, auto-detected):
 
 export async function main(argv: string[] = process.argv): Promise<number> {
   return dispatch(argv, {
-    handlers: {
-      check: checkCommand,
-      codegen: codegenCommand,
-      init: initCommand,
+    loaders: {
+      check:   () => import('./compose/compose-check.js').then(m => m.runCheck),
+      codegen: () => import('./compose/compose-codegen.js').then(m => m.runCodegen),
+      init:    () => import('./compose/compose-init.js').then(m => m.runInit),
     },
     helpText: HELP_TEXT,
   });
