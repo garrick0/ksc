@@ -2,8 +2,8 @@
  * Tests for grammar/export.ts — AST dashboard data extraction.
  */
 import { describe, it, expect } from 'vitest';
-import { extractASTData } from '../../apps/dashboard/extract.js';
-import type { ASTNode } from '../../apps/dashboard/app/types.js';
+import { extractASTData } from '../../src/adapters/grammar/extraction/ts-ast/index.js';
+import type { SerializedNode } from '@kindscript/core-grammar';
 import { buildKSTree } from '../helpers/fixtures.js';
 
 describe('extractASTData', () => {
@@ -49,7 +49,7 @@ describe('extractASTData', () => {
     const data = extractASTData(tree);
     const ast = data.files[0].ast;
 
-    function checkNode(node: ASTNode) {
+    function checkNode(node: SerializedNode) {
       expect(node.kind).toBeTruthy();
       expect(typeof node.pos).toBe('number');
       expect(typeof node.end).toBe('number');
@@ -66,7 +66,7 @@ describe('extractASTData', () => {
     const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
-    function checkTextLength(node: ASTNode) {
+    function checkTextLength(node: SerializedNode) {
       expect(node.text.length).toBeLessThanOrEqual(80);
       for (const child of node.children) {
         checkTextLength(child);
@@ -90,7 +90,7 @@ describe('extractASTData', () => {
     const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
-    function checkFields(node: ASTNode) {
+    function checkFields(node: SerializedNode) {
       if (node.fields) {
         for (const field of node.fields) {
           expect(field.name).toBeTruthy();
@@ -111,7 +111,7 @@ describe('extractASTData', () => {
     const tree = buildKSTree('kind-basic');
     const data = extractASTData(tree);
 
-    function checkProps(node: ASTNode) {
+    function checkProps(node: SerializedNode) {
       if (node.props) {
         for (const [, val] of Object.entries(node.props)) {
           expect(['string', 'number', 'boolean']).toContain(typeof val);

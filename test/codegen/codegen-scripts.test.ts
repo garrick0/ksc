@@ -24,9 +24,9 @@ describe('codegen pipeline', () => {
     expect(result.attrTypesFile.path).toBe('attr-types.ts');
     expect(result.dispatchFile.content.length).toBeGreaterThan(0);
     expect(result.attrTypesFile.content.length).toBeGreaterThan(0);
-    expect(result.attrs.length).toBe(8);
-    expect(result.depGraph.order.length).toBe(8);
-    expect(result.depGraph.edges.length).toBe(6);
+    expect(result.attrs.length).toBe(12);
+    expect(result.depGraph.order.length).toBe(12);
+    expect(result.depGraph.edges.length).toBe(9);
   });
 
   it('compileAnalysis uses custom specImportPath', () => {

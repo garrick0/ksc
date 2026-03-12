@@ -101,6 +101,49 @@ const attr: SynAttr<TestKind> = {
     expect(result.success).toBe(true);
   });
 
+  it('rejects wrong ctx type in TypedEquationMap', () => {
+    const code = `
+import type { TypedEquationMap } from '${TYPES_PATH}';
+import { withDeps } from '${EQUATION_UTILS_PATH}';
+
+type TestKind = 'Alpha' | 'Beta';
+interface AlphaNode { kind: 'Alpha'; value: string; pos: number; end: number; text: string; }
+interface BetaNode { kind: 'Beta'; count: number; pos: number; end: number; text: string; }
+type CtxMap = { Alpha: { node: AlphaNode }; Beta: { node: BetaNode } };
+
+// This function expects AlphaNode context
+const alphaEq = withDeps([], function alphaEq(ctx: { node: AlphaNode }): string {
+  return ctx.node.value;
+});
+
+// Assigning alphaEq to Beta should fail — AlphaNode ctx is incompatible with BetaNode ctx
+const bad: TypedEquationMap<TestKind, CtxMap, string> = { Beta: alphaEq };
+`;
+    const result = runTsc('typed-eq-map-wrong-ctx.ts', code);
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts correct ctx type in TypedEquationMap', () => {
+    const code = `
+import type { TypedEquationMap } from '${TYPES_PATH}';
+import { withDeps } from '${EQUATION_UTILS_PATH}';
+
+type TestKind = 'Alpha' | 'Beta';
+interface AlphaNode { kind: 'Alpha'; value: string; pos: number; end: number; text: string; }
+interface BetaNode { kind: 'Beta'; count: number; pos: number; end: number; text: string; }
+type CtxMap = { Alpha: { node: AlphaNode }; Beta: { node: BetaNode } };
+
+const alphaEq = withDeps([], function alphaEq(ctx: { node: AlphaNode }): string {
+  return ctx.node.value;
+});
+
+// Assigning alphaEq to Alpha should succeed — correct ctx type
+const good: TypedEquationMap<TestKind, CtxMap, string> = { Alpha: alphaEq };
+`;
+    const result = runTsc('typed-eq-map-correct-ctx.ts', code);
+    expect(result.success).toBe(true);
+  });
+
   it('accepts untyped specs (K = string)', () => {
     const code = `
 import type { SynAttr } from '${TYPES_PATH}';
