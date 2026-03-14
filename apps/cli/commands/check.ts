@@ -1,29 +1,21 @@
 /**
  * CLI command: ksc check — run kind-checking analysis on a TypeScript project.
  *
- * Pure command handler — receives all dependencies via the deps parameter.
- * Composition (adapter wiring) happens in compose/compose-check.ts.
+ * This module acts as the Bridge: it receives ParsedArgs from the Shell (harness),
+ * pulls wired singletons from Setup (wiring), and executes the Check use case.
  */
 
-import type { ParsedArgs } from '../args.js';
-import type { AnalysisDepth } from '../args.js';
-import { EXIT_SUCCESS, EXIT_VIOLATIONS, EXIT_ERROR } from '../errors.js';
-import { formatCheckJSON, formatCheckText } from '../format.js';
-import type { ProjectCheckResult } from '../../../src/application/check-project.js';
+import type { ParsedArgs } from '../harness/args.js';
+import { checkProject } from 'ksc/ts-kind-checking';
+import { EXIT_SUCCESS, EXIT_VIOLATIONS, EXIT_ERROR } from '../harness/errors.js';
+import { formatCheckJSON, formatCheckText } from '../harness/format.js';
 
-// ── Dependency interface ─────────────────────────────────────────────
-
-export interface CheckCommandDeps {
-  checkProject: (
-    rootDir: string,
-    options?: { configPath?: string; depth?: AnalysisDepth },
-  ) => Promise<ProjectCheckResult>;
-}
-
-// ── Command handler ──────────────────────────────────────────────────
-
-export async function checkCommand(opts: ParsedArgs, deps: CheckCommandDeps): Promise<number> {
-  const result = await deps.checkProject(opts.rootDir, {
+/**
+ * Command handler: check
+ * Wires dependencies and executes the project check.
+ */
+export async function checkCommand(opts: ParsedArgs): Promise<number> {
+  const result = await checkProject(opts.rootDir, {
     configPath: opts.configPath,
     depth: opts.depth,
   });
@@ -31,7 +23,7 @@ export async function checkCommand(opts: ParsedArgs, deps: CheckCommandDeps): Pr
   if (result.fileCount === 0) {
     console.error('Error: No TypeScript files found.');
     console.error(`  Searched: ${opts.rootDir}`);
-    console.error('  Hint: KSC looks for .ts files in src/ first, then the project root.');
+    console.error('  Hint: KSC looks for .ts files in libs/ (source) first, then the project root.');
     console.error('  Make sure your project has TypeScript source files, or use --config to specify paths.');
     return EXIT_ERROR;
   }

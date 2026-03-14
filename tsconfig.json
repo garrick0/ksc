@@ -6,6 +6,33 @@
     "lib": ["ES2022"],
     "outDir": "dist",
     "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@ksc/grammar": ["libs/grammar/index.js"],
+      "@ksc/grammar/*": ["libs/grammar/*"],
+      "@ksc/evaluation": ["libs/evaluation/index.js"],
+      "@ksc/evaluation/*": ["libs/evaluation/*"],
+      "@ksc/behavior": ["libs/behavior/index.js"],
+      "@ksc/behavior/*": ["libs/behavior/*"],
+      "@ksc/ag-ports": ["libs/ag-ports/src/index.ts"],
+      "@ksc/ag-ports/*": ["libs/ag-ports/src/*"],
+      "@ksc/analysis-ts-kind-checking": ["libs/analyses/ts-kind-checking/src/index.ts"],
+      "@ksc/analysis-ts-kind-checking/*": ["libs/analyses/ts-kind-checking/src/*"],
+      "@ksc/analysis-eslint-equiv": ["libs/analyses/eslint-equiv/src/index.ts"],
+      "@ksc/analysis-eslint-equiv/*": ["libs/analyses/eslint-equiv/src/*"],
+      "@ksc/analysis-mock": ["libs/analyses/mock/src/index.ts"],
+      "@ksc/analysis-mock/*": ["libs/analyses/mock/src/*"],
+      "@ksc/language-ts-ast": ["libs/languages/ts-ast/src/index.ts"],
+      "@ksc/language-ts-ast/*": ["libs/languages/ts-ast/src/*"],
+      "@ksc/language-mock": ["libs/languages/mock/src/index.ts"],
+      "@ksc/language-mock/*": ["libs/languages/mock/src/*"],
+      "ksc": ["packages/ksc/index.d.ts", "packages/ksc/index.js"],
+      "ksc/ts-kind-checking": ["packages/ksc/ts-kind-checking.d.ts", "packages/ksc/ts-kind-checking.js"],
+      "ksc/*": ["packages/ksc/*"],
+      "@ksc/kinds": ["libs/kinds/src/index.ts"],
+      "@ksc/types": ["libs/types/src/index.ts"],
+      "@ksc/user-config": ["libs/user-config/src/index.ts"]
+    },
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -16,7 +43,6 @@
   },
   // Production source directories.
   // Tests are excluded (vitest has its own TS handling).
-  // Dashboard has its own build via vite (see apps/dashboard/vite.config.ts).
-  "include": ["apps", "src", "packages"],
-  "exclude": ["node_modules", "dist", "test", "apps/dashboard/app"]
+  "include": ["apps", "libs"],
+  "exclude": ["node_modules", "dist", "test"]
 }

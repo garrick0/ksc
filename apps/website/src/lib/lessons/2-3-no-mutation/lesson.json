@@ -1,8 +1,0 @@
-{
-  "slug": "2-3-no-mutation",
-  "title": "No Mutation",
-  "partTitle": "Detecting Code Issues",
-  "partNumber": 2,
-  "lessonNumber": 3,
-  "focus": "src/transform.ts"
-}

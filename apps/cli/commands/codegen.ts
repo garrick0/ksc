@@ -1,20 +1,15 @@
 /**
  * CLI command: ksc codegen — run analysis codegen for all targets.
  *
- * Pure command handler — receives all dependencies via the deps parameter.
- * Composition (target wiring) happens in compose/compose-codegen.ts.
+ * This module acts as the Bridge: it receives ParsedArgs from the Shell (harness),
+ * pulls wired targets from Setup (wiring), and executes the Codegen use case.
  */
 
-import type { ParsedArgs } from '../args.js';
-import { EXIT_SUCCESS, EXIT_ERROR } from '../errors.js';
-import type { AllCodegenResult, NamedCodegenTarget } from '../../../src/application/codegen/run-all-codegen.js';
-
-// ── Dependency interface ─────────────────────────────────────────────
-
-export interface CodegenCommandDeps {
-  runAllCodegen: (targets: NamedCodegenTarget[]) => AllCodegenResult;
-  allTargets: NamedCodegenTarget[];
-}
+import type { ParsedArgs } from '../harness/args.js';
+import { EXIT_SUCCESS, EXIT_ERROR } from '../harness/errors.js';
+import { runAllCodegen } from '@ksc/behavior/application/run-all-codegen.js';
+import { allTargets } from '../wiring/codegen/targets.js';
+import type { AllCodegenResult } from '@ksc/behavior/application/run-all-codegen.js';
 
 // ── Formatting ───────────────────────────────────────────────────────
 
@@ -34,10 +29,8 @@ function formatCodegenResults(results: AllCodegenResult): void {
     console.log('=== Grammar ===\n');
     console.log(`  ${result.grammarSummary.kindCount} node kinds, ${result.grammarSummary.sumTypeCount} sum types`);
 
-    console.log('\n=== Spec Validation ===\n');
-    if (result.validationDiagnostics.length === 0) {
-      console.log('  All attribute dependencies are valid.');
-    } else {
+    if (result.validationDiagnostics.length > 0) {
+      console.log('\n=== Spec Validation ===\n');
       for (const d of result.validationDiagnostics) {
         console.log(`  [${d.level}] ${d.message}`);
       }
@@ -67,8 +60,12 @@ function formatCodegenResults(results: AllCodegenResult): void {
 
 // ── Command handler ──────────────────────────────────────────────────
 
-export async function codegenCommand(_opts: ParsedArgs, deps: CodegenCommandDeps): Promise<number> {
-  const results = deps.runAllCodegen(deps.allTargets);
+/**
+ * Command handler: codegen
+ * Executes the codegen pipeline for all configured targets.
+ */
+export async function codegenCommand(_opts: ParsedArgs): Promise<number> {
+  const results = runAllCodegen(allTargets);
   formatCodegenResults(results);
   return results.allOk ? EXIT_SUCCESS : EXIT_ERROR;
 }

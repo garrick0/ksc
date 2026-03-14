@@ -1,0 +1,42 @@
+/**
+ * Pivot production-centric overrides into attr-centric format.
+ *
+ * Production-centric (Silver-style):
+ *   { CompilationUnit: { kindDefs: fn }, Identifier: { violationFor: fn } }
+ *
+ * Attr-centric (what compile.ts expects):
+ *   { kindDefs: { CompilationUnit: fn }, violationFor: { Identifier: fn } }
+ *
+ * Function references are moved (not cloned), so withDeps() metadata
+ * (.deps, .name) is preserved through the reshape.
+ */
+
+import type { EquationFn } from '../domain/ports.js';
+
+/**
+ * Reshape production-centric overrides into attr-centric equation records.
+ *
+ * @param overrides - Per-kind overrides: { kind: { attrName: eqFn } }
+ * @returns Per-attr equation records: { attrName: { kind: eqFn } }
+ */
+export function pivotToAttrCentric<K extends string>(
+  overrides: Partial<Record<K, Record<string, EquationFn>>>,
+): Record<string, Partial<Record<K, EquationFn>>> {
+  const result: Record<string, Partial<Record<K, EquationFn>>> = {};
+
+  for (const [kind, attrMap] of Object.entries(overrides) as [K, Record<string, EquationFn>][]) {
+    for (const [attr, fn] of Object.entries(attrMap as Record<string, EquationFn>)) {
+      if (!result[attr]) result[attr] = {};
+      const attrRecord = result[attr] as Record<string, EquationFn>;
+      if (attrRecord[kind] !== undefined) {
+        throw new Error(
+          `pivotToAttrCentric: duplicate equation for attr '${attr}', kind '${kind}' — ` +
+          `existing: ${attrRecord[kind].name}, duplicate: ${fn.name}`,
+        );
+      }
+      attrRecord[kind] = fn;
+    }
+  }
+
+  return result;
+}

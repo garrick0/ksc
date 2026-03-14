@@ -4,7 +4,6 @@ node_modules/
 # Build output
 dist/
 *.tsbuildinfo
-.next/
 *.vsix
 
 # IDE / editor
@@ -25,11 +24,14 @@ Thumbs.db
 # Screenshots (Playwright verification artifacts)
 *.png
 
+# Working docs (research, plans, analysis — not checked in)
+.working/
+
 # Showcase temp folder
 .showcase-tmp/
 
 # Mock codegen output (test artifact — generated inside mock adapter)
-src/adapters/analysis/spec/mock/generated/
+src/codegen/adapters/analyses/mock/generated/
 
 # Environment
 .env

@@ -12,14 +12,14 @@ import * as path from 'node:path';
 import ts from 'typescript';
 
 // Application-layer API + wiring
-import { createProgram } from '../../src/application/index.js';
-import { evaluator, tsToAstTranslatorAdapter } from '../../src/application/evaluation/ts-kind-checking.js';
+import { createProgram } from 'ksc/ts-kind-checking';
+import { buildTSTree, evaluateTS, tsToAstTranslatorAdapter } from '../compose.js';
 
 // Types
-import type { KSCAttrMap, KindDefinition, Diagnostic } from '../../src/adapters/analysis/spec/ts-kind-checking/index.js';
-import type { TypedAGNode } from '@kindscript/core-evaluator';
-import type { KSNode, KSCompilationUnit, KSProgram } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
-import type { AnalysisDepth } from '../../src/api.js';
+import type { KSCAttrMap, KindDefinition, Diagnostic } from '@ksc/analysis-ts-kind-checking';
+import type { TypedAGNode } from '@ksc/ag-ports';
+import type { KSNode, KSCompilationUnit, KSProgram } from '@ksc/language-ts-ast/grammar/index.js';
+import type { AnalysisDepth } from '@ksc/types';
 
 // ── Constants ─────────────────────────────────────────────────────────
 
@@ -68,9 +68,9 @@ export function buildProgram(
  * Build program with NO config options (bare createProgram(files)).
  */
 const _bareProgramCache = new Map<string, ReturnType<typeof createProgram>>();
-
-export function buildProgramBare(fixtureDir: string) {
+export function buildProgramBare(fixtureDir: string): any {
   if (_bareProgramCache.has(fixtureDir)) return _bareProgramCache.get(fixtureDir)!;
+
   const program = createProgram(getRootFiles(fixtureDir));
   _bareProgramCache.set(fixtureDir, program);
   return program;
@@ -107,7 +107,7 @@ export function buildKSTree(
  *
  * @param fixtureDir  Subdirectory under test/fixtures/
  */
-export type EvaluateResult = {
+type EvaluateResult = {
   ksTree: ReturnType<typeof tsToAstTranslatorAdapter.convert>;
   dnodeRoot: TypedAGNode<KSCAttrMap>;
   allDefs: KindDefinition[];
@@ -127,10 +127,9 @@ export function buildAndEvaluate(fixtureDir: string): EvaluateResult {
   });
   const ksTree = tsToAstTranslatorAdapter.convert(tsProgram);
 
-  // Use evaluate() to exercise the full code path (projections + setup)
-  const { definitions: allDefs, diagnostics } = evaluator.evaluate(ksTree.root);
-  // Build typed tree separately for test attribute inspection
-  const dnodeRoot = evaluator.buildTree(ksTree.root);
+  const dnodeRoot = evaluateTS(ksTree.root);
+  const allDefs = dnodeRoot.attr('definitions');
+  const diagnostics = dnodeRoot.attr('diagnostics');
 
   const result = { ksTree, dnodeRoot, allDefs, diagnostics };
   _evaluateCache.set(fixtureDir, result);

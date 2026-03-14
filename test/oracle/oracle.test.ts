@@ -239,51 +239,56 @@ const ORACLE_RULES: OracleRule[] = [
     kscRuleId: 'no-empty-static-block',
     fixture: 'no-empty-static-block',
   },
+
+  // ── Scope — inherited scope threading ──
+  {
+    eslintRuleId: 'no-shadow',
+    kscRuleId: 'no-shadow',
+    fixture: 'no-shadow',
+  },
+
+  // ── Control flow ──
+  {
+    eslintRuleId: 'no-unreachable',
+    kscRuleId: 'no-unreachable',
+    fixture: 'no-unreachable',
+  },
+  {
+    eslintRuleId: 'no-fallthrough',
+    kscRuleId: 'no-fallthrough',
+    fixture: 'no-fallthrough',
+  },
+
+  // ── Complexity ──
+  {
+    eslintRuleId: 'complexity',
+    kscRuleId: 'complexity',
+    fixture: 'complexity',
+    eslintConfig: ['error', 2],
+  },
 ];
 
 // ── Parameterised tests ──────────────────────────────────────────────
 
-describe('oracle — ESLint vs KindScript eslint-equiv', () => {
+describe('oracle — ESLint vs KindScript eslint-equiv', { timeout: 60_000, concurrent: true }, () => {
   for (const rule of ORACLE_RULES) {
-    describe(rule.eslintRuleId, () => {
-      it('violation count matches', async () => {
-        const eslintResults = await runESLint(
-          rule.fixture, rule.eslintRuleId, rule.eslintConfig,
-        );
-        const kscResults = runKSC(rule.fixture, rule.kscRuleId);
+    it(`${rule.eslintRuleId}: count, locations, and clean files match`, async () => {
+      const eslintResults = await runESLint(
+        rule.fixture, rule.eslintRuleId, rule.eslintConfig,
+      );
+      const kscResults = runKSC(rule.fixture, rule.kscRuleId);
 
-        expect(kscResults.length).toBe(eslintResults.length);
-      });
+      // Count matches
+      expect(kscResults.length).toBe(eslintResults.length);
 
-      it('violation locations match', async () => {
-        const eslintResults = await runESLint(
-          rule.fixture, rule.eslintRuleId, rule.eslintConfig,
-        );
-        const kscResults = runKSC(rule.fixture, rule.kscRuleId);
+      // Locations match
+      const eslintFileLines = sortViolations(eslintResults).map(v => `${v.file}:${v.line}`);
+      const kscFileLines = sortViolations(kscResults).map(v => `${v.file}:${v.line}`);
+      expect(kscFileLines).toEqual(eslintFileLines);
 
-        // Normalise ruleId for comparison (KSC uses the eslintRuleId)
-        const eslintNormalised = sortViolations(eslintResults);
-        const kscNormalised = sortViolations(kscResults);
-
-        // Compare file + line (column matching may differ between tools)
-        const eslintFileLines = eslintNormalised.map(v => `${v.file}:${v.line}`);
-        const kscFileLines = kscNormalised.map(v => `${v.file}:${v.line}`);
-
-        expect(kscFileLines).toEqual(eslintFileLines);
-      });
-
-      it('clean files produce zero violations', async () => {
-        const eslintResults = await runESLint(
-          rule.fixture, rule.eslintRuleId, rule.eslintConfig,
-        );
-        const kscResults = runKSC(rule.fixture, rule.kscRuleId);
-
-        const eslintClean = eslintResults.filter(v => v.file.includes('clean'));
-        const kscClean = kscResults.filter(v => v.file.includes('clean'));
-
-        expect(eslintClean).toEqual([]);
-        expect(kscClean).toEqual([]);
-      });
+      // Clean files produce zero violations
+      expect(eslintResults.filter(v => v.file.includes('clean'))).toEqual([]);
+      expect(kscResults.filter(v => v.file.includes('clean'))).toEqual([]);
     });
   }
 });

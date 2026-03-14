@@ -4,7 +4,7 @@
  *
  * This file exists solely to call main(). All logic lives in cli.ts.
  */
-import { main, EXIT_ERROR } from './cli.js';
+import { main, EXIT_ERROR } from './main.js';
 
 main().then(
   exitCode => process.exit(exitCode),

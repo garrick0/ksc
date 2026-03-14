@@ -1,8 +1,0 @@
-{
-  "slug": "2-2-immutable-bindings",
-  "title": "Immutable Bindings",
-  "partTitle": "Detecting Code Issues",
-  "partNumber": 2,
-  "lessonNumber": 2,
-  "focus": "src/config.ts"
-}

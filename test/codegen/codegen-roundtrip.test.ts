@@ -14,22 +14,21 @@
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { compileAnalysis } from '@kindscript/core-codegen';
-import { grammar } from '../../src/adapters/grammar/grammar/ts-ast/index.js';
-import { analysisDecl } from '../../src/adapters/analysis/spec/ts-kind-checking/spec.js';
+import { compileAnalysis } from '@ksc/behavior/index.js';
+import { tsGrammar as grammar } from '../compose.js';
+import { analysisDecl } from '@ksc/analysis-ts-kind-checking';
 
 const ROOT = path.resolve(import.meta.dirname!, '../..');
-const GENERATED_DIR = path.join(ROOT, 'src', 'adapters', 'analysis', 'spec', 'ts-kind-checking', 'generated');
+const GENERATED_DIR = path.join(ROOT, 'libs', 'analyses', 'ts-kind-checking', 'src', 'generated');
 
 /**
- * The same import paths used by application/codegen/codegen-targets.ts.
+ * The same import paths used by apps/cli/codegen/targets.ts.
  * If those change, this test must be updated in sync.
  */
 const generatedImports = {
   specImportPath: '../spec.js',
-  grammarImportPath: '../../../../grammar/grammar/ts-ast/index.js',
-  analysisImportPath: '@kindscript/core-codegen',
-  evaluatorImportPath: '@kindscript/core-evaluator',
+  grammarImportPath: '@ksc/language-ts-ast/grammar/index.js',
+  evaluatorImportPath: '@ksc/evaluation/index.js',
 };
 
 /**

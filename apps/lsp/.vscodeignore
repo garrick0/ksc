@@ -1,7 +1,0 @@
-server/**
-client/**
-node_modules/**
-.gitignore
-tsconfig.json
-esbuild.cjs
-*.map

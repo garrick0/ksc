@@ -7,10 +7,9 @@
 
 import * as path from 'node:path';
 import ts from 'typescript';
-import { tsToAstTranslatorAdapter } from '../../../src/application/evaluation/ts-kind-checking.js';
-import { evaluator } from '../../../src/application/evaluation/eslint-equiv.js';
+import { evaluateEslint, tsToAstTranslatorAdapter } from '../../compose.js';
 import type { NormalisedViolation } from './types.js';
-import type { EslintEquivDiagnostic } from '../../../src/adapters/analysis/spec/eslint-equiv/types.js';
+import type { EslintEquivDiagnostic } from '@ksc/analysis-eslint-equiv';
 
 const FIXTURES_DIR = path.resolve(__dirname, '../fixtures');
 
@@ -35,8 +34,8 @@ export function runKSC(
   const { root } = tsToAstTranslatorAdapter.convert(tsProgram);
 
   // Evaluate using eslint-equiv evaluator
-  const result = evaluator.evaluate(root);
-  const allDiagnostics: EslintEquivDiagnostic[] = result.violations[kscRuleId] ?? [];
+  const tree = evaluateEslint(root);
+  const allDiagnostics: EslintEquivDiagnostic[] = tree.attr('violations')[kscRuleId] ?? [];
 
   // Build source file map for pos → line/column conversion
   const sourceFileMap = new Map<string, ts.SourceFile>();

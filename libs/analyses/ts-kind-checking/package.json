@@ -1,0 +1,25 @@
+{
+  "name": "@ksc/analysis-ts-kind-checking",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --noEmit -p ../../../tsconfig.json"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@ksc/ag-ports": "workspace:*",
+    "@ksc/behavior": "workspace:*",
+    "@ksc/evaluation": "workspace:*",
+    "@ksc/grammar": "workspace:*",
+    "@ksc/language-ts-ast": "workspace:*",
+    "@ksc/kinds": "workspace:*",
+    "@ksc/user-config": "workspace:*"
+  }
+}

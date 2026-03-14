@@ -1,8 +1,0 @@
-{
-  "slug": "2-5-refactor-to-pure",
-  "title": "Refactor to Pure",
-  "partTitle": "Detecting Code Issues",
-  "partNumber": 2,
-  "lessonNumber": 5,
-  "focus": "src/analytics.ts"
-}

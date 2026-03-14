@@ -1,5 +1,9 @@
 # ADR-003: Typed projection functions via TypedAGNode
 
+Superseded by the current root-attribute runtime model. Projections were removed
+as a runtime concept, so this ADR remains only as historical context for a
+previous design.
+
 **Status:** ACCEPTED
 
 ## Context

@@ -1,66 +1,27 @@
 {
-  "name": "kindscript",
+  "name": "ksc-monorepo",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.16.1",
   "description": "Architectural enforcement for TypeScript through the type system",
-  "main": "dist/src/api.js",
-  "types": "dist/src/api.d.ts",
-  "workspaces": [
-    "packages/core-grammar",
-    "packages/core-codegen",
-    "packages/core-evaluator",
-    "apps/lsp",
-    "apps/website"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/src/api.d.ts",
-      "default": "./dist/src/api.js"
-    },
-    "./ts-kind-checking": {
-      "types": "./dist/src/application/index.d.ts",
-      "default": "./dist/src/application/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "bin": {
-    "ksc": "dist/apps/cli/bin.js"
-  },
   "scripts": {
-    "build": "tsc",
+    "build": "pnpm -r --filter './apps/*' --filter './libs/*' --filter './libs/languages/*' --filter './libs/analyses/*' run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:all": "vitest run --config vitest.config.all.ts",
     "test:watch": "vitest",
-    "dashboard:dev": "vite --config apps/dashboard/vite.config.ts",
-    "dashboard:build": "vite build --config apps/dashboard/vite.config.ts",
-    "codegen": "tsx apps/cli/bin.ts codegen",
-    "codegen:analysis": "tsx apps/cli/bin.ts codegen",
-    "showcase": "tsx examples/showcase.ts",
-    "showcase:fixed": "tsx examples/showcase.ts --mode=fixed",
-    "showcase:live": "tsx examples/showcase.ts --mode=live",
-    "website:dev": "npm run dev --workspace=apps/website",
-    "website:build": "npm run build --workspace=apps/website"
-  },
-  "dependencies": {
-    "@kindscript/core-codegen": "*",
-    "@kindscript/core-evaluator": "*",
-    "@kindscript/core-grammar": "*"
+    "codegen": "tsx apps/cli/bin.ts codegen"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/d3": "^7.4.3",
     "@types/node": "^25.3.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "@vitejs/plugin-react": "^5.1.4",
-    "d3": "^7.9.0",
-    "elkjs": "^0.9.3",
+    "@vitest/coverage-v8": "^3.2.4",
     "esbuild": "^0.27.3",
     "eslint": "^10.0.3",
     "jsdom": "^28.1.0",
